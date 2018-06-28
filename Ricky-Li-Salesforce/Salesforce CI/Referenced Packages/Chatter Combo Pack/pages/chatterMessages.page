@@ -1,0 +1,99 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com - 3/10/2010 -->
+<apex:page controller="ComboPack.chatterMessages" tabstyle="Chatter_Messages__tab">
+
+<apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterMessages, 'styles.css' )}" />
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterMessages, 'scripts.js' )}" />
+
+<apex:sectionheader title="Chatter Messages" />
+
+<apex:form id="theForm">
+    <apex:actionPoller action="{!refreshInbox}" interval="60" rerender="theForm" />
+    <input type="button" class="btn" onclick="launchComposeBox();" value="Compose Message" />&nbsp;&nbsp;&nbsp;
+    <apex:commandbutton value="Check for Mail" action="{!refreshInbox}" rerender="theForm" /><br/><br/>
+
+<apex:tabpanel switchtype="server" id="mailbox" activeTabClass="activeTab" inactiveTabClass="inactiveTab">
+    <apex:tab label="Inbox" id="inboxtab">
+        <apex:pageblock id="inboxblock" title="Inbox {!if( unreadCount > 0, '(' + TEXT(unreadCount) + ')', '')}">
+            <apex:pageblockbuttons >
+                <apex:commandbutton value="Mark as Read" action="{!setViewStatus}" rerender="inboxblock" rendered="{!inbox.size > 0}">
+                    <apex:param name="whichbox" assignto="{!whichbox}" value="inbox" />
+                    <apex:param name="whichmark" assignto="{!whichmark}" value="read" />
+                </apex:commandbutton>
+                <apex:commandbutton value="Mark as Unread" action="{!setViewStatus}" rerender="inboxblock" rendered="{!inbox.size > 0}">
+                    <apex:param name="whichbox" assignto="{!whichbox}" value="inbox" />
+                    <apex:param name="whichmark" assignto="{!whichmark}" value="unread" />
+                </apex:commandbutton>
+            </apex:pageblockbuttons>
+            <apex:outputtext value="No messages." rendered="{!inbox.size = 0}" />
+            <apex:outputpanel rendered="{!inbox.size > 0}">
+            	<p class="stats">Viewing messages <span class="bigFont">{!inboxfirst + 1}-{!if( inboxfirst + ROWS_PER_PAGE > inbox.size, inbox.size, inboxfirst + ROWS_PER_PAGE)}</span> of <span class="bigFont">{!inbox.size}</span>.</p>
+            	<apex:commandlink value="&lt; {!prevLink}" styleclass="nameLink" action="{!prevMails}" rerender="inboxblock" rendered="{!inboxfirst > 0}" >
+            		<apex:param name="whichbox" assignto="{!whichbox}" value="inbox" />
+            	</apex:commandlink>
+                <apex:commandlink value="{!nextLink} &gt;" 
+                    styleclass="nameLink" action="{!nextMails}" rerender="inboxblock" rendered="{!inboxfirst + ROWS_PER_PAGE < inbox.size}" >
+                	<apex:param name="whichbox" assignto="{!whichbox}" value="inbox" />
+                </apex:commandlink>
+            </apex:outputpanel>
+            <apex:pageblocktable value="{!inbox}" var="s" rendered="{!inbox.size > 0}" first="{!inboxfirst}" rows="{!ROWS_PER_PAGE}" >
+                <apex:column style="width:10px">
+                    <apex:inputcheckbox value="{!s.selected}" />
+                </apex:column>
+                <apex:column style="width:32px">
+                	<c:userPhoto uid="{!s.cm.ownerid}" v="1" height="32" width="32" title="{!s.cm.owner.name}" linked="true" target="_top" />
+                </apex:column>
+                <apex:column headervalue="From" style="width: 120px">
+                    <apex:outputlink value="/{!s.cm.ownerid}" title="{!s.cm.owner.name}" styleclass="nameLink" style="color: rgb(1, 91, 167);">{!s.cm.owner.name}</apex:outputlink>
+                    <br />
+                    <span class="msgPreview"><apex:outputfield value="{!s.cm.createddate}"/></span>
+                </apex:column>
+                <apex:column headervalue="To" style="width: 140px">
+                    <apex:outputtext value="{!s.nameList}" escape="false" />
+                </apex:column>
+                <apex:column style="width:18px">
+                    <apex:image value="{!URLFOR( $Resource.ComboPack__chatterMessages, 'icon_email.gif' )}" rendered="{!s.unread}" />
+                </apex:column>
+                <apex:column headervalue="Message">
+                    <apex:outputlink value="javascript:void(0)" onclick="launchMessageBox( '{!s.cm.id}', '{!JSINHTMLENCODE(s.cm.ComboPack__Subject__c)}' );" styleclass="nameLink" style="color: rgb(1, 91, 167);">
+                        {!HTMLENCODE(s.cm.ComboPack__Subject__c)}
+                    </apex:outputlink>
+                    <br />
+                    <span class="msgPreview"><apex:outputtext value="{!JSENCODE(s.msgPreview)}" escape="false" /></span>              
+                </apex:column>
+            </apex:pageblocktable>
+        </apex:pageblock>
+    </apex:tab>
+    <apex:tab label="Sent">
+        <apex:pageblock title="Sent Messages" id="sentblock">
+            <apex:outputtext value="No messages." rendered="{!sent.size = 0}" />
+            <apex:outputpanel rendered="{!sent.size > 0}">
+            	<p class="stats">Viewing messages <span class="bigFont">{!sentfirst + 1}-{!if( sentfirst + ROWS_PER_PAGE > sent.size, sent.size, sentfirst + ROWS_PER_PAGE)}</span> of <span class="bigFont">{!sent.size}</span>.</p>
+            	<apex:commandlink value="&lt; {!prevLink}" styleclass="nameLink" action="{!prevMails}" rerender="sentblock" rendered="{!sentfirst > 0}" >
+            		<apex:param name="whichbox" assignto="{!whichbox}" value="sent" />
+            	</apex:commandlink>
+                <apex:commandlink value="{!nextLink} &gt;" 
+                    styleclass="nameLink" action="{!nextMails}" rerender="sentblock" rendered="{!sentfirst + ROWS_PER_PAGE < sent.size}" >
+                	<apex:param name="whichbox" assignto="{!whichbox}" value="sent" />
+                </apex:commandlink>
+            </apex:outputpanel>
+            <apex:pageblocktable value="{!sent}" var="s" rendered="{!sent.size > 0}" >
+                <apex:column style="width:34px">
+                    <apex:repeat value="{!s.cmr}" var="cmr" rows="1">
+                    	<c:userPhoto uid="{!cmr.ComboPack__Recipient__c}" v="1" height="32" width="32" title="{!cmr.recipient__r.name}" linked="true" target="_top" />
+                    </apex:repeat>
+                </apex:column>
+                <apex:column headervalue="To" style="width: 250px">
+                    <apex:outputtext value="{!s.nameList}" escape="false" /><br />
+                    <span class="msgPreview"><apex:outputfield value="{!s.cm.createddate}"/></span>
+                </apex:column>
+                <apex:column headervalue="Message">
+                    <apex:outputlink value="javascript:void(0)" onclick="launchMessageBox( '{!s.cm.id}', '{!JSINHTMLENCODE(s.cm.ComboPack__Subject__c)}' );" styleclass="nameLink" style="color: rgb(1, 91, 167)">{!s.cm.ComboPack__Subject__c}</apex:outputlink><br />
+                    <span class="msgPreview"><apex:outputtext value="{!s.msgPreview}" escape="false" /></span>              
+                </apex:column>
+            </apex:pageblocktable>
+        </apex:pageblock>
+    </apex:tab>
+</apex:tabpanel>
+</apex:form>
+
+</apex:page>

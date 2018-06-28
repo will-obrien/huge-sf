@@ -1,0 +1,178 @@
+<apex:page controller="MassManager.MassEditController" id="page" sidebar="false" >
+<script>
+    var lName ="/_ui/common/data/LookupPage?lkfm=editPage&lknm=";
+    
+    function showLookup(ctrlID,objKeyPrefix)
+        {
+            openLookup(lName + ctrlID +"&lktp="+objKeyPrefix,670);
+        }
+</script>
+
+<!-- Script for highlighting a row -->
+<script>
+	var preEl ;
+	var orgBColor;
+	var orgTColor;
+	function HighLightTR(el, backColor,textColor){
+	  if(typeof(preEl)!='undefined') {
+	     preEl.bgColor=orgBColor;
+	     try{ChangeTextColor(preEl,orgTColor);}catch(e){;}
+	  }
+	  orgBColor = el.bgColor;
+	  orgTColor = el.style.color;
+	  el.bgColor=backColor;
+	
+	  try{ChangeTextColor(el,textColor);}catch(e){;}
+	  preEl = el;
+	}
+	
+	
+	function ChangeTextColor(a_obj,a_color){  ;
+	   for (i=0;i<a_obj.cells.length;i++)
+	    a_obj.cells(i).style.color=a_color;
+	}
+</script>
+
+
+<apex:sectionHeader title="Mass Edit" />
+<apex:form id="frm">
+    <apex:pageBlock title="Mass Edit" id="pb">
+        <apex:pageBlockButtons id="pbb">
+            <apex:commandButton value="Save" action="{!saveRecords}"/>
+            <apex:commandButton value="Cancel" action="{!cancel}"/>
+        </apex:pageBlockButtons>
+        <apex:pageMessages ></apex:pageMessages>
+        
+            <table border="0">
+                <tr>
+                    <apex:repeat value="{!labelList}" var="item">
+                        <td>
+                            <B>
+                                {!item}
+                            </B> 
+                        </td>
+                    </apex:repeat> 
+                </tr>
+                <apex:variable value="{!0}" var="parentRec" />
+                <apex:repeat value="{!listRecordResultWrapper}" var="resRecordWrapper" id="rParent">
+                    <apex:variable value="{!0}" var="childRec" />
+                    <tr onClick="HighLightTR(this,'#4169ff','cc3333');">
+                        <apex:repeat value="{!resRecordWrapper.rWrapper}" var="item" id="rChild">
+                           <td >
+                               <apex:inputText rendered="{!item.fieldType='STRING'}" value="{!item.valueToUpdate}"/>
+                               <apex:inputText rendered="{!item.fieldType='CURRENCY'}" value="{!item.valueToUpdate}" />
+                               
+                               <!-- <apex:inputText rendered="{!item.fieldType='DATE'}" value="{!item.valueToUpdate}" /> -->
+                               <!-- <apex:inputText rendered="{!item.fieldType='DATETIME'}" value="{!item.valueToUpdate}" /> -->
+                               
+                               <!-- Date type Field -->
+                               <apex:outputPanel rendered="{!item.fieldType='DATE'}">
+                                   <span class="dateInput dateOnlyInput">
+                                        <apex:inputText rendered="{!item.fieldType='DATE'}" value="{!item.valueToUpdate}" onfocus="DatePicker.pickDate(false, this.id, false);" id="iTDate" />
+                                    </span>
+                                </apex:outputPanel>
+                                
+                                <!-- Date Time type field -->
+                                <apex:outputPanel rendered="{!item.fieldType='DATETIME'}">
+                                    <span class="dateInput">
+                                        <apex:inputText rendered="{!item.fieldType='DATETIME'}" value="{!item.valueToUpdate}" onfocus="DatePicker.pickDate(true, this.id, true);" id="iTDateTime" />
+                                    </span>
+                                </apex:outputPanel>
+                                
+                               <apex:inputText rendered="{!item.fieldType='TEXT'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='NUMBER'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='COMBOBOX'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='DOUBLE'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='EMAIL'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='ID'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='INTEGER'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='PERCENT'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='PHONE'}" value="{!item.valueToUpdate}" />
+                               <apex:inputText rendered="{!item.fieldType='BASE64'}" value="{!item.valueToUpdate}" />
+                               <apex:inputTextArea rendered="{!item.fieldType='TEXTAREA'}" rows="15" cols="100" value="{!item.valueToUpdate}" />
+                               <apex:inputCheckBox rendered="{!item.fieldType='BOOLEAN'}" value="{!item.valueToUpdate}" />
+                               
+                                <apex:selectList rendered="{!item.fieldType='PICKLIST'}" size="1"  value="{!item.valueToUpdate}">
+                                   <apex:selectOptions value="{!item.picklistvalues}"/>
+                               </apex:selectList>
+                               
+                               <apex:selectList rendered="{!item.fieldType='MULTIPICKLIST'}" size="3" multiselect="true" value="{!item.valueToUpdate}">
+                                   <apex:selectOptions value="{!item.picklistvalues}"/>
+                               </apex:selectList>
+                               
+                               <!-- Reference Field -->
+                               <apex:outputPanel rendered="{!item.fieldType='REFERENCE'}">
+                                    <apex:inputText id="selectedFieldValue" style="width:200px" value="{!item.lookupLabel}" /> 
+                                    <apex:inputHidden id="selectedFieldValue_lkid" value="{!item.valueToUpdate}"/>
+                                    <apex:inputHidden id="selectedFieldValue_lkold"  />
+                                    <apex:image url="/s.gif" alt="Lookup (New Window)" styleClass="lookupIcon" onmouseout="this.className = 'lookupIcon';this.className = 'lookupIcon';" onmouseover="this.className = 'lookupIconOn';this.className = 'lookupIconOn';" onclick="showLookup('page:frm:pb:rParent:' + {!parentRec} + ':rChild:' + {!childRec} + ':selectedFieldValue','{!item.keyPrefix}');" title="Lookup (New Window)"/>
+                                </apex:outputPanel>
+                                
+                                <!-- <apex:selectList rendered="{!item.fieldType='REFERENCE'}" value="{!item.valueToUpdate}" size="1">
+                                   <apex:selectOptions value="{!item.picklistvalues}"/>
+                               </apex:selectList> -->
+             
+                           </td>
+                           <apex:variable value="{!childRec + 1}" var="childRec" />
+                        </apex:repeat>
+                    </tr> 
+                    <apex:variable value="{!parentRec + 1}" var="parentRec" />
+                </apex:repeat> 
+            </table>
+        <!--</apex:pageBlockSection>-->
+    </apex:pageBlock>
+</apex:form>
+<div class="datePicker" id="datePicker">
+    <div class="dateBar">
+        <img src="/s.gif" alt="Previous Month"  class="calLeft" onblur="this.className = 'calLeft';" onclick="DatePicker.datePicker.prevMonth();" onfocus="this.className = 'calLeftOn';" onmouseout="this.className = 'calLeft';" onmouseover="this.className = 'calLeftOn';" title="Previous Month"/>
+        <select  id="calMonthPicker" name="calMonthPicker" title="Month">
+            <option value="0">January</option>
+            <option value="1">February</option>
+            <option value="2">March</option>
+            <option value="3">April</option>
+            <option value="4">May</option>
+            
+            <option value="5">June</option>
+            <option value="6">July</option>
+            <option value="7">August</option>
+            <option value="8">September</option>
+            <option value="9">October</option>
+            <option value="10">November</option>
+            <option value="11">December</option>
+        </select>
+        <img src="/s.gif" alt="Next Month"  class="calRight" onblur="this.className = 'calRight';" onclick="DatePicker.datePicker.nextMonth();" onfocus="this.className = 'calRightOn';" onmouseout="this.className = 'calRight';" onmouseover="this.className = 'calRightOn';" title="Next Month"/>
+        <select  id="calYearPicker" name="calYearPicker" title="Year">
+            <option value="2009">2009</option>
+            <option value="2010">2010</option>
+            <option value="2011">2011</option>
+            <option value="2012">2012</option>
+            <option value="2013">2013</option>
+            <option value="2014">2014</option>
+            <option value="2015">2015</option>
+        </select>
+    </div>
+    <div class="calBody">
+        <table  class="calDays" border="0" cellpadding="0" cellspacing="0" id="datePickerCalendar">
+            <tr>
+                <TH class="dayOfWeek" scope="col">Sun</TH>
+                <TH class="dayOfWeek" scope="col">Mon</TH>
+                <TH class="dayOfWeek" scope="col">Tue</TH>
+                <TH class="dayOfWeek" scope="col">Wed</TH>
+                <TH class="dayOfWeek" scope="col">Thu</TH>
+                <TH class="dayOfWeek" scope="col">Fri</TH>
+                <TH class="dayOfWeek" scope="col">Sat</TH>
+            </tr>
+    
+            <tr class="calRow" id="calRow1"><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td></tr>
+            <tr class="calRow" id="calRow2"><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td></tr>
+            <tr class="calRow" id="calRow3"><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td></tr>
+            <tr class="calRow" id="calRow4"><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td></tr>
+            <tr class="calRow" id="calRow5"><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td></tr>
+            <tr class="calRow" id="calRow6"><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td><td onblur="hiOff(this);" onclick="DatePicker.datePicker.selectDate(this);" onfocus="hiOn(this);" onmouseout="hiOff(this);" onmouseover="hiOn(this);">&nbsp;</td></tr>
+        </table>
+        <div class="buttonBar">
+            <a href="javascript:%20void%280%29%3B" class="calToday" onclick="DatePicker.datePicker.selectDate('today');return false;">Today</a>
+        </div>
+    </div>
+</div>
+</apex:page>

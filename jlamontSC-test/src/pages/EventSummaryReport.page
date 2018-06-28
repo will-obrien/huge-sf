@@ -1,0 +1,185 @@
+<apex:page id="thePage" renderAs="pdf" sidebar="false" showheader="false" docType="html-5.0" applyHtmlTag="false"
+    Controller="EventSummaryController"
+>
+<head>
+<style type="text/css" media="print">
+	body {
+		font-size:12px;
+		font-family: Arial, Helvetica, sans-serif;
+	}
+	.mainheader {
+		font-size:14px;
+		font-weight:bold;
+		text-align:center;
+		display:block;
+	}
+	.subheader {
+		font-size:13px;
+		font-weight:bold;
+		text-align:center;
+		display:block;
+	}
+	.pagenumbers {
+		float:right;
+		font-size:12px;
+		font-weight:normal;
+	}
+	@page {
+		@top-center {
+	    	content: element(header);
+	    }
+	    @bottom-left {
+	              content: element(footer);
+		}
+		size:landscape;
+	}
+     div.header {
+      padding: 10px;
+      position: running(header);
+    }
+ 	div.footer {
+       display: block;
+       padding: 5px;
+       position: running(footer);
+	}
+	.pagenumber:before {
+    	content: counter(page);
+ 	}
+    .pagecount:before {
+       content: counter(pages);
+  	}
+  	.alignright {
+  		text-align:right;
+  	}
+  	table {
+		-fs-table-paginate: paginate;
+  	}
+  	.bold {
+  		font-weight:bold;
+  	}
+  	.normal {
+  		font-weight:normal;
+  	}
+  	.underline {
+  		text-decoration: underline;
+  	}
+</style>
+</head>
+
+	<div class="header">
+		<div class="mainheader">
+	 		{!reportTitle}
+		 	<span class="pagenumbers">
+		 		Page <span class="pagenumber"/> of <span class="pagecount"/>
+		 	</span>
+	 	</div>
+	 	<div class="subheader">
+	 		Events Beginning 
+	 		<apex:outputText value=" {0,date,MMMM d, yyyy}">
+ 		   		<apex:param value="{!dtBegin}" /> 
+			</apex:outputText>
+			through
+	 		<apex:outputText value=" {0,date,MMMM d, yyyy}">
+ 		   		<apex:param value="{!dtEnd}" /> 
+			</apex:outputText>
+	 	</div>
+	 	<apex:outputPanel rendered="{!hasAddlCriteria}">
+	 	<div class="subheader">
+	 		{!addlCriteria}
+	 	</div>
+	 	</apex:outputPanel>
+	</div>
+ 
+<body>
+<div class="content">
+<apex:dataTable value="{!events}"
+	var="ev"
+	cellspacing="10"
+>
+	<apex:column rendered="{!reportOption == 'CHAPSEPARATE'}">
+		<apex:facet name="header"><span class="underline">Entity</span></apex:facet>
+		<apex:outputPanel rendered="{!ev.printEntityName && ( ! ev.isEntityTotal)}">
+			{!ev.entityName}
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column >
+		<apex:facet name="header"><span class="underline">Category</span></apex:facet>
+		<apex:outputPanel rendered="{!ev.printCategory && ( ! ev.isCategoryTotal)}">
+			{!ev.eventCategory}
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column >
+		<apex:facet name="header"><span class="underline">Type</span></apex:facet>
+		<apex:outputPanel rendered="{!ev.isCategoryTotal}">
+			<span class="bold">
+			&nbsp;&nbsp;{!ev.eventCategory} Total
+			</span>
+		</apex:outputPanel>
+		<apex:outputPanel rendered="{!ev.isEntityTotal}">
+			<span class="bold">
+			&nbsp;&nbsp;{!ev.entityName} Total
+			</span>
+		</apex:outputPanel>
+		<apex:outputPanel rendered="{!ev.isGrandTotal}">
+			<span class="bold">
+			&nbsp;&nbsp;Grand Total
+			</span>
+		</apex:outputPanel>
+		<apex:outputPanel rendered="{! ( ! ev.isTotal )}">
+			{!ev.eventType}
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">Events</span></apex:facet>
+		<apex:outputPanel styleClass="{!IF(ev.isTotal,'bold','normal')}">
+		{!ev.eventCount}
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">Registered</span></apex:facet>
+		<apex:outputPanel styleClass="{!IF(ev.isTotal,'bold','normal')}">
+			<apex:outputText value="{0, number, ###,##0}">
+			    <apex:param value="{!ev.registered}"/>
+			</apex:outputText>		
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">Cancelled</span></apex:facet>
+		<apex:outputPanel styleClass="{!IF(ev.isTotal,'bold','normal')}">
+			<apex:outputText value="{0, number, ###,##0}">
+			    <apex:param value="{!ev.cancelled}"/>
+			</apex:outputText>		
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">Attended</span></apex:facet>
+		<apex:outputPanel styleClass="{!IF(ev.isTotal,'bold','normal')}">
+			<apex:outputText value="{0, number, ###,##0}">
+			    <apex:param value="{!ev.attended}"/>
+			</apex:outputText>		
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">No Show</span></apex:facet>
+		<apex:outputPanel styleClass="{!IF(ev.isTotal,'bold','normal')}">
+			<apex:outputText value="{0, number, ###,##0}">
+			    <apex:param value="{!ev.noShow}"/>
+			</apex:outputText>		
+		</apex:outputPanel>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">Earliest<br/>Date</span></apex:facet>
+		<apex:outputText value="{0,date,MM'/'dd'/'yyyy}" styleClass="{!IF(ev.isTotal,'bold','normal')}" >
+ 		   <apex:param value="{!ev.dtEarliest}" /> 
+		</apex:outputText>
+	</apex:column>
+	<apex:column styleClass="alignright">
+		<apex:facet name="header"><span class="underline">Latest<br/>Date</span></apex:facet>
+		<apex:outputText value="{0,date,MM'/'dd'/'yyyy}" styleClass="{!IF(ev.isTotal,'bold','normal')}" >
+ 		   <apex:param value="{!ev.dtLatest}" /> 
+		</apex:outputText>
+	</apex:column>
+</apex:dataTable>
+</div>
+</body>
+</apex:page>

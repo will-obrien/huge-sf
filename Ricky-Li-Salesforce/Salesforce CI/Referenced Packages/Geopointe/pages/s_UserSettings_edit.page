@@ -1,0 +1,183 @@
+<apex:page tabStyle="My_Settings__tab" controller="geopointe.s_Personal" sidebar="true" title="Geopointe - Personal Settings">
+
+<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- jQuery -->
+
+<apex:outputPanel rendered="{!mapProvider='Google'}">
+	<apex:includeScript value="{!googJSsrc}"/>
+</apex:outputPanel>
+
+<apex:outputPanel rendered="{!mapProvider='MapQuest'}">
+	<apex:includeScript value="{!mqJSsrc}"/> 
+</apex:outputPanel>
+
+<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics -->
+	
+<apex:sectionHeader title="Geopointe" subtitle="Edit User Settings"/>
+
+<apex:pageMessages id="pageMessages"></apex:pageMessages>
+
+<apex:form >
+	<apex:pageBlock title="My Settings" mode="edit">
+		<apex:pageBlockButtons >
+			<apex:commandButton action="{!saveUserSettings}" value="Save"/>
+			<apex:commandButton action="{!cancelUserSettings}" value="Cancel" immediate="true"/>
+		</apex:pageBlockButtons>
+		<apex:pageBlockSection title="Preferences">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Use Geolocation"/>
+				<apex:inputCheckbox value="{!useGeolocation}"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Use Scroll Wheel Zoom"/>
+				<apex:inputCheckbox value="{!useScrollWheelZoom}"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Hide Sidebar"/>
+				<apex:inputCheckbox value="{!hideSidebar}"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Number Map Pins"/>
+				<apex:inputCheckbox value="{!numberMapPins}"/>
+			</apex:pageBlockSectionItem>
+		</apex:pageBlockSection>
+		
+		<apex:pageBlockSection title="Starting Map Position" columns="1">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Starting Latitude"/>
+				<apex:outputPanel >
+					<apex:inputText id="startLat" value="{!startingLat}"/>
+					<script> var gp_startLat = document.getElementById("{!$Component.startLat}"); </script>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Starting Longitude"/>
+				<apex:outputPanel >
+					<apex:inputText id="startLng" value="{!startingLng}"/>
+					<script> var gp_startLng = document.getElementById("{!$Component.startLng}"); </script>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Starting Zoom"/>
+				<apex:outputPanel >
+					<apex:inputText id="startZoom" value="{!startingZoom}"/>
+					<script> var gp_startZoom = document.getElementById("{!$Component.startZoom}"); </script>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        	
+        <table style="margin: 10px auto;">
+	        <tr>
+		        <td><apex:image url="{!URLFOR($Resource.geopointe__images, '/info.png')}"/></td>
+				<td>Use the map below to navigate to your desired starting position and zoom level. Then <b>press the <br/>
+					<span style="color: blue;">Use Map's Settings</span></b> button to populate the Starting Latitude, Starting Longitude <br/>
+					and Starting Zoom Level fields above.  Afterwards, press <b>Save</b> to save those settings.
+				</td>
+			</tr>
+			<tr>
+				<td></td>
+				<td><input style="margin: 3px 0px;" class="btn" onclick="javascript: gp_setStartingValues(); return false;" value="Use Map's Settings" type="button" /></td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<div id="mapDIV" style="width: 100%; height: 100%;"></div>
+				</td>
+	        </tr>
+        </table>
+	</apex:pageBlock>
+</apex:form>
+
+<!-- Google JS -->
+<apex:outputPanel rendered="{!mapProvider='Google'}">
+	<script type="text/javascript">
+			
+		var gp_map; // holds the Map object
+		
+		function gp_onLoad(){
+			
+			var myOptions = {
+				zoom: {!BLANKVALUE(userSettings.Starting_Zoom__c,2)},
+				center: new google.maps.LatLng({!BLANKVALUE(userSettings.Starting_Lat__c, 0)}, {!BLANKVALUE(userSettings.Starting_Lng__c, 0)}),
+				mapTypeId: google.maps.MapTypeId.ROADMAP,
+				disableDefaultUI: true,
+				panControl: true,
+				zoomControl: true,
+				scrollwheel: {!userSettings.Use_Scrollwheel_Zoom__c}
+			}
+			
+			gp_map = new google.maps.Map(document.getElementById("mapDIV"), myOptions);
+			
+			jQuery("#mapDIV").width(800);
+			jQuery("#mapDIV").height (500);
+			google.maps.event.trigger(gp_map, 'resize');
+			
+		}
+		
+		function gp_setStartingValues(){
+			if (gp_map != null){
+				gp_startLat.value = gp_map.getCenter().lat();
+				gp_startLng.value = gp_map.getCenter().lng();
+				gp_startZoom.value = gp_map.getZoom();
+			}
+		}
+	</script>
+</apex:outputPanel>
+
+<!-- MapQuest JS -->
+<apex:outputPanel rendered="{!mapProvider='MapQuest'}">
+	<script type="text/javascript">
+			
+		var gp_map; // holds the Map object
+		
+		function gp_onLoad(){
+		
+			var mapoptions ={
+					elt:document.getElementById('mapDIV'),
+					zoom: {!BLANKVALUE(userSettings.Starting_Zoom__c,2)},
+					latLng: {lat: {!BLANKVALUE(userSettings.Starting_Lat__c, 0)}, lng: {!BLANKVALUE(userSettings.Starting_Lng__c, 0)}},
+					mtype: 'map',
+					bestFitMargin:0,
+					useRightClick:true,
+					zoomOnDoubleClick:true
+					};
+					
+			gp_map = new MQA.TileMap(mapoptions);
+			
+			MQA.withModule('largezoom','mousewheel', function() {
+				gp_map.addControl( new MQA.LargeZoom(), new MQA.MapCornerPlacement(MQA.MapCorner.TOP_LEFT, new MQA.Size(5,5)) );
+				if ({!userSettings.Use_Scrollwheel_Zoom__c}){
+					gp_map.enableMouseWheelZoom();
+				}
+			});
+			
+			gp_map.setSize(new MQA.Size(800, 500));
+			
+		}
+		
+		MQA.IO.stringifyJSON = function(x){return Object.toJSON(x)}
+		
+		function gp_setStartingValues(){
+			if (gp_map != null){
+				gp_startLat.value = gp_map.getCenter().lat;
+				gp_startLng.value = gp_map.getCenter().lng;
+				gp_startZoom.value = gp_map.getZoomLevel();
+			}
+		}
+		
+	</script>
+</apex:outputPanel>
+
+<!-- Event Listeners -->
+    <script type="text/javascript">
+        jQuery.noConflict();
+        jQuery(document).ready(function(){
+			gp_onLoad();
+		});
+        
+    </script>
+    
+<!-- Override Salesforce's setFocusOnLoad method -->
+    <script type="text/javascript">
+        function setFocusOnLoad() {}
+    </script>
+
+</apex:page>

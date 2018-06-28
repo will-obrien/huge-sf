@@ -1,0 +1,408 @@
+<apex:page controller="geopointe.SK_Org" 
+			showHeader="true" 
+			sidebar="{!userSettings.geopointe__Hide_Sidebar__c = false}" 
+			tabStyle="Geopointe_Setup__tab" 
+			cache="false" 
+			title="Geopointe - Analytics Setup"
+			action="{!init}">
+	
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/><!-- Geopointe common css -->
+	
+	<!-- JavaScript -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}" /> <!-- jQuery UI -->
+    <apex:includeScript value="{!$Resource.geopointe__sorttable}" /> <!-- Sorttable -->
+	<apex:includeScript value="{!$Resource.geopointe__GeopointeJS}" /> <!-- Geopointe universal functions -->
+	<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics --> 
+	
+	<apex:sectionHeader title="Geopointe" subtitle="Analytics Setup" rendered="{! orgAccess = true }"/>
+
+	<apex:pageMessages id="pageMessages"></apex:pageMessages>
+	
+	<style>
+		table.sortable thead { cursor: pointer; }
+		#licUserTable tbody tr:hover{
+			background-color: #E3F3FF;
+		}
+	</style>
+		
+	<apex:form >
+		
+		<apex:outputPanel id="wrapperDIV" layout="block" style="margin: 0 10px;">
+			
+			<apex:outputPanel id="breadcrumbDIV" layout="block" style="font-size: 8pt; margin: 0 0 3px 0;" >
+				<apex:commandLink value="« Back to Geopointe Setup" action="{!goToMainSetup}" />
+			</apex:outputPanel>
+			
+			<apex:outputPanel id="notLicensedDIV" layout="block" rendered="{! orgAccess = false }">
+				<!-- Message explaining how to ask for a Trial of Analytics -->
+				<apex:outputPanel style="width:60%; margin:0 auto 20px auto;" layout="block">
+			
+					<apex:pagemessage title="Request a Trial of Analytics"
+				                        summary="We offer trials of the Analytics functionality. Just send an email to support@arrowpointe.com and we can get you started."
+				                        severity="info"
+				                        strength="2"
+				                        />
+				                        
+				</apex:outputPanel>
+    			<apex:outputPanel layout="block">
+	    			<apex:panelGrid columns="1" style="margin:0 auto;">
+						<apex:image url="{!URLFOR($Resource.geopointe__images, 'SKpromoText.png')}" />
+					</apex:panelGrid>
+					
+					<apex:panelGrid columns="4" cellspacing="3" cellpadding="7" style="margin:0 auto;">
+						<apex:image url="{!URLFOR($Resource.geopointe__images, 'SKpromo2.jpg')}" />
+						<apex:image url="{!URLFOR($Resource.geopointe__images, 'SKpromo3.jpg')}" />
+						<apex:image url="{!URLFOR($Resource.geopointe__images, 'SKpromo4.jpg')}" />
+						<apex:image url="{!URLFOR($Resource.geopointe__images, 'SKpromo5.jpg')}" />
+					</apex:panelGrid>
+				</apex:outputPanel>
+				<apex:panelGrid columns="1" style="margin:5px auto; width:800px;">
+					<apex:outputPanel style="text-align: center; font-size: 1.7em;">
+						<p>
+							Geopointe now offers an Analytics solution fully integrated with Salesforce.
+						</p>
+						<p>
+							Geopointe Analytics is an an add-on license to the base Geopointe offering. 
+							To learn more, visit the <a href="http://www.arrowpointe.com" target="_blank">Arrowpointe website</a>
+							or <a href="mailto:support@arrowpointe.com">send us an email</a> with your questions.
+						</p>
+						<p style="margin: 25px 0 0 0; font-size: 12pt;">
+							Mapping analytics by<br/>
+							<apex:image url="{!URLFOR($Resource.geopointe__images, 'SKlogo.png')}" />
+						</p>
+					</apex:outputPanel>
+				</apex:panelGrid>
+			</apex:outputPanel>
+			
+			<apex:outputPanel id="licensedDIV" layout="block" rendered="{! orgAccess = true }">
+				
+				<apex:outputPanel id="termsAcceptedDIV" layout="block" rendered="{! orgAccessPlusTerms = true }">
+				
+					<!-- Message explaining Trial users can access Analytics -->
+					<apex:outputPanel id="trialDIV" style="width:60%; margin:0 auto;" layout="block" rendered="{!orgSettings.geopointe__License_Status__c = 'Trial' && orgSettings.geopointe__SK_Allow_Trial_Users__c}">
+				
+						<apex:pagemessage title="Use Analytics During Your Trial"
+					                        summary="During your Geopointe Trial, all your Geopointe users are setup to use the Analytics solution. Users can access the features via their My Settings tab.
+					                        There is no need to setup those users individually during your trial period. If you wish to disable their access, uncheck the Allow Trial Access field below and click Save Settings."
+					                        severity="info"
+					                        strength="2"
+					                        />
+					                        
+					</apex:outputPanel>
+					
+					<!-- Analytics Preferences -->
+					<apex:pageBlock title="Analytics Organization Preferences">
+		                <apex:pageBlockButtons location="top">
+		                	<apex:outputPanel style="margin: 0 35px;" layout="block">
+								<input class="btn" onclick="geopointeAjaxStart('body','Saving Organization Preferences...'); gp_saveOrgSettings(); return false;" value="Save Organization Preferences" type="button" />
+							</apex:outputPanel>
+						</apex:pageBlockButtons>
+		                 <apex:pageBlockSection >
+		                 	<apex:pageBlockSectionItem >
+		                 		<apex:outputPanel >
+					                Allow Private Data Sets<br/>
+					                <span style="font-weight:normal;">(Whether end-users can send their private Data Sets to Analytics. 
+					                If unchecked, only public Data Sets will be available for end-users to select.)</span>
+				            	</apex:outputPanel>
+		                 		<apex:inputField value="{!orgSettings.geopointe__SK_Allow_Private_Data_Sets__c}"/>	
+		                 	</apex:pageBlockSectionItem>
+		                 	<apex:pageBlockSectionItem rendered="{!orgSettings.geopointe__License_Status__c = 'Trial'}">
+		                 		<apex:outputPanel >
+					                Allow Trial Access<br/>
+					                <span style="font-weight:normal;">(If checked, your Geopointe users will be given access to the Analytics features during your trial)</span>
+				            	</apex:outputPanel>
+		                 		<apex:inputField value="{!orgSettings.geopointe__SK_Allow_Trial_Users__c}"/>	
+		                 	</apex:pageBlockSectionItem>
+		                 </apex:pageBlockSection>
+		                 
+		                 <apex:pageBlockSection title="SpatialKey Organization Information" columns="1" collapsible="false" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}">
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="SK Organization Id"/>
+								<apex:inputText value="{!orgSettings.geopointe__SK_Organization_Id__c}" size="50"/>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="SK Host Name"/>
+								<apex:inputText value="{!orgSettings.geopointe__SK_Host_Name__c}" size="50"/>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="SpatialKey Client"/>
+								<apex:outputPanel >
+									<input class="btn" onclick="geopointeAjaxStart('body','Creating Support User...'); gp_createSKArrowpointeSupportUser(); return false;" value="Setup Support User" type="button" />
+									&nbsp;|&nbsp;
+									<a href="https://{!orgSettings.geopointe__SK_Host_Name__c}/index.cfm?orgId={!orgSettings.geopointe__SK_Organization_Id__c}" target="_blank">Login</a>
+									&nbsp;|&nbsp;
+									<a href="https://{!orgSettings.geopointe__SK_Host_Name__c}/beta/index.cfm?orgId={!orgSettings.geopointe__SK_Organization_Id__c}" target="_blank">Beta Login</a>
+									&nbsp;|&nbsp;
+								</apex:outputPanel>
+								
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="Forgot Password Tweak"/>
+								<apex:outputPanel >
+									<b>/index.cfm?orgid={!orgSettings.geopointe__SK_Organization_Id__c}&amp;</b>
+								</apex:outputPanel>
+								
+							</apex:pageBlockSectionItem>
+							
+						</apex:pageBlockSection>
+						
+		            </apex:pageBlock>
+		            
+		            <!-- Subscription Information -->
+		            <apex:variable var="t1Used" value="{! FLOOR(BLANKVALUE(licCountTier1,0)) }" />
+		            <apex:variable var="t1Allowed" value="{! FLOOR(BLANKVALUE(orgSettings.SK_Tier_1_Licenses__c,0)) }" />
+		            <apex:variable var="t1Available" value="{! t1Allowed - t1Used }" />
+		            <apex:variable var="t1DataLimit" value="{! tier1DataLimit }" />
+		            
+		            <apex:variable var="t2Used" value="{! FLOOR(BLANKVALUE(licCountTier2,0)) }" />
+		            <apex:variable var="t2Allowed" value="{! FLOOR(BLANKVALUE(orgSettings.SK_Tier_2_Licenses__c,0)) }" />
+		            <apex:variable var="t2Available" value="{! t2Allowed - t2Used }" />
+		            <apex:variable var="t2DataLimit" value="{! tier2DataLimit }" />
+		            
+		            <apex:variable var="t3Used" value="{! FLOOR(BLANKVALUE(licCountTier3,0)) }" />
+		            <apex:variable var="t3Allowed" value="{! FLOOR(BLANKVALUE(orgSettings.SK_Tier_3_Licenses__c,0)) }" />
+		            <apex:variable var="t3Available" value="{! t3Allowed - t3Used }" />
+		            <apex:variable var="t3DataLimit" value="{! tier3DataLimit }" />
+		            
+		            <apex:variable var="t4Used" value="{! FLOOR(BLANKVALUE(licCountTier4,0)) }" />
+		            <apex:variable var="t4Allowed" value="{! FLOOR(BLANKVALUE(orgSettings.SK_Tier_4_Licenses__c,0)) }" />
+		            <apex:variable var="t4Available" value="{! t4Allowed - t4Used }" />
+		            <apex:variable var="t4DataLimit" value="{! tier4DataLimit }" />
+		            
+		            <apex:variable var="t5Used" value="{! FLOOR(BLANKVALUE(licCountTier5,0)) }" />
+		            <apex:variable var="t5Allowed" value="{! FLOOR(BLANKVALUE(orgSettings.SK_Tier_5_Licenses__c,0)) }" />
+		            <apex:variable var="t5Available" value="{! t5Allowed - t5Used }" />
+		            <apex:variable var="t5DataLimit" value="{! tier5DataLimit }" />
+		            
+		            <apex:pageBlock title="Analytics Subscription Information" rendered="{!orgSettings.geopointe__SK_Organization_Id__c != null && orgSettings.geopointe__Perm_SpatialKey__c}">
+							
+						<apex:pageBlockButtons >
+							<apex:outputPanel style="margin: 0 35px;" layout="block">
+								<input class="btn" onclick="geopointeAjaxStart('body','Saving User Assignments...'); gp_saveTierAssignments(); return false;" value="Save User Assignments" type="button" />
+							</apex:outputPanel>
+						</apex:pageBlockButtons>
+						
+						<apex:pageBlockSection title="License Information" collapsible="false" columns="1">
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="Tier 1"/>
+								<apex:outputPanel >
+									<apex:outputText >
+									 	{!TEXT(t1Used)} of {!TEXT(t1Allowed)} Used
+									</apex:outputText>
+									<apex:outputText rendered="{! t1Available > 0}">
+										&nbsp;<b>({!TEXT(t1Available)} remaining)</b>
+									</apex:outputText>
+									<apex:outputText >
+										&nbsp;<i>(maximum Data Set size = {!t1DataLimit} records)</i>
+									</apex:outputText>
+								</apex:outputPanel>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="Tier 2"/>
+								<apex:outputPanel >
+									<apex:outputText >
+									 	{!TEXT(t2Used)} of {!TEXT(t2Allowed)} Used
+									</apex:outputText>
+									<apex:outputText rendered="{! t2Available > 0}">
+										&nbsp;<b>({!TEXT(t2Available)} remaining)</b>
+									</apex:outputText>
+									<apex:outputText >
+										&nbsp;<i>(maximum Data Set size = {!t2DataLimit} records)</i>
+									</apex:outputText>
+								</apex:outputPanel>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="Tier 3"/>
+								<apex:outputPanel >
+									<apex:outputText >
+									 	{!TEXT(t3Used)} of {!TEXT(t3Allowed)} Used
+									</apex:outputText>
+									<apex:outputText rendered="{! t3Available > 0}">
+										&nbsp;<b>({!TEXT(t3Available)} remaining)</b>
+									</apex:outputText>
+									<apex:outputText >
+										&nbsp;<i>(maximum Data Set size = {!t3DataLimit} records)</i>
+									</apex:outputText>
+								</apex:outputPanel>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="Tier 4"/>
+								<apex:outputPanel >
+									<apex:outputText >
+									 	{!TEXT(t4Used)} of {!TEXT(t4Allowed)} Used
+									</apex:outputText>
+									<apex:outputText rendered="{! t4Available > 0}">
+										&nbsp;<b>({!TEXT(t4Available)} remaining)</b>
+									</apex:outputText>
+									<apex:outputText >
+										&nbsp;<i>(maximum Data Set size = {!t4DataLimit} records)</i>
+									</apex:outputText>
+								</apex:outputPanel>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}">
+								<apex:outputLabel value="Tier 5"/>
+								<apex:outputPanel >
+									<apex:outputText >
+									 	{!TEXT(t5Used)} of {!TEXT(t5Allowed)} Used
+									</apex:outputText>
+									<apex:outputText rendered="{! t5Available > 0}">
+										&nbsp;<b>({!TEXT(t5Available)} remaining)</b>
+									</apex:outputText>
+									<apex:outputText >
+										&nbsp;<i>(maximum Data Set size = {!t5DataLimit} records)</i>
+									</apex:outputText>
+								</apex:outputPanel>
+							</apex:pageBlockSectionItem>
+							
+							<apex:pageBlockSectionItem >
+								<apex:outputLabel value="Org-Wide Data Sets"/>
+								<apex:outputPanel >
+									Org-Wide Data Sets will be limited to {!orgQueryLimit} records. They are limited to the data limits of your lowest licensed tier.
+								</apex:outputPanel>
+							</apex:pageBlockSectionItem>
+							
+						</apex:pageBlockSection>
+						
+						<apex:pageBlockSection title="Users" collapsible="false" columns="1">
+							
+							<apex:outputPanel layout="block" style="margin: 3px 30% 3px 30px; padding: 3px;">
+					            <apex:panelGrid columns="2">
+					                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info.png')}"/>
+					                <apex:outputText >
+						                To give users Analytics permissions , modify the data below. Click 'Save User Assignments' to save the information.  
+						                Your changes will take effect immediately.
+										<br/><br/>
+										The list below contains any user that has ever accessed Geopointe. If you do not see a user listed here, make sure they have a 
+										<a href="/0A3?setupid=ImportedPackage" target="_blank">Geopointe license</a> and have accessed the Map or Visualize tab at least once.
+										<br/><br/>
+										<b>A user who accesses Analytics also requires a regular Geopointe license.</b>
+					                </apex:outputText>
+					            </apex:panelGrid>
+					        </apex:outputPanel>
+
+					        <apex:outputPanel >
+						        <table id="licUserTable" cellpadding="0" cellspacing="0" class="list sortable">
+						        	<thead>
+						        		<tr class="headerRow">
+						        			<td class="headerRow">Tier Assignment</td>
+						        			<td class="headerRow">Can Push Org-Wide Data Sets</td>
+						        			<td class="headerRow">Full Name</td>
+						        			<td class="headerRow">Email</td>
+						        			<td class="headerRow">Username</td>
+						        			<td class="headerRow">Profile</td>
+						        			<td class="headerRow">Active</td>
+						        		</tr>
+						        	</thead>
+						        	<tbody>
+						        		<apex:repeat value="{!licUsers}" var="list">
+							        		<apex:repeat value="{!list}" var="l">
+								        		<tr class="dataRow">
+								        			<td class="dataCell">
+								        				<apex:selectList value="{!l.tier}" multiselect="false" size="1">
+										            		<apex:selectOption itemValue="" itemLabel="--None--"/>
+										            		<apex:selectOption itemValue="1" itemLabel="Tier 1"/>
+										            		<apex:selectOption itemValue="2" itemLabel="Tier 2"/>
+										            		<apex:selectOption itemValue="3" itemLabel="Tier 3"/>
+										            		<apex:selectOption itemValue="4" itemLabel="Tier 4"/>
+										            		<apex:selectOption itemValue="5" itemLabel="Tier 5" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+										            	</apex:selectList>
+								        			</td>
+								        			<td class="dataCell"><apex:inputCheckBox value="{!l.pushOrgDataSets}"/></td>
+								        			<td class="dataCell">{!l.fullName}</td>
+								        			<td class="dataCell">{!l.email}</td>
+								        			<td class="dataCell">{!l.userName}</td>
+								        			<td class="dataCell">{!l.profile}</td>
+								        			<td class="dataCell">
+								        				<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{!l.active = true}" />
+								            			<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{!l.active = false}" />
+								        			</td>
+								        		</tr>
+							        		</apex:repeat>
+						        		</apex:repeat>
+						        	</tbody>
+						        </table>
+						    </apex:outputPanel>
+					      
+						</apex:pageBlockSection>
+					</apex:pageBlock>
+				
+				</apex:outputPanel> <!-- End of termsAcceptedDIV -->
+				
+				<apex:outputPanel id="termsNotAcceptedDIV" layout="block" rendered="{! orgAccessPlusTerms = false }">
+			    	<apex:pageBlock >
+			    		<table style="margin: 0 auto;"><tr><td>
+			    			<div style="font-size: 16pt; font-weight: bold;">Approve Use of Geopointe Analytics</div>
+			    			<div style="width: 600px; font-size: 12pt; margin: 10px 0;">
+			    			<p>
+			    			Geopointe Analytics utilizes <a href="http://www.spatialkey.com" target="_blank"><b>SpatialKey</b></a> 
+			    			for its mapping analytics features. To use SpatialKey, your Salesforce data needs to be 
+			    			securely sent to SpatialKey's servers. We have partnered with SpatialKey to build this solution and 
+			    			ensure your data is being securely transmitted and stored at SpatialKey. 
+			    			</p>
+			    			<p>As an administrator, you have control over which users are allowed to use Analytics and
+			    			what data is sent across to SpatialKey.  No data leaves Salesforce without explicit action on a user's part. Additionally, 
+			    			once the data is at SpatialKey, you have the ability to remotely delete it. You can read more
+			    			about SpatialKey's security practices on their <a href="http://www.spatialkey.com/support/faq/" target="_blank">website FAQ</a>.
+			    			</p>
+			    			<p>
+			    			If you understand the above and wish to utilize Geopointe Analytics, check the box below and click the Get Started button.
+			    			</p> 
+			    			</div>
+			    			<div><apex:inputCheckbox value="{!acceptTerms}"/> I understand the above and wish to use Geopointe Analytics.</div>
+			    			<div>
+			    				<apex:commandButton action="{!acceptTerms}" value="Get Started with Analytics"/>
+			    			</div>
+			    		</td></tr></table>
+			    	</apex:pageBlock>
+				</apex:outputPanel>
+				
+			</apex:outputPanel><!-- End of licensedDIV -->
+
+			<apex:actionPoller action="{!pollerAction}" rerender="pageMessages" interval="10"/>
+			
+		</apex:outputPanel><!-- End of WrapperDIV -->
+		
+		<!-- ACTION FUNCTIONS -->
+		<apex:actionFunction name="gp_saveOrgSettings"
+            action="{!saveSettings}" 
+            rerender="wrapperDIV,pageMessages" 
+            oncomplete="geopointeAjaxEnd();">
+        </apex:actionFunction>
+        
+        <apex:actionFunction name="gp_saveTierAssignments"
+            action="{!saveTierAssignments}" 
+            rerender="wrapperDIV,pageMessages" 
+            oncomplete="geopointeAjaxEnd();">
+        </apex:actionFunction>
+        
+        <apex:actionFunction name="gp_createSKArrowpointeSupportUser"
+            action="{!createSKArrowpointeSupportUser}" 
+            rerender="wrapperDIV,pageMessages" 
+            oncomplete="geopointeAjaxEnd();">
+        </apex:actionFunction>
+        
+	</apex:form>
+    
+    <!-- Event Listeners -->
+    <script type="text/javascript">
+        //Merge field vars
+        gp_orgSettings = new Object();
+        gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';
+
+        jQuery(document).ready(function(){
+        	//Try to manually run the sorttable script
+        	try{
+        		sorttable.init();
+        	}catch(e){}
+        });
+    </script>
+    	
+</apex:page>

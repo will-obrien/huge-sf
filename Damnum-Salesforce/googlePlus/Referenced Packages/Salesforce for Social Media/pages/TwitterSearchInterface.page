@@ -1,0 +1,655 @@
+<apex:page tabStyle="sf4twitter__Twitter_Conversation__c" controller="sf4twitter.TwitterAjaxSearch" title="{!$Label.Get_more_tweets}">
+    <script src="{!URLFOR($Resource.jQueryLibrary)}" type="text/javascript"></script>
+	<apex:form >
+		
+		<apex:outputPanel rendered="{!ISBLANK(errorMsg) && ISBLANK(retUrl)}" >
+			<style>
+				body {
+					display:none;
+				}
+			</style>
+			<apex:actionFunction name="initTwitterAjaxSearch" action="{!loadCriteria}" />
+			<script type="text/javascript" charset="utf-8">
+				jQuery(document).ready(function(){					
+					initTwitterAjaxSearch();
+				});
+			</script>
+		</apex:outputPanel>
+	</apex:form>
+		
+    <style type="text/css">
+    
+    #FormContent {
+        padding: 18px;
+    }
+    
+    #innerResults {
+        padding: 18px;
+    }
+    
+    .gifHolder {
+        width: 300px;
+        margin: 16px auto 20px;
+        text-align: center;
+    }
+    
+    .gifHolder img {
+        
+    }
+    
+    .gifHolder p {
+        text-align: center;
+        margin: 10px 0 0 0;
+        padding: 0;
+    }
+    
+    .hiddenBlock {
+        display: none;
+        width: auto !important;
+        height: auto !important;
+    }
+    
+    .innerblock {
+        width: 49%;
+        margin: 0 1% 0 0;
+    }
+    
+    .innerblock.left {
+        float: left;
+        overflow: hidden;
+    }
+    
+    .innerblock.right {
+        float: right;
+        overflow: hidden;
+    }
+    
+    .innerblock h2 {
+        margin: 0 0 15px 0;
+        display: block;
+        padding: 0 0 3px 0;
+        border-bottom: 2px solid #CCCCCC;
+    }
+    
+    .innerblock h2 .titleText {
+        line-height: 32px;
+        display: block;
+        padding: 0 0 0 42px;
+        width: 250px;
+    }
+    
+    .innerblock h2 img {
+        float: left;
+    }
+    
+    ul.selectList {
+        display: block;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+    
+    ul.selectList li {
+        padding: 3px;
+        margin: 0 0 0 0;
+        list-style: none;
+        border-bottom: 1px solid #E3DEB8;
+    }
+    
+    ul.selectList li.selected {
+        background: #CCCCFF;
+        cursor: pointer;
+    }
+    
+    ul.selectList li.highlighted {
+        background: #FFFFFF;
+        cursor: pointer;
+    }
+    
+    ul.selectList li input {
+        margin: 4px 10px 0 0;
+        float: left;
+    }
+    
+    ul.selectList li .spanText {
+        line-height: 20px;
+        font-size: 12px;
+    }
+    
+    div.searchBtnHolder {
+        display: block;
+        margin: 20px 0 0 0;
+    }
+    
+    div.clear {
+        clear: both;
+    }
+    
+    img.caseIcon {
+        background-image: url(/img/sprites/master.png);
+        background-position: 0 -986px;
+        height: 32px;
+        width: 32px;
+    }
+    
+    img.contactIcon {
+        background-image: url(/img/sprites/master.png);
+        background-position: 0 -1022px;
+        height: 32px;
+        width: 32px;
+    }
+    
+    img.leadIcon {
+        background-image: url(/img/sprites/master.png);
+        background-position: 0 -1166px;
+        height: 32px;
+        width: 32px;
+    }
+    
+    img.personAccountIcon {
+        background-image: url("/img/icon/perAccounts32.png");
+        height: 32px;
+        width: 32px;
+    }   
+    
+    img.convIcon {
+        height: 32px;
+        width: 32px;
+    }
+    
+    .resIcon {
+        float: left;
+        vertical-align: middle;
+    }
+    
+    .resLabel {
+        display: block;
+        padding: 0 0 0 42px;
+    }
+    
+    .resValue {
+        display: block;
+    }
+    
+    #TotalResults .labelCol {
+        text-align: left !important;
+    }
+    
+    #PartialResults .labelCol {
+        text-align: left !important;
+    }
+    
+    p.info {
+        margin: 0 0 30px 0 !important;
+    }
+    
+    #PartialResults {
+        padding: 30px 0 0 0;
+    }
+    
+    #PartialResults .pbSubheader {
+        background: #cccccc !important;
+    }
+    
+    #errorMsg{
+    	display: none;
+    	padding: 5px 0px;
+    }
+        
+    </style>
+
+    <script type="text/javascript">
+    
+    // Register hover events  
+    jQuery(document).ready(function(){
+        bindLiHover();
+        bindLiClick(); 
+    });
+    
+    function startSearch(){
+        var flag = {!IF(( taccs.size == 0 && tsearchs.size == 0 && fcbkPages.size == 0 ),'true','false')};
+        showErrorMsg('');
+        if( flag == false ){
+            if(jQuery('#stopSearchBtn').hasClass('btnDisabled')){
+                jQuery('#stopSearchBtn').removeClass('btnDisabled');
+            }
+            keepSearching = true;
+            actualIndex = 0;
+            
+            selected = Array();
+            resultPage = 1;
+            searchSize = 0;
+            accSize = 0;
+            fcbkPageSize = 0;
+            items = Array();
+            
+            // get params from Form
+            getSelected();
+            if(selected.length > 0 ){
+                jQuery('#TotalResults .leadResultValue').text('0');
+                jQuery('#TotalResults .personAccountResultValue').text('0');
+                jQuery('#TotalResults .caseResultValue').text('0');
+                jQuery('#TotalResults .convResultValue').text('0');
+                jQuery('#TotalResults .contactResultValue').text('0');
+                
+                jQuery('#PartialResults').children().remove();
+                startCycle();
+                
+                hideDiv('#FormContent',jQuery('#searchFormToggleImage').get());
+                jQuery('#resultProcessing').show();
+                jQuery('#resultSection').show(300);
+                jQuery('#startSearchBtn').attr('disabled',true);
+                jQuery('#startSearchBtn').toggleClass('btnDisabled');
+            }
+            else {
+                alert('{!$Label.Account_Keyword_Search}');
+            }
+        }
+    }
+    function cancelSearch(){
+        keepSearching = false;
+        jQuery('#stopSearchBtn').addClass('btnDisabled');
+    }
+    function stopSearch(){
+        jQuery('#resultProcessing').hide();
+        jQuery('#startSearchBtn').removeAttr('disabled');
+        jQuery('#startSearchBtn').toggleClass('btnDisabled');
+    }
+    function bindLiHover(){
+        jQuery('ul.selectList li').hover(
+            function () {
+              if(!jQuery(this).hasClass("selected")){
+                jQuery(this).addClass('highlighted');
+              }
+            }, 
+            function () {
+              jQuery(this).removeClass('highlighted');
+            }
+        );
+    }
+    
+    function bindLiClick(){
+        jQuery('ul.selectList li').click(clickLi);
+    }
+    
+    function clickLi(){
+        jQuery(this).toggleClass('selected');
+        jQuery(this).removeClass('highlighted');     
+        if(jQuery(this).children('input').attr('checked')){
+            if(!jQuery(this).hasClass('selected')){
+                jQuery(this).children('input').removeAttr('checked');
+            }
+        } else {
+            if(jQuery(this).hasClass('selected')){
+                jQuery(this).children('input').attr('checked','true');
+            }
+        }
+    }
+        
+    function getSelected(){
+        var Ids = Array();
+        jQuery('#accountList ul.selectList li input').each(function(){
+            if(this.checked == true){
+                Ids.push(this.value);
+                accSize++;
+                items[this.value] = jQuery(this).next()[0].innerHTML;
+            }
+        });
+        jQuery('#keywordList ul.selectList li input').each(function(){   
+            if(this.checked == true){
+                Ids.push(this.value);
+                searchSize++;
+                items[this.value] = jQuery(this).next()[0].innerHTML;
+            }
+        });
+        jQuery('#fcbkPageList ul.selectList li input').each(function(){   
+            if(this.checked == true){
+                Ids.push(this.value);
+                fcbkPageSize++;
+                items[this.value] = jQuery(this).next()[0].innerHTML;
+            }
+        });
+        selected = Ids;
+    }
+    
+    function buildFrameUrlParam(){
+        var param = '';
+        
+        if(actualIndex < selected.length ){
+            if(actualIndex < accSize && accSize > 0){
+                param = '&account='+selected[actualIndex];
+            }
+            else {
+                if(searchSize > 0 && actualIndex < (searchSize + accSize)){
+                    param = '&search='+selected[actualIndex];
+                }
+                else if (fcbkPageSize > 0 && actualIndex < (searchSize + accSize + fcbkPageSize)) {
+                    param =  '&fcbkPage='+selected[actualIndex];
+                }
+                else {
+                    return null;
+                }
+            }   
+        }
+        else {
+            return null;
+        }
+        
+        return params = '?page='+resultPage+param;      
+    }
+    
+    function doCycle(strRes, refresh, pageNumber){
+        resultPage = pageNumber;
+        
+        if(strRes != 'Start_Search'){
+            updateResults(strRes);
+            addResultsToPartial (strRes);
+        }
+        
+        if(keepSearching == true){
+        	
+            if(resultPage > 0 && refresh == true){
+                var builtUrl = buildFrameUrlParam();
+            
+                if(builtUrl != null){
+                    updateLoadingText();
+                    jQuery('#hiddenIframe').attr('src',frameUrl+builtUrl);
+                }
+                else{
+                    createLastSearchResults();
+                    cancelSearch();
+                    stopSearch();
+                }               
+            }
+            else {
+                createLastSearchResults();
+                actualIndex++;
+                resultPage = 1;
+                var builtUrl = buildFrameUrlParam();
+                
+                if(builtUrl != null){
+                    updateLoadingText();
+                    jQuery('#hiddenIframe').attr('src',frameUrl+builtUrl);
+                }
+                else {
+                    cancelSearch();
+                    stopSearch();
+                }
+            }
+        }
+        else {
+            createLastSearchResults();
+            cancelSearch();
+            stopSearch();
+        }
+    }
+    
+    function updateResults(str){
+        var array = str.split('|');
+        
+        jQuery('#TotalResults .leadResultValue').text(parseInt(jQuery('#TotalResults .leadResultValue').text()) + parseInt(array[3]));
+        jQuery('#TotalResults .personAccountResultValue').text(parseInt(jQuery('#TotalResults .personAccountResultValue').text()) + parseInt(array[5]));
+        jQuery('#TotalResults .caseResultValue').text(parseInt(jQuery('#TotalResults .caseResultValue').text()) + parseInt(array[0]));
+        jQuery('#TotalResults .convResultValue').text(parseInt(jQuery('#TotalResults .convResultValue').text()) + parseInt(array[4]));
+        jQuery('#TotalResults .contactResultValue').text(parseInt(jQuery('#TotalResults .contactResultValue').text()) + parseInt(array[2]));
+    }
+    
+    function addResultsToPartial (str){
+        var array = str.split('|');
+        
+        lastSearchResults['lead'] = parseInt(lastSearchResults['lead']) + parseInt(array[3]);
+        lastSearchResults['personAccount'] = parseInt(lastSearchResults['personAccount']) + parseInt(array[5]);
+        lastSearchResults['case'] = parseInt(lastSearchResults['case']) + parseInt(array[0]);
+        lastSearchResults['conv'] = parseInt(lastSearchResults['conv']) + parseInt(array[4]);
+        lastSearchResults['cont'] = parseInt(lastSearchResults['cont']) + parseInt(array[2]);
+    }
+    
+    function createLastSearchResults(){
+    
+        // SUPER TODO: REPLACE WITH LABELS!!
+        
+        if (actualIndex < accSize && accSize > 0){
+            type = 'Account ';
+        }
+        else if (searchSize > 0 && actualIndex < (searchSize + accSize)){
+            type = 'Search ';
+        }
+        else if (fcbkPageSize > 0 && actualIndex < (searchSize + accSize + fcbkPageSize)) {
+            type = 'Facebook Page ';
+        }
+    
+        itemStr = items[selected[actualIndex]];
+    
+        var newOne = jQuery('#TotalResults').children().clone().appendTo('#PartialResults');
+        
+        newOne.find('.pbSubheader h3').text( type+'"'+itemStr+'"' );
+        newOne.find('.leadResultValue').text(parseInt(lastSearchResults['lead']));
+        newOne.find('.personAccountResultValue').text(parseInt(lastSearchResults['personAccount']));
+        newOne.find('.caseResultValue').text(parseInt(lastSearchResults['case']));
+        newOne.find('.convResultValue').text(parseInt(lastSearchResults['conv']));
+        newOne.find('.contactResultValue').text(parseInt(lastSearchResults['cont']));
+        
+        lastSearchResults['lead'] = 0;
+        lastSearchResults['personAccount'] = 0;
+        lastSearchResults['case'] = 0;
+        lastSearchResults['conv'] = 0;
+        lastSearchResults['cont'] = 0;
+    }
+    
+    function updateLoadingText(){
+        var itemStr = '';
+        var type = '';
+        if (actualIndex < selected.length ) {
+        
+            if (actualIndex < accSize && accSize > 0) {
+                type = 'Account ';
+            }
+            else if (searchSize > 0 && actualIndex < (searchSize + accSize)){
+                type = 'Search ';
+            }
+            else if (fcbkPageSize > 0 && actualIndex < (searchSize + accSize + fcbkPageSize)) {
+                type = 'Facebook Page ';
+            }
+        
+            itemStr = items[selected[actualIndex]];
+        }
+        jQuery('#resProccessText').text('Processing Page #'+resultPage+' for '+type+'"'+itemStr+'"');
+    }
+    
+    function startCycle(){
+        doCycle('Start_Search',true,1);
+    }
+    
+    function hideDiv(selector,clicked){
+        jQuery(selector).toggle()
+        jQuery(clicked).toggleClass('hideListButton').toggleClass('showListButton');
+    }
+    
+    function showErrorMsg(errorMsg){
+    	if((errorMsg!=null) && (errorMsg!='')){
+    		jQuery("#errorMsg").show();
+    		jQuery("#errorMsg").html(errorMsg);
+    	}else{
+    		jQuery("#errorMsg").hide();
+    	}
+    }
+    
+    var actualIndex = 0;
+    var frameUrl = '{!domain}'+'{!$Page.TwitterAjaxFrameSearch}';
+    var resultPage = 1;
+    var selected = Array();
+    var keepSearching = true;
+    var searchSize = 0;
+    var accSize = 0;
+    var items = Array();
+    var lastSearchResults = Array();
+    lastSearchResults['lead'] = 0;
+    lastSearchResults['personAccount'] = 0;
+    lastSearchResults['case'] = 0;
+    lastSearchResults['conv'] = 0;
+    lastSearchResults['cont'] = 0;
+    </script>
+
+    <apex:sectionHeader title="{!HTMLENCODE($Label.Get_more_tweets)}" />
+
+    <apex:pageBlock title="{!$Label.Search_more_tweets}">
+    
+    	<div id="errorMsg" class="errorMsg" > &nbsp; </div>
+    	
+        <div class="pbSubheader first tertiaryPalette">
+            <img class="hideListButton" id="searchFormToggleImage"
+            title="{!$Label.TS_Choose_search_criteria}"
+            onclick="hideDiv('#FormContent',this);" style="cursor: pointer;"
+            alt="{!$Label.TS_Choose_search_criteria}" src="/s.gif" />
+            <h3>{!$Label.Choose_search_criteria}</h3>
+        </div>
+        
+        <div id="FormContent">
+            
+            <div style="float: left; width: 70%;">
+                <p>{!$Label.Select_searches}</p>
+                <br />
+                <div style="margin-left: 30px;">
+                    &bull; {!$Label.Search_text_1}<br />
+                    &bull; {!$Label.Search_text_2} <br />
+                    &bull; {!$Label.Search_text_4} <br />
+                </div>
+                <p>{!$Label.Search_text_3}</p>
+                <br />
+                <br />
+            </div>
+                
+            <div class="innerblock left" id="accountList">
+                <h2><img src="{!URLFOR($Resource.sfsocial, 'resources/icons/Twitter_Icon.png')}" alt="" /><span
+                class="titleText">{!$ObjectType.Twitter_Account__c.LabelPlural}</span></h2>
+                <ul class="selectList">
+                    <apex:repeat value="{!taccs}" var="ta" rendered="{!$ObjectType.sf4twitter__Twitter_Account__c.accessible}">
+                        <li><input type="checkbox" name="ta[]" value="{!ta.Id}" /> 
+                            <span class="spanText"><apex:outputText value="{!ta.Name}" /></span>
+                        </li>
+                    </apex:repeat>
+                </ul>
+            </div>
+        
+            <div class="innerblock right" id="keywordList">
+                <h2><img src="{!URLFOR($Resource.sfsocial, 'resources/icons/Twitter_Icon.png')}" alt="" />
+                    <span class="titleText">{!$ObjectType.Twitter_Search__c.LabelPlural}</span></h2>
+                <ul class="selectList">
+                    <apex:repeat value="{!tsearchs}" var="ts" rendered="{!$ObjectType.sf4twitter__Twitter_Search__c.accessible}">
+                        <li><input type="checkbox" name="ts[]" value="{!ts.Id}" /> 
+                            <span class="spanText"><apex:outputText value="{!ts.Name}" /></span>
+                        </li>
+                    </apex:repeat>
+                </ul>
+            </div>
+            
+            <div class="clear" style="padding-top:20px"></div>
+            
+            <div class="innerblock left" id="fcbkPageList">
+                <h2><img src="{!URLFOR($Resource.sfsocial, 'resources/icons/Facebook_Icon.png')}" alt="" width="32px" height="32px" />
+                    <span class="titleText">{!$ObjectType.Fcbk_Page__c.LabelPlural}</span></h2>
+                <ul class="selectList">
+                    <apex:repeat value="{!fcbkPages}" var="fp" rendered="{!$ObjectType.sf4twitter__Fcbk_Page__c.accessible}">
+                        <li><input type="checkbox" name="fp[]" value="{!fp.Id}" /> 
+                            <span class="spanText"><apex:outputText value="{!fp.Name}" /></span>
+                        </li>
+                    </apex:repeat>
+                </ul>
+            </div>
+            
+            <div class="clear"></div>
+            
+            <div class="buttons searchBtnHolder">
+                <input type="button"
+                class="{!IF(( taccs.size == 0 && tsearchs.size == 0 && fcbkPages.size == 0 ),'btnDisabled','btn')}" 
+                id="startSearchBtn" value="{!$Label.Search_more_tweets}" onclick="javascript:startSearch();" />
+            </div>
+            
+        </div>
+    
+        <div class="hiddenBlock" id="resultSection">
+            
+            <div class="pbSubheader first tertiaryPalette">
+                <img class="hideListButton" title="{!$Label.TS_Search_Results}"
+                onclick="hideDiv('#innerResults',this);" style="cursor: pointer;"
+                alt="{!$Label.TS_Search_Results}" src="/s.gif" />
+                <h3>{!$Label.Search_Results}</h3>
+            </div>
+            
+            <div id="innerResults">
+                
+                <div class="clear"></div>
+                
+                <div class="hiddenBlock" id="resultProcessing">
+                    <div class="gifHolder">
+                        <p id="resProccessText">{!$Label.Preparing_Search}</p>
+                        <img src="{!URLFOR($Resource.Animated_Progress_Bar)}"
+                            class="animatedGifBar" alt="{!$Label.Processing_Results}" />
+                        <div class="buttons searchBtnHolder"><input type="button"
+                        class="btn" id="stopSearchBtn" value="{!$Label.TWITTER_STOP_SEARCH}"
+                        onclick="javascript:cancelSearch();" /></div>
+                    </div>
+                </div>
+
+                <div id="TotalResults">
+                    <apex:pageblocksection title="{!$Label.Total_Results}" columns="2" id="resHolder">
+                        <apex:pageblocksectionitem dataStyleClass="convRes">
+                            <apex:outputlabel id="convLabel">
+                                <img src="{!URLFOR($Resource.sfsocial, 'resources/icons/Conversation_Icon.gif')}" alt=""
+                                    class="convIcon resIcon" />
+							        <c:SocialOutputLink linkValue="{!$Label.Conversations_Created}" linkURL="/{!$ObjectType.sf4twitter__Twitter_Conversation__c.keyPrefix}/o"></c:SocialOutputLink>
+                            </apex:outputlabel>
+                            <apex:outputPanel styleClass="resValue convResultValue">0</apex:outputPanel>
+                        </apex:pageblocksectionitem>
+            
+                        <apex:pageblocksectionitem dataStyleClass="contactRes">
+                            <apex:outputlabel id="contactLabel">
+                                <img src="/s.gif" alt="" class="contactIcon resIcon" />
+							    <c:SocialOutputLink linkValue="{!$Label.Contacts_Created}" linkURL="/{!$ObjectType.Contact.keyPrefix}/o"></c:SocialOutputLink>
+                            </apex:outputlabel>
+                            <apex:outputPanel styleClass="resValue contactResultValue">0</apex:outputPanel>
+                        </apex:pageblocksectionitem>
+            
+                        <apex:pageblocksectionitem dataStyleClass="caseRes">
+                            <apex:outputlabel id="caseLabel">
+                                <img src="/s.gif" alt="" class="caseIcon resIcon" />
+							    <c:SocialOutputLink linkValue="{!$Label.Cases_Created}" linkURL="/{!$ObjectType.Case.keyPrefix}/o"></c:SocialOutputLink>
+                            </apex:outputlabel>
+                            <apex:outputPanel styleClass="resValue caseResultValue">0</apex:outputPanel>
+                        </apex:pageblocksectionitem>
+            
+                        <apex:pageblocksectionitem dataStyleClass="leadRes">
+                            <apex:outputlabel id="leadLabel">
+                                <img src="/s.gif" alt="" class="leadIcon resIcon" />
+							    <c:SocialOutputLink linkValue="{!$Label.Leads_Created}" linkURL="/{!$ObjectType.Lead.keyPrefix}/o"></c:SocialOutputLink>
+                            </apex:outputlabel>
+                            <apex:outputPanel styleClass="resValue leadResultValue">0</apex:outputPanel>
+                        </apex:pageblocksectionitem>
+                        
+                        <apex:pageblocksectionitem rendered="{!isPersonAccountEnabled}">
+                        </apex:pageblocksectionitem>
+                        
+                        <apex:pageblocksectionitem dataStyleClass="personAccountRes" rendered="{!isPersonAccountEnabled}">
+                            <apex:outputlabel id="personAccountLabel">
+                                <img src="/s.gif" alt="" class="personAccountIcon resIcon" />
+							    <c:SocialOutputLink linkValue="{!$Label.Person_Accounts_Created}" linkURL="/{!$ObjectType.Account.keyPrefix}/o"></c:SocialOutputLink>
+                            </apex:outputlabel>
+                            <apex:outputPanel styleClass="resValue personAccountResultValue">0</apex:outputPanel>
+                        </apex:pageblocksectionitem>
+                    
+                    </apex:pageblocksection>
+            </div>
+            <div id="PartialResults"></div>
+        </div>
+    </div>
+
+        <apex:outputLink value="{!retUrl}" rendered="{!retUrl != null}" style="margin-top: 20px; display: block">{!$Label.TWITTER_RETURN}</apex:outputLink>
+
+    </apex:pageBlock>
+
+    <div class="hiddenBlock">
+        <iframe id="hiddenIframe" name="hiddenIframe" src="about:blank" height="600" width="800"></iframe>
+        <div id="debugJS"></div>
+    </div>
+
+</apex:page>

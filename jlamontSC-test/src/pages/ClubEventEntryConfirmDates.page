@@ -1,0 +1,79 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="ClubEventController" applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>{!pageTitle}</title>
+      <script src="{!$Resource.jqueryDateFormat}" type="text/javascript"></script>
+      <style type="text/css">
+        .displayOccurrences {
+        	margin-left: 20px;
+        }
+        .btnMargin {
+        	margin-right: 20px;
+        }
+        .title {
+        	font-size: 14px; 
+        	font-weight:bold;
+        }
+      </style>
+	</apex:define>
+	
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+    	<apex:form >
+		<p class="title">
+			{!clubEvent.Event_Title__c}
+		</p>
+		<p>
+		Saving this event will create an occurrence of the event on each of the following dates:
+		</p>
+		<p>
+        <div class="displayOccurrences">
+	    	<table>
+	    		<tbody id="occurrencesDisplay">
+	    		</tbody>
+	    	</table>
+    	</div>
+    	</p>
+    	<p>
+    	Note that it may take a few minutes to create all occurrences
+    	</p>
+    	<p>
+    	<apex:commandButton styleClass="btn btn-primary btnMargin" 
+    		action="{!confirmSave}" value="Confirm"/>
+    	<apex:commandButton styleClass="btn btn-warning" 
+    		action="{!cancelSave}" value="Cancel"/>
+    	</p>
+    	
+        <apex:inputHidden id="recurringDates" value="{!clubEvent.Recurring_Dates__c}" />
+        </apex:form>
+    </apex:define>
+    
+    <apex:define name="footer">
+    <script>
+    	var occurrences = new Array();
+		$(document).ready(function(){
+          var recurringDatesJson = $("[id$=recurringDates]").val();
+          if(recurringDatesJson.length > 0) {
+          	occurrences = JSON.parse(recurringDatesJson);
+          }
+          showOccurrences();
+          }
+        );
+        function showOccurrences() {
+			var tbody = $("#occurrencesDisplay");
+			tbody.empty();
+			for(var i = 0; i < occurrences.length; i++) {
+				var tr = $('<tr/>').appendTo(tbody);
+				tr.append("<td>" + $.format.date(occurrences[i], "ddd MMMM d, yyyy") + "</td>");
+			}
+        }
+    </script>
+    </apex:define>
+
+</apex:composition>
+</apex:page>

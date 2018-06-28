@@ -1,0 +1,89 @@
+<apex:page standardController="lmscons__Training_Content__c" extensions="lmscons.TrainingContentDetailExt">
+
+<apex:form >
+
+<div class="pbBody">
+<table cellspacing="0" cellpadding="0" border="0" class="list " style="width:100%">
+    <colgroup span="5"></colgroup>
+    <thead class="rich-table-thead">
+        <tr class="headerRow ">
+            <th colspan="1" scope="col" class="headerRow">
+                <div>Title</div>
+            </th>
+            <th colspan="1" scope="col" class="headerRow  ">
+                <div>Status</div>
+            </th>
+            <th colspan="1" scope="col" class="headerRow  ">
+                <div>Progress</div>
+            </th>
+            <th colspan="1" scope="col" class="headerRow  ">
+                <div>Score</div>
+            </th>
+            <th colspan="1" scope="col" class="headerRow  ">
+                <div >Action</div>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr onfocus="if (window.hiOn){hiOn(this);}" onblur="if (window.hiOff){hiOff(this);}" onmouseout="if (window.hiOff){hiOff(this);} " onmouseover="if (window.hiOn){hiOn(this);} " class="dataRow even  first">
+            <td width="28%" colspan="1" class="dataCell  ">
+                <apex:outputField value="{!Module.lmscons__Title__c}" />
+            </td>
+            <td width="80px" colspan="1" class="dataCell  ">
+                <apex:outputField value="{!Module.lmscons__Status_Progress__c}" rendered="true"/>
+            </td>
+            <td width="180px" colspan="1" class="dataCell  ">
+                <c:ProgressBar percent="{!IF(ISNULL(Module.lmscons__Percent_Complete__c),0,Module.lmscons__Percent_Complete__c)}"  ispath="false" score="{!Module.lmscons__Score__c}" />
+            </td>
+            <td>
+                <apex:outputText value="{!Module.lmscons__Score__c}" rendered="true"/>
+            </td>
+            <td width="270px" style="text-align: left" colspan="1" class="dataCell  ">
+                <apex:commandLink action="{!testLink}" value="Test Module" target="_blank" onclick="myAlert1()" id="theCommandLink" styleClass="btn" style="text-decoration:none"/>
+                <apex:outputLink id="verifiedButton" rendered="{!IF(Module.lmscons__verified__c==true,false, true)}" value="{!$Page.lmscons__TrainingContentDetail}?id={!Module.id}&verified=1" style="text-decoration:none" target="_parent" styleClass="{!IF(Module.lmscons__Test_Course__c==true,'btn','btnDisabled')}" onclick="{!IF(Module.lmscons__Test_Course__c==true,'return verified(this)','return false;')}">Verify Module</apex:outputLink>
+                <span style="display:{!IF(Module.verified__c==true,'none', 'none')}" id="Status">
+                	<img src="/img/loading.gif" />
+                	Please wait...
+                </span>
+                <apex:outputLink id="newVersionButton" style="text-decoration:none" target="_parent" styleClass="{!IF(Module.lmscons__Test_Course__c==true,'btn','btnDisabled')}" onclick="{!IF(Module.lmscons__Test_Course__c==false,'return false;','')} newVersion(); return false;" >New Version</apex:outputLink>
+
+            </td>
+        </tr>
+
+    </tbody>
+</table>
+</div>
+    <apex:actionFunction action="{!doSave}" name="doSave" oncomplete="refreshPage()"/>
+</apex:form>
+
+<script>
+
+function newVersion() {
+	top.Lightbox();
+	top.getValueBool = true;
+}
+
+function refreshPage(){
+	top.location = '{!$Page.lmscons__TrainingContentDetail}?id={!Module.id}&verified=1';
+}
+
+function myAlert1() {
+	alert("{!$Label.testCourse}");
+}
+
+
+function verified(o){
+	if(confirm("{!$Label.Verified}")){
+		doSave('true');
+		o.style.display = 'none';
+
+		document.getElementById('Status').style.display = 'inline';
+
+		return false;
+	} else {
+		return false;
+	}
+}
+</script>
+
+</apex:page>

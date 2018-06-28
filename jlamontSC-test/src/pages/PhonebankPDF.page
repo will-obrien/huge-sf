@@ -1,0 +1,132 @@
+<apex:page id="thePage" renderAs="pdf" sidebar="false" showheader="false" docType="html-5.0" applyHtmlTag="false"
+    Controller="PhonebankPDFController" title="Phonebank Report" readOnly="true"
+>
+<head>
+<style type="text/css" media="print">
+	body {
+		font-size:12px;
+		font-family: Arial, Helvetica, sans-serif;
+	}
+	.mainheader {
+		font-size:14px;
+		font-weight:bold;
+		text-align:center;
+		display:block;
+	}
+	.subheader {
+		font-size:13px;
+		font-weight:bold;
+		text-align:center;
+		display:block;
+	}
+	.pagenumbers {
+		float:right;
+		font-size:12px;
+		font-weight:normal;
+	}
+	.floatLeft {
+		float:left;
+		font-size:12px;
+		font-weight:normal;
+	}
+	.floatRight {
+		float:right;
+		font-size:12px;
+		font-weight:normal;
+	}
+@page {
+	@top-center {
+    	content: element(header);
+    }
+    @bottom-left {
+        content: element(footer);
+    }
+	size:landscape;
+	}
+     div.header {
+      padding: 10px;
+      position: running(header);
+    }
+ 	div.footer {
+       display: block;
+       padding: 5px;
+       position: running(footer);
+	}
+	.pagenumber:before {
+    	content: counter(page);
+ 	}
+    .pagecount:before {
+       content: counter(pages);
+  	}
+  	.alignright {
+  		text-align:right;
+  	}
+  	table {
+		-fs-table-paginate: paginate
+  	}
+</style>
+<title>Phonebank Report</title>
+</head>
+
+	<div class="header">
+		<div class="mainheader">
+			<span class="floatLeft">
+				Exported:
+		 		<apex:outputText value=" {0,date,M/d/yyyy}">
+	 		   		<apex:param value="{!TODAY()}" /> 
+				</apex:outputText>
+			</span>
+	 		{!camp.Promo_Description__c} Phone List
+		 	<span class="pagenumbers">
+		 		Page <span class="pagenumber"/> of <span class="pagecount"/>
+		 	</span>
+	 	</div>
+	</div>
+	
+	<div class="footer">
+		<span class="floatLeft">
+			Caller Name: ____________________________________
+		</span>
+		<span class="floatRight">
+			Date: _______________________
+		</span>
+	</div>
+ 
+<body>
+<div class="content">
+<apex:dataTable value="{!campMbrList}"
+	var="cm"
+	cellspacing="10"
+>
+	<apex:column >
+		<apex:facet name="header">Name</apex:facet>
+		{!cm.FirstName} {!cm.LastName}
+	</apex:column>
+	<apex:column >
+		<apex:facet name="header">Phone</apex:facet>
+		{!cm.Phone}
+	</apex:column>
+	<apex:column rendered="{! isEventCampaign}">
+		<apex:facet name="header">Attending Event:<br/>{!camp.Event_Name__c}</apex:facet>
+	</apex:column>
+	<apex:column rendered="{! NOT ISBLANK(camp.Custom_Field_1_Label__c)}" >
+		<apex:facet name="header">{!camp.Custom_Field_1_Label__c}</apex:facet>
+	</apex:column>
+	<apex:column >
+		<apex:facet name="header">Call Disposition</apex:facet>
+		Bad Phone / Update Phone / No Answer /<br/>
+		Left Message / No English / Do Not Call
+	</apex:column>
+	<apex:column >
+		<apex:facet name="header">Interests</apex:facet>
+		{!camp.Interest_One__c}/<br/>
+		{!camp.Interest_Two__c}/<br/>
+		{!camp.Interest_Three__c}
+	</apex:column>
+	<apex:column >
+		<apex:facet name="header"># Call Attempts</apex:facet>
+	</apex:column>
+</apex:dataTable>
+</div>
+</body>
+</apex:page>

@@ -1,0 +1,1014 @@
+<apex:page showHeader="true" sidebar="false" controller="zqu.GuidedProductSelectorConfigController" extensions="zqu.JsRemoteController" tabStyle="Z_Quote_Config__tab" title="{!$Label.GUIDED_PRODUCT_SELECTOR_CONFIG_TITLE}" >
+
+  <apex:stylesheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/ZQConfig-min.css')}" />
+
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_DataTables}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_JSON}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/ZNotify-compressed.js')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/Notification-min.css')}" />
+
+  <style>
+    /* Style the div containing the new lookup */
+    #stepLookupTable {
+      display: none;
+    }
+
+    span.actionContainer {
+      vertical-align: top;
+    }
+
+    /*spacing of associated step container*/
+    .associatedStepsContainer {
+      padding-left: 5%;
+      padding-top: 1%;
+    }
+
+    /* action links must stay top aligned */ 
+    #pageBlockContainer td table tbody tr td {
+      vertical-align: top;
+      border-left-width: 0px;
+        border-right-width: 0px;
+        border-top-width: 0px;
+        border-bottom-width: 1px;
+    }
+
+    #pageBlockContainer td table tbody tr.flowRowLast td {
+      border-color: red;
+      border-bottom-width: 0px;
+    }
+
+    /* Suppress highlighting of config table */
+    #pageBlockContainer table tbody tr.highlight td {
+      background-color: #FFFFFF;
+    }
+
+    #pageBlockContainer table table {
+      width: 75%;
+    }
+
+    /*DATATABLE CSS*/
+    th.hiddenId, td.hiddenId{
+      display: none;
+    }
+
+    p.hiddenId {
+      display: none;
+    }
+
+    #pageBlockContainer .dataTable {
+      border: 1px solid #CCCCCC;
+      border-collapse: collapse;
+      width: 100% !important;
+      margin: 10px 0;
+    }
+
+    #pageBlockContainer .dataTable>thead>tr>th {
+      background-color: #D4EFF8;
+      border: 1px solid #CCCCCC;
+      font-size: 11px;
+      font-weight: bold;
+      height: 23px;
+      line-height: 16px;
+      padding: 1px 4px;
+    }
+
+    #pageBlockContainer .dataTable>tbody {
+      background-color: white;
+    }
+
+    #pageBlockContainer .dataTable>tbody>tr {
+      border: 1px solid #CCCCCC;
+      line-height: 16px;
+    }
+
+    #pageBlockContainer .dataTable>tbody>tr>td {
+      padding: 2px 10px 1px;
+      overflow: visible;
+      white-space: nowrap;
+      height: 22px;
+    }
+
+    input.newflowNameInput {
+      width: 20%;
+    }
+
+    .full-select-size {
+      min-width: 70%;
+      width: 100%;
+    }
+
+    .modal-table td {
+      width: 50%;
+      background-color: inherit !important;
+    }
+
+    .modal-table {
+      width: 80%;
+      margin: auto;
+    }
+
+    .hiddenOrder {
+      display: none;
+    }
+
+    .outerConfigTable {
+      table-layout: fixed;
+    }
+
+    .includeFlowColumn {
+      text-align: center;
+    }
+
+    /* For checkboxes in IncludeInProductSelector column */
+    .checkboxUnchecked {
+      background-image: url("{!URLFOR($Resource.imagesAndJavascriptZip, '/images/checkbox_unchecked.gif')}");
+      background-position: center;
+      background-repeat: no-repeat;
+      display: block;
+      height: 16px;
+    }
+
+    .checkboxChecked {
+      background-image: url("{!URLFOR($Resource.imagesAndJavascriptZip, '/images/checkbox_checked.gif')}");
+      background-position: center;
+      background-repeat: no-repeat;
+      display: block;
+      height: 16px;
+    }
+
+  </style>
+
+  <script>
+    var $jq = jQuery.noConflict();
+    var openIconSrc = "{!URLFOR($Resource.ImagesAndJavascriptZip, '/images/open.gif')}";
+    var closeIconSrc = "{!URLFOR($Resource.imagesAndJavascriptZip, '/images/close.gif')}";
+    var relatedSteps = {};
+
+    // JS object representing the currently selected step (to be deserialized in server-side logic)
+    var selectedStep = {};
+
+    //Init notification message panel
+    var msgPanel = new ZNotify({eleId : "msg-panel"});
+
+    // On initialization
+    $jq(
+      function() {
+        // Initialize img sources
+        $jq('img.expandIcon').attr('src', openIconSrc);
+
+        // Initialize related step tables
+        initializeRelatedSteps();
+
+        // Initialize table css
+        resetStyle();
+
+        // Register event listeners for all UI actions (was previously last in this method)
+        registerEventListeners();
+
+        // Set column width
+        $jq('table.outerConfigTable colgroup').prepend('<col style="width:70%;" ><col style="width:15%;" ><col style="width:15%; ">');
+
+        // If the Id of a GuidedSellingStep is specified in the URL, display the corresponding flow
+        toggleFlowSteps('{!$CurrentPage.parameters.flowId}');
+
+        // Initialize the data-row values for all rows in the table (used to identify the source what row to update in callbacks)
+        $jq('table.outerConfigTable > tbody > tr').each(function(index){
+          $jq(this).attr('data-row', index);    
+        });
+
+        // Initially copy over all existing flow names (read only) into there corresponding input tags
+        $jq('input.flowNameInput').val(
+          function() {
+            return $jq(this).prev('span').text().trim();
+          }
+        );
+      }
+    );
+
+    // Displays the modal with the option to remove or completely delete the step selected for deletion
+    function displayDeleteOptionsModal(event) {
+      // Get the event target
+      var eventTarget = $jq(event.target);
+
+      var listName = eventTarget.parent('td').prev('td').html();
+
+      // Set the selected step object that will be passed to the server-side logic
+      selectedStep = {
+        'id' : eventTarget.next('p').next('p').html(),
+        'flowId' : eventTarget.closest('div.associatedStepsContainer').attr('id').slice(0,18),
+        'order' : parseInt(eventTarget.next('p').html()),
+        'stepFlowMapId' : eventTarget.parent('td').next('td').html(),
+        'listId' : eventTarget.nextAll('p[html-data-id="hiddenListId"]').html(),
+        'featureListId' : eventTarget.nextAll('p[html-data-id="hiddenFeatureListId"]').html(),
+        'filterId' : eventTarget.nextAll('p[html-data-id="hiddenFilterId"]').html(),
+        'listName' : listName,
+        'featureListName' : listName + 'Features',
+        'filterName' : listName + 'Filter'
+      };
+
+      // FilterId and FeatureListId might be "null". Set them to an empty string here to avoid server side JSON deserialization errors
+      if(selectedStep.filterId == "null" || selectedStep.filterId == "undefined") selectedStep.filterId = '';
+      if(selectedStep.featureListId == "null" || selectedStep.featureListId == "undefined") selectedStep.featureListId = '';
+
+      // Display warning message before delete operation
+      $jq('span[data-id="deleteStepOptionModal"]').toggle();
+    }
+
+    // Hides the modal for choosing delete options
+    function hideDeleteOptionsModal() {
+      $jq('span[data-id="deleteStepOptionModal"]').css('display', 'none');
+    }
+
+    function registerEventListeners() {
+      // Register an event listener to prevent the keypress event from bubbling when the user presses ENTER into a flow name input
+      $jq('tbody[data-id="configTableBody"]').on(
+        'keypress',
+        'input.flowNameInput',
+        function(event) {
+          if(event.which === 13) event.preventDefault();
+        }
+      );
+
+      // Register an event listener to update a flow name when the user presses enter
+      $jq('tbody[data-id="configTableBody"]').on(
+        'keyup',
+        'td[data-stage] input.flowNameInput',
+        function(event) {
+          // Do nothing if the user pressed a key other than ENTER
+          if(event.which !== 13) return;
+
+          // Determine the arguments for the js remote call
+          var containerTd = $jq(event.target).closest('td');
+          var flowId = containerTd.attr('data-flow-id') ? containerTd.attr('data-flow-id') : null;
+          var flowName = containerTd.children('input').val();
+          var dataRow = containerTd.parent('tr').attr('data-row');
+          var includeFlowInProductSelector = containerTd.parent('tr').find('input[type="checkbox"]').prop('checked');
+
+          upsertFlow(flowId, flowName, dataRow, includeFlowInProductSelector);
+        }
+      );
+
+      // Register an event listener to remove a step from a flow when the user clicks on the corresponding DELETE action link
+      $jq('tbody[data-id="configTableBody"]').on(
+        'click',
+        'a[data-name="deleteStepLink"]',
+        displayDeleteOptionsModal
+      );
+
+      // Register an event listener to insert or update a flow with the name input by the user
+      $jq('tbody[data-id="configTableBody"]').on(
+        'click',
+        'a[data-name="saveFlowLink"]',
+        function(event) {
+          // Determine the arguments for the js remote call
+          var containerTd = $jq(event.target).closest('td').prev('td').prev('td');
+          var flowId = containerTd.attr('data-flow-id') ? containerTd.attr('data-flow-id') : null;
+          var flowName = containerTd.children('input').val();
+          var dataRow = containerTd.parent('tr').attr('data-row');
+          var includeFlowInProductSelector = containerTd.parent('tr').find('input[type="checkbox"]').prop('checked');
+
+          upsertFlow(flowId, flowName, dataRow, includeFlowInProductSelector);
+        }
+      );
+
+      // Register an event listener to cancel the changes to a flow
+      $jq('tbody[data-id="configTableBody"]').on(
+        'click',
+        'a[data-name="cancelSaveFlowLink"]',
+        cancelFlow
+      );
+
+      // Register an event to make sure the error message panel clears out whenever the user clicks a button to perform a new action 
+      $jq('button').on('click', function() {
+        $jq('#msg-panel').empty();
+      });
+    }
+
+    // For all existing related steps, display them in tables underneath their flows
+    function initializeRelatedSteps() {
+      relatedSteps = $jq.evalJSON('{!relatedStepJson}');
+
+      // For each flowId, assemble the related steps and push to the data table
+      for(var flowId in relatedSteps) {
+        var data = relatedSteps[flowId];
+        if(data.length) {
+          $jq('#' + flowId + 'stepsTable').dataTable({
+            'aaData' : data,
+            'aoColumnDefs' : [
+              {
+                'mData' : 'name', 
+                'sTitle' : '{!$ObjectType.GuidedSellingStep__c.Fields.Name.Label}',
+                'aTargets' : [0]
+              },
+              {
+                'mData' : 'id', 
+                'sTitle' : '{!$Label.CONFIG_LIST_ACTION}', 
+                'mRender' : function(data, type, row){
+                  return getEditStepActionHtml(data, flowId, row.order, row.listId, row.featureListId, row.filterId);
+              },
+                'aTargets' : [1]
+              }, 
+              {
+                'mData' : 'stepToFlowMapId', 
+                'sTitle' : 'hiddenId',
+                'sClass' : 'hiddenId',
+                'aTargets' : [2]
+              }
+            ],
+            'bAutoWidth' : false,
+            'bFilter' : false,
+            'bInfo' : false,
+            'bPaginate' : false,
+            'bSort' : false
+          });
+        }
+      }
+    }
+
+    // Returns the html of an action cell in an associated steps table
+    function getEditStepActionHtml(stepId, flowId, order, listId, featureListId, filterId) {
+      return '<a class="zActionLink" onclick="editStep(\'' + stepId + '\',\'' + flowId + '\');" >{!$Label.BUTTON_EDIT}</a> | <a class="zActionLink" data-name="deleteStepLink" >{!$Label.BUTTON_DELETE}</a><p class="hiddenOrder">' + order + '</p><p class="hiddenId">' + stepId + '</p><p class="hiddenId" html-data-id="hiddenListId" >' + listId + '</p><p class="hiddenId" html-data-id="hiddenFeatureListId" >' + featureListId + '</p><p class="hiddenId" html-data-id="hiddenFilterId" >' + filterId + '</p>';
+    }
+
+    // Returns the html of an action cell for editing/deleting a flow
+    function getEditFlowActionHtml(flowId) {
+      return '<a class="zActionLink" onclick="editFlow(\'' + flowId + '\'); return false;" >{!$Label.BUTTON_EDIT}</a><span class="actionSeperator"> | </span><a class="zActionLink" onclick="deleteFlow(\'' + flowId + '\')" >{!$Label.BUTTON_DELETE}</a>';
+    }
+
+    // Returns the html of an action cell for saving/cancelling changes to a flow
+    function getSaveFlowActionHtml() {
+      return '<a class="zActionLink" data-name="saveFlowLink" >{!$Label.BUTTON_SAVE}</a><span class="actionSeperator" > | </span><a class="zActionLink" data-name="cancelSaveFlowLink" >{!$Label.BUTTON_CANCEL}</a>';
+    }
+
+    // Returns the html of a table cell for the IncludeInProductSelectorCheckbox
+    function getIncludeFlowCheckboxHtml(isChecked) {
+      var spanClass = isChecked ? 'checkboxChecked' : 'checkboxUnchecked';
+      var inputIsChecked = isChecked ? 'checked' : '';
+      return '<td class="includeFlowColumn" ><span class="' + spanClass + '" data-id="includeFlowOutputCheckbox" /><span data-id="includeFlowInputCheckbox" style="display:none;" ><input type="checkbox" ' + inputIsChecked + ' ></span></td>';
+    }
+
+    // Reset the style of the flow-level rows when a new row is added
+    function resetStyle() {
+      $jq('td[data-stage]').parent().removeClass('flowRowLast');
+      $jq('td[data-stage]').last().parent().addClass('flowRowLast');
+
+      // If the product selector table has no rows, hide it
+      var display = $jq('table.outerConfigTable > tbody > tr').length ? 'block' : 'none';
+      $jq('table.outerConfigTable').closest('tr').css('display', display);
+    }
+
+    // Adds a new flow (in draft) to the end of the table
+    function addFlow() {
+
+      // Determine the row count
+      var rowCount = $jq('tr[data-row]').length;
+
+        // Create a new row to add to the table
+      var newRow = $jq(
+        '<tr data-row="' + rowCount + '"><td data-stage="draft" ><input type="text" class="flowNameInput" maxLength="255" size="75" value="{!$Label.NEW_FLOW_NAME}" ></td><td class="includeFlowColumn" ><span class="checkboxUnchecked" data-id="includeFlowOutputCheckbox" style="display:none;" /><span data-id="includeFlowInputCheckout"><input type="checkbox" ></span></td><td><span class="actionContainer" >' + getSaveFlowActionHtml() + '</span></td></tr>'
+      );
+
+      // Find the last row of the flow table (TDs in the table are marked by data-id="flowColumn")
+      var lastTd = $jq('td[data-stage]').last();
+
+      // If there are existing rows
+      if(lastTd.length) {
+        var lastRow = lastTd.parent('tr');
+
+        // Add the flow to the dom
+        lastRow.after(newRow);
+      }
+      // If there are no existing rows
+      else {
+        $jq('table.outerConfigTable tbody').append(newRow);
+      }
+
+      // Focus on the new flow name input
+      newRow.find('input[type!="checkbox"]').focus();
+
+      resetStyle();
+    }
+
+    // Insert a new flow or update an existing one with the name flowName
+    function upsertFlow(flowId, flowName, dataRow, includeFlow) {
+
+      var escapedFlowName = htmlEncode(flowName);
+
+      // Display status modal
+      displayStatusModal();
+
+      // Call remoting method to insert guided selling flow
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.JsRemoteController.upsertGuidedSellingFlow}',
+        flowId,
+        escapedFlowName,
+        includeFlow,
+        function(result, event) {
+          // Close status modal
+          closeStatusModal();
+
+          // If result was successful
+          if(event.status && result.success) {
+
+            // The id of the new flow is the message of the result
+            var newFlowId = result.message;
+
+            // Get the row to update
+            var rowToUpdate = $jq('table.outerConfigTable > tbody > tr[data-row="' + dataRow + '"]');
+
+            // Get the TD containing the content to be updated
+            var draftTd = rowToUpdate.children('td').eq(0);
+
+            // Get the flow name from the draftTd
+            var newFlowName = htmlEncode($jq('input', draftTd).val());
+
+            // If flowId exists, this is an update operation to an existing flow and no new content needs to be generated for its associated flow
+            if(flowId) {
+              // Push the new flow name to the read-only output
+              $jq('span', draftTd).toggle().html(newFlowName);
+
+              // Hide the editable input
+              $jq('input', draftTd).toggle();
+
+              // Swap the visibility of the action containers
+              $jq('span.actionContainer', rowToUpdate).toggle();
+
+
+              if(includeFlow) {
+                $jq('input[type="checkbox"]', rowToUpdate).prop('checked', true).parent('span').hide();
+                $jq('span.checkboxUnchecked', rowToUpdate).addClass('checkboxChecked').removeClass('checkboxUnchecked').css('display', 'block');
+              }
+              else {
+                $jq('input[type="checkbox"]', rowToUpdate).prop('checked', false).parent('span').hide();
+                $jq('span.checkboxChecked', rowToUpdate).addClass('checkboxUnchecked').removeClass('checkboxChecked').css('display', 'block');
+              }
+            }
+            if(!flowId) {
+
+              var newContent = $jq('<td data-flow-id="' + newFlowId + '" data-stage="active" ><img class="expandIcon" onclick="toggleFlowSteps(\'' + newFlowId + '\');" src="' + openIconSrc + '" >&nbsp;&nbsp;<span></span><input maxLength="255" class="flowNameInput" size="75" style="display:none;" ><div class="associatedStepsContainer" id="' + newFlowId + 'stepsContainer" style="display:none;" ><p style="font-weight:bold; font-size:11px; display:none;" >{!$Label.ASSOCIATED_STEPS}:</p><table id="' + newFlowId + 'stepsTable" /><button onclick="addStep(\'' + newFlowId + '\'); return false;" >{!$Label.BUTTON_ADD_STEP}</button><button onclick="createStep(\'' + newFlowId + '\'); return false;" >{!$Label.BUTTON_CREATE_STEP}</button><br/><br/></div></td>' + getIncludeFlowCheckboxHtml(includeFlow) + '<td class="actionColumn" ><span class="actionContainer" >' + getEditFlowActionHtml(newFlowId) + '</span><span class="actionContainer" style="display:none;" >' + getSaveFlowActionHtml() + '</span></td>');
+
+              // Copy the new (html encoded) flow name value into the new td
+              $jq('span', newContent).first().html(newFlowName);
+              $jq('input', newContent).first().html(newFlowName);
+
+              // Add the new content
+              draftTd.before(newContent);
+
+              // Remove the old content
+              rowToUpdate.children('td').slice(3).remove();
+            }
+          }
+          else {
+            handleJsRemoteErrors(result.message);
+          }
+        }
+      );
+    }
+
+    // Removes the flow indicated by Id
+    function deleteFlow(flowId) {
+      // Display status modal
+      displayStatusModal();
+
+      // Call remote method to insert guided selling flow
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.JsRemoteController.deleteGuidedSellingFlow}',
+        flowId,
+        function(result, event) {
+          // Close status modal
+          closeStatusModal();
+
+          // Handle result
+          if(event.status && result.success) {
+            // Find the row to delete based on the id of the flow that was deleted
+            var rowToDelete = $jq('td[data-flow-id="' + flowId + '"]').parent();
+
+            // Remove the row
+            rowToDelete.remove();
+
+            // Reset the css
+            resetStyle();
+
+            // Reset the data-row value for all rows 
+            // TODO - optimize to only update rows after the deleted
+            $jq('table.outerConfigTable > tbody > tr').each(function(index) {
+              $jq(this).attr('data-row', index);
+            });
+          }
+          else {
+            handleJsRemoteErrors(result.message);
+          }
+        }
+      );
+    }
+
+    // Called when a user clicks the EDIT action of a flow
+    function editFlow(flowId) {
+      // The parent td containing the input and output to toggle
+      var parentTd = $jq('td[data-flow-id="' + flowId + '"]');
+
+      // Hide the flow name output span
+      var outputNameSpan = $jq('span', parentTd);
+      outputNameSpan.toggle();
+
+      // Retrieve the (trimmed) name from the output span
+      var currentFlowName = outputNameSpan.text().trim();
+
+      // Copy the flow name into the new name input and put the input into focus
+      $jq('input', parentTd).val(currentFlowName).toggle().focus();
+
+      // Toggle the visibility of the action sections (Edit/Delete should be hidden and Save/Cancel rendered)
+      $jq('span.actionContainer', parentTd.nextAll('td.actionColumn')).toggle();
+
+      // Make the includeInProductSelector checkbox editable
+      var parentTr = parentTd.closest('tr');
+      $jq('span[data-id="includeFlowInputCheckbox"]', parentTr).css('display', 'block');
+      $jq('span[data-id="includeFlowOutputCheckbox"]', parentTr).hide();
+
+      // Restore the value of the checkbox to that of the database (in case the user changed it previously without clicking save)
+      var isChecked = $jq('span[data-id="includeFlowOutputCheckbox"]', parentTr).hasClass('checkboxChecked');
+      $jq('span[data-id="includeFlowInputCheckbox"] input[type="checkbox"]', parentTr).prop('checked', isChecked);
+    }
+
+    // Called when user clicks Add Step for a flow
+    function addStep(flowId) {
+      displayStatusModal();
+
+      // Get the modal displaying the available steps
+      var availableStepsModal = $jq('span[data-id="availableStepsModal"]');
+
+      // Invoke the remote action method to query all steps available to be added to this flow
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.JsRemoteController.getAvailableSteps}',
+        flowId,
+        function(result, event) {
+          // close the status modal
+          closeStatusModal();
+
+          if(event.status && result.success) {
+
+            // Get the select tag to add all available step options to
+            var select = $jq('select', availableStepsModal);
+
+            // Update the flowId of the hidden input
+            $jq('input[data-id="hiddenFlowId"]').val(flowId);
+
+            // Add all step options to the select
+            for(var i = 0; i < result.sObjects.length; i++) {
+
+              // Create a new select option from the step
+              var newSelectOption = $jq('<option value="' + result.sObjects[i].Id + '" >' + result.sObjects[i].Name + '</option>');
+
+              // Append the new select option to the list
+              select.append(newSelectOption);
+            }
+
+            // Display modal popup with available steps
+              availableStepsModal.toggle();
+
+          }
+          else {
+            handleJsRemoteErrors(result.message);
+          }
+        }
+      );
+    }
+
+    // Called when user clicks SELECT after selecting a step to add to the current flow
+    function addStepToFlow() {
+      // Determine the IDs of the step and flow to be mapped
+      var flowId = $jq('input[data-id="hiddenFlowId"]').val();
+
+      var stepIdsToAdd = [];
+      var stepNamesToAdd = [];
+
+      $jq('span[data-id="availableStepsModal"] option').filter(':selected').each(function() {
+        var thisOption = $jq(this);
+        stepIdsToAdd.push(thisOption.val());
+        stepNamesToAdd.push(thisOption.html());
+      });
+
+      // Close the available steps modal
+      closeModal();
+
+      // Display the status modal
+      displayStatusModal();
+
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.JsRemoteController.addStepsToFlow}',
+        stepIdsToAdd,
+        flowId,
+        function(result, event) {
+          // Close the status modal
+          closeStatusModal();
+
+          if(event.status && result.success && result.sObjects.length) {
+
+            // Get the tBody to append the new row to
+            var tBodyToUpdate = $jq('table[id="' + flowId + 'stepsTable"] tbody')
+
+            // If the tBody was found, the flow already has a table filled out with rows
+            if(tBodyToUpdate.length) {
+              for(var i = 0; i < result.sObjects.length; i++) {
+                var newStepToFlowMap = result.sObjects[i];
+
+                // Create the new TR to add to the UI
+                var newTr = $jq('<tr><td>' + stepNamesToAdd[i] + '</td><td>' + getEditStepActionHtml(stepIdsToAdd[i], flowId, newStepToFlowMap['{!zQuotesPrefix}Order__c'], newStepToFlowMap['{!zQuotesPrefix}GuidedSellingStep__r']['{!zQuotesPrefix}ZList__c'], newStepToFlowMap['{!zQuotesPrefix}GuidedSellingStep__r']['{!zQuotesPrefix}ZList__r']['{!zQuotesPrefix}Associated_Sub_List__c'], newStepToFlowMap['{!zQuotesPrefix}GuidedSellingStep__r']['{!zQuotesPrefix}ZFilter__c']) + '</td><td class="hiddenId">' + stepIdsToAdd[i] + '</td></tr>');
+
+                // Append the new TR to the table body
+                tBodyToUpdate.append(newTr);
+              }
+            }
+            else {
+              // If a tBody was not found, the table and associated text needs to be shown
+              $jq('div#{flowId}stepsContainer p'.replace('{flowId}', flowId)).css('display', '');
+
+              // Assemble an object for the new row data (to be passed in to dataTable)
+              var newRowData = [];
+              for(var i = 0; i < result.sObjects.length; i++) {
+                newRowData.push({
+                  'name' : stepNamesToAdd[i],
+                  'id' : result.sObjects[i]['{!zQuotesPrefix}GuidedSellingStep__c'],
+                  'order' : result.sObjects[i]['{!zQuotesPrefix}Order__c'],
+                  'stepToFlowMapId' : result.sObjects[i].Id,
+                  'listId' : result.sObjects[i]['{!zQuotesPrefix}GuidedSellingStep__r']['{!zQuotesPrefix}ZList__c'],
+                  'featureListId' : result.sObjects[i]['{!zQuotesPrefix}GuidedSellingStep__r']['{!zQuotesPrefix}ZList__r']['{!zQuotesPrefix}Associated_Sub_List__c'],
+                  'filterId' : result.sObjects[i]['{!zQuotesPrefix}GuidedSellingStep__r']['{!zQuotesPrefix}ZFilter__c']
+                });
+              }
+
+              // Initialize the table with the new row data using dataTable
+              $jq('#' + flowId + 'stepsTable').dataTable({
+                'aaData' : newRowData,
+                'aoColumnDefs' : [
+                  {
+                    'mData' : 'name', 
+                    'sTitle' : '{!$ObjectType.GuidedSellingStep__c.Fields.Name.Label}',
+                    'aTargets' : [0]
+                  },
+                  {
+                    'mData' : 'id', 
+                    'sTitle' : '{!$Label.CONFIG_LIST_ACTION}', 
+                    'mRender' : function(data, type, row) {
+                      return getEditStepActionHtml(data, flowId, row.order, row.listId, row.featureListId, row.filterId);
+                    },
+                    'aTargets' : [1]
+                  }, 
+                  {
+                    'mData' : 'stepToFlowMapId', 
+                    'sTitle' : 'hiddenId',
+                    'sClass' : 'hiddenId',
+                    'aTargets' : [2]
+                  }
+                ],
+                'bAutoWidth' : false,
+                'bFilter' : false,
+                'bInfo' : false,
+                'bPaginate' : false,
+                'bSort' : false
+              });
+            }
+            
+          }
+          else {
+            handleJsRemoteErrors(result.message);
+          }
+        }
+      );
+    }
+
+    // Called when a user clicks Create Step for a flow
+    function createStep(flowId) {
+      window.location = 'CreateGuidedSellingStep?flowId=' + flowId;
+    }
+
+    // Called when the user deletes a step entirely
+    function deleteStep(event) {
+
+      // Hide the delete option modal
+      hideDeleteOptionsModal();
+
+      // Display status modal
+      displayStatusModal();
+
+      // Prevent the event from bubbling
+      event.preventDefault();
+
+      // Serialize the selected step to JSON
+      var guidedProductSelectorJson = $jq.toJSON(selectedStep);
+
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.JsRemoteController.deleteGuidedSellingStep}',
+        guidedProductSelectorJson,
+        true,
+        function(result, event) {
+          // Close the status modal
+          closeStatusModal();
+
+          if(event.status && result.success) {
+            // List of Ps displaying steps of id stepId
+            var stepNodes = $jq('p.hiddenId:contains("' + selectedStep.id + '")');
+
+            stepNodes.each(
+              function(i) {
+                var thisElement = $jq(this);
+
+                // Get the parent TR
+                var parentTr = thisElement.closest('tr');
+
+                // Get the parent TBody
+                var parentTBody = thisElement.closest('tbody');
+
+                // Update the order on all of the rows after
+                parentTr.nextAll('tr').find('p.hiddenOrder').each(
+                  function(i) {
+                    var newOrder = parseInt(this.InnerHtml) + 1;
+                    $jq(this).html(newOrder);
+                  }
+                );
+
+                // Remove this row
+                parentTr.remove();
+
+                // If there are no more rows to display in this inner table, hide it from view
+                if($jq('tr', parentTBody).length === 0) {
+                  parentTBody.parent('table').parent('div').prev('p').css('display', 'none');
+                  parentTBody.parent('table').dataTable().fnDestroy();
+                  parentTBody.parent('table').empty().removeClass('dataTable');
+                }
+              }
+            );
+
+            resetStyle();
+          }
+          else {
+            handleJsRemoteErrors(result.message);
+          }
+        }
+      );
+    }
+
+    // Called when the user removes a step from a flow
+    function removeStep(event) {
+      // Hide the delete option modal
+      hideDeleteOptionsModal();
+
+      // Display status modal
+      displayStatusModal();
+
+      // Prevent the event from bubbling
+      event.preventDefault();
+
+      // Serialize the selected step to JSON
+      var guidedProductSelectorJson = $jq.toJSON(selectedStep);
+
+      // Call remote js method to delete the mapping between the step and flow
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.JsRemoteController.deleteGuidedSellingStep}',
+        guidedProductSelectorJson,
+        false,
+        function(result, event) {
+          // Close the status modal
+          closeStatusModal();
+
+          // If the event was successful, remove the row
+          if(event.status && result.success) {
+            // Get the TD containing the step table being edited
+            var tdWrapper = $jq('td[data-flow-id="' + selectedStep.flowId +'"]');
+
+            // Remove the TR specified by order
+            tdWrapper.find('table.dataTable tbody tr').get(selectedStep.order - 1).remove();
+
+            // If there are no rows remaining (i.e the step removed was the only step) hide the table entirely
+            if(tdWrapper.find('table.dataTable tbody tr').length === 0) {
+              tdWrapper.find('table.dataTable').dataTable().fnDestroy();
+              tdWrapper.find('table.dataTable').empty().removeClass('dataTable');
+              tdWrapper.find('p').css('display', 'none');
+            }
+            else {
+              // If there are rows remaining, they need to have their row numbers updated
+              $jq('p.hiddenOrder', tdWrapper).each(function(index){
+                $jq(this).html(index + 1);
+              });
+            }
+          }
+          else {
+            handleJsRemoteErrors(result.message);
+          }
+        }
+      );
+    }
+
+    function editStep(stepId, flowId) {
+      window.location = 'CreateGuidedSellingStep?id=' + stepId + '&flowId=' + flowId;
+    }
+
+    function cancelFlow(event) {
+      var containerTr = $jq(event.currentTarget).closest('tr');
+
+      var flowId = containerTr.children('td[data-flow-id]').attr('data-flow-id');
+
+      if(flowId) {
+        var oldName = $jq('td[data-flow-id="' + flowId + '"] > span').html();
+
+        $jq('td[data-flow-id="' + flowId + '"] > input').val(oldName);
+
+        // Hide the input field
+        $jq('td[data-flow-id="'+ flowId + '"] > input').toggle();
+
+        // Show the read only flow name
+        $jq('td[data-flow-id="'+ flowId + '"] > span').toggle();
+
+        // Toggle the views of the Edit and Save action spans
+        $jq('span.actionContainer', containerTr).toggle();
+
+        // Make the includeInProductSelector checkbox read only
+        $jq('span[data-id="includeFlowInputCheckbox"]', containerTr).hide();
+        $jq('span[data-id="includeFlowOutputCheckbox"]', containerTr).show();
+      }
+      else {
+        containerTr.remove();
+
+        resetStyle();
+      }
+    }
+
+    function toggleFlowSteps(flowId) {
+      // Find the steps table
+      var stepsContainer = $jq("#" + flowId + "stepsContainer");
+
+      // Toggle the table visibility
+      stepsContainer.toggle();
+
+      // Toggle the expand/collapse icon
+      var icon = stepsContainer.prevAll('img');
+
+      if(icon.attr('src') == openIconSrc) icon.attr('src', closeIconSrc);
+      else icon.attr('src', openIconSrc);
+    }
+
+    // Close out the available steps modal
+    function closeModal() {
+      var availableStepsModal = $jq('span[data-id="availableStepsModal"]');
+
+      // Close the available steps modal
+      availableStepsModal.toggle();
+
+      // Remove all select options from the available steps modal
+      $jq('option[value!="--"]', availableStepsModal).remove();
+    }
+
+    // Display any errors from a js remoting call
+    function handleJsRemoteErrors(message) {
+      // Clear the message panel
+      $jq("#msg-panel").empty();
+
+      // Add the error message to the message panel
+      msgPanel.showErrorMessage('{!$Label.Error_Page_Submission}', message);
+    }
+
+    // Encodes html by inserting value into a dummy div and retrieving the html value
+    function htmlEncode(value) {
+      return $jq('<div/>').text(value).html();
+    }
+  </script>
+
+  <c:HelpComponent cid="COM-0021" rightAlign="true" />
+
+  <!-- Page Title -->
+  <c:PageTitle title="{!$Label.GUIDED_PRODUCT_SELECTOR_CONFIG_TITLE}" subTitle="{!$Label.GUIDED_PRODUCT_SELECTOR_CONFIG_SUBTITLE}" />
+
+  <c:StatusModal />
+
+  <apex:form >
+    <!-- Hidden input for storing the id of the selected flow -->
+    <input type="hidden" value="" data-id="hiddenFlowId" />
+
+    <!-- Message panel for displaying js remote errors -->
+    <div id="msg-panel" />
+
+    <!-- Modal popup for adding new step -->
+    <apex:outputPanel styleClass="popup-overlay filter-popup" style="display:none;" html-data-id="availableStepsModal" >
+      <apex:outputPanel styleClass="config-box">
+        <div class="header">
+          <p><strong>{!$Label.AVAILABLE_STEPS}</strong></p>
+        </div>
+        <br/>
+        <table class="modal-table">
+          <tr>
+            <td>
+              <apex:selectList size="8" styleClass="full-select-size" multiselect="true" html-data-id="availableStepsSelectList" >
+                <apex:selectOption value="{!defaultSelectOption}" /> 
+              </apex:selectList>
+            </td>
+          </tr>
+        </table>
+        <p style="text-align: center;">
+          <apex:commandButton value="{!$Label.BUTTON_SELECT}" onclick="addStepToFlow();return false;" styleClass="closeButton" html-data-id="selectStepButton" html-data-flowId="" />
+          <apex:commandButton value="{!$Label.BUTTON_CLOSE}" onclick="closeModal();return false;" styleClass="closeButton" />
+        </p>
+      </apex:outputPanel>
+    </apex:outputPanel>
+
+    <!-- Modal popup for choosing delete option for step -->
+    <apex:outputPanel styleClass="popup-overlay filter-popup" style="display:none;" html-data-id="deleteStepOptionModal" >
+      <apex:outputPanel styleClass="config-box" >
+        <div class="header" >
+          <p><strong>{!$Label.WARNING}</strong></p>
+        </div>
+        <br/>
+        <table class="modal-table" >
+          <tr>
+            <td>
+              {!$Label.GUIDED_SELLING_CONFIG_CONFIRM_DELETE_STEP}
+            </td>
+          </tr>
+        </table>
+        <p style="text-align: center;" >
+          <apex:commandButton value="{!$Label.BUTTON_CANCEL}" onclick="hideDeleteOptionsModal(); return false;" styleClass="closeButton" html-data-id="hideDeleteOptionsButton" />
+          <apex:commandButton value="{!$Label.BUTTON_OK}" onclick="removeStep(event);" styleClass="closeButton" html-data-id="removeStepButton" />
+          <apex:commandButton value="{!$Label.BUTTON_DELETE}" onclick="deleteStep(event);" styleClass="closeButton" html-data-id="deleteStepButton" />
+        </p>
+      </apex:outputPanel>
+    </apex:outputPanel>
+
+    <div id="pageBlockContainer" >
+      <apex:pageBlock >
+        <apex:pageBlockButtons >
+          <apex:commandButton value="{!$Label.BUTTON_BACK_SETTINGS}" action="{!goBack}" />
+        </apex:pageBlockButtons>
+      <apex:pageBlockSection title="{!$Label.GUIDED_PRODUCT_SELECTOR_CONFIGURATION}" rendered="{!zqconfig.zqu__Enable_GuidedSelling__c}" collapsible="false" columns="1" >
+          <p class="label" >{!$Label.FLOW_CONFIGURATION}:</p>
+          <span style="display:inline;" >
+            <apex:pageBlockTable value="{!guidedProductSelectors}" var="gps" id="flowsPageBlockTable" styleClass="outerConfigTable" html-data-id="configTableBody" columnClasses="nameColumn,includeFlowColumn,actionColumn" >
+              <apex:column html-data-stage="active" html-data-flow-id="{!gps.Id}" >
+                <!-- Expand/collapse icon -->
+                <img class="expandIcon" onclick="toggleFlowSteps('{!gps.Id}')" />
+
+                <!-- Flow name output -->
+                &nbsp;
+                <span>
+                  <apex:outputText escape="false" value="{!gps.name}" />
+                </span>
+
+                <!-- Flow name input (value is initialized by copying from the span above) -->
+                <input style="display: none;" class="flowNameInput" size="75" maxLength="255" />
+
+                <!-- Table of steps -->
+                <div id="{!gps.Id}stepsContainer" style="display:none" class="associatedStepsContainer" >
+                  <p style="font-weight:bold; font-size:11px; {!IF(gps.steps.size = 0, 'display:none;', '')}" >{!$Label.ASSOCIATED_STEPS}:</p>
+                  <table id="{!gps.Id}stepsTable" />
+                  <button onclick="addStep('{!gps.Id}'); return false;" >{!$Label.BUTTON_ADD_STEP}</button>
+                  <button onclick="createStep('{!gps.Id}'); return false;" >{!$Label.BUTTON_CREATE_STEP}</button>
+                  <br/><br/>
+                </div>
+
+                <apex:facet name="header" >
+                  {!$ObjectType.zqu__GuidedSellingFlow__c.Fields.Name.Label}
+                </apex:facet>
+              </apex:column>
+
+              <!-- Include in product selector column-->
+              <apex:column >
+                <apex:facet name="header" >
+                  {!$ObjectType.zqu__GuidedSellingFlow__c.Fields.zqu__IncludeInProductSelector__c.Label}
+                </apex:facet>
+                <span class="{!IF(gps.includeInProductSelector, 'checkboxChecked', 'checkboxUnchecked')}" data-id="includeFlowOutputCheckbox" >
+                </span>
+                <apex:outputPanel rendered="{!gps.includeInProductSelector}" style="display:none;" html-data-id="includeFlowInputCheckbox" >
+                  <input type="checkbox" checked="true" />
+                </apex:outputPanel>
+                <apex:outputPanel rendered="{!NOT(gps.includeInProductSelector)}" style="display:none;" html-data-id="includeFlowInputCheckbox" >
+                  <input type="checkbox" />
+                </apex:outputPanel>
+              </apex:column>
+
+              <!-- Action column -->
+              <apex:column >
+                <span class="actionContainer" >
+                  <a class="zActionLink" onclick="editFlow('{!gps.Id}'); return false;" >{!$Label.BUTTON_EDIT}</a> <span class="actionSeperator">|</span> 
+                  <!-- <a class="zActionLink" >{!$Label.BUTTON_CLONE}</a> <span class="actionSeperator">|</span> -->
+                  <a class="zActionLink" onclick="deleteFlow('{!gps.Id}'); return false;" >{!$Label.BUTTON_DELETE}</a>
+                </span>
+                <span class="actionContainer" style="display:none;" >
+                  <a class="zActionLink" data-name="saveFlowLink">{!$Label.BUTTON_SAVE}</a>
+                  <span class="actionSeperator" > | </span>
+                  <a class="zActionLink" data-name="cancelSaveFlowLink">{!$Label.BUTTON_CANCEL}</a>
+                </span>
+
+                <apex:facet name="header" >
+                  <div id="actionColumnHeader" >
+                    {!$Label.CONFIG_LIST_ACTION}
+                  </div>
+                </apex:facet>
+              </apex:column>
+
+            </apex:pageBlockTable>
+          </span>
+          <button onclick="addFlow(); return false;" >{!$Label.BUTTON_ADD_FLOW}</button>
+        </apex:pageBlockSection>
+      </apex:pageBlock>
+    </div>
+  </apex:form>
+</apex:page>

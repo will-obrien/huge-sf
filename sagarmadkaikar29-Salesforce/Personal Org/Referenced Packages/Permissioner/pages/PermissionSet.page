@@ -1,0 +1,2271 @@
+<apex:page controller="permissioner.PermissionSetController" action="{!describe_loadAllDescribes}" sidebar="false" >
+
+    <apex:variable value="{!0}" var="selected_ps_count" />
+    <apex:repeat value="{!selectedPermissionSets}" var="ps">
+        <apex:variable value="{!selected_ps_count + 1}" var="selected_ps_count" />
+    </apex:repeat>
+    <apex:variable value="{!0}" var="selected_users_count" />
+    <apex:repeat value="{!selectedUsers}" var="u">
+        <apex:variable value="{!selected_users_count + 1}" var="selected_users_count" />
+    </apex:repeat>
+
+    <apex:variable value="{!0}" var="selected_psRevoke_count" />
+    <apex:repeat value="{!selectedPermissionSetsRevoke}" var="ps">
+        <apex:variable value="{!selected_psRevoke_count + 1}" var="selected_psRevoke_count" />
+    </apex:repeat>
+    <apex:variable value="{!0}" var="selected_usersRevoke_count" />
+    <apex:repeat value="{!selectedUsersRevoke}" var="u">
+        <apex:variable value="{!selected_usersRevoke_count + 1}" var="selected_usersRevoke_count" />
+    </apex:repeat>
+    
+    
+    <apex:variable value="{!0}" var="isPS_allSelectedInPage" />
+    <apex:variable value="{!0}" var="isUser_allSelectedInPage" />
+
+    <apex:variable value="{!0}" var="isPS_allSelectedInPageRevoke" />
+    <apex:variable value="{!0}" var="isUser_allSelectedInPageRevoke" />
+
+
+    <style type="text/css">
+        .visibilityhidden{
+            visibility:hidden;
+        }
+
+        .tabPanelAssignStyle{
+            font-size: 12px !important;
+        }
+
+        .tabPanelAssignStyle .brandSecondaryBrd{
+            margin-bottom: 0 !important;
+        }
+
+        .rich-tabpanel-content{
+            font-size: 12px !important;
+        }
+
+        .rich-tab-header{
+            font-size: 12px !important;
+            font-weight: bold;
+        }
+
+        .data2Col{
+            border-bottom: none !important;
+        }
+
+        .textData1{
+            margin-left: 30px !important;
+        }
+
+        .textTitle1{
+            font-weight: bold;
+        }
+
+        .pbSubheader{
+            margin-top: 0 !important;
+        }
+
+        .NOTEmessage{
+            margin: 5px 0 8px 0;
+            display: inline-block;
+        }
+
+        .assignSelectAllCont{
+            margin: 6px 0 2px;
+            padding-left: 15px;
+        }
+        .assignSelectAllContElem1{
+            font-weight: bold;
+        }
+        .assignSelectAllContElem2{
+            font-weight: bold;
+            margin-left: 15px;
+        }
+
+        .paginationContainer{
+            text-align:center;
+            display:inline-block;
+            width:100%;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+
+        .paginationInputPageNumberCont{
+            width:30%;
+            float:right;
+            text-align:right;
+            padding-right:10px;
+        }
+
+        .paginationNavigationBtnCont{
+            width:30%;
+            display:inline-block;
+        }
+
+        .textSelectedRecords{
+            margin-left: 30px;
+            white-space: nowrap;
+        }
+
+        .paginationInfoCont{
+            width:25%;
+            float:left;
+            padding-top: 4px;
+        }
+
+        .selectedLicenseCont{
+            white-space:nowrap;
+        }
+
+        .assignBtn1{
+            float:right;
+            padding-left: 26px !important;
+            padding-right: 26px !important;
+        }
+
+        .spanSelectedLicense{
+            font-weight:bold;
+        }
+
+        .paginationInputBox{
+            text-align:center;
+            width:36px;
+        }
+
+        .mainTablesContainer .pbBody{
+            margin: 0 !important;
+        }
+
+        .mainActionStatusClass{
+            display:inline-block;
+            width: 36px;
+            height: 30px;
+            z-index: 1000;
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            border: 1px solid lightgray;
+            text-align: center;
+            padding: 2px 0 0 14px;
+            color: gray;
+            font-weight: bold;
+            line-height: 30px;
+            background: url('/img/loading.gif') 17px 8px no-repeat white;
+            /*background: url('/changemgmt/img/spinner24.gif') 13px 4px no-repeat white;*/
+            border-radius: 5px 5px 5px 5px;
+            opacity: 0.9;
+        }
+        
+        .psSelectAllCheckbox2{
+            visibility:hidden;
+        }
+        
+        .displaynone{
+            display:none;
+        }
+    </style>
+
+    <script type="text/javascript">
+
+        var assign_maxASSIGNMENTS = {!MAXIMUM_USER_ASSIGNMENTS_TO_SELECT};
+
+        var IDcurrentLicenseInPageToController = '';
+
+        var IDcurrentLicenseInPageToControllerRevoke = '';
+
+        var assign_ps_pageInputBox_id = '';
+        var assign_ps_searchInputBox_id = '';
+        var assign_ps_filterInput_id = '';
+        var assign_user_pageInputBox_id = '';
+        var assign_user_searchInputBox_id = '';
+        var assign_user_filterInput_id = '';
+
+        var revoke_ps_pageInputBox_id = '';
+        var revoke_ps_searchInputBox_id = '';
+        var revoke_ps_filterInput_id = '';
+        var revoke_user_pageInputBox_id = '';
+        var revoke_user_searchInputBox_id = '';
+        var revoke_user_filterInput_id = '';
+        
+        var assign_ps_currentPageNumber = '';
+        var assign_user_currentPageNumber = '';
+
+        var revoke_ps_currentPageNumber = '';
+        var revoke_user_currentPageNumber = '';
+
+        var ps_currentSelectedUserLicense = null;
+
+        var ps_currentSelectedUserLicenseRevoke = null;
+
+        var ps_selectedRecords = 0;
+
+        var ps_allSelectedIDs = '';
+
+        var user_selectedRecords = 0;
+
+        var user_allSelectedIDs = '';
+
+        var ps_selectedRecords_revoke = 0;
+
+        var ps_allSelectedIDs_revoke = '';
+
+        var user_selectedRecords_revoke = 0;
+
+        var user_allSelectedIDs_revoke = '';
+
+        var assign_CANSUBMIT = 1;
+
+
+        function selectAllPScheckboxes(obj, checked){
+
+            if(obj != null){
+                checked = obj.checked;
+            }
+
+            var objs = document.getElementsByTagName('input');
+
+            var ps_count = getTotalSelected_PS_assign();
+            var user_count = getTotalSelected_USER_assign();
+
+            var i = 0;
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('psCheckbox1') > -1
+                ){
+                    var obj_id = getIDofPScheckbox(objs[i]);
+
+                    if(checked == false){
+                        objs[i].checked = false;
+                        ps_removePSid(obj_id);
+                    }else{
+                        if((user_count == 0 && ps_count < assign_maxASSIGNMENTS)
+                            || (user_count > 0 && user_count * (ps_count + 1) <= assign_maxASSIGNMENTS)
+                        ){
+                            if(ps_currentSelectedUserLicense == null
+                                || (ps_currentSelectedUserLicense.toLowerCase() == getUserLicenseOfSelectedPS(objs[i]).toLowerCase())
+                            ){
+                                objs[i].checked = true;
+                                ps_addPSid(obj_id);
+                                ps_currentSelectedUserLicense = getUserLicenseOfSelectedPS(objs[i]);
+                                displayPScurrentSelectedLicense();
+                                ps_count = getTotalSelected_PS_assign();
+                            }else{
+                                objs[i].checked = false;
+                                ps_removePSid(obj_id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(ps_allSelectedIDs == '' && user_allSelectedIDs == ''){
+                ps_currentSelectedUserLicense = null;
+                displayPScurrentSelectedLicense();
+            }
+        }
+
+        function selectAllUserCheckboxes(obj, checked){
+
+            if(obj != null){
+                checked = obj.checked;
+            }
+
+            var objs = document.getElementsByTagName('input');
+
+            var ps_count = getTotalSelected_PS_assign();
+            var user_count = getTotalSelected_USER_assign();
+
+            var i = 0;
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('userCheckbox1') > -1
+                ){
+                    var obj_id = getIDofUSERcheckbox(objs[i]);
+
+                    if(checked == false){
+                        objs[i].checked = false;
+                        user_removePSid(obj_id);
+                    }else{
+                        if((ps_count == 0 && user_count < assign_maxASSIGNMENTS)
+                            || (ps_count > 0 && ps_count * (user_count + 1) <= assign_maxASSIGNMENTS)
+                        ){
+                            if(ps_currentSelectedUserLicense == null
+                                || (ps_currentSelectedUserLicense.toLowerCase() == getUserLicenseOfSelectedUSER(objs[i]).toLowerCase())
+                                || ps_currentSelectedUserLicense == '- no license -'
+                            ){
+                                objs[i].checked = true;
+                                user_addPSid(obj_id);
+                                if(ps_currentSelectedUserLicense != '- no license -') ps_currentSelectedUserLicense = getUserLicenseOfSelectedUSER(objs[i]);
+                                displayPScurrentSelectedLicense();
+                                user_count = getTotalSelected_USER_assign();
+                            }else{
+                                objs[i].checked = false;
+                                user_removePSid(obj_id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(ps_allSelectedIDs == '' && user_allSelectedIDs == ''){
+                ps_currentSelectedUserLicense = null;
+                displayPScurrentSelectedLicense();
+            }
+        }
+
+        function isClickInUserCheckbox(clickedObj){
+            var objs = document.getElementsByTagName('input');
+
+            var allChecked = true;
+
+            var i = 0;
+
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('userCheckbox1') > -1
+                    && !objs[i].checked
+                ){
+                    allChecked = false;
+                }
+            }
+
+            var u_count = getTotalSelected_USER_assign();
+            var ps_count = getTotalSelected_PS_assign();
+            var assignmenst_limit_reach = false;
+
+            // Add or remove USER to the local list of selected USER
+            var user_id = getIDofUSERcheckbox(clickedObj);
+            if(clickedObj.checked){
+                if((u_count == 0)
+                    || (ps_count == 0 && u_count < assign_maxASSIGNMENTS)
+                    || (ps_count > 0 && ps_count * (u_count + 1) <= assign_maxASSIGNMENTS)
+                ){
+                    user_addPSid(user_id);
+                }else{
+                    clickedObj.checked = false;
+                    allChecked = false;
+                    assignmenst_limit_reach = true;
+                }
+            }else{
+                user_removePSid(user_id)
+            }
+            // ----
+
+            // set or reset selected USER Licence
+            if(clickedObj.checked){
+                if(ps_currentSelectedUserLicense == null
+                    || ps_currentSelectedUserLicense == '- no license -'
+                ){
+                    if(ps_currentSelectedUserLicense != '- no license -') ps_currentSelectedUserLicense = getUserLicenseOfSelectedUSER(clickedObj);
+                    displayPScurrentSelectedLicense();
+                }else{
+                    if(getUserLicenseOfSelectedUSER(clickedObj).toLowerCase() != ps_currentSelectedUserLicense.toLowerCase()){
+                        user_removePSid(user_id)
+                        clickedObj.checked = false;
+                        allChecked = false;
+                        alert('You must choose Permission Sets with the same User License.');
+                    }
+                }
+            }else{
+                if(ps_allSelectedIDs == '' && user_allSelectedIDs == ''){
+                    ps_currentSelectedUserLicense = null;
+                    displayPScurrentSelectedLicense();
+                }
+            }
+            // ----
+
+            if(!allChecked){
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('userSelectAllCheckbox1') > -1
+                    ){
+                        objs[i].checked = false;
+                    }
+                }
+            }else{
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('userSelectAllCheckbox1') > -1
+                    ){
+                        objs[i].checked = true;
+                    }
+                }
+            }
+
+            if(assignmenst_limit_reach == true){
+                alert('You can not exceed the ' +  assign_maxASSIGNMENTS + ' Assignments.');
+            }
+        }
+
+        function isClickInPSCheckbox(clickedObj){
+            var objs = document.getElementsByTagName('input');
+
+            var allChecked = true;
+
+            var i = 0;
+
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('psCheckbox1') > -1
+                    && !objs[i].checked
+                ){
+                    allChecked = false;
+                }
+            }
+
+            var u_count = getTotalSelected_USER_assign();
+            var ps_count = getTotalSelected_PS_assign();
+            var assignmenst_limit_reach = false;
+
+            // Add or remove PS to the local list of selected PS
+            var ps_id = getIDofPScheckbox(clickedObj);
+            if(clickedObj.checked){
+                if((ps_count == 0)
+                    || (u_count == 0 && ps_count < assign_maxASSIGNMENTS)
+                    || (u_count > 0 && (ps_count + 1) * u_count <= assign_maxASSIGNMENTS)
+                ){
+                    ps_addPSid(ps_id);
+                }else{
+                    clickedObj.checked = false;
+                    allChecked = false;
+                    assignmenst_limit_reach = true;
+                }
+            }else{
+                ps_removePSid(ps_id)
+            }
+            // ----
+
+            // set or reset selected PS Licence
+            if(clickedObj.checked){
+                if(ps_currentSelectedUserLicense == null){
+                    ps_currentSelectedUserLicense = getUserLicenseOfSelectedPS(clickedObj);
+                    displayPScurrentSelectedLicense();
+                }else{
+                    if(getUserLicenseOfSelectedPS(clickedObj).toLowerCase() != ps_currentSelectedUserLicense.toLowerCase()){
+                        ps_removePSid(ps_id)
+                        clickedObj.checked = false;
+                        allChecked = false;
+                        alert('You must choose Permission Sets with the same User License.');
+                    }
+                }
+            }else{
+                if(ps_allSelectedIDs == '' && user_allSelectedIDs == ''){
+                    ps_currentSelectedUserLicense = null;
+                    displayPScurrentSelectedLicense();
+                }
+            }
+            // ----
+
+            if(!allChecked){
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('psSelectAllCheckbox1') > -1
+                    ){
+                        objs[i].checked = false;
+                    }
+                }
+            }else{
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('psSelectAllCheckbox1') > -1
+                    ){
+                        objs[i].checked = true;
+                    }
+                }
+            }
+
+            if(assignmenst_limit_reach == true){
+                alert('You can not exceed the ' +  assign_maxASSIGNMENTS + ' Assignments.');
+            }
+        }
+
+        function getUserLicenseOfSelectedPS(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('psCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                var o = document.getElementById('psULicense-' + classId.split('-')[1]);
+                return o.innerHTML;
+            }
+            return null;
+        }
+
+        function getUserLicenseOfSelectedUSER(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('userCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                var o = document.getElementById('userULicense-' + classId.split('-')[1]);
+                return o.innerHTML;
+            }
+            return null;
+        }
+
+        function getIDofPScheckbox(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('psCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                return classId.split('-')[1];
+            }
+            return null;
+        }
+
+        function getIDofUSERcheckbox(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('userCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                return classId.split('-')[1];
+            }
+            return null;
+        }
+
+        function ps_addPSid(ps_id){
+            if(ps_allSelectedIDs.indexOf(',' + ps_id) < 0){
+                ps_allSelectedIDs += ',' + ps_id;
+                displayUpdateTotalSelectedRecords_psAssign();
+            }
+        }
+        function ps_removePSid(ps_id){
+            if(ps_allSelectedIDs.indexOf(',' + ps_id) > -1){
+                ps_allSelectedIDs = ps_allSelectedIDs.replace(',' + ps_id, '');
+                displayUpdateTotalSelectedRecords_psAssign();
+            }
+        }
+
+        function user_addPSid(user_id){
+            if(user_allSelectedIDs.indexOf(',' + user_id) < 0){
+                user_allSelectedIDs += ',' + user_id;
+                displayUpdateTotalSelectedRecords_userAssign();
+            }
+        }
+        function user_removePSid(user_id){
+            if(user_allSelectedIDs.indexOf(',' + user_id) > -1){
+                user_allSelectedIDs = user_allSelectedIDs.replace(',' + user_id, '');
+                displayUpdateTotalSelectedRecords_userAssign();
+            }
+        }
+
+        function displayPScurrentSelectedLicense(){
+            var o = document.getElementById('current_selected_ps_license');
+            if(o != null){
+                o.innerHTML = (ps_currentSelectedUserLicense != null ? ps_currentSelectedUserLicense : '');
+            }
+            o = document.getElementById('current_selected_user_license');
+            if(o != null){
+                o.innerHTML = (ps_currentSelectedUserLicense != null ? ps_currentSelectedUserLicense : '');
+            }
+
+            o = document.getElementById(IDcurrentLicenseInPageToController);
+            if(o != null){
+                o.value = ps_currentSelectedUserLicense == null ? 'null' : (ps_currentSelectedUserLicense == '- no license -' ? 'false' : ps_currentSelectedUserLicense);
+            }
+        }
+
+        function displayUpdateTotalSelectedRecords_psAssign(){
+            var final_count = getTotalSelected_PS_assign();
+
+            var o = document.getElementById('ps_assign_SelectedRecordCount');
+            if(o != null){
+                o.innerHTML = final_count;
+            }
+        }
+
+        function displayUpdateTotalSelectedRecords_userAssign(){
+            var final_count = getTotalSelected_USER_assign();
+
+            var o = document.getElementById('user_assign_SelectedRecordCount');
+            if(o != null){
+                o.innerHTML = final_count;
+            }
+        }
+
+        function getTotalSelected_PS_assign(){
+            var final_count = 0;
+            if(ps_allSelectedIDs != ''){
+                final_count = ps_allSelectedIDs.split(',').length - 1;
+            }
+            return final_count;
+        }
+        function getTotalSelected_USER_assign(){
+            var final_count = 0;
+            if(user_allSelectedIDs != ''){
+                final_count = user_allSelectedIDs.split(',').length - 1;
+            }
+            return final_count;
+        }
+
+        function mainStatus_start(){
+            if(assign_CANSUBMIT != 0){
+                assign_EnableDisable_allINPUTS(false);
+                revoke_EnableDisable_allINPUTS(false);
+            }
+            assign_CANSUBMIT = 0;
+        }
+        function mainStatus_stop(){
+            if(assign_CANSUBMIT != 1){
+                assign_EnableDisable_allINPUTS(true);
+                revoke_EnableDisable_allINPUTS(true);
+            }
+            assign_CANSUBMIT = 1;
+        }
+
+        function assign_tab_CAN_SUBMIT(){
+            return assign_CANSUBMIT == 0 ? false : true;
+        }
+
+        function CONFIRM_ASSIGNMENT(){
+            if(assign_CANSUBMIT == 0) return false;
+            var ps_count = getTotalSelected_PS_assign();
+            var user_count = getTotalSelected_USER_assign();
+
+            if(ps_count > 0 && user_count > 0){
+                var msg = "You are about to assign " + ps_count + " Permission Sets to " + user_count + " Users.";
+                var yn = confirm(msg);
+                if(yn == true){
+                    doASSIGNMENT();
+                    return true;
+                }
+            }else{
+                alert("Please select at least 1 Permission Set and 1 User.");
+            }
+            return false;
+        }
+
+        function change_pageCounter(obj, msgId){
+            if(assign_CANSUBMIT == 0) return false;
+            var o = null;
+            var old_value = '';
+            var new_value = '';
+            var function_to_execute = null;
+
+            if(msgId == 'assign_ps'){
+                o = document.getElementById(assign_ps_pageInputBox_id);
+                new_value = o.value;
+                old_value = assign_ps_currentPageNumber;
+                function_to_execute = psGoToPage;
+            }else if(msgId == 'assign_user'){
+                o = document.getElementById(assign_user_pageInputBox_id);
+                new_value = o.value;
+                old_value = assign_user_currentPageNumber;
+                function_to_execute = userGoToPage;
+            }
+
+            if(msgId == 'revoke_ps'){
+                o = document.getElementById(revoke_ps_pageInputBox_id);
+                new_value = o.value;
+                old_value = revoke_ps_currentPageNumber;
+                function_to_execute = psGoToPageRevoke;
+            }else if(msgId == 'revoke_user'){
+                o = document.getElementById(revoke_user_pageInputBox_id);
+                new_value = o.value;
+                old_value = revoke_user_currentPageNumber;
+                function_to_execute = userGoToPageRevoke;
+            }
+
+            while(new_value != null && new_value.indexOf(' ') > -1){new_value = new_value.replace(' ', '');}
+            if(new_value == null || new_value == '' || isNaN(new_value) || old_value == 0) new_value = old_value;
+            new_value = parseInt(new_value);
+            new_value = (isNaN(new_value) || new_value < 1 || (new_value.toString().length > 6)) ? old_value : new_value;
+            o.value = new_value;
+
+            if(new_value + '' != old_value + ''){
+                function_to_execute();
+            }
+
+        }
+
+        function paginationInputKeypress(event){
+            var key = ('charCode' in event && event.charCode != 0) ? event.charCode : event.keyCode;
+
+            if(key + '' == '13'){
+                var o = document.getElementById('tembtn1');
+                o.focus();
+            }
+        }
+
+        function searchInputKeypress(event, btn_type){
+            var key = ('charCode' in event && event.charCode != 0) ? event.charCode : event.keyCode;
+
+            if(key + '' == '13'){
+                if(btn_type == 1){ // Search in "Assign PS"
+                    doSearch_ps_assign();
+                }else if(btn_type == 2){ // Search in "Assign User"
+                    doSearch_user_assign();
+                }else if(btn_type == 3){ // Search in "Revoke PS"
+                    doSearch_ps_revoke();
+                }else if(btn_type == 4){ // Search in "Revoke User"
+                    validateSearchUserRevoke();
+                }
+            }
+        }
+
+        function assign_EnableDisable_allINPUTS(enable){
+            var objs = document.getElementsByTagName('input');
+            var i = 0;
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    &&
+                    (
+                        objs[i].className.indexOf('psCheckbox1') > -1
+                        || objs[i].className.indexOf('userCheckbox1') > -1
+                        || objs[i].className.indexOf('psSelectAllCheckbox1') > -1
+                        || objs[i].className.indexOf('userSelectAllCheckbox1') > -1
+                    )
+                ){
+                    if(enable == null || enable == false){
+                        objs[i].disabled = 'disabled';
+                    }else{
+                        objs[i].removeAttribute('disabled');
+                    }
+                }
+            }
+            var o = null;
+            if(enable == null || enable == false){
+                o = document.getElementById(assign_user_pageInputBox_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(assign_ps_pageInputBox_id);
+                o.disabled = 'disabled';
+
+                o = document.getElementById(assign_ps_searchInputBox_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(assign_ps_filterInput_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(assign_user_searchInputBox_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(assign_user_filterInput_id);
+                o.disabled = 'disabled';
+
+            }else{
+                o = document.getElementById(assign_user_pageInputBox_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(assign_ps_pageInputBox_id);
+                o.removeAttribute('disabled');
+
+                o = document.getElementById(assign_ps_searchInputBox_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(assign_ps_filterInput_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(assign_user_searchInputBox_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(assign_user_filterInput_id);
+                o.removeAttribute('disabled');
+            }
+
+        }
+
+        /* ==================================== REVOKE FUNCTIONS */
+        function revoke_EnableDisable_allINPUTS(enable){
+            var objs = document.getElementsByTagName('input');
+            var i = 0;
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    &&
+                    (
+                        objs[i].className.indexOf('psCheckbox2') > -1
+                        || objs[i].className.indexOf('userCheckbox2') > -1
+                        || objs[i].className.indexOf('psSelectAllCheckbox2') > -1
+                        || objs[i].className.indexOf('userSelectAllCheckbox2') > -1
+                    )
+                ){
+                    if(enable == null || enable == false){
+                        objs[i].disabled = 'disabled';
+                    }else{
+                        objs[i].removeAttribute('disabled');
+                    }
+                }
+            }
+            var o = null;
+            if(enable == null || enable == false){
+                o = document.getElementById(revoke_user_pageInputBox_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(revoke_ps_pageInputBox_id);
+                o.disabled = 'disabled';
+
+                o = document.getElementById(revoke_ps_searchInputBox_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(revoke_ps_filterInput_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(revoke_user_searchInputBox_id);
+                o.disabled = 'disabled';
+                o = document.getElementById(revoke_user_filterInput_id);
+                o.disabled = 'disabled';
+
+            }else{
+                o = document.getElementById(revoke_user_pageInputBox_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(revoke_ps_pageInputBox_id);
+                o.removeAttribute('disabled');
+
+                o = document.getElementById(revoke_ps_searchInputBox_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(revoke_ps_filterInput_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(revoke_user_searchInputBox_id);
+                o.removeAttribute('disabled');
+                o = document.getElementById(revoke_user_filterInput_id);
+                o.removeAttribute('disabled');
+            }
+
+        }
+                
+        function selectAllPScheckboxesRevoke(obj, checked){
+
+        }        
+
+        function getTotalSelected_PS_revoke(){
+            var final_count = 0;
+            if(ps_allSelectedIDs_revoke != ''){
+                final_count = ps_allSelectedIDs_revoke.split(',').length - 1;
+            }
+            return final_count;
+        }
+        function getTotalSelected_USER_revoke(){
+            var final_count = 0;
+            if(user_allSelectedIDs_revoke != ''){
+                final_count = user_allSelectedIDs_revoke.split(',').length - 1;
+            }
+            return final_count;
+        }
+
+        function displayUpdateTotalSelectedRecords_psRevoke(){
+            var final_count = getTotalSelected_PS_revoke();
+
+            var o = document.getElementById('ps_revoke_SelectedRecordCount');
+            if(o != null){
+                o.innerHTML = final_count;
+            }
+        }
+        function displayUpdateTotalSelectedRecords_userRevoke(){
+            var final_count = getTotalSelected_USER_revoke();
+
+            var o = document.getElementById('user_revoke_SelectedRecordCount');
+            if(o != null){
+                o.innerHTML = final_count;
+            }
+        }
+        
+        function ps_addPSidRevoke(ps_id){
+            if(ps_allSelectedIDs_revoke.indexOf(',' + ps_id) < 0){
+                ps_allSelectedIDs_revoke += ',' + ps_id;
+                displayUpdateTotalSelectedRecords_psRevoke();
+            }
+        }
+        function ps_removePSidRevoke(ps_id){
+            if(ps_allSelectedIDs_revoke.indexOf(',' + ps_id) > -1){
+                ps_allSelectedIDs_revoke = ps_allSelectedIDs_revoke.replace(',' + ps_id, '');
+                displayUpdateTotalSelectedRecords_psRevoke();
+            }
+        }
+        function user_addPSidRevoke(user_id){
+            if(user_allSelectedIDs_revoke.indexOf(',' + user_id) < 0){
+                user_allSelectedIDs_revoke += ',' + user_id;
+                displayUpdateTotalSelectedRecords_userRevoke();
+            }
+        }
+        function user_removePSidRevoke(user_id){
+            if(user_allSelectedIDs_revoke.indexOf(',' + user_id) > -1){
+                user_allSelectedIDs_revoke = user_allSelectedIDs_revoke.replace(',' + user_id, '');
+                displayUpdateTotalSelectedRecords_userRevoke();
+            }
+        }
+
+        function getIDofPScheckboxRevoke(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('psRevokeCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                return classId.split('-')[1];
+            }
+            return null;
+        }
+        function getIDofUSERcheckboxRevoke(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('userRevokeCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                return classId.split('-')[1];
+            }
+            return null;
+        }
+
+        function getUserLicenseOfSelectedPSrevoke(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('psRevokeCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                var o = document.getElementById('psRevokeULicense-' + classId.split('-')[1]);
+                return o.innerHTML;
+            }
+            return null;
+        }
+        function getUserLicenseOfSelectedUSERrevoke(checkboxObj){
+            var classn = checkboxObj.className.split(' ');
+            var classId = '';
+            for(i = 0; i < classn.length; i++){
+                if(classn[i].indexOf('userRevokeCheck-') == 0){
+                    classId = classn[i];
+                    break;
+                }
+            }
+            if(classId != ''){
+                var o = document.getElementById('userRevokeULicense-' + classId.split('-')[1]);
+                return o.innerHTML;
+            }
+            return null;
+        }
+                        
+        function isClickInPSCheckboxRevoke(clickedObj){
+            //*/
+            var objs = document.getElementsByTagName('input');
+
+            var allChecked = true;
+
+            var i = 0;
+
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('psCheckbox2') > -1
+                    && !objs[i].checked
+                ){
+                    allChecked = false;
+                }
+            }
+
+            var u_count = getTotalSelected_USER_revoke();
+            var ps_count = getTotalSelected_PS_revoke();
+            var assignmenst_limit_reach = false;
+
+            // Add or remove PS to the local list of selected PS
+            var ps_id = getIDofPScheckboxRevoke(clickedObj);
+            if(clickedObj.checked){
+                if((ps_count == 0)
+                    || (u_count == 0 && ps_count < assign_maxASSIGNMENTS)
+                    || (u_count > 0 && (ps_count + 1) * u_count <= assign_maxASSIGNMENTS)
+                ){
+                    ps_addPSidRevoke(ps_id);
+                }else{
+                    clickedObj.checked = false;
+                    allChecked = false;
+                    assignmenst_limit_reach = true;
+                }
+            }else{
+                ps_removePSidRevoke(ps_id)
+            }
+            // ----
+
+            // set or reset selected PS Licence
+            if(clickedObj.checked){
+                if(ps_currentSelectedUserLicenseRevoke == null){
+                    ps_currentSelectedUserLicenseRevoke = getUserLicenseOfSelectedPSrevoke(clickedObj);
+                    displayPScurrentSelectedLicenseRevoke();
+                }else{
+                    if(getUserLicenseOfSelectedPSrevoke(clickedObj).toLowerCase() != ps_currentSelectedUserLicenseRevoke.toLowerCase()){
+                        ps_removePSidRevoke(ps_id)
+                        clickedObj.checked = false;
+                        allChecked = false;
+                        alert('You must choose Permission Sets with the same User License.');
+                    }
+                }
+            }else{
+                if(ps_allSelectedIDs_revoke == '' && user_allSelectedIDs_revoke == ''){
+                    ps_currentSelectedUserLicenseRevoke = null;
+                    displayPScurrentSelectedLicenseRevoke();
+                }
+            }
+            // ----
+
+            if(!allChecked){
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('psSelectAllCheckbox2') > -1
+                    ){
+                        objs[i].checked = false;
+                    }
+                }
+            }else{
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('psSelectAllCheckbox2') > -1
+                    ){
+                        objs[i].checked = true;
+                    }
+                }
+            }
+
+            if(assignmenst_limit_reach == true){
+                alert('You can not exceed the ' +  assign_maxASSIGNMENTS + ' Assignments.');
+            }
+            //*/
+            
+            if(clickedObj.checked){
+                revoke_selectPS();
+            }
+            
+        }
+
+        function isClickInUserCheckboxRevoke(clickedObj){
+            var objs = document.getElementsByTagName('input');
+
+            var allChecked = true;
+
+            var i = 0;
+
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('userCheckbox2') > -1
+                    && !objs[i].checked
+                ){
+                    allChecked = false;
+                }
+            }
+
+            var u_count = getTotalSelected_USER_revoke();
+            var ps_count = getTotalSelected_PS_revoke();
+            var assignmenst_limit_reach = false;
+
+            // Add or remove USER to the local list of selected USER
+            var user_id = getIDofUSERcheckboxRevoke(clickedObj);
+            if(clickedObj.checked){
+                if((u_count == 0)
+                    || (ps_count == 0 && u_count < assign_maxASSIGNMENTS)
+                    || (ps_count > 0 && ps_count * (u_count + 1) <= assign_maxASSIGNMENTS)
+                ){
+                    user_addPSidRevoke(user_id);
+                }else{
+                    clickedObj.checked = false;
+                    allChecked = false;
+                    assignmenst_limit_reach = true;
+                }
+            }else{
+                user_removePSidRevoke(user_id)
+            }
+            // ----
+
+            // set or reset selected USER Licence
+            if(clickedObj.checked){
+                if(ps_currentSelectedUserLicenseRevoke == null
+                    || ps_currentSelectedUserLicenseRevoke == '- no license -'
+                ){
+                    if(ps_currentSelectedUserLicenseRevoke != '- no license -') ps_currentSelectedUserLicenseRevoke = getUserLicenseOfSelectedUSERrevoke(clickedObj);
+                    displayPScurrentSelectedLicenseRevoke();
+                }else{
+                    if(getUserLicenseOfSelectedUSERrevoke(clickedObj).toLowerCase() != ps_currentSelectedUserLicenseRevoke.toLowerCase()){
+                        user_removePSidRevoke(user_id)
+                        clickedObj.checked = false;
+                        allChecked = false;
+                        alert('You must choose Permission Sets with the same User License.');
+                    }
+                }
+            }else{
+                if(ps_allSelectedIDs_revoke == '' && user_allSelectedIDs_revoke == ''){
+                    ps_currentSelectedUserLicenseRevoke = null;
+                    displayPScurrentSelectedLicenseRevoke();
+                }
+            }
+            // ----
+
+            if(!allChecked){
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('userSelectAllCheckbox2') > -1
+                    ){
+                        objs[i].checked = false;
+                    }
+                }
+            }else{
+                for(i = 0; i < objs.length; i++){
+                    if(objs[i].type.toLowerCase() == 'checkbox'
+                        && objs[i].className.indexOf('userSelectAllCheckbox2') > -1
+                    ){
+                        objs[i].checked = true;
+                    }
+                }
+            }
+
+            if(assignmenst_limit_reach == true){
+                alert('You can not exceed the ' +  assign_maxASSIGNMENTS + ' Assignments.');
+            }
+        }
+        
+        function displayPScurrentSelectedLicenseRevoke(){
+            var o = document.getElementById('current_selected_psRevoke_license');
+            if(o != null){
+                o.innerHTML = (ps_currentSelectedUserLicenseRevoke != null ? ps_currentSelectedUserLicenseRevoke : '');
+            }
+            o = document.getElementById('current_selected_userRevoke_license');
+            if(o != null){
+                o.innerHTML = (ps_currentSelectedUserLicenseRevoke != null ? ps_currentSelectedUserLicenseRevoke : '');
+            }
+
+            o = document.getElementById(IDcurrentLicenseInPageToControllerRevoke);
+            if(o != null){
+                o.value = ps_currentSelectedUserLicenseRevoke == null ? 'null' : (ps_currentSelectedUserLicenseRevoke == '- no license -' ? 'false' : ps_currentSelectedUserLicenseRevoke);
+            }
+        }
+
+        function CONFIRM_REVOKE(){
+            if(assign_CANSUBMIT == 0) return false;
+            var ps_count = getTotalSelected_PS_revoke();
+            var user_count = getTotalSelected_USER_revoke();
+
+            if(ps_count > 0 && user_count > 0){
+                var msg = "Are you sure you want to remove " + ps_count + " Permission Sets from " + user_count + " Users?\nAn email notification will be sent with a summary of this change.";
+                var yn = confirm(msg);
+                if(yn == true){
+                    doREVOKE();
+                    return true;
+                }
+            }else{
+                alert("Please select at least 1 Permission Set and 1 User.");
+            }
+            return false;        
+        }
+        
+        function selectAllUserCheckboxesRevoke(obj, checked){
+            if(obj != null){
+                checked = obj.checked;
+            }
+
+            var objs = document.getElementsByTagName('input');
+
+            var ps_count = getTotalSelected_PS_revoke();
+            var user_count = getTotalSelected_USER_revoke();
+
+            var i = 0;
+            for(i = 0; i < objs.length; i++){
+                if(objs[i].type.toLowerCase() == 'checkbox'
+                    && objs[i].className.indexOf('userCheckbox2') > -1
+                ){
+                    var obj_id = getIDofUSERcheckboxRevoke(objs[i]);
+
+                    if(checked == false){
+                        objs[i].checked = false;
+                        user_removePSidRevoke(obj_id);
+                    }else{
+                        if((ps_count == 0 && user_count < assign_maxASSIGNMENTS)
+                            || (ps_count > 0 && ps_count * (user_count + 1) <= assign_maxASSIGNMENTS)
+                        ){
+                            if(ps_currentSelectedUserLicenseRevoke == null
+                                || (ps_currentSelectedUserLicenseRevoke.toLowerCase() == getUserLicenseOfSelectedUSERrevoke(objs[i]).toLowerCase())
+                                || ps_currentSelectedUserLicenseRevoke == '- no license -'
+                            ){
+                                objs[i].checked = true;
+                                user_addPSidRevoke(obj_id);
+                                if(ps_currentSelectedUserLicenseRevoke != '- no license -') ps_currentSelectedUserLicenseRevoke = getUserLicenseOfSelectedUSERrevoke(objs[i]);
+                                displayPScurrentSelectedLicenseRevoke();
+                                user_count = getTotalSelected_USER_revoke();
+                            }else{
+                                objs[i].checked = false;
+                                user_removePSidRevoke(obj_id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(ps_allSelectedIDs_revoke == '' && user_allSelectedIDs_revoke == ''){
+                ps_currentSelectedUserLicenseRevoke = null;
+                displayPScurrentSelectedLicenseRevoke();
+            }
+        
+        }
+        
+        function CLEAR_REVOKE_PSselection(){
+            if(assign_CANSUBMIT == 0) return false;
+        
+            clear_PS_REVOKE_selection();
+        }
+        
+        function validateSearchUserRevoke(){
+            if(assign_CANSUBMIT == 0) return false;
+            var ps_count = getTotalSelected_PS_revoke();            
+            if(ps_count > 0){
+                doSearch_user_revoke();
+            }else{
+                alert("Please select at least 1 Permission Set before searching for Users.");
+            }
+        }
+    </script>
+
+
+    <button id="tembtn1" style="position:fixed;top:50%;left:50%;z-index:-800;">x</button>
+
+    <apex:actionStatus startStyleClass="mainActionStatusClass" id="mainStatusProgress" startText="" onstart="mainStatus_start();" onstop="mainStatus_stop();" />
+
+
+    <apex:tabPanel styleClass="tabPanelAssignStyle" switchType="client" selectedTab="assignPermissions" >
+
+        <!-- ----------------------------Assign Tab------------------------------- -->
+        <apex:tab label="Assign" name="assignPermissions">
+
+            <apex:pageBlock id="pageBlockAssignTab" >
+
+
+                <apex:form onsubmit="javascript:return assign_tab_CAN_SUBMIT();" >
+            
+                    <apex:actionFunction action="{!doASSIGNMENT}" status="mainStatusProgress" reRender="panelPS,panelU,assignmsg1panel" name="doASSIGNMENT" />
+            
+                    <apex:actionFunction action="{!psGoToPage}" status="mainStatusProgress" reRender="panelPS,panelU,assignmsg1panel" name="psGoToPage" />
+                    <apex:actionFunction action="{!userGoToPage}" status="mainStatusProgress" reRender="panelPS,panelU,assignmsg1panel" name="userGoToPage" />
+
+                    <apex:actionFunction action="{!doSearch_ps_assign}" status="mainStatusProgress" reRender="panelPS,assignmsg1panel,pageBlockRevokeTab" name="doSearch_ps_assign" />
+                    <apex:actionFunction action="{!doSearch_user_assign}" status="mainStatusProgress" reRender="panelU,assignmsg1panel,pageBlockRevokeTab" name="doSearch_user_assign" />
+            
+                    <apex:inputHidden value="{!assignTab_currentLicenseSelectedInPage}" id="IDcurrentLicenseInPageToController" />
+                    <script type="text/javascript">
+                        IDcurrentLicenseInPageToController = '{!$Component.IDcurrentLicenseInPageToController}';
+                    </script>
+                    
+
+
+                    <apex:outputPanel id="assignmsg1panel">
+                        <apex:pageMessage rendered="{!PageMessage1 != null && PageMessage1 != ''}" severity="info" summary="{!PageMessage1}" strength="2" escape="false" />
+                    </apex:outputPanel>
+    
+    
+                    <!-- ======================== ASSIGN PERMISSION SET TAB ======================== -->
+    
+                    <apex:pageBlockSection collapsible="false" columns="1" title="Search for Permission Sets" id="panelPS">
+                        <!-- <br />
+                        <br />_________________<apex:outputText value="{!debugString}" escape="false" />____________<br />    
+                        -->
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <apex:variable value="{!0}" var="selected_ps_count" />
+                                <apex:repeat value="{!selectedPermissionSets}" var="ps">
+                                    <apex:variable value="{!selected_ps_count + 1}" var="selected_ps_count" />
+                                </apex:repeat>
+                                <apex:variable value="{!0}" var="selected_users_count" />
+                                <apex:repeat value="{!selectedUsers}" var="u">
+                                    <apex:variable value="{!selected_users_count + 1}" var="selected_users_count" />
+                                </apex:repeat>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+    
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <div class="searchingContainers">
+                                    <apex:outputPanel styleClass="margin">
+                                        <apex:outputText styleclass="textTitle1" value="Search" />
+                                        <apex:inputText id="assign_ps_searchInputBox_id" styleClass="textData1" value="{!ps_assign_SearchText}" onkeypress="searchInputKeypress(event, 1);" />
+                                    </apex:outputPanel>
+    
+                                    <apex:selectList id="assign_ps_filterInput_id" styleClass="textData1" value="{!ps_assign_searchFilter_current}" size="1">
+                                        <apex:selectOptions value="{!ps_assign_searchFilterList}" />
+                                    </apex:selectList>
+    
+                                    <apex:commandButton styleClass="textData1" action="{!doSearch_ps_assign}" value="Search" reRender="panelPS,assignmsg1panel,pageBlockRevokeTab" status="mainStatusProgress" />
+    
+                                    <script type="text/javascript">
+                                        assign_ps_searchInputBox_id = '{!$Component.assign_ps_searchInputBox_id}';
+                                        assign_ps_filterInput_id = '{!$Component.assign_ps_filterInput_id}';
+                                    </script>
+    
+                                </div>
+                                <div class="assignSelectAllCont">
+                                    <apex:commandLink styleclass="assignSelectAllContElem1" value="Deselect All" action="{!clearPermissionSetsSelectionForAssign}" reRender="panelPS,assignmsg1panel" status="mainStatusProgress" />
+                                </div>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+    
+                        <apex:outputPanel styleClass="mainTablesContainer" >
+    
+                            <script type="text/javascript">
+                                ps_selectedRecords = {!selected_ps_count};
+                                ps_allSelectedIDs = '';
+                                <apex:repeat var="ps" value="{!selectedPermissionSets}">
+                                    ps_allSelectedIDs += ',{!JSENCODE(ps)}';
+                                </apex:repeat>
+                            </script>
+    
+                            <apex:variable value="{!1}" var="isPS_allSelectedInPage" />
+                            <apex:repeat value="{!currentPermissionSetsInPage}" var="ps">
+                                <apex:variable value="{!IF(!ps.isSelected, (isPS_allSelectedInPage - 1),isPS_allSelectedInPage)}" var="isPS_allSelectedInPage" />
+                            </apex:repeat>
+    
+                            <apex:pageBlock mode="maindetail">
+                                <apex:pageBlockTable value="{!currentPermissionSetsInPage}" var="ps" >
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:outputText >
+                                                <apex:inputCheckbox rendered="{!isPS_allSelectedInPage < 1 || currentPermissionSetsInPage == null || currentPermissionSetsInPage.size == 0}" value="{!falseValue}" styleClass="psSelectAllCheckbox1" onclick="javascript:selectAllPScheckboxes(this);"/>
+                                                <apex:inputCheckbox rendered="{!isPS_allSelectedInPage > 0 && !ISNULL(currentPermissionSetsInPage) && currentPermissionSetsInPage.size > 0}" value="{!trueValue}" styleClass="psSelectAllCheckbox1" onclick="javascript:selectAllPScheckboxes(this);"/>
+                                            </apex:outputText>
+                                        </apex:facet>
+                                        <apex:inputCheckbox onclick="javascript:isClickInPSCheckbox(this);" value="{!ps.isSelected}" styleClass="psCheck-{!ps.ps.Id} psCheckbox1" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Name {!IF(sort_field_psAssign == 'Name', IF(sort_direction_psAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortAssign}" reRender="panelPS" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psAssign" value="Name" assignTo="{!sort_field_psAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            <apex:outputText rendered="{!ps.ps.ProfileId != null}">
+                                                {!ps.ps.Profile.Name + ' (Profile)'}
+                                            </apex:outputText>
+                                            <apex:outputLink value="/{!ps.ps.Id}" target="_blank" rendered="{!ps.ps.ProfileId == null}">
+                                                {!ps.ps.Label}
+                                            </apex:outputLink>
+                                        </apex:outputText>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Description {!IF(sort_field_psAssign == 'Description', IF(sort_direction_psAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortAssign}" reRender="panelPS" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psAssign" value="Description" assignTo="{!sort_field_psAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <apex:outputField value="{!ps.ps.Description}" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="User License {!IF(sort_field_psAssign == 'UserLicenseId', IF(sort_direction_psAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortAssign}" reRender="panelPS" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psAssign" value="UserLicenseId" assignTo="{!sort_field_psAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <span id="psULicense-{!ps.ps.Id}" class="{!IF(ps.ps.UserLicenseId != null, '', 'visibilityhidden')}">{!IF(ps.ps.UserLicenseId == null, '- no license -', ps.ps.UserLicense.Name)}</span>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Last Modified {!IF(sort_field_psAssign == 'LastModifiedDate', IF(sort_direction_psAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortAssign}" reRender="panelPS" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psAssign" value="LastModifiedDate" assignTo="{!sort_field_psAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            <apex:outputField value="{!ps.ps.LastModifiedBy.Name}"/>&nbsp;-&nbsp;<apex:outputField value="{!ps.ps.LastModifiedDate}" />
+                                            <!--
+                                            {!p.permission.LastModifiedBy.Name} -&nbsp; <apex:outputText value="{0,date,MM/dd/yyyy h:mm:ss a}"> <apex:param value="{!p.permission.LastModifiedDate}"/> </apex:outputText>
+                                            -->
+                                        </apex:outputText>
+                                    </apex:column>
+    
+                                </apex:pageBlockTable>
+    
+                                <div class="paginationContainer">
+                                    <div class="paginationInfoCont" >
+                                        <apex:variable value="{!recordsPerPagePermissionSet * (currentPagePermissionSet - 1) + 1}" var="ps_assign_temp1" />
+                                        <span class="textSelectedRecords">{!IF(currentPagePermissionSet < 1,'',TEXT(ps_assign_temp1) + '-' + TEXT(ps_assign_temp1 + currentPermissionSetsInPage.size - 1) + ' of ' + TEXT(totalRecordsPermissionSet))}</span><span class="textSelectedRecords"><span id="ps_assign_SelectedRecordCount" style="font-weight:bold;">{!FLOOR(selected_ps_count)}</span> Selected</span>
+                                        <br /><br /><span class="selectedLicenseCont">Selected Permission Set License: <span class="spanSelectedLicense" id="current_selected_ps_license" ></span></span>
+                                    </div>
+                                    <div class="paginationNavigationBtnCont">
+                                        <div>
+                                            <apex:commandButton value=" << " action="{!psFirstPage}" disabled="{!currentPagePermissionSet < 2}" reRender="panelPS,assignmsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value="< Previous" action="{!psPreviousPage}" disabled="{!currentPagePermissionSet < 2}" reRender="panelPS,assignmsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value="Next >" action="{!psNextPage}" disabled="{!currentPagePermissionSet > totalPagesPermissionSet - 1}" reRender="panelPS,assignmsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value=" >> " action="{!psLastPage}" disabled="{!currentPagePermissionSet > totalPagesPermissionSet - 1}" reRender="panelPS,assignmsg1panel" status="mainStatusProgress" />
+                                        </div>
+                                    </div>
+                                    <div class="paginationInputPageNumberCont" >
+                                        Page #:&nbsp;<apex:inputText id="assign_ps_pageInputBox_id" styleClass="paginationInputBox" value="{!ps_assign_inputCurrentPage}" onblur="change_pageCounter(this, 'assign_ps');" onkeypress="paginationInputKeypress(event);" />&nbsp;of&nbsp;{!totalPagesPermissionSet}
+                                        <script type="text/javascript">
+                                            assign_ps_pageInputBox_id = '{!$Component.assign_ps_pageInputBox_id}';
+                                            assign_ps_currentPageNumber = '{!currentPagePermissionSet}';
+                                        </script>
+                                    </div>
+                                </div>
+    
+                                <!--
+                                Current page: {!currentPagePermissionSet} [total: {!totalPagesPermissionSet}] [total records: {!totalRecordsPermissionSet}] [selected records: {!selected_ps_count}]
+                                <br />
+                                Selected Permission Set License: <span id="current_selected_ps_license" ></span>
+                                <br />
+                                <apex:commandButton value="Previous" action="{!psPreviousPage}" reRender="panelPS,assignmsg1panel"/>
+                                <apex:commandButton value="Next" action="{!psNextPage}" reRender="panelPS,assignmsg1panel"/>
+                                <br />
+                                <apex:commandLink value="clear selection" action="{!clearPermissionSetsSelectionForAssign}" reRender="panelPS,assignmsg1panel" />
+                                -->
+    
+                                <script type="text/javascript">
+                                    <apex:outputText rendered="{!selected_users_count == 0 && selected_ps_count == 0}">
+                                        ps_currentSelectedUserLicense = null;
+                                    </apex:outputText>
+                                    displayPScurrentSelectedLicense();
+                                </script>
+                            </apex:pageBlock>
+    
+                        </apex:outputPanel>
+    
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <div style="height:5px;" ></div>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+    
+    
+                    <!-- ======================== ASSIGN USER TAB ======================== -->
+    
+                    <apex:pageBlockSection collapsible="false" columns="1" title="Assign to Users" id="panelU">
+    
+                        <!--<apex:pageBlockSectionItem >-->
+                        <!--</apex:pageBlockSectionItem>-->
+    
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <apex:outputText >
+                                    <apex:variable value="{!0}" var="selected_ps_count" />
+                                    <apex:repeat value="{!selectedPermissionSets}" var="ps">
+                                        <apex:variable value="{!selected_ps_count + 1}" var="selected_ps_count" />
+                                    </apex:repeat>
+                                    <apex:variable value="{!0}" var="selected_users_count" />
+                                    <apex:repeat value="{!selectedUsers}" var="u">
+                                        <apex:variable value="{!selected_users_count + 1}" var="selected_users_count" />
+                                    </apex:repeat>
+                                </apex:outputText>
+    
+                                <span class="NOTEmessage">
+                                    <span class="textTitle1">Note:</span> Only users with a Salesforce license type that matches your selected permission sets will appear within this list view.
+                                </span>
+                                <br />
+                                <div class="searchingContainers">
+                                    <apex:outputPanel styleClass="margin">
+                                        <apex:outputText styleclass="textTitle1" value="Search" />
+                                        <apex:inputText id="assign_user_searchInputBox_id" styleClass="textData1" value="{!user_assign_SearchText}" onkeypress="searchInputKeypress(event, 2);" />
+                                    </apex:outputPanel>
+    
+                                    <apex:selectList id="assign_user_filterInput_id" styleClass="textData1" value="{!user_assign_searchFilter_current}" size="1">
+                                        <apex:selectOptions value="{!user_assign_searchFilterList}" />
+                                    </apex:selectList>
+    
+                                    <apex:commandButton styleClass="textData1" action="{!doSearch_user_assign}" value="Search" reRender="panelU,assignmsg1panel,pageBlockRevokeTab" status="mainStatusProgress" />
+    
+                                    <script type="text/javascript">
+                                        assign_user_searchInputBox_id = '{!$Component.assign_user_searchInputBox_id}';
+                                        assign_user_filterInput_id = '{!$Component.assign_user_filterInput_id}';
+                                    </script>
+    
+                                    <apex:commandButton styleClass="assignBtn1" value="Assign" reRender="none" onclick="javascript:CONFIRM_ASSIGNMENT();return false;" />
+                                </div>
+                                <div class="assignSelectAllCont">
+                                    <apex:commandLink styleclass="assignSelectAllContElem1" value="Select All" action="{!assign_selectAllUsers}" reRender="panelU,assignmsg1panel" status="mainStatusProgress" />
+                                    <apex:commandLink styleclass="assignSelectAllContElem2" value="Deselect All" action="{!assign_deselectAllUsers}" reRender="panelU,assignmsg1panel" status="mainStatusProgress" />
+                                </div>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+    
+                        <apex:outputPanel styleClass="mainTablesContainer" >
+    
+                            <script type="text/javascript">
+                                user_selectedRecords = {!selected_users_count};
+                                user_allSelectedIDs = '';
+                                <apex:repeat var="u" value="{!selectedUsers}">
+                                    user_allSelectedIDs += ',{!JSENCODE(u)}';
+                                </apex:repeat>
+                            </script>
+    
+                            <apex:variable value="{!1}" var="isUser_allSelectedInPage" />
+                            <apex:repeat value="{!currentUsersInPage}" var="u">
+                                <apex:variable value="{!IF(!u.isSelected, (isUser_allSelectedInPage - 1),isUser_allSelectedInPage)}" var="isUser_allSelectedInPage" />
+                            </apex:repeat>
+    
+                            <apex:pageBlock mode="maindetail">
+                                <apex:pageBlockTable value="{!currentUsersInPage}" var="u" >
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:outputText >
+                                                <apex:inputCheckbox rendered="{!isUser_allSelectedInPage < 1 || currentUsersInPage == null || currentUsersInPage.size == 0}" value="{!falseValue}" styleClass="userSelectAllCheckbox1" onclick="javascript:selectAllUserCheckboxes(this);"/>
+                                                <apex:inputCheckbox rendered="{!isUser_allSelectedInPage > 0 && !ISNULL(currentUsersInPage) && currentUsersInPage.size > 0}" value="{!trueValue}" styleClass="userSelectAllCheckbox1" onclick="javascript:selectAllUserCheckboxes(this);"/>
+                                            </apex:outputText>
+                                        </apex:facet>
+                                        <apex:inputCheckbox onclick="javascript:isClickInUserCheckbox(this);" value="{!u.isSelected}" styleClass="userCheck-{!u.u.Id} userCheckbox1" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Name {!IF(sort_field_userAssign == 'Name', IF(sort_direction_userAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortAssign}" reRender="panelU" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userAssign" value="Name" assignTo="{!sort_field_userAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Name}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Username {!IF(sort_field_userAssign == 'Username', IF(sort_direction_userAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortAssign}" reRender="panelU" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userAssign" value="Username" assignTo="{!sort_field_userAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Username}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="User License {!IF(sort_field_userAssign == 'Profile.UserLicense.Name', IF(sort_direction_userAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortAssign}" reRender="panelU" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userAssign" value="Profile.UserLicense.Name" assignTo="{!sort_field_userAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <span id="userULicense-{!u.u.Id}" class="{!IF(u.u.Profile.UserLicenseId != null , '', 'visibilityhidden')}">{!IF(u.u.Profile.UserLicenseId == null, '- no license -', u.u.Profile.UserLicense.Name)}</span>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Role {!IF(sort_field_userAssign =='UserRole.Name', IF(sort_direction_userAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortAssign}" reRender="panelU" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userAssign" value="UserRole.Name" assignTo="{!sort_field_userAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.UserRole.Name}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Profile {!IF(sort_field_userAssign == 'Profile.Name', IF(sort_direction_userAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortAssign}" reRender="panelU" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userAssign" value="Profile.Name" assignTo="{!sort_field_userAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Profile.Name}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Title {!IF(sort_field_userAssign == 'Title', IF(sort_direction_userAssign == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortAssign}" reRender="panelU" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userAssign" value="Title" assignTo="{!sort_field_userAssign}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Title}
+                                    </apex:column>
+    
+                                    <apex:column headerValue="Active">
+                                        <apex:outputField value="{!u.u.IsActive}"/>
+                                    </apex:column>
+    
+                                </apex:pageBlockTable>
+    
+                                <div class="paginationContainer">
+                                    <div class="paginationInfoCont" >
+                                        <apex:variable value="{!recordsPerPageUser * (currentPageUser - 1) + 1}" var="user_assign_temp1" />
+                                        <span class="textSelectedRecords">{!IF(currentPageUser < 1,'',TEXT(user_assign_temp1) + '-' + TEXT(user_assign_temp1 + currentUsersInPage.size - 1) + ' of ' + TEXT(totalRecordsUser))}</span><span class="textSelectedRecords"><span id="user_assign_SelectedRecordCount" style="font-weight:bold;">{!FLOOR(selected_users_count)}</span> Selected</span>
+                                        <br /><br /><span class="selectedLicenseCont">Selected Permission Set License: <span class="spanSelectedLicense" id="current_selected_user_license" ></span></span>
+                                    </div>
+                                    <div class="paginationNavigationBtnCont">
+                                        <div>
+                                            <apex:commandButton value=" << " action="{!userFirstPage}" disabled="{!currentPageUser < 2}" reRender="panelU,assignmsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value="< Previous" action="{!userPreviousPage}" disabled="{!currentPageUser < 2}" reRender="panelU,assignmsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value="Next >" action="{!userNextPage}" disabled="{!currentPageUser > totalPagesUser - 1}" reRender="panelU,assignmsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value=" >> " action="{!userLastPage}" disabled="{!currentPageUser > totalPagesUser - 1}" reRender="panelU,assignmsg1panel" status="mainStatusProgress" />
+                                        </div>
+                                    </div>
+                                    <div class="paginationInputPageNumberCont" >
+                                        Page #:&nbsp;<apex:inputText id="assign_user_pageInputBox_id" styleClass="paginationInputBox" value="{!user_assign_inputCurrentPage}" onblur="change_pageCounter(this, 'assign_user');" onkeypress="paginationInputKeypress(event);" />&nbsp;of&nbsp;{!totalPagesUser}
+                                        <script type="text/javascript">
+                                            assign_user_pageInputBox_id = '{!$Component.assign_user_pageInputBox_id}';
+                                            assign_user_currentPageNumber = '{!currentPageUser}';
+                                        </script>
+                                    </div>
+                                </div>
+    
+                                <!--
+                                Current page: {!currentPageUser} [total pages: {!totalPagesUser}] [total records: {!totalRecordsUser}] [selected records: {!selected_users_count}]
+                                <br />
+                                Selected Permission Set License: <span id="current_selected_user_license" ></span>
+                                <br />
+                                <apex:commandButton value="Previous" action="{!userPreviousPage}" reRender="panelU,assignmsg1panel"/>
+                                <apex:commandButton value="Next" action="{!userNextPage}" reRender="panelU,assignmsg1panel"/>
+                                <br />
+                                <apex:commandLink value="clear selection" action="{!clearUsersSelectionForAssign}" reRender="panelU,assignmsg1panel" />
+                                -->
+    
+                                <script type="text/javascript">
+                                    <apex:outputText rendered="{!selected_users_count == 0 && selected_ps_count == 0}">
+                                        ps_currentSelectedUserLicense = null;
+                                    </apex:outputText>
+                                    displayPScurrentSelectedLicense();
+                                </script>
+    
+                            </apex:pageBlock>
+    
+                            <div style="margin-top:-5px;">
+                                <apex:commandButton styleClass="assignBtn1" value="Assign" reRender="none" onclick="javascript:CONFIRM_ASSIGNMENT();return false;" />
+                            </div>
+    
+                        </apex:outputPanel>
+    
+                    </apex:pageBlockSection>
+
+                </apex:form>
+
+
+            </apex:pageBlock>
+
+        </apex:tab>
+
+
+        <!-- ----------------------------Revoke Tab------------------------------- -->
+        <apex:tab label="Revoke" name="revokePermissions" >
+
+            <apex:pageBlock id="pageBlockRevokeTab" >
+
+
+                <apex:form onsubmit="javascript:return assign_tab_CAN_SUBMIT();" >
+
+                    <apex:actionFunction action="{!revoke_selectPS}" status="mainStatusProgress" reRender="panelPSrevoke,panelUrevoke,revokemsg1panel" name="revoke_selectPS" />
+
+                    <apex:actionFunction action="{!doREVOKE}" status="mainStatusProgress" reRender="panelPSrevoke,panelUrevoke,revokemsg1panel" name="doREVOKE" />
+
+                    <apex:actionFunction action="{!clear_PS_REVOKE_selection}" status="mainStatusProgress" reRender="panelPSrevoke,panelUrevoke,revokemsg1panel" name="clear_PS_REVOKE_selection" />
+       
+                    <apex:actionFunction action="{!psGoToPageRevoke}" status="mainStatusProgress" reRender="panelPSrevoke,panelUrevoke,revokemsg1panel" name="psGoToPageRevoke" />
+                    <apex:actionFunction action="{!userGoToPageRevoke}" status="mainStatusProgress" reRender="panelPSrevoke,panelUrevoke,revokemsg1panel" name="userGoToPageRevoke" />            
+
+                    <apex:actionFunction action="{!doSearch_ps_revoke}" status="mainStatusProgress" reRender="panelPSrevoke,revokemsg1panel,panelUrevoke,pageBlockAssignTab" name="doSearch_ps_revoke" />            
+
+                    <apex:inputHidden value="{!revokeTab_currentLicenseSelectedInPage}" id="IDcurrentLicenseInPageToControllerRevoke" />
+                    <script type="text/javascript">
+                        IDcurrentLicenseInPageToControllerRevoke = '{!$Component.IDcurrentLicenseInPageToControllerRevoke}';
+                    </script>
+
+                    <apex:actionFunction action="{!doSearch_user_revoke}" status="mainStatusProgress" reRender="panelUrevoke,revokemsg1panel,pageBlockAssignTab" name="doSearch_user_revoke" />            
+
+                    <apex:outputPanel id="revokemsg1panel">
+                        <apex:pageMessage rendered="{!PageMessage2 != null && PageMessage2 != ''}" severity="info" summary="{!PageMessage2}" strength="2" escape="false" />
+                    </apex:outputPanel>
+
+
+                    <apex:pageBlockSection collapsible="false" columns="1" title="Search for Permission Sets" id="panelPSrevoke">
+  
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <apex:variable value="{!0}" var="selected_psRevoke_count" />
+                                <apex:repeat value="{!selectedPermissionSetsRevoke}" var="ps">
+                                    <apex:variable value="{!selected_psRevoke_count + 1}" var="selected_psRevoke_count" />
+                                </apex:repeat>
+                                <apex:variable value="{!0}" var="selected_usersRevoke_count" />
+                                <apex:repeat value="{!selectedUsersRevoke}" var="u">
+                                    <apex:variable value="{!selected_usersRevoke_count + 1}" var="selected_usersRevoke_count" />
+                                </apex:repeat>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <div class="searchingContainers">
+                                    <apex:outputPanel styleClass="margin">
+                                        <apex:outputText styleclass="textTitle1" value="Search" />
+                                        <apex:inputText id="revoke_ps_searchInputBox_id" styleClass="textData1" value="{!ps_revoke_SearchText}" onkeypress="searchInputKeypress(event, 3);" />
+                                    </apex:outputPanel>
+    
+                                    <apex:selectList id="revoke_ps_filterInput_id" styleClass="textData1" value="{!ps_revoke_searchFilter_current}" size="1">
+                                        <apex:selectOptions value="{!ps_revoke_searchFilterList}" />
+                                    </apex:selectList>
+    
+                                    <apex:commandButton styleClass="textData1" action="{!doSearch_ps_revoke}" value="Search" reRender="panelPSrevoke,revokemsg1panel,panelUrevoke,pageBlockAssignTab" status="mainStatusProgress" />
+    
+                                    <script type="text/javascript">
+                                        revoke_ps_searchInputBox_id = '{!$Component.revoke_ps_searchInputBox_id}';
+                                        revoke_ps_filterInput_id = '{!$Component.revoke_ps_filterInput_id}';
+                                    </script>
+    
+                                </div>
+                                <div class="assignSelectAllCont">
+                                    <apex:commandLink rendered="false" styleclass="assignSelectAllContElem1" value="Deselect All" action="{!clearPermissionSetsSelectionForRevoke}" reRender="panelPSrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                </div>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+                        
+                        <apex:outputPanel styleClass="mainTablesContainer" >
+    
+                            <script type="text/javascript">
+                                ps_selectedRecords_revoke = {!selected_psRevoke_count};
+                                ps_allSelectedIDs_revoke = '';
+                                <apex:repeat var="ps" value="{!selectedPermissionSetsRevoke}">
+                                    ps_allSelectedIDs_revoke += ',{!JSENCODE(ps)}';
+                                </apex:repeat>
+                            </script>
+    
+                            <apex:variable value="{!1}" var="isPS_allSelectedInPageRevoke" />
+                            <apex:repeat value="{!currentPermissionSetsInPageRevoke}" var="ps">
+                                <apex:variable value="{!IF(!ps.isSelected, (isPS_allSelectedInPageRevoke - 1),isPS_allSelectedInPageRevoke)}" var="isPS_allSelectedInPageRevoke" />
+                            </apex:repeat>
+    
+                            <apex:pageBlock mode="maindetail">
+                                <apex:pageBlockTable value="{!currentPermissionSetsInPageRevoke}" var="ps" rendered="{!currentSelectedPermissionSetsRevoke.size < 1}" >
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:outputText >
+                                                <apex:inputCheckbox rendered="{!isPS_allSelectedInPageRevoke < 1 || currentPermissionSetsInPageRevoke == null || currentPermissionSetsInPageRevoke.size == 0}" value="{!falseValue}" styleClass="psSelectAllCheckbox2" onclick="javascript:selectAllPScheckboxesRevoke(this);"/>
+                                                <apex:inputCheckbox rendered="{!isPS_allSelectedInPageRevoke > 0 && !ISNULL(currentPermissionSetsInPageRevoke) && currentPermissionSetsInPageRevoke.size > 0}" value="{!trueValue}" styleClass="psSelectAllCheckbox2" onclick="javascript:selectAllPScheckboxesRevoke(this);"/>
+                                            </apex:outputText>
+                                        </apex:facet>
+                                        <apex:inputCheckbox onclick="javascript:isClickInPSCheckboxRevoke(this);" value="{!ps.isSelected}" styleClass="psRevokeCheck-{!ps.ps.Id} psCheckbox2" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Name {!IF(sort_field_psRevoke == 'Name', IF(sort_direction_psRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortRevoke}" reRender="panelPSrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psRevoke" value="Name" assignTo="{!sort_field_psRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            <apex:outputText rendered="{!ps.ps.ProfileId != null}">
+                                                {!ps.ps.Profile.Name + ' (Profile)'}
+                                            </apex:outputText>
+                                            <apex:outputLink value="/{!ps.ps.Id}" target="_blank" rendered="{!ps.ps.ProfileId == null}">
+                                                {!ps.ps.Label}
+                                            </apex:outputLink>
+                                        </apex:outputText>
+                                    </apex:column>
+
+                                    <apex:column style="text-align:center;" >
+                                        <apex:facet name="header">
+                                            Number of Users Assigned
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            {!ps.currentAssignedUserIDsCount}
+                                        </apex:outputText>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Description {!IF(sort_field_psRevoke == 'Description', IF(sort_direction_psRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortRevoke}" reRender="panelPSrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psRevoke" value="Description" assignTo="{!sort_field_psRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <apex:outputField value="{!ps.ps.Description}" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="User License {!IF(sort_field_psRevoke == 'UserLicenseId', IF(sort_direction_psRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortRevoke}" reRender="panelPSrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psRevoke" value="UserLicenseId" assignTo="{!sort_field_psRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <span id="psRevokeULicense-{!ps.ps.Id}" class="{!IF(ps.ps.UserLicenseId != null, '', 'visibilityhidden')}">{!IF(ps.ps.UserLicenseId == null, '- no license -', ps.ps.UserLicense.Name)}</span>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Last Modified {!IF(sort_field_psRevoke == 'LastModifiedDate', IF(sort_direction_psRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!psSortRevoke}" reRender="panelPSrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_psRevoke" value="LastModifiedDate" assignTo="{!sort_field_psRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            <apex:outputField value="{!ps.ps.LastModifiedBy.Name}"/>&nbsp;-&nbsp;<apex:outputField value="{!ps.ps.LastModifiedDate}" />
+                                            <!--
+                                            {!p.permission.LastModifiedBy.Name} -&nbsp; <apex:outputText value="{0,date,MM/dd/yyyy h:mm:ss a}"> <apex:param value="{!p.permission.LastModifiedDate}"/> </apex:outputText>
+                                            -->
+                                        </apex:outputText>
+                                    </apex:column>
+    
+                                </apex:pageBlockTable>
+
+                                <apex:pageBlockTable value="{!currentSelectedPermissionSetsRevoke}" var="ps" rendered="{!currentSelectedPermissionSetsRevoke.size > 0}" >
+                                    <!--
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:outputText>
+                                                <apex:inputCheckbox rendered="{!isPS_allSelectedInPageRevoke < 1 || currentPermissionSetsInPageRevoke == null || currentPermissionSetsInPageRevoke.size == 0}" value="{!falseValue}" styleClass="psSelectAllCheckbox2" onclick="javascript:selectAllPScheckboxesRevoke(this);"/>
+                                                <apex:inputCheckbox rendered="{!isPS_allSelectedInPageRevoke > 0 && !ISNULL(currentPermissionSetsInPageRevoke) && currentPermissionSetsInPageRevoke.size > 0}" value="{!trueValue}" styleClass="psSelectAllCheckbox2" onclick="javascript:selectAllPScheckboxesRevoke(this);"/>
+                                            </apex:outputText>
+                                        </apex:facet>
+                                        <apex:inputCheckbox onclick="javascript:isClickInPSCheckboxRevoke(this);" value="{!ps.isSelected}" styleClass="psRevokeCheck-{!ps.ps.Id} psCheckbox2" />
+                                    </apex:column>
+                                    -->
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            Name
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            <apex:outputText rendered="{!ps.ps.ProfileId != null}">
+                                                {!ps.ps.Profile.Name + ' (Profile)'}
+                                            </apex:outputText>
+                                            <apex:outputLink value="/{!ps.ps.Id}" target="_blank" rendered="{!ps.ps.ProfileId == null}">
+                                                {!ps.ps.Label}
+                                            </apex:outputLink>
+                                        </apex:outputText>
+                                    </apex:column>
+
+                                    <apex:column style="text-align:center;" >
+                                        <apex:facet name="header">
+                                            Number of Users Assigned
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            {!ps.currentAssignedUserIDsCount}
+                                        </apex:outputText>
+                                    </apex:column>
+
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            Description
+                                        </apex:facet>
+                                        <apex:outputField value="{!ps.ps.Description}" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            User License
+                                        </apex:facet>
+                                        <span id="psRevokeULicense-{!ps.ps.Id}" class="{!IF(ps.ps.UserLicenseId != null, '', 'visibilityhidden')}">{!IF(ps.ps.UserLicenseId == null, '- no license -', ps.ps.UserLicense.Name)}</span>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            Last Modified
+                                        </apex:facet>
+                                        <apex:outputText >
+                                            <apex:outputField value="{!ps.ps.LastModifiedBy.Name}"/>&nbsp;-&nbsp;<apex:outputField value="{!ps.ps.LastModifiedDate}" />
+                                            <!--
+                                            {!p.permission.LastModifiedBy.Name} -&nbsp; <apex:outputText value="{0,date,MM/dd/yyyy h:mm:ss a}"> <apex:param value="{!p.permission.LastModifiedDate}"/> </apex:outputText>
+                                            -->
+                                        </apex:outputText>
+                                    </apex:column>
+    
+                                </apex:pageBlockTable>
+                                    
+
+                                <div class="paginationContainer">
+                                    <div class="paginationInfoCont" >
+                                        <apex:variable value="{!recordsPerPagePermissionSetRevoke * (currentPagePermissionSetRevoke - 1) + 1}" var="ps_revoke_temp1" />
+                                        <apex:outputText rendered="{!currentSelectedPermissionSetsRevoke.size < 1}" >
+                                            <span class="textSelectedRecords">
+                                                {!IF(currentPagePermissionSetRevoke < 1,'',TEXT(ps_revoke_temp1) + '-' + TEXT(ps_revoke_temp1 + currentPermissionSetsInPageRevoke.size - 1) + ' of ' + TEXT(totalRecordsPermissionSetRevoke))}
+                                            </span>
+                                        </apex:outputText>
+                                        <span class="textSelectedRecords">
+                                            <span id="ps_revoke_SelectedRecordCount" style="font-weight:bold;">{!FLOOR(selected_psRevoke_count)}</span>
+                                            Selected
+                                        </span>
+                                        <br /><br /><span class="selectedLicenseCont displaynone">Selected Permission Set License: <span class="spanSelectedLicense" id="current_selected_psRevoke_license" ></span></span>
+                                    </div>
+                                    <apex:outputText rendered="{!currentSelectedPermissionSetsRevoke.size < 1}" >
+                                        <div class="paginationNavigationBtnCont">
+                                            <div>
+                                                <apex:commandButton value=" << " action="{!psFirstPageRevoke}" disabled="{!currentPagePermissionSetRevoke < 2}" reRender="panelPSrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                                <apex:commandButton value="< Previous" action="{!psPreviousPageRevoke}" disabled="{!currentPagePermissionSetRevoke < 2}" reRender="panelPSrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                                <apex:commandButton value="Next >" action="{!psNextPageRevoke}" disabled="{!currentPagePermissionSetRevoke > totalPagesPermissionSetRevoke - 1}" reRender="panelPSrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                                <apex:commandButton value=" >> " action="{!psLastPageRevoke}" disabled="{!currentPagePermissionSetRevoke > totalPagesPermissionSetRevoke - 1}" reRender="panelPSrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                            </div>
+                                        </div>
+                                    </apex:outputText>
+                                    <div class="paginationInputPageNumberCont {!IF(currentSelectedPermissionSetsRevoke.size > 0, 'displaynone', '')}" >
+                                        Page #:&nbsp;<apex:inputText id="revoke_ps_pageInputBox_id" styleClass="paginationInputBox" value="{!ps_revoke_inputCurrentPage}" onblur="change_pageCounter(this, 'revoke_ps');" onkeypress="paginationInputKeypress(event);" />&nbsp;of&nbsp;{!totalPagesPermissionSetRevoke}
+                                        <script type="text/javascript">
+                                            revoke_ps_pageInputBox_id = '{!$Component.revoke_ps_pageInputBox_id}';
+                                            revoke_ps_currentPageNumber = '{!currentPagePermissionSetRevoke}';
+                                        </script>
+                                    </div>
+                                    
+                                    <apex:outputText rendered="{!currentSelectedPermissionSetsRevoke.size > 0}" >
+                                        <apex:commandButton styleClass="assignBtn1" value="Clear" reRender="none" onclick="javascript:CLEAR_REVOKE_PSselection();return false;" />                                    
+                                    </apex:outputText>
+                                    
+                                </div>
+       
+                                <script type="text/javascript">
+                                    <apex:outputText rendered="{!selected_usersRevoke_count == 0 && selected_psRevoke_count == 0}">
+                                        ps_currentSelectedUserLicenseRevoke = null;
+                                    </apex:outputText>
+                                    displayPScurrentSelectedLicenseRevoke();
+                                </script>
+                            </apex:pageBlock>
+    
+                        </apex:outputPanel>
+    
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <div style="height:5px;" ></div>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>                        
+                    </apex:pageBlockSection> 
+
+
+                    <!-- ======================== REVOKE USER TAB ======================== -->
+    
+                    <apex:pageBlockSection collapsible="false" columns="1" title="Assigned Users" id="panelUrevoke">
+    
+                        <!--<apex:pageBlockSectionItem>-->
+                        <!--</apex:pageBlockSectionItem>-->
+    
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText >
+                                <!-- 
+                                _______________->:{!count_fieldDescribes}
+                                 -->                            
+                                <apex:outputText >
+                                    <apex:variable value="{!0}" var="selected_psRevoke_count" />
+                                    <apex:repeat value="{!selectedPermissionSetsRevoke}" var="ps">
+                                        <apex:variable value="{!selected_psRevoke_count + 1}" var="selected_psRevoke_count" />
+                                    </apex:repeat>
+                                    <apex:variable value="{!0}" var="selected_usersRevoke_count" />
+                                    <apex:repeat value="{!selectedUsersRevoke}" var="u">
+                                        <apex:variable value="{!selected_usersRevoke_count + 1}" var="selected_usersRevoke_count" />
+                                    </apex:repeat>
+                                </apex:outputText>
+                            
+                                <span class="NOTEmessage">
+                                    <span class="textTitle1">Note:</span> Only users with the Permission Set you've selected above will appear in this list.
+                                </span>
+                                <br />
+                                <div class="searchingContainers">
+                                    <apex:outputPanel styleClass="margin">
+                                        <apex:outputText styleclass="textTitle1" value="Search" />
+                                        <apex:inputText id="revoke_user_searchInputBox_id" styleClass="textData1" value="{!user_revoke_SearchText}" onkeypress="searchInputKeypress(event, 4);" />
+                                    </apex:outputPanel>
+    
+                                    <apex:selectList id="revoke_user_filterInput_id" styleClass="textData1" value="{!user_revoke_searchFilter_current}" size="1">
+                                        <apex:selectOptions value="{!user_revoke_searchFilterList}" />
+                                    </apex:selectList>
+    
+                                    <apex:commandButton styleClass="textData1" value="Search" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" onclick="javascript:validateSearchUserRevoke();return false;" />
+    
+                                    <script type="text/javascript">
+                                        revoke_user_searchInputBox_id = '{!$Component.revoke_user_searchInputBox_id}';
+                                        revoke_user_filterInput_id = '{!$Component.revoke_user_filterInput_id}';
+                                    </script>
+    
+                                    <apex:commandButton styleClass="assignBtn1" value="Revoke" reRender="none" onclick="javascript:CONFIRM_REVOKE();return false;" />
+                                </div>
+                                <div class="assignSelectAllCont">
+                                    <apex:commandLink styleclass="assignSelectAllContElem1" value="Select All" action="{!revoke_selectAllUsers}" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                    <apex:commandLink styleclass="assignSelectAllContElem2" value="Deselect All" action="{!revoke_deselectAllUsers}" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                </div>
+                            </apex:outputText>
+                        </apex:pageBlockSectionItem>
+    
+                        <apex:outputPanel styleClass="mainTablesContainer" >
+    
+                            <script type="text/javascript">
+                                user_selectedRecords_revoke = {!selected_usersRevoke_count};
+                                user_allSelectedIDs_revoke = '';
+                                <apex:repeat var="u" value="{!selectedUsersRevoke}">
+                                    user_allSelectedIDs_revoke += ',{!JSENCODE(u)}';
+                                </apex:repeat>
+                            </script>
+    
+                            <apex:variable value="{!1}" var="isUser_allSelectedInPageRevoke" />
+                            <apex:repeat value="{!currentUsersInPageRevoke}" var="u">
+                                <apex:variable value="{!IF(!u.isSelected, (isUser_allSelectedInPageRevoke - 1),isUser_allSelectedInPageRevoke)}" var="isUser_allSelectedInPageRevoke" />
+                            </apex:repeat>
+    
+                            <apex:pageBlock mode="maindetail">
+                                <apex:pageBlockTable value="{!currentUsersInPageRevoke}" var="u" >
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:outputText >
+                                                <apex:inputCheckbox rendered="{!isUser_allSelectedInPageRevoke < 1 || currentUsersInPageRevoke == null || currentUsersInPageRevoke.size == 0}" value="{!falseValue}" styleClass="userSelectAllCheckbox2" onclick="javascript:selectAllUserCheckboxesRevoke(this);"/>
+                                                <apex:inputCheckbox rendered="{!isUser_allSelectedInPageRevoke > 0 && !ISNULL(currentUsersInPageRevoke) && currentUsersInPageRevoke.size > 0}" value="{!trueValue}" styleClass="userSelectAllCheckbox2" onclick="javascript:selectAllUserCheckboxesRevoke(this);"/>
+                                            </apex:outputText>
+                                        </apex:facet>
+                                        <apex:inputCheckbox onclick="javascript:isClickInUserCheckboxRevoke(this);" value="{!u.isSelected}" styleClass="userRevokeCheck-{!u.u.Id} userCheckbox2" />
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Name {!IF(sort_field_userRevoke == 'Name', IF(sort_direction_userRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortRevoke}" reRender="panelUrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userRevoke" value="Name" assignTo="{!sort_field_userRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Name}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Username {!IF(sort_field_userRevoke == 'Username', IF(sort_direction_userRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortRevoke}" reRender="panelUrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userRevoke" value="Username" assignTo="{!sort_field_userRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Username}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="User License {!IF(sort_field_userRevoke == 'Profile.UserLicense.Name', IF(sort_direction_userRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortRevoke}" reRender="panelUrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userRevoke" value="Profile.UserLicense.Name" assignTo="{!sort_field_userRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        <span id="userRevokeULicense-{!u.u.Id}" class="{!IF(u.u.Profile.UserLicenseId != null , '', 'visibilityhidden')}">{!IF(u.u.Profile.UserLicenseId == null, '- no license -', u.u.Profile.UserLicense.Name)}</span>
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Role {!IF(sort_field_userRevoke =='UserRole.Name', IF(sort_direction_userRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortRevoke}" reRender="panelUrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userRevoke" value="UserRole.Name" assignTo="{!sort_field_userRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.UserRole.Name}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Profile {!IF(sort_field_userRevoke == 'Profile.Name', IF(sort_direction_userRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortRevoke}" reRender="panelUrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userRevoke" value="Profile.Name" assignTo="{!sort_field_userRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Profile.Name}
+                                    </apex:column>
+    
+                                    <apex:column >
+                                        <apex:facet name="header">
+                                            <apex:commandLink value="Title {!IF(sort_field_userRevoke == 'Title', IF(sort_direction_userRevoke == 'ASC','▲','▼'),'')}"
+                                                action="{!userSortRevoke}" reRender="panelUrevoke" status="mainStatusProgress">
+                                                <apex:param name="sort_field_userRevoke" value="Title" assignTo="{!sort_field_userRevoke}"/>
+                                            </apex:commandLink>
+                                        </apex:facet>
+                                        {!u.u.Title}
+                                    </apex:column>
+    
+                                    <apex:column headerValue="Active">
+                                        <apex:outputField value="{!u.u.IsActive}"/>
+                                    </apex:column>
+    
+                                </apex:pageBlockTable>
+    
+                                <div class="paginationContainer">
+                                    <div class="paginationInfoCont" >
+                                        <apex:variable value="{!recordsPerPageUserRevoke * (currentPageUserRevoke - 1) + 1}" var="user_revoke_temp1" />
+                                        <span class="textSelectedRecords">{!IF(currentPageUserRevoke < 1,'',TEXT(user_revoke_temp1) + '-' + TEXT(user_revoke_temp1 + currentUsersInPageRevoke.size - 1) + ' of ' + TEXT(totalRecordsUserRevoke))}</span><span class="textSelectedRecords"><span id="user_revoke_SelectedRecordCount" style="font-weight:bold;">{!FLOOR(selected_usersRevoke_count)}</span> Selected</span>
+                                        <br /><br /><span class="selectedLicenseCont displaynone">Selected Permission Set License: <span class="spanSelectedLicense" id="current_selected_userRevoke_license" ></span></span>
+                                    </div>
+                                    <div class="paginationNavigationBtnCont">
+                                        <div>
+                                            <apex:commandButton value=" << " action="{!userFirstPageRevoke}" disabled="{!currentPageUserRevoke < 2}" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value="< Previous" action="{!userPreviousPageRevoke}" disabled="{!currentPageUserRevoke < 2}" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value="Next >" action="{!userNextPageRevoke}" disabled="{!currentPageUserRevoke > totalPagesUserRevoke - 1}" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                            <apex:commandButton value=" >> " action="{!userLastPageRevoke}" disabled="{!currentPageUserRevoke > totalPagesUserRevoke - 1}" reRender="panelUrevoke,revokemsg1panel" status="mainStatusProgress" />
+                                        </div>
+                                    </div>
+                                    <div class="paginationInputPageNumberCont" >
+                                        Page #:&nbsp;<apex:inputText id="revoke_user_pageInputBox_id" styleClass="paginationInputBox" value="{!user_revoke_inputCurrentPage}" onblur="change_pageCounter(this, 'revoke_user');" onkeypress="paginationInputKeypress(event);" />&nbsp;of&nbsp;{!totalPagesUserRevoke}
+                                        <script type="text/javascript">
+                                            revoke_user_pageInputBox_id = '{!$Component.revoke_user_pageInputBox_id}';
+                                            revoke_user_currentPageNumber = '{!currentPageUserRevoke}';
+                                        </script>
+                                    </div>
+                                </div>
+    
+    
+                                <script type="text/javascript">
+                                    <apex:outputText rendered="{!selected_usersRevoke_count == 0 && selected_psRevoke_count == 0}">
+                                        ps_currentSelectedUserLicenseRevoke = null;
+                                    </apex:outputText>
+                                    displayPScurrentSelectedLicenseRevoke();
+                                </script>
+    
+                            </apex:pageBlock>
+    
+                            <div style="margin-top:-5px;">
+                                <apex:commandButton styleClass="assignBtn1" value="Revoke" reRender="none" onclick="javascript:CONFIRM_REVOKE();return false;" />
+                            </div>
+    
+                        </apex:outputPanel>
+    
+                    </apex:pageBlockSection>
+
+                </apex:form>
+
+            </apex:pageBlock>
+            
+        </apex:tab>
+
+
+        <!-- ----------------------INSTRUCTION TAB--------------------------- -->
+        <apex:tab label="Instructions" name="instructionsTab">
+
+            <apex:pageBlock >
+                <div style="padding: 0 15px 15px 0;">
+    
+                    The Permissioner enables administrators to assign and revoke Permission Sets easily,
+                    providing a variety of ways to search for Permission Sets and filter users to efficiently
+                    manage their Permission Set assignments. Read the instructions below to see how the Assign
+                    and Revoke tabs allow you to make Permission Sets easy. <br/><br/>
+    
+                    <apex:pageBlockSection collapsible="true" columns="1" title="Assigning Permission Sets">
+                        There are two ways to assign Permission Sets using the Assign tab: Permission Sets first,
+                        or selecting users first. Both are equally valid approaches depending upon the use case.
+                        <br/><br/>
+    
+                        <b>Filtering Permission Set Searches</b> <br/>
+                        1. Using the search field on either Assign or Revoke tabs, we can filter by options using
+                        the picklist adjacent to the field:<br/>
+                        <ul>● All: any Permission Sets matching the search term</ul>
+                        <ul>● Individual Permission: Permission Sets with an individual permission searched for
+                        like “Modify All Data”</ul>
+                        <ul>● Permission Sets: returns Permission Sets with a name or description that matches the
+                         search term</ul>
+                        <ul>● Objects and Fields: returns Permission Sets with an object or field matching the
+                        search term</ul>
+                        2. After returning a list of results, use the clickable column headers to sort in ascending
+                         or descending order. Be sure to see if there are more results and use the arrow buttons to
+                         go to the next page of results.<br/><br/>
+    
+                        <b>Selecting Permission Sets</b> <br/>
+                        Permission Sets are license specific, meaning that only Permission Sets of the same license
+                        type may be selected from the Search for Permission Sets section. Additionally,
+                        if a Permission Set has been selected, only users of that license type will appear when
+                        searching in the Assign to Users section.<br/><br/>
+    
+                        <b>Assign to Users</b> <br/>
+                        1. Like searching for Permission Sets, using the search field on either Assign or Revoke
+                        tabs, we can filter by options using the picklist adjacent to the field:
+                        <ul>● All: any users matching the search term</ul>
+                        <ul>● Name: any user’s first or last name that match the search term</ul>
+                        <ul>● Username: any users that usernames matching the search term</ul>
+                        <ul>● Title: any users with titles matching the search term</ul>
+                        <ul>● Roles: any users assigned to roles matching the search term</ul>
+                        <ul>● Profile: any users assigned to profiles matching the search term</ul>
+                        <ul>● Queue: any users assigned to queues matching the search term</ul>
+                        <ul>● Public Group: any users assigned to a public group matching the search term</ul>
+                        2. After returning a list of results, use the clickable column headers to sort in ascending
+                         or descending order. Be sure to see if there are more results and use the arrow buttons to
+                         go to the next page of results.<br/>
+                        3. Select the users using the checkboxes. Any selected users will remain selected
+                        regardless of pagination. Click Assign to process the assignment of selected Permission Sets.
+                        <br/><br/>
+                    </apex:pageBlockSection>
+    
+                    <apex:pageBlockSection collapsible="true" columns="1" title="Revoking Permission Sets">
+                        Revocation occurs by selecting one Permission Set, reviewing a list of users with that assignment,
+                        and selecting those to revoke the Permission Set assignment.<br/><br/>
+    
+                        <b>Filtering Permission Set Searches</b> <br/>
+                        1. Using the search field on either Assign or Revoke tabs, we can filter by options using the
+                        picklist adjacent to the field:
+                        <ul>● All: any Permission Sets matching the search term</ul>
+                        <ul>● Individual Permission: Permission Sets with an individual permission searched for
+                        like “Modify All Data”</ul>
+                        <ul>● Permission Sets: returns Permission Sets with a name or description that matches the
+                         search term</ul>
+                        <ul>● Objects and Fields: returns Permission Sets with an object or field matching the
+                        search term</ul>
+                        2. After returning a list of results, use the clickable column headers to sort in ascending or
+                        descending order. Be sure to see if there are more results and use the arrow buttons to go to the
+                        next page of results.<br/>
+                        3. Select one Permission Set and the others will be hidden from view. Also, users with that
+                        Permission Set assignment will be displayed in the Assigned Users section.
+                        <br/><br/>
+    
+                        <b>Assigned Users</b> <br/>
+                        1. Like searching for Permission Sets, using the search field on either Assign or Revoke tabs, we
+                        can filter by options using the picklist adjacent to the field:
+                        <ul>● All: any users matching the search term</ul>
+                        <ul>● Name: any user’s first or last name that match the search term</ul>
+                        <ul>● Username: any users that usernames matching the search term</ul>
+                        <ul>● Title: any users with titles matching the search term</ul>
+                        <ul>● Roles: any users assigned to roles matching the search term</ul>
+                        <ul>● Profile: any users assigned to profiles matching the search term</ul>
+                        <ul>● Queue: any users assigned to queues matching the search term</ul>
+                        <ul>● Public Group: any users assigned to a public group matching the search term</ul>
+                        2. After returning a list of results, use the clickable column headers to sort in ascending or
+                        descending order. Be sure to see if there are more results and use the arrow buttons to go to the
+                        next page of results.<br/>
+                        3. Select the users using the checkboxes. Any selected users will remain selected regardless
+                        of pagination. Click Revoke to process the revocation of the selected Permission Set.
+                    </apex:pageBlockSection>
+                </div>
+            </apex:pageBlock>
+
+        </apex:tab>
+
+
+    </apex:tabPanel>
+
+
+
+    <!-- =========================== -->
+    <br />
+    <script type="text/javascript">
+        var allow_load_describes = 0;
+    </script>
+    <apex:outputPanel id="describePanel">
+        <!--
+        <apex:variable value="{!0}" var="counter1" />
+        <apex:repeat value="{!describe_mapAPIobject}" var="d">
+            <apex:variable value="{!counter1 + 1}" var="counter1" />
+            {!counter1} ---- {!d}<br />
+            <apex:repeat value="{!describe_mapAPIobject[d].fields_describe}" var="t">
+                ===== {!t.label}<br />
+            </apex:repeat>
+        </apex:repeat>
+        -->
+        <script type="text/javascript">
+            function loadDescribes_aux(){
+                setTimeout("loadDescribes();", 120);
+            }
+            function loadDescribes(){
+                if(assign_CANSUBMIT == 0) return false;
+                var total_describes = {!describe_totalObjectsCount};
+                var processed_describes = {!describe_processedObjectsCount};
+
+                if(processed_describes < total_describes){
+                    load_more_describes();
+                }
+            }
+            if(allow_load_describes == 1){
+               //loadDescribes_aux();
+            }
+        </script>
+    </apex:outputPanel>
+    <br />
+    <apex:form >
+        <apex:actionFunction action="{!describe_loadAllDescribes}" reRender="describePanel" name="load_more_describes" status="mainStatusProgress" />
+        <!--
+        <apex:actionFunction action="{!doNothing}" status="mainStatusProgress" reRender="describePanel" name="refresh_inpage_data" />
+        -->
+    </apex:form>
+    <script type="text/javascript">
+        //window.addEventListener("onload", loadDescribes(), false);
+        allow_load_describes = 1;
+        loadDescribes_aux();
+    </script>
+    <!-- =========================== -->
+
+</apex:page>

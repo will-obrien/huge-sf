@@ -1,0 +1,177 @@
+<!--
+
+Copyright (c) 2015, salesforce.com, Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+    * Neither the name of the salesforce.com, Inc. nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-->
+
+<!--
+
+VisualForce page that displays the editing history for a Chatter thread.
+Admins and other interested parties can use this page instead of doing
+a SOQL query on the FeedRevision sObject.
+
+See https://github.com/alouie-sfdc/ChatterEditHistory for more information.
+
+
+@author arthur.louie
+
+-->
+
+<apex:page controller="FeedRevisionController">
+    <apex:form >
+        <apex:pageBlock title="Get the edit history of posts and comments in a Chatter thread">
+            Chatter thread URL: 
+            <apex:outputText value=" "/>
+            <apex:inputText value="{!url}" size="100" />
+            <apex:commandButton value="Get history" />
+        </apex:pageBlock>
+    </apex:form>
+    
+    <!-- Don't render anything else unless a URL is supplied. -->
+    <apex:form rendered="{!IF(url == null, false, true)}">
+
+        <apex:outputText value="Error: Chatter thread not found. URL must contain an ID that starts with 0D5." rendered="{!IF(feedItemAndRevisions == null, true, false)}" style="border-style: solid; border-width: 1px; padding: 5px; background-color: yellow"/>
+
+        <apex:pageBlock title="Current Post" rendered="{!IF(feedItemAndRevisions == null, false, true)}">
+
+            <i>
+            <apex:outputText >Current post is at revision</apex:outputText>
+            <apex:outputText value=" {!feedItemAndRevisions.currentFeedItem.revision}"/>
+            <apex:outputText >, originally posted by</apex:outputText>
+            <apex:outputText value=" "/>
+            <apex:outputLink value="/{!feedItemAndRevisions.currentFeedItem.createdById}">{!feedItemAndRevisions.currentFeedItem.createdBy.name}</apex:outputLink> 
+            <apex:outputText value=", feed item ID: "/>
+            <apex:outputLink value="/{!feedItemId}">{!feedItemId}</apex:outputLink> 
+            </i>
+    
+            <p/>
+            <apex:outputText value="{!feedItemAndRevisions.currentFeedItem.body}" style="border-style: solid; border-width: 1px; padding: 5px; background-color: yellow"/>
+        </apex:pageBlock>
+
+        <apex:pageBlock title="Edits to the Post" rendered="{!IF(feedItemAndRevisions == null, false, true)}">
+            <apex:outputText style="label" value="No edits" rendered="{!IF(feedItemAndRevisions.revisions == null || feedItemAndRevisions.revisions.size == 0, true, false)}"/>
+
+            <apex:repeat value="{!feedItemAndRevisions.revisions}" var="revision">
+                <apex:pageBlockSection >
+                    <apex:pageBlockSectionItem >
+                        <apex:outputText style="label" value="Revision:"></apex:outputText>
+                        <apex:outputLabel value="{!revision.revision}" /> 
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection >
+                    <apex:pageBlockSectionItem >
+                        <apex:outputText style="label" value="Edited by:"></apex:outputText>
+                        <apex:outputLink value="/{!revision.createdById}">{!revision.createdBy.name}</apex:outputLink> 
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection >
+                    <apex:pageBlockSectionItem >
+                        <apex:outputText style="label" value="Value before the revision:"></apex:outputText>
+                        <apex:outputLabel value="{!revision.value}" style="border-style: solid; border-width: 1px; padding: 5px; background-color: yellow"/> 
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection >
+                    <apex:pageBlockSectionItem >
+                        <apex:outputText style="label" value="Edited attribute:"></apex:outputText>
+                        <apex:outputLabel value="{!revision.editedAttribute}" /> 
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <p/>       
+            </apex:repeat>
+
+        </apex:pageBlock>
+
+        <apex:pageBlock title="Edits to the Comments" rendered="{!IF(feedItemAndRevisions == null, false, true)}">
+
+            <apex:outputText style="label" value="No comments" rendered="{!IF(commentsAndRevisions == null || commentsAndRevisions.size == 0, true, false)}"/>
+
+            <apex:variable value="{!0}" var="commentCounter"/>
+  
+            <apex:repeat value="{!commentsAndRevisions}" var="commentAndRevs">
+
+                <apex:variable var="commentCounter" value="{!commentCounter + 1}"/>
+        
+                <apex:pageBlock title="Comment {!commentCounter}">
+                    <i>
+                    <apex:outputText >Current comment is at revision</apex:outputText>
+                    <apex:outputText value=" {!commentAndRevs.comment.revision}"/>
+                    <apex:outputText >, originally posted by</apex:outputText>
+                    <apex:outputText value=" "/>
+                    <apex:outputLink value="/{!commentAndRevs.comment.createdById}">{!commentAndRevs.comment.createdBy.name}</apex:outputLink>
+                    </i>
+                    <p/>
+                    <apex:outputText value=" {!commentAndRevs.comment.commentBody}" style="border-style: solid; border-width: 1px; padding: 5px; background-color: yellow"/>
+                </apex:pageBlock>
+    
+                <apex:outputText style="label" value="No edits" rendered="{!IF(commentAndRevs.commentRevisions == null || commentAndRevs.commentRevisions.size == 0, true, false)}"/>
+    
+                <apex:repeat value="{!commentAndRevs.commentRevisions}" var="revision">
+
+                    <apex:pageBlockSection >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText style="label" value="Revision:"></apex:outputText>
+                            <apex:outputLabel value="{!revision.revision}" /> 
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText style="label" value="Edited by:"></apex:outputText>
+                            <apex:outputLink value="/{!revision.createdById}">{!revision.createdBy.name}</apex:outputLink> 
+                        </apex:pageBlockSectionItem>
+                   </apex:pageBlockSection>
+
+
+                    <apex:pageBlockSection >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText style="label" value="Value before the revision:"></apex:outputText>
+                            <apex:outputLabel value="{!revision.value}" style="border-style: solid; border-width: 1px; padding: 5px; background-color: yellow"/>
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText style="label" value="Edited attribute:"></apex:outputText>
+                            <apex:outputLabel value="{!revision.editedAttribute}" /> 
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+                    
+                </apex:repeat>
+
+                <p/>
+                       
+            </apex:repeat>
+
+        </apex:pageBlock>
+
+    </apex:form>
+    
+</apex:page>

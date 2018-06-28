@@ -1,0 +1,83 @@
+<apex:page controller="DragAndDropController">
+
+    <apex:stylesheet value="//code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css"/>
+    <apex:includeScript value="//code.jquery.com/jquery-1.10.2.js"/>
+    <apex:includeScript value="//code.jquery.com/ui/1.11.2/jquery-ui.js"/>
+    <script>
+        $(document).ready(function() {
+            $(document.getElementById("{!$Component.theForm.thePageBlock.theTable1}")).find("tbody").addClass('connectedSortable');
+            $(document.getElementById("{!$Component.theForm.thePageBlock.theTable2}")).find("tbody").addClass('connectedSortable');
+            $(document.getElementById("{!$Component.theForm.thePageBlock.theTable1}")).find("tbody")
+                .sortable({
+                    connectWith: ".connectedSortable",
+                    items: "> tr:not(:first)",
+                    appendTo: "parent",
+                    helper: "clone",
+                    cursor: "move",
+                    zIndex: 999990,
+                       receive: function(event,ui){
+                        var targetList = ui.item.html();
+                        alert(targetList);
+                        html = $.parseHTML(targetList);
+                        alert('html---->'+html);
+                        var ss='';
+                        $.each( html, function(i,el){
+                            ss=$(this).text();
+                            return false;
+                        });
+                        DragAndDropController.updateStatus(ss,this.id,function(result,event){                            
+                            if(event.Status){
+                                location.reload(true);
+                            }
+                        },{escape: false});
+                    }
+                });
+            $(document.getElementById("{!$Component.theForm.thePageBlock.theTable2}")).find("tbody")
+                .sortable({
+                    connectWith: ".connectedSortable",
+                    items: "> tr",
+                    appendTo: "parent",
+                    helper: "clone",
+                    cursor: "move",
+                    zIndex: 999990,
+                    receive: function(event,ui){
+                        var targetList = ui.item.html();
+                        html = $.parseHTML(targetList);
+
+                        var ss='';
+                        $.each( html, function(i,el){
+                            ss=$(this).text();
+                            return false;
+                        });
+                        DragAndDropController.updateStatus(ss,this.id,function(result,event){                            
+                            if(event.Status){
+                                location.reload(true);
+
+                            }
+                        },{escape: false});
+                    }                            
+                });
+        });
+    </script>
+    <apex:form id="theForm">
+        <apex:pageBlock id="thePageBlock" >
+            <apex:pageBlockTable title="Accounts having Warm Rating" value="{!warmAccounts}" var="account" id="theTable1" styleClass="mytable">
+                    <apex:column value="{!account.Id}"/>
+                    <apex:column value="{!account.Name}"/>
+                    <apex:column value="{!account.AccountNumber}"/>
+                    <apex:column value="{!account.Phone}"/>
+                    <apex:column value="{!account.Fax}"/>
+
+            </apex:pageBlockTable><br/><br/>
+            <apex:pageBlockTable title="Accounts having Cold Rating" value="{!coolAccounts}" var="account" id="theTable2" styleClass="mytable">
+                    <apex:column value="{!account.Id}"/>
+                    <apex:column value="{!account.Name}"/>
+                    <apex:column value="{!account.AccountNumber}"/>
+                    <apex:column value="{!account.Phone}"/>
+                    <apex:column value="{!account.Fax}"/>
+
+            </apex:pageBlockTable>
+        </apex:pageBlock>
+    </apex:form>
+
+</apex:page>

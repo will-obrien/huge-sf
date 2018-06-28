@@ -1,0 +1,320 @@
+<apex:page sidebar="false" showheader="false" docType="html-5.0" 
+           applyHTMLTag="FALSE" standardStylesheets="FALSE" >
+<html lang="en">
+<head>
+<title>Find your location</title>
+<style type="text/css"> 
+
+.panel {
+  margin-top: 15px;
+}
+#map_canvas {
+  border: 1px solid #bbbbbb;
+  min-width: 290px;
+  min-height: 217px;
+}
+#long-lat_display {
+border: 1px solid blue;
+width: 600px;
+height: 50px;
+margin-top: 10px;
+float:left;
+}
+#long-lat_entry {
+border: 1px solid red;
+width: 600px;
+height: 100px;
+margin-top: 10px;
+float:left;
+}
+#currentLocation {
+    border: solid;
+}
+
+</style>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=geometry,places&key=AIzaSyCtCLqOQ0XznFQtcVr1OGTELt6XMuae7i8"></script>
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>
+
+<script>
+var map = null;
+var geocoder = null;
+var marker = null;
+var mapPoint = null;
+var tabAccuracy = new Array(2,4,6,10,12,13,16,16,17);
+var chosenLat = null;
+var chosenLng = null;
+var centerLat = null;
+var centerLng = null;
+var chosenPoint = null;
+var chosenAddr = null;
+var placeMarker = new google.maps.Marker();
+var infowindow = new google.maps.InfoWindow();
+var firstTime = true;
+
+jQuery(document).ready(function() {
+     initialize();
+ });
+
+function initialize() {
+    geocoder = new google.maps.Geocoder();
+    map = new google.maps.Map(document.getElementById('map_canvas'));
+    
+    chosenPoint = getRequestParameter("location");
+    if(chosenPoint > "")
+        centerPoint = chosenPoint;
+    else
+        centerPoint = "37.09024,-95.712891";
+    var points = centerPoint.split(",");
+    var centerLat = parseFloat(points[0]);
+    var centerLng = parseFloat(points[1]);
+    var mapCenter = new google.maps.LatLng(centerLat, centerLng);
+    
+    map.setCenter(mapCenter);
+    map.setZoom(4);
+    map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+    
+    endDrag(mapCenter);
+    jQuery("#saveLocation").hide(); 
+    if(chosenPoint > "") 
+        map.setZoom(14);
+    google.maps.event.addListener(map, "dblclick", function(e) {
+        var point = e.latLng;
+        mapPoint = point;
+        map.setCenter(point);
+        createMarker(point);
+        endDrag(point);
+    });
+
+    jQuery("#findAddressButton").bind('click',function() {
+        showAddress();
+    }); 
+    jQuery("#saveLocationButton").bind('click',function() {
+        saveLocation();
+    }); 
+    jQuery("#cancelButton").bind('click',function() {
+        window.close();
+    });
+    jQuery("#enteredAddr").bind('keypress',function(e) {
+        var key=e.keyCode || e.which;
+        if (key==13){
+            showAddress();
+        }
+    }).focus();
+    var addrEntry = jQuery('#enteredAddr')[0];
+    var autocomplete = new google.maps.places.Autocomplete(addrEntry);
+    autocomplete.addListener('place_changed', function() {
+        var place = autocomplete.getPlace();
+        if(place.geometry) {
+            if(map.getZoom() < 8) {
+                map.setZoom(8);
+            }
+            jQuery("#enteredAddr").val("");
+            endDrag(place.geometry.location);
+        }
+        else {
+         showAddress();
+        }
+    });     
+}
+
+function createMarker(point) {
+    placeMarker.setPosition(point);
+    placeMarker.setMap(map);
+    placeMarker.setDraggable(true);
+    if(chosenPoint > "" || ( ! firstTime )) {
+        infowindow.setContent(document.getElementById("addrDisplay").innerHTML);
+        infowindow.open(map, placeMarker);
+    }
+    if(firstTime) {
+        firstTime = false;
+    }
+    google.maps.event.addListener(placeMarker, 'dragend', endDrag);
+}
+
+function endDrag(point) {
+    if(typeof(point.latLng) == "object") {
+        point = point.latLng;
+    }
+    mapPoint = point;
+    if (geocoder) {
+        geocoder.geocode({latLng: point}, showLocation);
+    }
+    chosenLat = point.lat();
+    chosenLng = point.lng();
+    jQuery("#saveLocation").show(); 
+}
+
+function showLocation(response, status) {
+    if(response && response.length > 0) {
+        var place = response[0].geometry.location;
+        var chosenAddr = response[0].formatted_address;
+        var lat = place.lat().toFixed(6);
+        var lng = place.lng().toFixed(6);
+        document.getElementById("latDisplay").innerHTML = lat;
+        document.getElementById("lngDisplay").innerHTML = lng;
+        document.getElementById("addrDisplay").innerHTML = chosenAddr;
+        createMarker(mapPoint);
+        map.setCenter(mapPoint);
+        
+        if(chosenPoint > "") {
+            jQuery("#saveLocation").show();
+            jQuery("#enteredAddr").val("");
+        }
+    }
+}
+
+function showAddress() {
+     address = document.getElementById("enteredAddr").value;
+     if (geocoder) {
+       geocoder.geocode(
+         {address: address},
+         function(response, status) {
+           if(response && response.length > 0) {
+                var place = response[0].geometry.location;
+                var lat = place.lat().toFixed(6);
+                var lng = place.lng().toFixed(6);
+                point = new google.maps.LatLng(lat, lng);
+                document.getElementById("lngDisplay").innerHTML = point.lng().toFixed(6);
+                document.getElementById("latDisplay").innerHTML = point.lat().toFixed(6);
+                chosenAddr = response[0].formatted_address;
+                document.getElementById("addrDisplay").innerHTML = chosenAddr;
+                jQuery("#enteredAddr").val("");
+                createMarker(point);
+
+                //accuracy = adjustAccuracy(parseInt(place.AddressDetails.Accuracy));
+                //map.setZoom(tabAccuracy[accuracy]);
+                if(map.getZoom() < 8)
+                    map.setZoom(8);
+                map.setCenter(point);
+                jQuery("#saveLocation").show();
+           } //end if
+         } //end function
+       ); // end geocoder.geocode
+   } //end if
+}
+
+function saveLocation() {
+try {
+    chosenAddr = document.getElementById("addrDisplay").innerHTML;
+    var point = map.getCenter();
+    if (window.opener && !window.opener.closed) {
+        window.opener.setLocation(point.lat().toFixed(6), point.lng().toFixed(6), chosenAddr);
+    }
+    } catch(obj) {}
+    window.close();
+}
+
+function adjustAccuracy(accuracy) {
+    if(accuracy > 8)
+        accuracy = 8;
+    return accuracy;
+}
+
+function getRequestParameter( name ) {
+    name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+    var regexS = "[\\?&]"+name+"=([^&#]*)";
+    var regex = new RegExp( regexS );
+    var results = regex.exec( window.location.href );
+    if( results == null )
+        return "";
+    else
+        return unescape(results[1]);
+}
+</script>
+
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous" />
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous" />
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+
+    <noscript>
+        <p style="background: red; color: white;">This site uses
+            JavaScript therefore it is suggested that you either enable it in
+            your browser preferences or upgrade to a more contemporary browser
+            that supports it.</p>
+    </noscript>
+    
+    <div class="container">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Find Your Location</h3>
+        </div>
+        <div class="panel-body">
+          <!-- begin #maincontent -->
+          <div id="mainContent">
+          
+            
+            <div class="row">
+              <div class="col-xs-12 col-sm-6 col-md-6">
+                <div class="embed-responsive embed-responsive-4by3 form-group">
+                  <div id="map_canvas" class="embed-responsive-item"></div>
+                </div>
+              </div>
+
+              <div class="col-xs-12 col-sm-6 col-md-6">              
+
+                <div id="infoDisplay">
+                
+                  <div class="col-md-12 form-group">
+                    <label>Enter City, State or Zip or Complete Address</label> 
+                    <input id="enteredAddr" class="form-control" />
+                  </div>
+                  <div class="col-md-12" id="saveLocation" style="display: none">
+                    <input type="submit" 
+                           id="saveLocationButton"
+                           class="btn btn-primary btn-block"
+                           value="Save Location" /> <br />
+                  </div>
+                  <div class="col-md-12 form-group">
+                    <input type="submit" 
+                           id="cancelButton" 
+                           class="btn btn-default btn-block"
+                           value="Cancel" />
+                  </div>
+                  <div class="col-md-12">
+                    <h4>Current Location</h4>
+                  </div>
+                  <div class="col-md-6 form-group">
+                    <b>Latitude:</b> <span id="latDisplay">37.09024</span>
+                  </div>
+                  <div class="col-md-6 form-group">  
+                    <b>Longitude:</b> <span id="lngDisplay">-95.712891</span>
+                  </div>
+                  <div class="col-md-12 form-group">
+                    <b>Address:</b> <span id="addrDisplay">United States</span>
+                  </div>
+                  <div class="col-md-12">
+                    <ul class="list-group">
+                      <li class="list-group-item">
+                        To find your location, enter City, State or Zip or Complete Address
+                      </li>
+                      <li class="list-group-item">
+                        You may drag and drop the pointer to fine tune your location
+                      </li>
+                      <li class="list-group-item">
+                        When the pointer points to your location, click "Save Location"
+                      </li>
+                    </ul>
+                  </div>
+                <!-- end #maincontent -->
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+
+
+        </div>
+    </div>
+</body>
+</html>
+</apex:page>

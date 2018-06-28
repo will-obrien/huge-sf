@@ -1,0 +1,101 @@
+<apex:page showheader="false" sidebar="false" standardstylesheets="false">
+    <script type="text/javascript">
+        /****************************************/
+        /*  Entity Encode And Decode Functions  */
+        /*  Author Bdiaz@timbasoftware.com      */
+        /*  Created Date 3/3/2010               */
+        /****************************************/
+        var entity = {
+            /* Get a String & Returns it Encoded */
+            encode: function(str){
+                if((str != '') && (str != null) && (typeof(str) != 'undefined')){
+                    //Fix For Ampersand Issues w\With Ie
+                    str = this._ampFix(str);
+                    var elem = this._genEnvironment();
+                    setInnerText(elem,str);
+                    str = elem.innerHTML;
+                }
+                return str;
+            },
+            /* Get an Encoded string & Returns it Decoded */
+            decode: function(str){
+                var elem = this._genEnvironment();
+                //Fix For Ampersand Issues w\With Ie
+                //str = this._ampFix(str);                
+                //Append Text To 'innerHTML'
+                elem.innerHTML = str;
+                //To Get The Decoded Value Form TextContent 
+                return this._escapeQuotes(getInnerText(elem));
+            },
+            /* Generate a Node */
+            _genEnvironment: function(){
+                var e;
+                e=document.createElement("span");
+                return e;
+            },
+            /* Escape Quotes            */
+            /* Add Fix For Compatibility*/
+            _escapeQuotes: function(str){
+                return str.replace(/"/g,'\"').replace(/&apos;/g,'\'').replace(/&quot;/g,'\"');
+            },
+            /*Fix For Ampersand Issues w\With Ie*/
+            _ampFix: function(str){
+                isMessedUpAmp = true;
+                while (isMessedUpAmp){
+                    if(str.indexOf('&amp;')!=-1){
+                        str = str.replace(/&amp;/g,'&');
+                    }
+                    else{
+                        isMessedUpAmp = false;
+                    }
+                }
+                return str;         
+            },
+            /* Encode Backslash To his Entity Equilvalent*/
+            _encodeEscape: function(str){
+                return str = str.replace(/\\/g,'&#92;');         
+            },
+            _escapeEscape: function(str){
+                return str = str.replace(/\\/g,'\\\\');         
+            }
+        }
+        /********************************************/
+        /*  Set Inner Text|Cross Browser Compilant  */
+        /*  Author Bdiaz@timbasoftware.com          */
+        /*  Created Date 3/3/2010                   */
+        /********************************************/
+        function setInnerText (element, text){
+            if (element){
+                if (typeof(element.textContent) != 'undefined') {
+                    element.textContent = text;
+                }
+                else if (typeof(element.innerText) != 'undefined') {
+                    element.innerText = text;
+                }
+                else if (typeof(element.removeChild) != 'undefined') {
+                    while (element.hasChildNodes()) {
+                        element.removeChild(element.lastChild);
+                    }
+                    element.appendChild(document.createTextNode(text)) ;
+                }
+            }
+        }
+        /********************************************/
+        /*  Get Inner Text|Cross Browser Compilant  */
+        /*  Author Bdiaz@timbasoftware.com          */
+        /*  Created Date 3/3/2010                   */
+        /********************************************/  
+        function getInnerText(element){
+            var content;
+            if (element) {
+                if (typeof(element.textContent) != 'undefined') {
+                    content = element.textContent;
+                }
+                else if (typeof(element.innerText) != 'undefined') {
+                    content = element.innerText;
+                }
+            }
+            return content;
+        }
+    </script>
+</apex:page>

@@ -1,0 +1,52 @@
+<apex:page standardController="Zuora__Sync_History__c" extensions="Zuora.SyncHistoryController">
+  <script>
+    function syncHistoryNs() {}
+    syncHistoryNs.viewDetail = function(historyId){
+      var url = 'apex/CrmIdChangeResult?hid=' + historyId;
+      var newwin = window.open(url, 'Popup', 'height=400,width=600,left=' + (screen.availWidth - 600)/2 + ',top=' + (screen.availHeight - 400)/2 + ',resizable=no,scrollbars=yes,toolbar=no,status=no');
+      if (window.focus) {
+        newWin.focus();
+      }
+      return false;
+    }
+  </script>
+  <apex:form id="theForm">
+    <apex:pageBlock title="{!pageTitle}">
+      <apex:outputLabel value="Update Crm Id for Billing Account: "/>
+      <apex:inputText value="{!billingAccountId}" id="baId"/>
+      <input type="button" value="update" name="update" onclick="updateCrmId()"/>
+      <apex:actionFunction action="{!updateCrmId}" name="updateCrmId"/>
+      <apex:pageBlockTable id="historyTable" value="{!syncHistories}" var="h" >
+        <apex:column >
+          <apex:facet name="header">{!$Label.zuora__Sync_Start_Time}</apex:facet>
+          <apex:outputText value="{0, date, MM/dd/yyyy HH:mm:ss z}">
+            <apex:param value="{!h.Zuora__Sync_On__c}"/>
+          </apex:outputText>
+        </apex:column>
+        <apex:column >
+          <apex:facet name="header">{!$Label.zuora__Sync_Finish_Time}</apex:facet>
+          <apex:outputText value="{0, date, MM/dd/yyyy HH:mm:ss z}">
+            <apex:param value="{!h.Zuora__Finished_On__c}"/>
+          </apex:outputText>
+        </apex:column>
+        <apex:column >
+          <apex:facet name="header">{!$Label.zuora__Sync_Success}</apex:facet>
+          <apex:inputCheckbox disabled="true" value="{!h.Zuora__Is_Success__c}"/>
+        </apex:column>
+        <apex:column >
+          <apex:facet name="header">{!$ObjectType.Zuora__Sync_History__c.Fields.Zuora__Process_For_CrmId_Change__c.Label}</apex:facet>
+          <apex:outputText value="{!h.Zuora__Process_For_CrmId_Change__c}"/>
+        </apex:column>
+        <apex:column >
+          <apex:facet name="header">{!$Label.zuora__Sync_Crm_Id_Change_Result}</apex:facet>
+          <apex:outputLink rendered="{!IF(h.Zuora__Process_For_CrmId_Change__c == 'Finished', true, false)}" onclick="syncHistoryNs.viewDetail('{!h.Id}')">View Result</apex:outputLink>
+        </apex:column>
+      </apex:pageBlockTable>
+      
+      <apex:panelGrid columns="2">
+        <apex:commandLink action="{!previous}" reRender="historyTable">Previous</apex:commandlink>
+        <apex:commandLink action="{!next}" reRender="historyTable">Next</apex:commandlink>
+      </apex:panelGrid>
+    </apex:pageBlock>
+  </apex:form>
+</apex:page>

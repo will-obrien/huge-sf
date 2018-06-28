@@ -1,0 +1,147 @@
+<apex:page standardStylesheets="false" sidebar="false" showHeader="false" controller="reportsGARP" applyBodyTag="false" cache="false" applyHtmlTag="false" docType="html-5.0">
+
+    <apex:variable var="envPath" value="{!URLFOR($Resource.reportsGARP)}" />    
+    
+
+<html xmlns:ng="https://angularjs.org" ng-app="reportsGARP" lang="en">
+<head>
+    
+    <link href="{!envPath}/css/bootstrap.garp.css" rel="stylesheet"/>
+    
+    <apex:include pageName="reportsGARPServices"/> 
+
+    <apex:includeScript value="{!envPath}/js/angular.js"/>
+  
+  <apex:includeScript value="{!envPath}/js/jquery-1.10.2.js"/>
+  <apex:includeScript value="{!envPath}/js/underscore.js"/>
+  <apex:includeScript value="{!envPath}/js/spin.min.js"/>
+  <apex:includeScript value="{!envPath}/js/moment.min.js"/>
+  <apex:includeScript value="{!envPath}/js/moment-timezone-with-data-2010-2020.min.js"/>
+  <apex:includeScript value="{!envPath}/js/simple-excel.js"/>
+    
+</head>
+<body>
+  <div>
+  
+  <div  ng-controller="mainCtrl" ng-include="envPath + '/partials/accountingDailyAR.html'"></div>
+  
+  
+  </div>
+  <!-- // PAGE WRAPPER -->
+  
+  <apex:includeScript value="{!envPath}/js/bootstrap.js"/>
+    
+    <script type="text/javascript">
+
+    debugger;
+
+    var envPath = "{!envPath}";
+
+    var spinnerOptions = {
+      lines: 13, // The number of lines to draw
+      length: 20, // The length of each line
+      width: 10, // The line thickness
+      radius: 30, // The radius of the inner circle
+      corners: 0.5, // Corner roundness (0..1)
+      rotate: 0, // The rotation offset
+      direction: 1, // 1: clockwise, -1: counterclockwise
+      color: '#000000', // #rgb or #rrggbb or array of colors
+      speed: 1, // Rounds per second
+      trail: 60, // Afterglow percentage
+      shadow: false, // Whether to render a shadow
+      hwaccel: false, // Whether to use hardware acceleration
+      className: 'spinner', // The CSS class to assign to the spinner
+      zIndex: 2e9, // The z-index (defaults to 2000000000)
+      top: '10', // Top position relative to parent in px
+      left: 'auto' // Left position relative to parent in px
+    };
+
+    var defined = function(ref, strNames) {
+        var name;
+        
+        if(ref === null || typeof ref === "undefined") {
+          return false;
+        }
+
+        if(strNames !== null && typeof strNames !== "undefined") {
+          var arrNames = strNames.split('.');
+          while (name = arrNames.shift()) {        
+              if (ref[name] === null || typeof ref[name] === "undefined") return false;
+              ref = ref[name];
+          } 
+        }
+        return true;
+    }
+
+	formatDate = function(epoch, format) {
+      if(epoch !== null && typeof epoch !== "undefined") {
+        var mdate = moment.tz(epoch,'GMT');
+        return mdate.format(format);
+      } else {
+        return "";
+      }
+    }
+    
+    formatAmountDisplay = function(amount) {
+      if(!this.defined(amount)) {
+        amount=0;
+      }
+      return parseFloat(Math.round(amount * 100) / 100).toFixed(2).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+    
+    function JSON2CSV(objArray) {
+        var array = typeof objArray != 'object' ? JSON.parse(objArray) : objArray;
+    
+        var str = '';
+        var line = '';
+    
+        if ($("#labels").is(':checked')) {
+            var head = array[0];
+            if ($("#quote").is(':checked')) {
+                for (var index in array[0]) {
+                    var value = index + "";
+                    line += '"' + value.replace(/"/g, '""') + '",';
+                }
+            } else {
+                for (var index in array[0]) {
+                    line += index + ',';
+                }
+            }
+    
+            line = line.slice(0, -1);
+            str += line + '\r\n';
+        }
+    
+        for (var i = 0; i < array.length; i++) {
+            var line = '';
+    
+            if ($("#quote").is(':checked')) {
+                for (var index in array[i]) {
+                    var value = array[i][index] + "";
+                    line += '"' + value.replace(/"/g, '""') + '",';
+                }
+            } else {
+                for (var index in array[i]) {
+                    line += array[i][index] + ',';
+                }
+            }
+    
+            line = line.slice(0, -1);
+            str += line + '\r\n';
+        }
+        return str;
+        
+    }
+        
+    
+    
+    var myApp = angular.module('reportsGARP', ['reportsGARPControllers']);
+    
+    //var reportsGARPControllers = angular.module('reportsGARP', []);
+
+</script>    
+    <apex:includeScript value="{!envPath}/js/mainCtrl.js"/>
+  
+</body>
+</html>
+</apex:page>

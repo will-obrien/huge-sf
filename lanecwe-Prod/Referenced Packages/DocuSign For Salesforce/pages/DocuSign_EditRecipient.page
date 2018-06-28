@@ -1,0 +1,155 @@
+<apex:page controller="dsfs.DocuSignEnvelopeRecipientController"
+	tabStyle="dsfs__DocuSign_Status__c" id="DocuSignEditRecipientPage"
+	action="{!IsValidRecipient}">
+	<style>
+.WarningError {
+	color: red;
+	font-weight: strong;
+}
+</style>
+	<apex:sectionHeader title="Send with DocuSign | DocuSign Recipient : {!DSERecipient.name}"
+		subtitle="{!mySource}" id="PageTitleHeader" />
+	<apex:form id="theForm" rendered="{!NoVarErrors}">
+		<apex:actionRegion >
+			<apex:pageBlock title="DocuSign Recipient" id="theOuterPageBlock"
+				mode="Edit">
+				<apex:pageMessages />
+				<apex:pageBlockButtons id="UpdateButtons"
+					rendered="{!EditRecipientCanSave}">
+					<apex:commandButton value="Cancel" action="{!DScancel}"
+						rendered="{!EditRecipientCanSave}" />
+					<!--<apex:commandButton value="Cancel" action="{!DSDelete}" rendered="{!EditRecipientCanSave==false}"/>-->
+					<apex:commandButton value="Save" action="{!DSsave}"
+						rendered="{!EditRecipientCanSave}" />
+				</apex:pageBlockButtons>
+
+				<apex:pageBlockSection columns="1"
+					rendered="{!EditRecipientCanSave == false}">
+					<br />
+					<!--  This panel contains the Radio select for lookup type. It will rerender the actual lookup control via the onclick -->
+					<apex:outputPanel id="EditRecipientItems" layout="inline"
+						style="width:600px">
+						<apex:pageBlockSectionItem >
+							<apex:outputLabel value="Add a recipient from: "
+								for="SFRecipientType" />
+							<apex:selectRadio id="SFRecipientType"
+								title="Add a recipient from" value="{!SFRecipientType}"
+								layout="pageDirection">
+								<apex:selectOptions value="{!SFRecipientTypeSelectList}" />
+								<apex:actionSupport event="onclick" action="{!RefreshPage}"
+									rerender="EditRecipient" />
+							</apex:selectRadio>
+						</apex:pageBlockSectionItem>
+					</apex:outputPanel>
+					<!--  This panel holds three lookups, one of which is visible at a time and controlled by the radio select -->
+					<!--  The command button will cause the rest of the edit screen to show up when clicked. -->
+					<apex:outputPanel id="EditRecipient" layout="block"
+						style="width:250px">
+						<apex:pageBlockSectionItem rendered="{!isContact}">
+							<apex:outputLabel value="Contact: " for="Contact"
+								rendered="{!isContact}" />
+							<apex:inputField id="Contact"
+								value="{!DSERecipient.dsfs__DSER_ContactID__c}"
+								rendered="{!isContact}" />
+						</apex:pageBlockSectionItem>
+						<apex:pageBlockSectionItem rendered="{!isLead}">
+							<apex:outputLabel value="Lead: " for="Lead" rendered="{!isLead}" />
+							<apex:inputField id="Lead" value="{!DSERecipient.dsfs__DSER_LeadID__c}"
+								rendered="{!isLead}" />
+						</apex:pageBlockSectionItem>
+						<apex:pageBlockSectionItem rendered="{!isUser}">
+							<apex:outputLabel value="User: " for="User" rendered="{!isUser}" />
+							<apex:inputField id="User" value="{!DSERecipient.dsfs__DSER_UserID__c}"
+								rendered="{!isUser}" />
+						</apex:pageBlockSectionItem>
+						<apex:outputPanel layout="block"
+							style="padding-top: 10px; text-align=center;">
+							<apex:commandButton value="Select" action="{!DSClearRecipient}"
+								rerender="theOuterPageBlock" />
+            &nbsp;&nbsp;<apex:commandButton value="Cancel"
+								action="{!DSCancelSelect}" />
+						</apex:outputPanel>
+					</apex:outputPanel>
+				</apex:pageBlockSection>
+
+				<apex:pageBlockSection columns="1" id="RecipientAttributes"
+					rendered="{!EditRecipientCanSave}">
+					<apex:pageblockSectionItem >
+						<apex:outputLabel value="{!SFType}" />
+						<apex:outputPanel >
+							<apex:outputLabel value="{!SFEmailName}" />
+        &nbsp;&nbsp;<apex:commandButton action="{!ChangeRecipient}"
+								value="Change" />
+						</apex:outputPanel>
+					</apex:pageblockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!myRecipHasSignature}">
+						<apex:outputLabel value="Select DocuSign Signature : "
+							for="SignatureSelected" rendered="{!myRecipHasSignature}" />
+						<apex:selectList id="SignatureSelected" value="{!DSSignatureName}"
+							multiselect="false" size="0" rendered="{!myRecipHasSignature}">
+							<apex:selectOptions value="{!DSSignatureNameList}"
+								rendered="{!myRecipHasSignature}" />
+						</apex:selectList>
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Routing Order: " for="RoutingOrder" />
+						<apex:inputField id="RoutingOrder"
+							value="{!DSERecipient.dsfs__Routing_Order__c}" style="width:30px" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Signer Type: " for="SignerType" />
+						<apex:inputField id="SignerType"
+							value="{!DSERecipient.dsfs__DocuSign_Signer_Type__c}">
+							<apex:actionSupport event="onchange"
+								action="{!enableDisableRecipientRoleControl}"
+								rerender="RecipientAttributes" />
+						</apex:inputField>
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!DSERecipient.dsfs__DocuSign_Signer_Type__c == 'Signer' && DocuSignConfig.IncludeDefaultAnchorTabs == true}">
+						<apex:outputLabel value="Signer Role: " />
+						<apex:selectList value="{!RecipientRole}" multiselect="false"
+							size="1" id="listRecipientRole">
+							<apex:selectOptions value="{!RecipientRoles}"></apex:selectOptions>
+						</apex:selectList>
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Access Code: " for="AccessCode" />
+						<apex:inputField id="AccessCode"
+							value="{!DSERecipient.dsfs__Access_Code__c}" />
+					</apex:pageBlockSectionItem>
+					<apex:outputPanel id="EditRecipientLabel" layout="block"
+						style="width:720px;height:30px;"
+						rendered="{!EditRecipientCanSave}">
+						<br />
+						<apex:outputText value="Note for Recipient: " />
+					</apex:outputPanel>
+					<apex:outputPanel id="EditRecipientNote" layout="block"
+						style="width:720px" rendered="{!EditRecipientCanSave}">
+						<apex:inputField value="{!DSERecipient.dsfs__Recipient_Note__c}"
+							style="width:720px;height:60px;" />
+					</apex:outputPanel>
+				</apex:pageBlockSection>
+			</apex:pageBlock>
+		</apex:actionRegion>
+	</apex:form>
+	<apex:form id="BadVars" rendered="{!NoVarErrors==false}">
+		<apex:pageBlock title="Error - Incorrect URL Variables "
+			id="thePageBlock" tabStyle="DocuSign_Status__c">
+			<apex:pageMessages />
+			<apex:actionRegion >
+				<apex:pageBlockSection title="Proper Link Information" columns="1">
+					<h1>Please edit your Send with DocuSign link button to look
+						like the below</h1>
+					<br />
+					<br />
+        /apex/DocuSign_CreateEnvelope?DSEID=0&amp;SourceID=&#123;!Lead.Id&#125;&amp;DSEDMAX=3  
+        <br />
+					<br />
+					<H3>You should not call Edit Recipient directly, it should be
+						called from the Edit Envelope Page</H3>
+				</apex:pageBlockSection>
+			</apex:actionRegion>
+		</apex:pageBlock>
+	</apex:form>
+
+</apex:page>

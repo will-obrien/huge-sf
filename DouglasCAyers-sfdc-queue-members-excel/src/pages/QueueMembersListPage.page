@@ -1,0 +1,62 @@
+<apex:page controller="QueueMembersController" title="Queue Members" sidebar="false" docType="html-5.0">
+
+    <apex:form id="mainForm">
+
+        <apex:pageBlock id="mainPageBlock" title="Queue Members">
+            
+            <apex:pageMessages />
+
+            <apex:pageBlockButtons>
+            
+                <apex:commandButton value="Export Details"
+                                    onclick="window.open('{!URLFOR($Page.QueueMembersExcelPage, null, [ queueId = queueId ])}');"
+                                    rendered="{!(queueId != null)}"/>
+                
+                <apex:commandButton value="Manage Queue"
+                                  	onclick="window.open('{!URLFOR("/p/own/Queue/d", null, [ id= queueId, setupid = "Queues" ])}');"
+                           	        rendered="{!(queueId != null)}"/>
+                
+            </apex:pageBlockButtons>
+            
+            <apex:pageBlockSection>
+
+                <apex:pageBlockSectionItem>
+                    <b>Queue:</b>
+                    <apex:selectList value="{!queueId}" size="1">
+                        <apex:selectOptions value="{!queueOptions}"/>
+                        <apex:actionSupport event="onchange" action="{!refresh}" reRender="mainForm"/>
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+                
+            </apex:pageBlockSection>
+            
+            <apex:variable var="rowCounter" value="1"/>
+            <apex:pageBlockTable value="{!queueMembers}" var="user" rendered="{!(queueId != null)}">
+                
+                <apex:column headerValue="#">
+                    <apex:outputText value="{!rowCounter}"/>.
+                    <apex:variable var="rowCounter" value="{!VALUE(rowCounter) + 1}"/>
+                </apex:column>
+                
+                <apex:column headerValue="Name">
+                    <apex:outputLink value="/{!user.id}">
+                        <apex:outputText value="{0} {1}">
+                            <apex:param value="{!user.firstName}"/>
+                            <apex:param value="{!user.lastName}"/>
+                        </apex:outputText>
+                    </apex:outputLink>
+                </apex:column>
+                
+                <apex:column value="{!user.alias}"/>
+                <apex:column value="{!user.username}"/>
+                <apex:column value="{!user.email}"/>
+                <apex:column value="{!user.userRole.name}" headerValue="Role"/>
+                <apex:column value="{!user.profile.name}" headerValue="Profile"/>
+                
+            </apex:pageBlockTable>
+            
+        </apex:pageBlock>
+        
+    </apex:form>
+    
+</apex:page>

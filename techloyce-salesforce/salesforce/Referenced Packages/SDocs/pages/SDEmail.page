@@ -1,0 +1,491 @@
+<apex:page controller="SDOC.SDEmailController" 
+showHeader="true" tabstyle="SDOC__SDTemplate__c" standardStylesheets="true" sidebar="false" action="{!onLoad}"> 
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'skin.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'yahoo-dom-event.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'container-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'animation-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__ckEditor,'/ckeditor/ckeditor.js')}"/>
+<apex:stylesheet value="/sCSS/24.0/sprites/1297816277000/Theme3/default/gc/versioning.css" />   
+<style>
+.buttonStyle { width:75px; height:30px; }
+</style>
+
+<script type="text/javascript">
+var AgreementForm = document.getElementById("blur");
+//AgreementForm.style.height = window.screen.availHeight + "px";
+//AgreementForm.style.width = window.screen.availWidth + "px";
+
+var ContainerElem = document.getElementById("StatusBox");
+//ContainerElem.style.display = "block";
+AlignToCenter(ContainerElem);
+
+function AlignToCenter(Element)
+{
+var availableHeight = 0;
+var availableWidth = 0;
+if (Element.ownerDocument)
+{
+var docElement = Element.ownerDocument.documentElement;
+availableHeight = parseInt(docElement.clientHeight);
+if (availableHeight == "NaN") availableHeight = 0;
+
+availableWidth = parseInt(docElement.clientWidth);
+if (availableWidth == "NaN") availableWidth = 0;
+}
+
+if (availableHeight == 0 || availableHeight == "NaN")
+availableHeight = window.screen.availHeight - 200;
+if (availableWidth == 0 || availableWidth == "NaN")
+availableWidth = window.screen.availWidth - 100;
+
+var msgBoxTop = parseInt((availableHeight - parseInt(Element.clientHeight))/2);
+var msgBoxleft = parseInt((availableWidth - parseInt(Element.style.width))/2);
+
+if (msgBoxTop == "NaN" || msgBoxTop == 0)
+msgBoxTop = 100;
+
+Element.style.left = msgBoxleft + "px";
+Element.style.top = msgBoxTop + window.pageYOffset + "px";
+}
+
+function reposition(){
+if(navigator.appName == 'Window Internet Explorer') AgreementForm.style.top = document.body.scrollTop;
+else AgreementForm.style.top = window.pageYOffset+"px";
+AlignToCenter(ContainerElem);
+}
+</script>
+<script>
+	function getQuerystring(key, default_)
+		{
+		  if (default_==null) default_="";
+		  key = key.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+		  var regex = new RegExp("[\\?&]"+key+"=([^&#]*)");
+		  var qs = regex.exec(window.location.href);
+		  if(qs == null)
+		    return default_;
+		  else
+		    return qs[1];
+	}
+    // Create a namespace for our custom functions
+    YAHOO.namespace("force.com");
+
+    YAHOO.force.com.showEmail = function() {
+        document.getElementById("puPanel").style.display = "block";
+        YAHOO.force.com.eDialog.show();
+    }
+    YAHOO.force.com.hideEmail = function() {
+        YAHOO.force.com.eDialog.hide();
+    }
+     
+    YAHOO.force.com.init = function() {
+        document.body.className = document.body.className + " yui-skin-sam";
+        
+       YAHOO.force.com.eDialog = new YAHOO.widget.Panel(
+            "puPanel",  // The id of our dialog container
+            { 
+                    xy				:	[75,75]
+                    ,width           :   "850px"    // You can play with this until it's right
+                    ,visible         :   false  // Should be invisible when rendered
+                    ,draggable       :   true   // Make the dialog draggable
+                    ,close           :   true  // Don't include a close title button
+                    ,modal           :   true   // Make it modal
+                    ,zindex          :   100     // Make sure it's on top of everything
+                    ,underlay: "matte"
+                    // This line adds the appear/vanish fade effect
+                    ,effect          :   {
+                                          effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.40
+                                        } 
+            }
+            
+         );
+        
+        YAHOO.force.com.eDialog.setHeader("Attach File(s) to Email");
+        YAHOO.force.com.eDialog.render(document.body);
+    }
+
+    var newwindow;
+
+</script>
+
+
+<body>
+<apex:actionStatus id="statLoad">
+    <apex:facet name="start">
+        <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+        </div>
+        <div id="StatusBox" style="position:absolute; left:50%; top:300px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+        <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+        border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+        border-right-color:#336699; background-color:#ffffff;">
+        <tr>
+        <td align="left" valign="top">
+        <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+        <tr>
+        <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+        <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+        &nbsp;Loading...</td>
+        </tr>
+        </table>
+        </td>
+        </tr>
+        </table>
+        </div>
+    </apex:facet>
+</apex:actionStatus>
+
+
+
+<div id="puPanel" style="display: none" >
+<br />
+<apex:tabPanel switchType="client" selectedTab="name1" id="theTabPanel" 
+styleClass="theTabPanel" tabClass="theTabPanel" contentClass="tabContent" activeTabClass="activeTab" inactiveTabClass="inactiveTab">
+
+<apex:tab label="S-Docs" name="name1" id="tabOne">
+<apex:form >
+<apex:pageBlock title="S-Docs"> 
+    <apex:pageBlockTable value="{!sl}" var="s" id="sl">
+        <apex:column width="20px" headerValue="Attach">
+            <apex:outputPanel rendered="{!(s.d.SDTemplate__r.SDOC__Email_SendTo__c!=null || !s.d.SDTemplate__r.SDOC__Email_Lock_SendTo__c) && s.d.SDTemplate__r.SDOC__Template_Format__c=='HTML'}">
+               <apex:inputCheckbox value="{!s.checked}" />
+                <apex:actionsupport event="onclick" action="{!addDoc}"
+                onsubmit="YAHOO.force.com.hideEmail();"
+                oncomplete="rebind();" 
+                rerender="emailSubPanel,editor,BtnsTopPanel,BtnsBotPanel" status="statLoad"/>
+            </apex:outputPanel>
+            
+            <apex:outputPanel rendered="{!(s.d.SDTemplate__r.SDOC__Email_SendTo__c!=null || !s.d.SDTemplate__r.SDOC__Email_Lock_SendTo__c) && s.d.SDTemplate__r.SDOC__Template_Format__c!='HTML'}">
+               <apex:inputCheckbox value="{!s.checked}" />
+                <apex:actionsupport event="onclick" action="{!addDoc}"
+                onsubmit="YAHOO.force.com.hideEmail();"
+                rerender="emailSubPanel,BtnsTopPanel,BtnsBotPanel" status="statLoad"/>
+            </apex:outputPanel>
+
+            <apex:outputPanel rendered="{!s.d.SDTemplate__r.SDOC__Email_SendTo__c==null && s.d.SDTemplate__r.SDOC__Email_Lock_SendTo__c}">
+                <center><img src="/img/func_icons/util/lock12.gif"/></center>
+            </apex:outputPanel>
+        </apex:column>        
+        <apex:column width="40px" headerValue="View">
+            <a href="{!s.d.SDOC__GD_Link__c}" target="_blank">
+                <apex:outputText value="{!s.d.SDTemplate__r.SDOC__Format_Icon__c}" escape="false"/>
+            </a>
+        </apex:column>
+        <apex:column value="{!s.d.Name}" headerValue="Doc Number"/>
+       <apex:column value="{!s.d.SDTemplate__r.name}" headerValue="Doc Name"/> 
+       <apex:column value="{!s.d.SDOC__Comment__c}" headerValue="Comments"/>        
+       <apex:column value="{!s.d.SDOC__Status__c}" headerValue="Status"/> 
+       <apex:column value="{!s.d.CreatedBy.Name}" headerValue="Created By"/> 
+       <apex:column value="{!s.d.CreatedDate}" headerValue="Created On"/> 
+    </apex:pageBlockTable> 
+</apex:pageBlock>
+</apex:form>
+</apex:tab>
+
+
+<apex:tab label="Attachments" name="name2" id="tabTwo">
+
+<apex:form >
+<apex:actionFunction name="refreshal"  action="{!reloadal}" rerender="al,emailSubPanel,BtnsTopPanel,BtnsBotPanel" status="statLoad"/>
+<apex:iframe src="/apex/SDFileUpload?oid={!OBJID}" scrolling="false" id="theIframe" width="100%" height="200px"/>
+			<br />
+</apex:form>
+
+<apex:form >       
+	<apex:pageBlock title="Attachments" >
+    <apex:pageBlockTable value="{!al}" var="aw" id="al">
+        <apex:column width="20px" headerValue="Attach">
+               <apex:inputCheckbox value="{!aw.checked}" />
+                <apex:actionsupport event="onclick" action="{!addAtt}" 
+                onsubmit="YAHOO.force.com.hideEmail();" 
+                rerender="emailSubPanel,BtnsTopPanel,BtnsBotPanel" status="statLoad"/>
+        </apex:column>
+        <apex:column width="40px" headerValue="View">
+            <a href="/servlet/servlet.FileDownload?file={!aw.a.id}" target="_blank">View</a>
+        </apex:column>
+        <apex:column value="{!aw.a.contenttype}" headerValue="Type"/> 
+        <apex:column value="{!aw.a.name}" headerValue="Title"/> 
+        <apex:column value="{!aw.a.lastmodifieddate}" headerValue="last Modified"/> 
+        <apex:column value="{!aw.a.createdBy.name}" headerValue="Created By"/> 
+    </apex:pageBlockTable>
+	</apex:pageBlock>
+</apex:form>
+</apex:tab>
+<apex:tab label="Documents" name="name3" id="tabThree">
+<br />
+<apex:form >
+		<b style="padding-right: 20px;">Folder:</b>
+		<apex:selectList styleClass="folderSelector" id="folderSelect" value="{!folderId}" size="1">
+    		<apex:selectOptions value="{!folders}"/>
+			<apex:actionSupport event="onchange" action="{!loadd}" rerender="dl" status="fstat"/>
+		</apex:selectList>
+        <apex:outputLabel for="searchText2"><b style="padding-right: 20px;padding-left:50px;"> Keyword Search: &nbsp;</b></apex:outputLabel>
+        <apex:inputText id="searchText" value="{!searchText}"/>
+        <apex:commandButton value="Go!" action="{!loadd}" rerender="dl" status="fstat"/>
+                    <apex:actionStatus id="fstat">
+                        <apex:facet name="start">
+                            <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" /> searching...
+                        </apex:facet>
+                    </apex:actionStatus>
+		<br /> <br />
+<apex:pageBlock >
+ 	<apex:pageBlockTable value="{!dl}" var="dw" id="dl">
+ 	  	<apex:column width="20px" headerValue="Attach">
+               <apex:inputCheckbox value="{!dw.checked}" />
+                <apex:actionsupport event="onclick" action="{!addD}" 
+                onsubmit="YAHOO.force.com.hideEmail();" 
+                rerender="emailSubPanel,BtnsTopPanel,BtnsBotPanel" status="statLoad"/>
+        </apex:column>
+		<apex:column headerValue="Name">
+			<a href="/servlet/servlet.FileDownload?file={!dw.dc.id}" target="_blank">{!dw.dc.name}</a>
+		</apex:column>
+        <apex:column headerValue="Description" value="{!dw.dc.Description}" />
+        <apex:column headerValue="Size" value="{!ROUND((dw.dc.BodyLength / 1000), 1)} kb"/>
+        <apex:column headerValue="Last Modified" value="{!dw.dc.lastModifiedDate}" />
+        <apex:column headerValue="Type" value="{!dw.dc.Type}" />
+		<apex:column headerValue="Author" value="{!dw.dc.author.name}" />
+	</apex:pageBlockTable>
+</apex:pageBlock>
+</apex:form>
+</apex:tab>
+</apex:tabPanel>
+</div>
+
+
+
+
+<apex:sectionHeader title="Send Email" subtitle="Email Documents"/>
+      <apex:form >
+        <apex:pageBlock title="Email Details">
+        <apex:outputPanel id="BtnsTopPanel">
+            <div style="text-align: right;" >
+                <apex:actionStatus id="statTop">
+                    <apex:facet name="start">
+                        Creating attachments, please wait...
+                        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+                    </apex:facet>
+                 </apex:actionStatus>
+                 <apex:commandButton id="SendBtn" value="Send" action="{!email}" disabled="{!emailTo=='' && emailcc=='' && emailbcc==''}" 
+                 status="statTop" styleClass="buttonStyle"/>
+                 <apex:commandButton id="Cancel" value="Cancel" action="{!returnToObj}" styleClass="buttonStyle"/>
+            </div>
+        </apex:outputPanel> 
+         <apex:outputPanel id="emailSubPanel" >
+          <apex:outputpanel id="loading" rendered="{!EmailTo=='Loading...'}">
+           <center><img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;please wait...</center>
+          </apex:outputpanel>
+          
+   <div style="width:600px">
+           <apex:pageBlockSection columns="2" id="pbsPanel">
+            <apex:outputLabel value="Contact" for="EConLU" rendered="{!NOT(EmailLockSendTo)}"/>
+            <apex:inputField value="{!EContactLookup.SDOC__Contact__c}" id="EConLU" label="" rendered="{!NOT(EmailLockSendTo)}">
+                <apex:actionSupport event="onchange" action="{!setELookup}" reRender="pbsPanel,BtnsTopPanel,BtnsBotPanel" status="r1"/>
+                <apex:actionStatus id="r1">
+                    <apex:facet name="start">
+                        <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                    </apex:facet>
+                </apex:actionStatus>                
+            </apex:inputField>
+
+           
+           <apex:outputLabel value="Contact Quick Pick:" for="eContact" style="white-space:nowrap;" rendered="{!NOT(EmailLockSendTo)}" />
+                <apex:outputLabel value="" for="eContact" style="white-space:nowrap;" rendered="{!EmailLockSendTo}"/>
+                <apex:outputpanel id="col2">
+                    
+                    <apex:outputPanel id="emailLookup" >
+                       <apex:outputText id="emailr" value="{!emailr}" escape="false">
+                              <apex:actionStatus id="emailstat">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;please wait...
+                                </apex:facet>
+                            </apex:actionStatus>
+                       </apex:outputText>
+                    </apex:outputPanel>
+                    <br/>
+                    <apex:outputpanel id="pl" rendered="{!NOT(EmailLockSendTo)}">
+                        <apex:selectList value="{!targetObjectId}" size="1" id="eContact" style="font-family:'Courier'">
+                            <apex:selectOptions value="{!contactItems}"/>
+                            <apex:actionSupport event="onchange" action="{!showEmail}" 
+                            reRender="emailTo,emailr,BtnsTopPanel,BtnsBotPanel" status="emailstat"/>
+                        </apex:selectList>
+                    <apex:commandButton title="Refresh Emails" action="{!getContacts}" rerender="eContact"
+                            style="background:url(/img/alohaSkin/sync.png) top left no-repeat;width:22px;   height:20px;background-position:2px 2px;vertical-align:bottom"
+                            id="refButton" status="refreshStat"/>
+                            <apex:actionStatus id="refreshStat">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;Loading...
+                                </apex:facet>
+                            </apex:actionStatus>
+                    <br/></apex:outputpanel>
+            </apex:outputpanel>
+            
+            <apex:outputLabel value="" for="emailTo2f" rendered="{!EmailLockSendTo}"/>
+            <apex:outputPanel id="emailTo2" rendered="{!EmailLockSendTo}">
+                <apex:outputText id="emailTo2f" value="{!emailToRO}"  escape="false"/>
+            </apex:outputPanel>
+            
+            <apex:outputLabel value="To:" for="emailTo2g" rendered="{!EmailLockSendTo}"/>
+            <apex:outputPanel id="emailTo2b" rendered="{!EmailLockSendTo}">
+                <apex:commandButton title="Refresh Emails" action="{!getContacts}" 
+                            rendered="{!reloadable}"
+                            reRender="emailTo2g,emailTo2f,BtnsTopPanel,BtnsBotPanel"
+                            style="background:url(/img/alohaSkin/sync.png) top left no-repeat;width:22px;   height:20px;background-position:2px 2px;vertical-align:bottom"
+                            id="refButton2" status="refreshStat2"/>
+                            <apex:actionStatus id="refreshStat2">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;Loading...
+                                </apex:facet>
+                            </apex:actionStatus>
+                <apex:outputText id="emailTo2g" value="{!emailTo}" rendered="{!EmailLockSendTo}"/>
+            </apex:outputPanel>
+           <apex:outputLabel value="To:" for="emailTo" rendered="{!NOT(EmailLockSendTo)}" />
+           <apex:inputText size="100" maxlength="1000" id="emailTo" value="{!emailTo}" 
+           rendered="{!NOT(EmailLockSendTo)}">
+                <apex:actionSupport event="onchange" action="{!synchToRO}" reRender="BtnsTopPanel,BtnsBotPanel,emailTo2"/>
+            </apex:inputText>
+           <apex:outputLabel value="CC:" for="emailcc" rendered="{!NOT(EmailLockcc)}"/>
+           <apex:inputText size="100" maxlength="1000" id="emailcc" value="{!emailcc}" rendered="{!NOT(EmailLockcc)}">
+				<apex:actionSupport event="onchange" action="{!synchToRO}" reRender="BtnsTopPanel,BtnsBotPanel,emailTo2"/>
+           </apex:inputText>
+           <apex:outputLabel value="CC:" for="emailcc2" rendered="{!EmailLockcc && emailcc!=null}"/>
+           <apex:outputText id="emailcc2" value="{!emailcc}" rendered="{!EmailLockcc && emailcc!=null}"/>
+           <apex:outputLabel value="BCC:" for="emailbcc" rendered="{!NOT(EmailLockbcc)}"/>
+           <apex:inputText size="100" maxlength="1000" id="emailbcc" value="{!emailbcc}" rendered="{!NOT(EmailLockbcc)}">
+				<apex:actionSupport event="onchange" action="{!synchToRO}" reRender="BtnsTopPanel,BtnsBotPanel,emailTo2"/>
+           </apex:inputText>
+           <apex:outputLabel value="BCC:" for="emailbcc2" rendered="{!EmailLockbcc && emailbcc!=null}"/>
+           <apex:outputText id="emailbcc2" value="{!emailbcc}" rendered="{!EmailLockbcc && emailbcc!=null}"/>
+           <apex:outputLabel value="Subject:" for="emailSubj"/>
+           <apex:inputText size="100" maxlength="1000" id="emailSubj" value="{!emailSubj}" rendered="{!NOT(EmailLockSubj)}"/>
+           <apex:outputText id="emailSubjRO" value="{!emailSubj}" rendered="{!EmailLockSubj}"/>
+           
+            <apex:outputLabel value="From Address:" for="emailFrom" rendered="{!emailFromOverride}" />
+			<apex:selectList rendered="{!emailFromOverride}" value="{!fromOrgWideId}" size="1" id="emailFrom" style="font-family:'Courier'">
+                            <apex:selectOptions value="{!fromItems}"/>
+                            <apex:actionSupport event="onchange" action="{!showEmail}" 
+                            reRender="emailTo,emailr,BtnsTopPanel,BtnsBotPanel" status="emailstat"/>
+            </apex:selectList>
+           
+           
+           <apex:outputLabel value="Attachments:" for="listAtt"/>
+           <apex:outputPanel id="AttachBtnPanel">
+				<apex:commandLink styleClass="btn" value="Attach a file" oncomplete="YAHOO.force.com.showEmail();"
+                    style="padding:2px 5px 2px 5px; text-decoration:none; color:black;" status="statLoad"/>
+				<apex:commandLink styleClass="btn" value="Clear All Attachments" rerender="sl,al,dl,listAtt" 
+					action="{!clearAtt}"
+					rendered="{!listAtt!='No Documents Selected'}"
+                    style="padding:2px 5px 2px 5px; text-decoration:none; color:black;" status="statLoad"/> <br /> <br />
+           		<apex:outputText id="listAtt" value="{!listAtt}" escape="false"/>           		
+        	</apex:outputPanel>
+
+           <apex:image id="i1" url="/s.gif" width="1" height="1"/>
+           <apex:image id="i2" url="/s.gif" width="650" height="1"/>
+           </apex:pageBlockSection>
+</div>
+           <apex:pageBlockSection columns="1" rendered="{!emailPreview!='' && EmailLockBody}">
+                <apex:outputLabel value="Preview inline HTML:" />
+                <iframe src="{!emailPreview}" style="background-color:#ffffff" scrolling="true" width="100%" height="300"/>
+           </apex:pageBlockSection>
+          </apex:outputPanel>
+          <apex:outputPanel id="editor">
+          <apex:pageBlockSection columns="1" rendered="{!NOT(EmailLockBody)}">
+                <apex:pageBlockSectionItem >
+                   <apex:inputTextarea id="editor1" value="{!emailPreviewEdit}" styleClass="ckeditor1" />
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+        </apex:outputPanel>        
+        <apex:outputPanel id="BtnsBotPanel">
+            <div style="text-align: right;" >
+                <apex:actionStatus id="statBot">
+                    <apex:facet name="start">
+                        Creating attachments, please wait...
+                        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+                    </apex:facet>
+                 </apex:actionStatus>
+                 <apex:commandButton id="SendBtn2" value="Send" action="{!email}" disabled="{!emailTo=='' && emailcc=='' && emailbcc==''}" 
+                 status="statBot" styleClass="buttonStyle"/>
+                 <apex:commandButton id="Cancel2" value="Cancel" action="{!returnToObj}" styleClass="buttonStyle"/>
+            </div>
+        </apex:outputPanel>
+        </apex:pageBlock>
+
+      </apex:form>
+
+
+</body>
+<script type="text/javascript">
+rebind = function() {
+    var CKEDITOR   = window.CKEDITOR;
+        for ( var i in CKEDITOR.instances ){
+            var currentInstance = i;
+             break;
+        }
+        delete CKEDITOR.instances[currentInstance];
+        bind();
+    };
+
+bind = function(){
+        var CKEDITOR_BASEPATH = '{!URLFOR($Resource.ckEditor,'ckeditor/')}';
+        CKEDITOR.editorConfig = function( config )
+            {
+            config.height = '300';
+            config.disableNativeSpellChecker = false;
+            // Define changes to default configuration here. For example:
+            config.language = 'en';
+            config.filebrowserBrowseUrl = '{!$Page.SDFileList}';
+            config.filebrowserUploadUrl = '{!$Page.SDFileUpload}';
+            config.filebrowserImageBrowseUrl = '{!$Page.SDFileList}';
+            config.filebrowserImageUploadUrl = '{!$Page.SDFileUpload}'; 
+            config.enterMode = CKEDITOR.ENTER_BR;
+            config.shiftEnterMode = CKEDITOR.ENTER_P;
+            config.allowedContent = true;
+//            config.fullPage = true;
+            config.removePlugins = 'liststyle,tabletools,scayt,menubutton,contextmenu';
+            config.toolbar =
+            [
+            ['Maximize','Undo','Redo'],
+            ['Styles','Format','Font','FontSize'],
+            ['TextColor','BGColor'],        
+            ['Bold','Italic','Underline','Strike','-',],
+            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock']
+            ];
+            };
+        
+        if (!document.getElementsByClassName) {
+            document.getElementsByClassName = function (cn) { 
+                var rx = new RegExp("(?:^|\\s)" + cn+ "(?:$|\\s)");
+                var allT = document.getElementsByTagName("*"), allCN = [], ac="", i = 0, a;
+                    while (a = allT[i=i+1]) {
+                      ac=a.className;
+                      if ( ac && ac.indexOf(cn) !==-1) {
+                        if(ac===cn){ allCN[allCN.length] = a; continue;   }
+                        rx.test(ac) ? (allCN[allCN.length] = a) : 0;
+                      }
+                    }
+                return allCN;
+            }
+        }
+        
+        if (document.getElementsByClassName){
+            var e = document.getElementsByClassName( 'ckeditor1' );
+            for(var i=0;i<e.length;i++)
+                {
+                var editor1 = CKEDITOR.replace( e[i]);
+                }
+           }
+        };
+    
+windowonload = function(){
+        bind();
+		YAHOO.force.com.init();
+}
+
+addEvent(window, 'load', function(){ windowonload() });
+function addEvent(element, event, fn) {
+    if (element.addEventListener)
+        element.addEventListener(event, fn, false);
+    else if (element.attachEvent)
+        element.attachEvent('on' + event, fn);
+}
+</script>
+</apex:page>

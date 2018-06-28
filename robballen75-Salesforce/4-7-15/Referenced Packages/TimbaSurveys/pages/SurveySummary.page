@@ -1,0 +1,214 @@
+<apex:page standardController="TIMBASURVEYS__Survey_Summary__c" extensions="TIMBASURVEYS.SurveySummaryController" sidebar="false" tabstyle="Timba_Surveys__tab">
+    <apex:include pageName="TIMBASURVEYS__entityEncodeJs" />
+
+    <!-- Custom StyleSheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/navigation_survey_analyzer.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/tabsDisplay.css')}" />
+
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/analyzecontact.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__tooltipStyles, 'tooltipStyles.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/surveySummary.css')}" />
+
+    <apex:composition template="TIMBASURVEYS__timbaSurveysTemplate">
+        <!-- customJs Imports & Script Tags -->
+        <apex:define name="customJs">
+            <script type="text/javascript">
+            	// add required dojo widgets
+            	dojo.require("dijit.Tooltip");
+                
+                // remove summary
+                function startRemoveSummary() {
+                   if(confirm('{!$Label.timbasurvey_surveySummary_Delete_all}')){
+                       listOverlay.show();
+                       removeSummary();
+                   }
+                }
+
+                function removeSummaryCompleted(success, redirectToCollect){
+                    if(success){
+                        if(redirectToCollect){
+                            window.location = '{!$Page.TIMBASURVEYS__SurveyCollect}?id={!URLENCODE(survey_summary.Survey__r.Id)}';
+                        }else{
+                            window.location = '{!$Page.TIMBASURVEYS__SurveyBrowser}?id={!URLENCODE(survey_summary.Survey__r.Id)}';
+                        }
+                    }else{
+                        window.location = '{!$Page.TIMBASURVEYS__SurveyBrowser}?id={!URLENCODE(survey_summary.Survey__r.Id)}';
+                    }
+                    listOverlay.hide();
+                }
+
+                function removeSummary(){
+                    removeSummaryOperation('delete', '{!JSENCODE(recipientType)}', '{!JSENCODE(recId)}');
+                }
+
+                function removeSummaryCallFinal(){
+                    removeSummaryCallFinalOperation('removeSummary');
+                }
+
+                function removeSummaryCallFinalCompleted(success){
+                    if(success){
+                        window.location = '{!$Page.TIMBASURVEYS__SurveyBrowser}?id={!URLENCODE(survey_summary.Survey__r.Id)}';
+                    }else{
+                         listOverlay.hide();
+                    }
+                }
+
+				function deleteSummary(summary_id){
+                    if(confirm('{!$Label.timbasurveys_branchingJS_are_u_sure}')){
+                        listOverlay.show();
+                        dojo.byId('designerFooter').style.display = 'none';
+                        var surveyId = '{!JSENCODE(survey_summary.Survey__c)}';
+                        deleteSummaryOperation('removeSummary');
+					}
+				}
+
+                function deleteSummaryCompleted(success){
+                    var surveyId = '{!JSENCODE(survey_summary.Survey__c)}';
+                    if(success){
+                        if (surveyId.length > 0){
+                            window.location = '{!$Page.TIMBASURVEYS__SurveyBrowser}?id={!URLENCODE(survey_summary.Survey__c)}';
+                        }else{
+                            window.location = '{!$Page.SurveyList}';
+                        }
+                    }else{
+                    	alert('{!$Label.timabasurveys_Unexpected_Error}');
+                    }
+                }
+            </script>
+        </apex:define>
+
+        <!-- BreadCrumb -->
+        <apex:define name="breadCrumb">
+            <c:timbaSurveysBreadCrumb steps="{!$Label.timbasurveys__timbasurveys_Survey_List}:::{!$Page.TIMBASURVEYS__SurveyList},,,{!survey_name}"/>
+        </apex:define>
+
+        <!-- Body Section -->
+        <apex:define name="body">
+            <div data-dojo-type="dijit.layout.ContentPane" title="{!$Label.timbasurvey_Analyze_Analyze_Items}" id="analyze">
+                <apex:outputPanel styleClass="tabSet" layout="block">
+                    <a href="#" class="tabElem">{!$Label.timbasurveys_tabs_overview}</a>
+                    <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.updateable}">
+                        <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyPreview}" styleClass="tabElem">
+                            <apex:param name="id" value="{!survey_summary.TIMBASURVEYS__Survey__c}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyCollect_Design}" />
+                        </apex:outputLink>
+                        <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyCollect}" styleClass="tabElem">
+                            <apex:param name="id" value="{!survey_summary.TIMBASURVEYS__Survey__c}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Collect}" />
+                        </apex:outputLink>
+                    </apex:outputpanel>
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="tabElem imIn">
+                        <apex:param name="id" value="{!survey_summary.TIMBASURVEYS__Survey__c}" />
+                        <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_analize}" />
+                    </apex:outputLink>
+                    <div class="marginInf"></div>
+                </apex:outputPanel>
+
+                <div class="banner" style="text-align: right;">
+                    <div class="surveyStat"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_surveyStats}" /></div>
+                    <div class="browseBy"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_browseBy}" /></div>
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="questions" >
+                        <apex:param name="id" value="{!survey_summary.TIMBASURVEYS__Survey__c}" />
+                        <apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_questions}" />
+                    </apex:outputLink>
+                    <div class="recipients selected">
+	                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyBrowser}" styleClass="hoverLink" style="color: #FFFFFF; padding-right: 6px;" >
+	                        <apex:param name="id" value="{!survey_summary.TIMBASURVEYS__Survey__c}" />
+	                        <apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_recipients}" />
+	                    </apex:outputLink>
+	                    &gt;
+	                    <apex:outputText value=" {!recipient_name}"/>
+                    </div>
+                    <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__SurveyResponse__c.deletable}">
+                        <button onclick="startRemoveSummary();" class="surveyButton cancel" style="float:right;margin-top: 4px;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/icons/canceliconsmall.png')}" /><span>{!$Label.timbasurveys_analyzer_deleteResponses}</span></button>
+                    </apex:outputpanel>
+                    <button onclick="window.location='{!$Page.SurveySummaryXlsReport}?id={!URLENCODE(survey_summary.id)}&p=1&isxls=true';" class="surveyButton" style="float:right;margin-top: 4px;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/icons/xlssmall.png')}" /><span>{!$Label.timbasurveys_analyzer_excelReport}</span></button>
+                </div>
+
+
+                <div class="masterContainer" style="overflow-x: hidden;">
+                    <div class="marginout">
+                        <div class="containerleft">
+                            <div class="containersingle">
+                                <apex:outputText styleClass="titlemain" value="{!$Label.timbasurveys__timbasurveys_Summary_Answer_from}" /><br />
+                                <apex:outputPanel layout="block" styleClass="userdata">
+                                    <apex:image alt="{!if(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c)), 'Contact', if(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c)), 'Lead', if(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c)), 'User', 'Email')))}" value="{!IF(OR(survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c != null , survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c != ''), URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/analyze_recipients/contact.png') , IF(OR(survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c != null , survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c != ''), URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/analyze_recipients/lead.png') , IF(OR(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c != null , survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c != ''), URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/analyze_recipients/user.png') , IF(OR(survey_summary.Recipient__r.TIMBASURVEYS__EmailAddress__c != null , survey_summary.Recipient__r.TIMBASURVEYS__EmailAddress__c != ''), URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/analyze_recipients/email.png'), IF(OR(survey_summary.Recipient__r.TIMBASURVEYS__RelatedOpportunity__c != null , survey_summary.Recipient__r.TIMBASURVEYS__RelatedOpportunity__c != ''), URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/analyze_recipients/opportunity.png') , URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/analyze_recipients/anonymous.png'))))))}" /><br /><br />
+                                    <apex:outputPanel layout="none" rendered="{!(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c)) || NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c)) || NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c)) || NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c)))}">
+	                                    <apex:outputLink styleClass="textin" value="/{!if(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c)), survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c,if(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c)), survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c, if(NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c)), survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c,'#')))}">
+	                                    	<apex:outputText value="{!IF(OR(recipient_name != '' , recipient_name != null), IF(recipient_name != '', recipient_name ,$Label.timbasurveys__timbasurvey_Analyze_Anonymous) ,$Label.timbasurveys__timbasurvey_SurveySummary_Not_Available)}" />
+	                                    </apex:outputLink>
+									</apex:outputPanel>
+                                    <apex:outputPanel layout="none" rendered="{!NOT((NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedContact__c)) || NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedLead__c)) || NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c)) || NOT(ISNULL(survey_summary.Recipient__r.TIMBASURVEYS__RelatedUser__c))))}">
+	                                    <apex:outputText styleClass="textin" value="{!IF(OR(recipient_name != '' , recipient_name != null), IF(recipient_name != '', recipient_name ,$Label.timbasurveys__timbasurvey_Analyze_Anonymous) ,$Label.timbasurveys__timbasurvey_SurveySummary_Not_Available)}" />
+									</apex:outputPanel><br />
+                                    <apex:outputText value="{!IF(OR(recipient_email != '' , recipient_email != null),recipient_email, $Label.timbasurveys__timbasurvey_SurveySummary_Email_Not_Available)}" />
+                                </apex:outputPanel>
+                                <apex:outputText styleClass="textout" value="{!$Label.timbasurveys__timbasurveys_Summary_Survey_completed} {!IF(OR(completed_date != '' , completed_date != null),completed_date,$Label.timbasurveys__timbasurvey_SurveySummary_Not_Available)}" />
+                             <br />
+                             <apex:outputpanel rendered="{!IF(hasWeight, true, false)}" layout="none">
+                             <div class="userdata">
+                                    <span class="titlemain">{!$Label.timbasurvey_Total_Weight_Text}</span>
+                                    <span>   </span>
+                                     <span class="titlemain">{!$Label.timbasurvey_Max_Text}</span> <br />
+                                    <apex:outputText styleClass="textin" value="{!FLOOR(total_weight)}" />
+                                    <span>   </span>
+                                    <apex:outputText value="{!FLOOR(total_max_weight)}" styleClass="textin"/>
+                                </div>
+                             </apex:outputpanel>
+                          </div>
+                        </div>
+                            <div class="containerright">
+                            <apex:repeat value="{!summaryPages}" var="summaryPage">
+                                   <div class="containersingle textleft">
+                                       <apex:outputText styleClass="titlemainquestions" value="{!$Label.timbasurveys__timbasurveys_Summary_Page_Number}: {!summaryPage.pageNumber}" />
+                                       <br/><br/>
+                                       <a target="_blank" href="/{!IF(survey_summary.Recipient__r.RelatedCampaign__c!=null,survey_summary.Recipient__r.RelatedCampaign__c ,'#')}">
+                                       	<apex:outputText value="{!IF(survey_summary.Recipient__r.TIMBASURVEYS__RelatedCampaign__c!=null, 'Campaign: '+ survey_summary.Recipient__r.RelatedCampaign__r.Name,'')}"/>
+                                       </a>
+                                   </div>
+                                    <apex:repeat value="{!summaryPage.questionSummaries}" var="qSummary">
+                                        <div class="containersingle textleft">
+                                            <div class="titlemainquestions_mod">
+                                                <span class="questionnumber">{!FLOOR(qSummary.Position__c)}</span>
+                                                <span id="{!qSummary.Id}">
+                                                	<apex:outputText styleClass="NameX" value="{!qSummary.Name}" />
+												</span>
+												<div data-dojo-type="dijit.Tooltip" data-dojo-props="connectId:'{!qSummary.Id}',position:['above']" style="display:none;">
+												    <apex:outputText value="{!qSummary.TIMBASURVEYS__Question_Summary_Name_Long__c}" />
+												</div>
+												<apex:outputpanel rendered="{!IF(ISNULL(qSummary.TIMBASURVEYS__max_weight__c), false, true)}">
+												    <apex:outputText styleClass="points" value="{!$Label.timbasurveys__timbasurvey_Points}">
+												        <apex:param value="{!FLOOR(qSummary.TIMBASURVEYS__weight__c)}" />
+												        <apex:param value="{!FLOOR(qSummary.TIMBASURVEYS__max_weight__c)}" />
+												    </apex:outputText>
+												</apex:outputpanel>
+                                            </div>
+                                            <br />
+                                            <div class="useranswer">
+                                                <apex:outputText id="hasAnswer" value="{!IF((qSummary.TIMBASURVEYS__Answer__c != null), qSummary.TIMBASURVEYS__Answer__c, $Label.timbasurveys__timbasurveys_not_answered)}" />
+                                            </div>
+                                        </div>
+                                     </apex:repeat>
+                                 </apex:repeat>
+                           </div>
+                    </div>
+                </div>
+            </div>
+            <div data-dojo-id="listOverlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'bodyTable', color: 'white'"></div>
+          </apex:define>
+    </apex:composition>
+    <apex:outputPanel id="myStateSurveySummary" rendered="false" />
+    <apex:form id="sureysummaryActions">
+        <apex:actionFunction name="removeSummaryCallFinalOperation" oncomplete="removeSummaryCallFinalCompleted({!success})" action="{!doOperation}" rerender="myStateSurveySummary" >
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="deleteSummaryOperation" oncomplete="deleteSummaryCompleted({!success})" action="{!doOperation}" rerender="myStateSurveySummary">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="removeSummaryOperation" oncomplete="removeSummaryCompleted({!success},{!redirectToCollect})" action="{!doOperation}" rerender="myStateSurveySummary">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+            <apex:param name="recipientType" value="" assignTo="{!recipientType}" />
+            <apex:param name="recipientId" value="" assignTo="{!recipientId}" />
+        </apex:actionFunction>
+    </apex:form>
+</apex:page>

@@ -1,0 +1,1 @@
+public enum KickBlockTypes {HEAD, CHEST, ARMS, LEGS}

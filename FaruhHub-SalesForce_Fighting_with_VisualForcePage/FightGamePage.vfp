@@ -1,0 +1,102 @@
+<apex:page controller="GameController" action="{!GameLauncher}">
+    <apex:form >
+        <script src="//jsfiddle.net/Mottie/bbxxomhx/embed/"></script>
+        <apex:pageBlock title="Available fighters" >
+            <apex:commandButton action="{!activateAllUnits}" value="Make all inactive fighters available" 
+                                rerender="CreateUnit, firstUnit, secondUnit, firstChosenUnit, 
+                                          secindChosenUnit, BeginFight, FightersList"/><br/><br/>
+            
+            <apex:pageBlockTable value="{!allUnits}" var="u" id="FightersList">
+                <apex:column value="{!u.Name}"/>
+                <apex:column value="{!u.HP__c}"/>
+                <apex:column value="{!u.DmgMin__c}"/>
+                <apex:column value="{!u.DmgMax__c}"/>
+                <apex:column value="{!u.Stamina__c}"/>
+                <apex:column value="{!u.Count_of_wins__c}"/>
+                <apex:column value="{!u.Amount_of_losses__c}"/>
+                <apex:column value="{!u.Rating__c}"/>
+                <apex:column value="{!u.Is_Active__c}"/>
+                <apex:column value="{!u.Activation_Date__c}"/>
+            </apex:pageBlockTable>
+        </apex:pageBlock>
+        <apex:commandButton action="{!createUnit}" value="Create new fighter" rerender="NewFighter"/><br/><br/>
+        
+        <apex:outputPanel id="NewFighter" >
+            <apex:pageBlock rendered="{!showCreateUnit}">
+                <apex:pageBlockSection columns="1" title="New Unit" id="newUnit" >
+                    <apex:inputText value="{!newUnit.Name}" label="Fighter's Name:"/>
+                    <apex:inputText value="{!newUnit.HP__c}" label="Health Power:"/>
+                    <apex:inputText value="{!newUnit.DmgMin__c}" label="Min damage:"/>
+                    <apex:inputText value="{!newUnit.DmgMax__c}" label="Max damage:"/> 
+                    <apex:inputText value="{!newUnit.Stamina__c}" label="Stamina:"/>
+                </apex:pageBlockSection>
+                <apex:commandButton action="{!saveUnit}" value="Save new fighter" 
+                                    rerender="NewFighter, firstUnit, secondUnit, FightersList"/>
+                
+                <apex:commandButton action="{!cancelCreation}" value="Cansel creation"  rerender="NewFighter"/>
+            </apex:pageBlock>   
+        </apex:outputPanel>
+    </apex:form>
+    
+    <apex:pageBlock title="Select Fighters">
+        <apex:form >
+            <apex:pageBlockSection columns="2">
+                <apex:outputPanel id="firstUnit" style="font-weight:bold;width:50%;">
+                    <apex:pageBlock title="Your fighter" >
+                        <apex:actionFunction name="selectFirstUnitFromList" action="{!chooseFirstUnit}"
+                                             rerender="firstChosenUnit, firstUnit, secondUnit, BeginFight"/>
+                        <apex:pageBlockSection >
+                            <apex:selectList value="{!firstChosedUnit}" id="UnitSelectList"  size="1" style="width:400px; "
+                                             onChange="selectFirstUnitFromList()" onSelect="selectFirstUnitFromList()">
+                                <apex:selectOptions value="{!UnitSelectList}"/>
+                            </apex:selectList>
+                        </apex:pageBlockSection>
+                    </apex:pageBlock>
+                    <apex:pageBlockSection title="Your selected fighter:" id="firstChosenUnit" 
+                                           rendered="{!showFirstChosenUnit}" columns="2">
+                        <apex:outputField value="{!firstUnit.Name}" label="Name:"/>
+                        <apex:outputField value="{!firstUnit.HP__c}" label="Health Points:"/>
+                        <apex:outputField value="{!firstUnit.Rating__c}" label="Fighter Rate:"/>
+                        <apex:outputField value="{!firstUnit.DmgMin__c}" label="Min damage:"/>
+                        <apex:outputField value="{!firstUnit.Count_of_wins__c}" label="Count of wins:"/>
+                        <apex:outputField value="{!firstUnit.DmgMax__c}" label="Max damage:"/> 
+                    </apex:pageBlockSection>
+                </apex:outputPanel>
+                <apex:outputPanel id="secondUnit" style="font-weight:bold;width:50&;">
+                    <apex:pageBlock title="Choose your enemy">
+                        <apex:actionFunction name="selectSecondUnitFromList" action="{!chooseSecondUnit}"
+                                             rerender="secondChosenUnit, firstUnit, secondUnit, BeginFight"/>
+                        <apex:pageBlockSection >
+                            <apex:selectList value="{!secondChosedUnit}" id="UnitSelectList"  size="1" style="width:400px; "
+                                             onChange="selectSecondUnitFromList()" onSelect="selectSecondUnitFromList()">
+                                <apex:selectOptions value="{!UnitSelectList}"/>
+                            </apex:selectList>
+                        </apex:pageBlockSection>
+                    </apex:pageBlock>
+                    <apex:pageBlockSection title="Choosed enemy:" id="secondChosenUnit" rendered="{!showSecondChosenUnit}" columns="2">
+                        <apex:outputField value="{!secondUnit.Name}" label="Name:"/>
+                        <apex:outputField value="{!secondUnit.HP__c}" label="Health Points:"/>
+                        <apex:outputField value="{!secondUnit.Rating__c}" label="Fighter Rate:"/>
+                        <apex:outputField value="{!secondUnit.DmgMin__c}" label="Min damage:"/>
+                        <apex:outputField value="{!secondUnit.DmgMax__c}" label="Max damage:"/> 
+                        <apex:outputField value="{!secondUnit.Count_of_wins__c}" label="Count of wins:"/>
+                    </apex:pageBlockSection>
+                </apex:outputPanel>
+                <apex:pageBlockSection id="BeginFight">
+                    <apex:commandButton action="{!FightLauncher}"  value="Begin Fight"
+                                        rerender="Results, FightersList, firstUnit, secondUnit, UnitSelectList, BeginFight" 
+                                        rendered="{!(showFirstChosenUnit && showSecondChosenUnit)}"/>
+                </apex:pageBlockSection>
+            </apex:pageBlockSection>
+        </apex:form>
+    </apex:pageBlock>    
+    <apex:outputPanel id="Results" >
+        <apex:form >
+            <apex:pageBlock title="Game results"  rendered="{!showResult}" >
+                <apex:pageBlockTable value="{!GameFlow}" var="flow" >
+                    <apex:column value="{!flow}" />
+                </apex:pageBlockTable>
+            </apex:pageBlock>
+        </apex:form>
+    </apex:outputPanel>   
+</apex:page>

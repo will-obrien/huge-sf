@@ -1,0 +1,96 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.BuilderOverviewController" tabStyle="AssignBuilders__tab" readonly="false">
+  <apex:composition template="ePrize_Zemzu__CompetePageTemplate">
+
+    <apex:define name="pageTitle">Assign Competition Builder</apex:define>
+
+    <apex:define name="contentMain">
+      <div id="theLoader" style="display: block; height: 300px; width: 100%">
+        <table border="0" width="100%" height="100%">
+          <tr>
+            <td valign="middle" align="center">
+              <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div id="thePage" style="display: none;">
+        <apex:form id="form">
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2>Add a Competition Builder </h2>
+              <div class="divider"/>
+              <apex:pageBlock id="contestBuilderSelection">
+              <apex:pageBlockSection title="" columns="1" collapsible="false" showHeader="false">
+                <apex:outputPanel >
+                  <apex:outputText value="Please identify users within your organization that will be competition builders. You will then identify which Salesforce users will be assigned to that competition builder as potential participants in a competition they would manage."> </apex:outputText>
+                  <br/>
+                  <br/>
+                  <apex:outputText escape="false" value="<strong>Participants:</strong> These are the users within your organization who will be participating in a competition, e.g., salespeople. Their actions will be rewarded and they can see all leaderboard updates."> </apex:outputText>
+                  <br/>
+                  <apex:outputText escape="false" value="<strong>Observers:</strong> These are users who can view competition leaderboards and receive updates, and will also have permissions to edit or delete a competition, or reject any incorrect entries."> </apex:outputText>
+                </apex:outputPanel>
+                <apex:outputpanel id="addContestBuilderPanel">
+                  <apex:outputLabel value="Search by Name"/>
+                  &nbsp;&nbsp;&nbsp;
+                  <apex:inputField value="{!BuilderToAdd.ePrize_Zemzu__User__c}" required="false"/>
+                  &nbsp;&nbsp;&nbsp;
+                  <apex:commandButton value="Add" action="{!AddContestBuilder}" rerender="form" status="contestBuilderDetailsStatus"/>
+                </apex:outputpanel>
+              </apex:pageBlockSection>
+              </apex:pageBlock>
+            </div>
+          </div>
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2>Competition Builders</h2>
+              <div class="divider"/>
+              <apex:pageBlock >
+              <apex:pageBlockSection title="" columns="1" collapsible="false" showHeader="false">
+                <apex:outputpanel id="contestBuilderDetailsPanel">
+                  <apex:actionStatus id="contestBuilderDetailsStatus">
+                    <apex:facet name="start">
+                      <div id="theLoader" style="display: block; height: 100px; width: 100%">
+                        <table border="0" width="100%" height="100%"><tr><td valign="middle" align="center"><img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" /></td></tr></table>
+                      </div>
+                    </apex:facet>
+                    <apex:facet name="stop">
+                  <apex:pageBlockTable value="{!contestBuilderDetails}" var="row" id="contestBuilderDetailsTable" rowClasses="odd,even" styleClass="tableClass" width="100%">
+                    <apex:column >
+                      <a href="javascript:if (window.confirm('Are you sure you want to delete this competition builder?\n\nOnce you delete this user they will not be able to see any competition leaderboards. If you still want this user to be able to be a Competition Observer go to step 2 of the Setup Wizard to add this user.')) DeleteContestBuilder('{!row.builder.Id}');" style="font-weight:bold">Delete</a>
+                    </apex:column>
+                    <apex:column headerValue="Competition Builder Name" value="{!row.builder.user__r.name}" />
+                    <apex:column headerValue="Participants Assigned">
+                      <apex:outputlink value="/apex/BuilderAssignParticipants">
+                        {!row.assignedParticipantCount}
+                        <apex:param name="retURL" value="/apex/{!$CurrentPage.Name}"/>
+                        <apex:param name="o" value="{!row.builder.Id}"/>
+                      </apex:outputlink>
+                    </apex:column>
+                    <apex:column headerValue="Observers Assigned">
+                      <apex:outputlink value="/apex/BuilderAssignAdmins">
+                        {!row.assignedAdminCount}
+                        <apex:param name="retURL" value="/apex/{!$CurrentPage.Name}"/>
+                        <apex:param name="o" value="{!row.builder.Id}"/>
+                      </apex:outputlink>
+                    </apex:column>
+                  </apex:pageBlockTable>
+                    </apex:facet>
+                  </apex:actionStatus>
+                </apex:outputpanel>
+                <apex:actionFunction action="{!DeleteContestBuilder}" name="DeleteContestBuilder" reRender="form">
+                  <apex:param name="contestBuilderId" value="" assignTo="{!SelectedContestBuilderId}"/>
+                </apex:actionFunction>
+              </apex:pageBlockSection>
+            </apex:pageBlock>
+            </div>
+          </div><!--  -->
+        </apex:form>
+      </div>
+    </apex:define>
+  </apex:composition>
+  <head>
+    <apex:includeScript value="{!$Resource.ePrize_Zemzu__jquery}"/>
+    <apex:includeScript value="{!$Resource.ePrize_Zemzu__app}"/>
+    <apex:stylesheet value="{!$Resource.ePrize_Zemzu__zemzu_css}"/>
+  </head>
+</apex:page>

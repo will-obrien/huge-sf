@@ -1,0 +1,137 @@
+<apex:page controller="InSituSCV.InSitu_AddressContentController" standardStylesheets="true" tabStyle="State_Country_Validation__tab">
+	<apex:form id="AddressContentManageForm">
+    	<apex:sectionHeader title="iTools State/Country Validation" subtitle="Manage Address Content and Status"></apex:sectionHeader>
+   	    <apex:messages />
+
+		<apex:pageBlock id="AddressStatusByType" rendered="{!NOT(ContentNeedsInit)}">    
+
+	    	<apex:pageblockSection columns="1" rendered="{!NOT(CurrentUserLicensed)}" >
+				<b>Important Note:</b> &nbsp;&nbsp;{!$User.FirstName} {!$User.LastName} is currently not licensed for the iTools State/Country Validation feature so no actions are available. <p/>
+				Contact your system administrator for assistance or refer to the iTools State/Country Validation Configuration Guide.
+				<p/>
+			</apex:pageblockSection>
+			
+	    	<apex:pageblockSection columns="1" rendered="{!CurrentUserLicensed && NOT(SCVActive)}" >
+				<b>Important Note:</b> &nbsp;&nbsp;iTools State/Country Validation is currently not set to active so no actions are available.<p/>
+				To activate iTools State/Country Validation, go to the iTools Settings tab and select the State/Country Validation
+				option in the iTools list. Then, select the 'Active' setting, chose 'Edit' and choose the 'Yes' option. Additional information can be found in the iTools State/Country Validation Configuration Guide.
+				<p/>
+			</apex:pageblockSection>
+			
+        	<apex:pageBlockButtons location="Top" style="{text-align:left}">  
+            	<apex:outputLabel value="View:  " style="font-weight:bold"/>
+            	<apex:selectList value="{!CurrentObjectAddress}" size="1" title="View" id="theAddressTypeList"  >
+                	<apex:selectOptions value="{!ObjectAddressOptions}"/>
+                	<apex:actionSupport event="onchange" rerender="AddressStatusByType" />
+            	</apex:selectList> 
+			</apex:pageBlockButtons>
+			
+			<apex:pageBlockTable value="{!AddressStatusList}" var="AddressStatusInfo"   
+               rowClasses="odd,even" styleClass="tableClass" rows="{!NumStatusItems}" frame="none">
+               
+                <apex:column headerValue="Address Status" value="{!AddressStatusInfo.Status}"/>
+                
+                <apex:column headerValue="Number of Addresses" value="{!AddressStatusInfo.DisplayCount}"/>
+                
+                <apex:column headerValue="Action" >
+                    <apex:commandLink action="{!correctAddresses}" value="{!AddressStatusInfo.CommandValue}" rendered="{!AddressStatusInfo.CommandEnabled == true}" rerender="AddressStatusByType" >
+                        <apex:param name="AddressStatus" value="{!AddressStatusInfo.CommandParam}"/>
+                        <apex:param name="AddressLimit" value="{!AddressLimit}"/>
+                        <apex:param name="CommandValue" value="{!AddressStatusInfo.CommandValue}"/>
+                    </apex:commandLink>
+                    <apex:outputLabel value="{!AddressStatusInfo.CommandValue}" rendered="{!AddressStatusInfo.CommandEnabled == false}" />
+                </apex:column> 
+            </apex:pageBlockTable>          
+
+	    </apex:pageBlock>
+
+	    <apex:pageBlock id="ValidateAddressesSection" rendered="{!NOT(ContentNeedsInit)}">       
+
+	        <apex:pageBlockSection columns="1">
+				<apex:outputText style="font-weight:bold" value="Validate Addresses" />
+				<apex:outputText value="iTools performs validation whenever an address is added or updated. iTools can also validate a specific set of addresses on request for situations such as:"/>
+				<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;You have just installed iTools State/Country Validation." escape="false"/>
+				<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;Updates have been made to the State/Country Names library." escape="false"/>
+				<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;Changes have been made to the preferred designation for one or more names in the State/Country Names library." escape="false"/>
+	        </apex:pageblockSection>
+
+	       	<apex:pageBlockButtons location="Bottom" style="{text-align:left}">  
+	            <apex:commandButton value="Validate Addresses" action="{!validateAddresses}" rendered="{!CurrentUserLicensed && SCVActive}" />
+			</apex:pageBlockButtons>
+
+	    </apex:pageBlock>
+
+	    <apex:pageBlock id="ManageNamesSection" rendered="{!NOT(ContentNeedsInit)}">       
+
+	        <apex:pageBlockSection columns="1">
+				<apex:outputText style="font-weight:bold" value="Customize the iTools State/Country Names Library" />
+				<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;Add alternate names for common abbreviations, misspellings, or language variations used in your business." escape="false"/>
+				<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;Designate the preferred name to use to standardize state/country values." escape="false"/>
+	        </apex:pageblockSection>
+
+	       	<apex:pageBlockButtons location="Bottom" style="{text-align:left}">  
+	            <apex:commandButton value="Customize Country Names" action="{!manageCountryNames}" rendered="{!CurrentUserLicensed}" />
+	            <apex:commandButton value="Customize State/Province Names" action="{!manageProvinceNames}" rendered="{!CurrentUserLicensed}"/>
+			</apex:pageBlockButtons>
+
+	    </apex:pageBlock>
+
+	    <apex:pageBlock id="ContentNeedsInitSection" rendered="{!ContentNeedsInit}">       
+	    	<apex:pageblockSection columns="1" >
+				Welcome to iTools State/Country Validation!<p/>
+				To prepare the State/Country content for your organization, you must specify the Country Code Set you would
+				like to use. <p/>
+				The country Code Set options include the following:<br/>
+				&nbsp;&nbsp;&nbsp;ISO-2A: &nbsp;Two letter alphabetic country code (most widely used).<br/>
+				&nbsp;&nbsp;&nbsp;ISO-3A: &nbsp;Three letter alphabetic country code (better visual association between the codes and the country names than the alpha-2 codes).<br/>
+				&nbsp;&nbsp;&nbsp;ISO-3N: &nbsp;Three letter numeric country code (often used for organizations and systems using non-Latin scripts). <br/>
+				&nbsp;<br/>
+			</apex:pageblockSection>
+
+	    	<apex:pageblockSection columns="1" rendered="{!ContentNeedsInit}" >
+            	<apex:panelGrid columns="2">
+	            	<apex:outputLabel value="Country Code Set:  " style="vertical-align:sub"/>
+    	        	<apex:selectList value="{!CurrentCountryCode}" size="1" title="View" id="theCountryCodeList"  >
+        	        	<apex:selectOptions value="{!CountryCodeOptions}"/>
+	            	</apex:selectList> 
+	            </apex:panelGrid>
+				&nbsp;&nbsp;&nbsp;<br/>
+				Click on the button below to initialize your organization with content for iTools State/Country Validation.
+				The initialization will take some time, so watch the browser progress bar to determine current status. When this action is complete, your organization will contain the content needed to properly validate state and country values. <p/>
+				<p/>
+			</apex:pageblockSection>
+
+	       	<apex:pageBlockButtons location="Bottom" style="{text-align:left}" rendered="{!CanInitContent}">  
+	            <apex:commandButton value="Initialize State/Country Content" action="{!initStateCountryData}"/>
+			</apex:pageBlockButtons>
+
+	    </apex:pageBlock>
+
+	    <apex:pageBlock id="ContentNeedsUpdateSection" rendered="{!CanUpdateContent}">       
+
+			<apex:pageblockSection columns="1" >
+		           	<apex:outputText style="font-weight:bold" value="iTools State/Country Validation Content"/>
+		           	<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;Important Note - Updated State/Country Content is now available. " escape="false"/>
+		           	<apex:outputText style="padding-left:.8cm" value="Your Current Version: {!DataVersion}" escape="false"/>
+		           	<apex:outputText style="padding-left:.8cm" value="New Version Available: {!ContentVersion}" escape="false"/>
+					<apex:outputText style="padding-left:.2cm" value="Click on the button below to update your organization with the most recent version of State/Country content." escape="false"/>
+			</apex:pageblockSection>
+
+	       	<apex:pageBlockButtons location="Bottom" style="{text-align:left}" rendered="{!CanUpdateContent}">  
+                <apex:commandButton value="Update State/Country Content" action="{!updateStateCountryData}" rendered="{!CanUpdateContent}" />
+			</apex:pageBlockButtons>
+        </apex:pageBlock>
+
+
+
+	    <apex:pageBlock id="ContentUpToDateSection" rendered="{!ContentUpToDate}">       
+
+			<apex:pageblockSection columns="1" >
+		           	<apex:outputText style="font-weight:bold" value="iTools State/Country Validation Content"/>
+		           	<apex:outputText style="padding-left:.2cm" value="&#8226&nbsp;&nbsp;Congratulations! Your organization contains the most recent version of iTools State/Country Validation content. Version: {!DataVersion}" escape="false"/>
+			</apex:pageblockSection>
+	        
+        </apex:pageBlock>
+		
+   </apex:form>
+</apex:page>

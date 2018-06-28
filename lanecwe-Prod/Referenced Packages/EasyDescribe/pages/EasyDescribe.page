@@ -1,0 +1,251 @@
+<!-- 
+/*
+Copyright (c) 2009 Etherios LLC
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are not permitted.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, 
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+ -->
+<apex:page title="Etherios - EasyDescribe" controller="EasyDescribe.DescribeObjectCon" sidebar="false" tabStyle="EasyDescribe__tab" id="thePage">
+    <apex:styleSheet value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/css/EasyDescribe.css')}"/> 
+    <apex:styleSheet value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/yui/skin.css')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/yui/yahoo-dom-event.js')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/yui/container-min.js')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/yui/animation-min.js')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/yui/dragdrop-min.js')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/scripts/yui_etherios.js')}"/> 
+
+    <style>
+        /* Does not get applied if put into static resource css */
+        .tabActive { 
+            background-color: #0054A0; 
+            color:white; 
+            background-image:none;
+        }
+        .tabInactive { 
+            background-color: lightgrey; 
+            color:black; 
+            background-image:none;
+        }          
+    </style>
+    <table width="790" border="0" cellpadding="0" cellspacing="0" id="etheriosHeaderTable">
+        <tr><td>
+            <apex:sectionHeader title="Etherios EasyDescribe" subtitle="Choose an SObject to Describe"/>
+         </td></tr>
+    </table>
+    <apex:form >
+        <apex:actionRegion > 
+        <table width="790" border="0" cellpadding="0" cellspacing="0" id="etheriosTopBlockTable">
+          <tr><td>
+            <apex:pageMessages />
+            <apex:pageBlock id="topBlock">                         
+                <apex:pageBlockSection title="Choose an SObject" columns="2" collapsible="true">                    
+                    <apex:outputPanel >
+                        <apex:selectList value="{!selectedObject}" size="1">
+                            <apex:selectOptions value="{!globalObjects}" />
+                            <apex:actionSupport event="onchange" action="{!describeObject}" rerender="objectDetails,topBlock" 
+                            timeout="180000"
+                            status="bodyStatus"
+                            onsubmit="YAHOO.etherios.showLoader('{!$Component.loaderPanel}');"
+                            oncomplete="YAHOO.etherios.hideLoader();YAHOO.etherios.init();" 
+                            /> 
+                        </apex:selectList>
+                        <apex:commandButton value="Extract to Excel" action="{!LaunchExtractObject}" disabled="{!ISNULL(objectResult)}" style="margin-left: 2em"/>                      
+                    </apex:outputPanel>
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Show Fields" for="fieldCheck"/>
+                        <input type="checkbox" onclick="YAHOO.etherios.twistIt('fieldsTable');" checked="checked"/>
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem />
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Show Child Relationships"/>
+                        <input type="checkbox" onclick="YAHOO.etherios.twistIt('childRelationships');"/>
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem />
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Show RecordTypes"/>
+                        <input type="checkbox" onclick="YAHOO.etherios.twistIt('recordTypes');"/>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+            </apex:pageBlock> 
+           </td></tr>
+        </table>
+        <apex:actionStatus id="bodyStatus">
+         <apex:facet name="stop">
+            <apex:outputPanel id="objectDetails">
+                <table width="790" border="0" cellpadding="0" cellspacing="0" id="etheriosSObjectDetailsTable">
+                    <tr><td>
+                        <apex:pageBlock mode="detail" title="Describe {!objectResult.label}" rendered="{!NOT(ISNULL(objectResult))}">      
+                            <div id="sobjectDetails">     
+                                <c:SObjectDetails objectresults="{!objectResultList}" showAs="list"/>
+                            </div>
+                            <div id="childRelationships" style="display:none">                              
+                                <c:ChildRelationships objectResult="{!objectResult}" />                      
+                            </div>
+                            <div id="recordTypes" style="display:none">
+                                <c:RecordTypes objectResult="{!objectResult}" />        
+                            </div>
+                        </apex:pageBlock>
+                    </td></tr>
+                    <tr><td>
+                        <div id="fieldsTable">
+                            <apex:tabPanel switchType="client" selectedTab="name2" id="FieldsTabPanel"                                
+                                  tabClass="tabActive" inactiveTabClass="tabInactive" rendered="{!NOT(ISNULL(objectResult))}">
+                                <apex:tab id="fieldsTab" label="Field Basics" >
+                                <apex:pageBlock id="fieldBlock" rendered="{!NOT(ISNULL(objectResult))}" >                                   
+                                        <apex:dataTable value="{!objectResult.fieldResults}" var="f" styleClass="fields" headerClass="fieldsHeader" rowClasses="fieldsRow" columnClasses="fieldsColumn" rules="rows">                           
+                                            <apex:column headerValue="Name" value="{!f.fieldname}"/>    
+                                            <apex:column headerValue="Label" value="{!f.label}"/>
+                                            <apex:column headerValue="Type">
+                                                <apex:outputText value="{!f.fieldType}"/>   
+                                                <apex:outputPanel rendered="{!(LOWER(f.fieldType)=='picklist')||(LOWER(f.fieldType)=='multipicklist')}">                                    
+                                                    <br/>
+                                                    <apex:commandLink rendered="{!(LOWER(f.fieldType)=='picklist')||(LOWER(f.fieldType)=='multipicklist')}" 
+                                                                    timeout="120000"
+                                                                    action="{!LaunchViewPickVal}" value="(view)" rerender="pickValPanel" onclick="YAHOO.etherios.handleClick(event);YAHOO.etherios.showLoader('{!$Component.loaderPanel}');"                    
+                                                                    oncomplete="YAHOO.etherios.hideLoader();YAHOO.etherios.showPicks('{!$Component.pickValPanel}');" >
+                                                        <apex:param name="a" assignTo="{!selectedPickVal}" value="{!f.fieldName}" />
+                                                    </apex:commandLink><br/>
+                                                    <apex:commandLink rendered="{!(LOWER(f.fieldType)=='picklist')||(LOWER(f.fieldType)=='multipicklist')}" action="{!LaunchExtractPickVal}" value="(extract)">
+                                                        <apex:param name="a" assignTo="{!selectedPickVal}" value="{!f.fieldName}" />
+                                                    </apex:commandLink>
+                                                </apex:outputPanel>                         
+                                            </apex:column>
+                                            <apex:column headerValue="SOAP Type" value="{!f.SOAPType}"/>
+                                            <apex:column headerValue="Length" value="{!f.length}"/>
+                                            <apex:column headerValue="Digits" value="{!f.digits}"/>
+                                            <apex:column headerValue="Precision" value="{!f.precision}"/>
+                                            <apex:column headerValue="Scale" value="{!f.scale}"/>
+                                            <apex:column headerValue="Byte Length" value="{!f.byteLength}"/>
+                                         </apex:dataTable>
+                                    </apex:pageBlock>
+                                  </apex:tab>
+                                  <apex:tab label="Advanced Properties" >
+                                    <apex:pageBlock id="fieldAdvancedBlock" rendered="{!NOT(ISNULL(objectResult))}" >                                   
+                                        <apex:dataTable value="{!objectResult.fieldResults}" var="f" styleClass="fields" headerClass="fieldsHeader" rowClasses="fieldsRow" columnClasses="fieldsColumn" rules="rows">                           
+                                            <apex:column headerValue="Name" value="{!f.fieldname}"/>    
+                                            <apex:column headerValue="Calculated Formula" value="{!f.calculatedFormula}"/>
+                                            <apex:column headerValue="Controller" value="{!f.controller}"/>
+                                            <apex:column headerValue="Default Value Formula" value="{!f.defaultValueFormula}"/>
+                                            <apex:column headerValue="Inline Help Text" value="{!f.inlineHelpText}"/>                   
+                                            <apex:column headerValue="Relationship Name" value="{!f.relationshipName}"/>
+                                            <apex:column headerValue="Reference To" value="{!f.referenceTo}"/>
+                                        </apex:dataTable>
+                                   </apex:pageBlock>
+                                  </apex:tab>
+                                  <apex:tab label="Boolean Properties A-E" >
+                                    <apex:pageBlock id="fieldBooleanBlock" rendered="{!NOT(ISNULL(objectResult))}" >                                    
+                                        <apex:dataTable value="{!objectResult.fieldResults}" var="f" styleClass="fields" headerClass="fieldsHeader" rowClasses="fieldsRow" columnClasses="fieldsColumn" rules="rows">                           
+                                            <apex:column headerValue="Name" value="{!f.fieldname}"/>    
+                                            <apex:column headerValue="isAccessible"> 
+                                                <c:check rendered="{!f.isAccessible}" alt="{!f.localName} isAccessible"/>
+                                            </apex:column> 
+                                            <apex:column headerValue="isAutoNumber">
+                                                <c:check rendered="{!f.isAutoNumber}" alt="{!f.localName} isAutoNumber"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isCalculated">
+                                                <c:check rendered="{!f.isCalculated}" alt="{!f.localName} isCalculated"/>  
+                                            </apex:column>                         
+                                            <apex:column headerValue="isCreateable">
+                                                <c:check rendered="{!f.isCreateable}" alt="{!f.localName} isCreateable"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isCaseSensitive">
+                                                <c:check rendered="{!f.isCaseSensitive}" alt="{!f.localName} isCaseSensitive"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isCustom">
+                                                <c:check rendered="{!f.isCustom}" alt="{!f.localName} isCustom"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isDefaultedOnCreate">
+                                                <c:check rendered="{!f.isDefaultedOnCreate}" alt="{!f.localName} isDefaultedOnCreate"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isDependantPicklist">
+                                                <c:check rendered="{!f.isDependantPicklist}" alt="{!f.localName} isDependantPicklist"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isExternalID">
+                                                <c:check rendered="{!f.isExternalID}" alt="{!f.localName} isExternalID"/>
+                                            </apex:column>
+                                      </apex:dataTable>
+                                   </apex:pageBlock>
+                                  </apex:tab>
+                                  <apex:tab label="Boolean Properties F-Z" >
+                                    <apex:pageBlock id="fieldBooleanBlock2" rendered="{!NOT(ISNULL(objectResult))}" >
+                                        <apex:dataTable value="{!objectResult.fieldResults}" var="f" styleClass="fields" headerClass="fieldsHeader" rowClasses="fieldsRow" columnClasses="fieldsColumn" rules="rows">                           
+                                            <apex:column headerValue="Name" value="{!f.fieldname}"/>    
+                                            <apex:column headerValue="isFilterable">
+                                                <c:check rendered="{!f.isFilterable}" alt="{!f.localName} isFilterable"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isHtmlFormatted">
+                                                <c:check rendered="{!f.isHtmlFormatted}" alt="{!f.localName} isHtmlFormatted"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isIdLookup">
+                                                <c:check rendered="{!f.isIdLookup}" alt="{!f.localName} isIdLookup"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isNameField">
+                                                <c:check rendered="{!f.isNameField}" alt="{!f.localName} isNameField"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isNamePointing">
+                                                <c:check rendered="{!f.isNamePointing}" alt="{!f.localName} isNamePointing"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isNillable">
+                                                <c:check rendered="{!f.isNillable}" alt="{!f.localName} isNillable"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isSortable">
+                                                <c:check rendered="{!f.isSortable}" alt="{!f.localName} isSortable"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isUnique">
+                                                <c:check rendered="{!f.isUnique}" alt="{!f.localName} isUnique"/>
+                                            </apex:column>
+                                            <apex:column headerValue="isUpdateable">
+                                                <c:check rendered="{!f.isUpdateable}" alt="{!f.localName} isUpdateable"/>
+                                            </apex:column>
+                                        </apex:dataTable>
+                                    </apex:pageBlock> 
+                                </apex:tab>
+                            </apex:tabPanel>
+                          </div>
+                     </td></tr>
+                </table>              
+            </apex:outputPanel>
+         </apex:facet>
+        </apex:actionStatus>
+    </apex:actionRegion>
+    </apex:form>
+    <div style="display: none">
+        <apex:outputPanel id="loaderPanel">
+            <apex:image value="{!URLFOR($Resource.EasyDescribe__EasyDescribe,'/images/ajax-loader.gif')}" />
+        </apex:outputPanel>
+    </div>
+    <div style="display: none">
+        <apex:outputPanel id="pickValPanel">    
+            <apex:form >
+              <apex:actionRegion >       
+                <apex:pageBlock title="Picklist Values" rendered="{!NOT(ISNULL(selectedFieldResult))}">
+                    <apex:pageBlockButtons >
+                        <apex:commandButton action="{!LaunchExtractPickVal}" value="Extract Picklist"/>
+                        <apex:commandButton value="Close" immediate="true" 
+                                oncomplete="YAHOO.etherios.hidePicks();" style="margin-left: 2em;"/>
+                    </apex:pageBlockButtons>
+                    <apex:pageBlockSection title="{!selectedPickVal} Picklist Values" columns="1" collapsible="false">
+                        <apex:pageBlockTable value="{!selectedFieldResult.pickListValues}" var="pv" columnsWidth="250px,250px">
+                            <apex:column headerValue="Label" value="{!pv.label}"/>
+                            <apex:column headerValue="Value" value="{!pv.value}"/>
+                        </apex:pageBlockTable> 
+                    </apex:pageBlockSection> 
+                </apex:pageBlock>
+              </apex:actionRegion>
+            </apex:form>
+        </apex:outputPanel>
+    </div>
+</apex:page>

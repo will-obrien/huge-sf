@@ -1,0 +1,174 @@
+<apex:component layout="none"  allowDML="TRUE" controller="SelectFieldOptionsFromTextGenerator">
+ <apex:attribute name="isDisplayed" type="boolean" description="Should the question be displayed." />
+ <apex:attribute name="isRequired" type="boolean" assignto="{!Required}" description="Should the question be required." />
+ <apex:attribute name="QuestionName" type="string" description="The salesforce name of the question" />
+ <apex:attribute name="QuestionValue" type="string" description="The value of the question if any" />
+ <apex:attribute name="QuestionLabel" type="string" description="The label for the question." />
+ <apex:attribute name="QuestionType" type="string" assignto="{!ListType}" description="What kind of question is this?" />
+ <apex:attribute name="QuestionPossibleValues" type="string" assignto="{!OptionsText}" description="If this is a select (drop down), radio, or checkbox this will be used." />
+
+<!-- Begin events_extra_fields-->
+    <apex:outputPanel layout="none" rendered="{!(isDisplayed || isRequired)}">
+        <div class="row">
+            <div class="col-md-12" id="{!QuestionName}">
+
+            <apex:outputLabel for="{!QuestionName}">{!QuestionLabel}</apex:outputLabel> <apex:outputText value=" *" rendered="{!isRequired }" /><br/>
+
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='DropDown' || QuestionType=='DropDownOther') && QuestionPossibleValues != '' }">
+                <apex:selectList id="CustomQuestionSelect" styleclass="{!QuestionName} extra-selectbox form-control" required="{!isRequired}" value="{!QuestionValue}" multiselect="false" size="1">
+                    <apex:selectOptions value="{!items}"/>   
+                </apex:selectList>
+                <apex:outputPanel layout="none" rendered="{!isRequired}">
+                    <script type="text/javascript">
+                        jQuery('SELECT.{!QuestionName}').attr('required', true);
+                    </script>
+                </apex:outputPanel>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='Checkbox' || QuestionType=='Checkbox+Other') && QuestionPossibleValues != '' }">
+                <apex:selectCheckboxes id="CustomQuestionCheckbox" styleclass="{!QuestionName} extra-checkbox" required="{!isRequired}" layout="PageDirection">
+                    <apex:selectOptions value="{!items}"/>
+                </apex:selectCheckboxes>
+                <apex:outputPanel layout="none" rendered="{!isRequired}">
+                <script type="text/javascript">
+                    // dealing with validation for checkboxes.
+                        jQuery('.{!QuestionName} INPUT').prop('required', true);
+                        jQuery('.{!QuestionName} INPUT').change( function() {
+                            // if one is checked make it non required.
+                            if(jQuery('.{!QuestionName} INPUT').is(":checked")){
+                              jQuery('.{!QuestionName} INPUT').prop('required', false);
+                            } else {
+                              jQuery('.{!QuestionName} INPUT').prop('required', true);
+                            }
+                        });
+                </script>
+                </apex:outputPanel>
+                
+                <script type="text/javascript">
+                    /* QuestionValue won't work on checkbox, seems to blow up. 
+                     * So if there are Current Values
+                     * we want to make sure to set them here. 
+                     */
+                    var currentValues = '{!QuestionValue}'.split(',');
+                    for( var f = 0; f < currentValues.length; f++) {
+                        jQuery('.{!QuestionName} INPUT[value="' + currentValues[f].trim() + '"]').prop('checked',true);
+                    }
+                </script>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='Radio' || QuestionType=='Radio+Other') && QuestionPossibleValues != '' }">
+                <apex:selectRadio id="CustomQuestionRadio" styleclass="{!QuestionName} extra-radio" required="{!isRequired}" value="{!QuestionValue}" layout="PageDirection">
+                    <apex:selectOptions value="{!items}"/>   
+                </apex:selectRadio>
+                <apex:outputPanel layout="none" rendered="{!isRequired}">
+                    <script type="text/javascript">
+                        jQuery('.{!QuestionName} INPUT').prop('required', true);
+                    </script>
+                </apex:outputPanel>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='DropDownOther' && QuestionPossibleValues != '' }">
+                <apex:inputText id="CustomQuestionSelectOther" styleclass="{!QuestionName}_other customquestion_other customquestion_selectother form-control" disabled="true" html-placeholder="Type your answer here" style="display:none;" />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='Checkbox+Other' || QuestionType=='Radio+Other') && QuestionPossibleValues != ''}">
+                <apex:inputText id="CustomQuestionOther" styleclass="{!QuestionName}_other customquestion_other form-control" disabled="true" html-placeholder="Type your answer here" />
+            </apex:outputPanel>
+            
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='Date'}">
+                <apex:input type="date" id="CustomQuestionDate" styleclass="{!QuestionName} form-control" required="{!isRequired}" value="{!QuestionValue}" size="10" style="width: 180px; height: 20px;" />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='Text' || QuestionType=='' || (QuestionPossibleValues == '' && (QuestionType=='Checkbox' || QuestionType=='Checkbox+Other' || QuestionType=='DropDown' || QuestionType=='DropDownOther' || QuestionType=='Radio' || QuestionType=='Radio+Other') ) }">
+                <apex:inputText id="CustomQuestionText" styleclass="{!QuestionName} form-control" required="{!isRequired}" value="{!QuestionValue}" maxlength="255" />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='Text(5)'}">
+                <apex:inputText id="CustomQuestionText5" styleclass="{!QuestionName} form-control" required="{!isRequired}" value="{!QuestionValue}" maxlength="5" size="5" />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='Text(30)'}">
+                <apex:inputText id="CustomQuestionText30" styleclass="{!QuestionName} form-control" required="{!isRequired}" value="{!QuestionValue}" maxlength="30" style="width: 100%; max-width: 250px" />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='Text(255)'}">
+                <apex:inputText id="CustomQuestionText255" styleclass="{!QuestionName} form-control" required="{!isRequired}" value="{!QuestionValue}" maxlength="255" style="width: 100%; height: 40px;"  />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!QuestionType=='Number'}">
+                <input type="number" id="{!QuestionName}" class="{!QuestionName} customnumber form-control" required="{!isRequired}" value="{!QuestionValue }" />
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='Checkbox+Other' || QuestionType=='Radio+Other' || QuestionType=='DropDownOther' || QuestionType=='Checkbox' || QuestionType=='Radio' || QuestionType=='DropDown')}">
+            <script>
+                // When the options are set up -- if a user includes a *
+                // in the field values, this sets the option as disabled.
+                // after we load, we checked for these and enable them.
+                jQuery('.{!QuestionName} :disabled').each( function() { 
+                    jQuery(this).attr('disabled',false) 
+                    jQuery(this).attr('checked',true).attr('selected',true); 
+                });        
+            </script>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!isRequired && (QuestionType=='Checkbox+Other' || QuestionType=='Checkbox')}">
+            <script>
+                if (jQuery('.{!QuestionName} INPUT').is(":checked")) {
+                    jQuery('.{!QuestionName} INPUT').prop('required', false);
+                }            
+            </script>                
+            </apex:outputPanel>
+            
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='DropDownOther')}">
+            <script>
+            // select + other validation        
+            jQuery('.{!QuestionName}').change(function() {
+                if(jQuery(this).val() == "Other") {
+                    jQuery('.{!QuestionName}_other').attr('disabled', false);
+                    jQuery('.{!QuestionName}_other').show();
+                    jQuery('.{!QuestionName}_other').focus();
+                    jQuery('.{!QuestionName}_other').prop('required', true);
+                    
+                } else {
+                    jQuery('.{!QuestionName}_other').val('')
+                    jQuery('.{!QuestionName}_other').attr('disabled', true);
+                    jQuery('.{!QuestionName}_other').hide();
+                    jQuery('.{!QuestionName}_other').prop('required', false);
+                }
+            });
+            </script>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='Checkbox+Other' || QuestionType=='Radio+Other')}">
+            <script>           
+            // checkbox + other validation
+            jQuery('.{!QuestionName} [value=Other]').click(function() {
+                if( jQuery(this).prop('checked') ) {
+                    jQuery('.{!QuestionName}_other').attr('disabled', false);
+                    jQuery('.{!QuestionName}_other').focus();
+                    jQuery('.{!QuestionName}_other').prop('required', true);
+                } else {
+                    jQuery('.{!QuestionName}_other').val('');
+                    jQuery('.{!QuestionName}_other').attr('disabled', true);
+                    jQuery('.{!QuestionName}_other').prop('required', false);
+                }
+            });
+            </script>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!(QuestionType=='Radio+Other')}">
+            <script>            
+            // radio + other validation
+            jQuery('.{!QuestionName} INPUT').click(function() {
+                if( jQuery('.{!QuestionName} [value=Other]').prop('checked') ) {
+                    jQuery('.{!QuestionName}_other').attr('disabled', false);
+                    jQuery('.{!QuestionName}_other').focus();
+                    jQuery('.{!QuestionName}_other').prop('required', true);
+                } else {
+                    jQuery('.{!QuestionName}_other').val('');
+                    jQuery('.{!QuestionName}_other').attr('disabled', true);
+                    jQuery('.{!QuestionName}_other').prop('required', false);
+                }
+            });
+            </script>
+            </apex:outputPanel>
+            
+            
+            
+            </div>
+        </div>
+    </apex:outputPanel>       
+    <script>
+        customFieldReponseTransfer('{!QuestionName}');
+        window.customQuestions.push('{!QuestionName}');
+    </script>
+<!-- End events_extra_fields -->
+</apex:component>

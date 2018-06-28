@@ -1,0 +1,122 @@
+<!--
+/**
+ * Copyright (c) 2013, Andrew Fawcett
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, 
+ *   are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice, 
+ *      this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *      this list of conditions and the following disclaimer in the documentation 
+ *      and/or other materials provided with the distribution.
+ * - Neither the name of the Andrew Fawcett, nor the names of its contributors 
+ *      may be used to endorse or promote products derived from this software without 
+ *      specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+ *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES 
+ *  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL 
+ *  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ *  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ *  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**/
+
+/**
+ * Contributed by Wes Weingartner, https://github.com/wes1278
+ *
+ * https://github.com/afawcett/declarative-lookup-rollup-summaries/pull/15
+ **/
+-->
+
+<apex:page standardController="dlrs__LookupRollupSummary__c" extensions="dlrs.RollupSummaryEnhancedController" showHeader="true" sidebar="true">
+
+	<script src='https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js'/>
+	<script src='https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.12/jquery-ui.min.js'/>
+	<apex:stylesheet value="https://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css"/>
+
+	<apex:sectionHeader title="Lookup Rollup Summary" subtitle="Parent Object"/>
+	<apex:pageMessages id="msgs"/>	
+
+	<apex:form id="rusForm">
+
+		<apex:pageBlock id="pbs" mode="edit">
+			<apex:pageBlockButtons location="bottom">
+				<apex:commandButton action="{!save}" value="Save" />
+				<apex:commandButton action="{!cancel}" value="Cancel" />
+			</apex:pageBlockButtons>
+			<!-- Parent Object -->
+			<apex:pageBlockSection collapsible="false" columns="1" showHeader="true" title="Parent Object" id="parent">
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel value="Name of lookup definition: " for="childFields"/>
+					<apex:outputPanel styleClass="requiredInput" layout="block">
+					<apex:outputPanel styleClass="requiredBlock" layout="block"/>
+					<apex:inputField value="{!dlrs__LookupRollupSummary__c.Name}"/>
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel value="Parent Object:" for="parentObject"/>
+					<apex:outputPanel styleClass="requiredInput" layout="block">
+					<apex:outputPanel styleClass="requiredBlock" layout="block"/>
+					<apex:selectList value="{!dlrs__LookupRollupSummary__c.dlrs__ParentObject__c}" id="parentObject" size="1">
+						<apex:selectOptions value="{!parentObjects}"/>
+						<apex:actionSupport event="onchange" rerender="parentFields, childObject"/>
+					</apex:selectList>
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel value="Aggregated Results Field: " for="parentFields"/>
+					<apex:outputPanel styleClass="requiredInput" layout="block">
+					<apex:outputPanel styleClass="requiredBlock" layout="block"/>
+					<apex:selectList value="{!dlrs__LookupRollupSummary__c.dlrs__AggregateResultField__c}" id="parentFields" size="1">
+						<apex:selectOptions value="{!parentFields}"/>
+					</apex:selectList>
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+			</apex:pageBlockSection>
+
+			<!-- child Object -->
+			<apex:pageBlockSection collapsible="false" columns="1" showHeader="true" title="Child Object" id="child">
+				<apex:pageBlockSectionItem helpText="{!$ObjectType.dlrs__LookupRollupSummary__c.Fields.dlrs__ChildObject__c.inlineHelpText}" >
+					<apex:outputLabel value="Child Object (Field) : " for="parentFields"/>
+					<apex:outputPanel styleClass="requiredInput" layout="block">
+					<apex:outputPanel styleClass="requiredBlock" layout="block"/>
+					<apex:selectList value="{!relationshipField}" id="childObject" size="1">
+						<apex:selectOptions value="{!childObjects}"/>
+						<apex:actionSupport event="onchange" action="{!calculateRelationshipField}" reRender="childFields, output" />
+					</apex:selectList>
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem helpText="{!$ObjectType.dlrs__LookupRollupSummary__c.Fields.dlrs__AggregateOperation__c.inlineHelpText}">
+					<apex:outputLabel value="{!$ObjectType.dlrs__LookupRollupSummary__c.Fields.dlrs__AggregateOperation__c.label}" for="childFields"/>
+					<apex:outputPanel styleClass="requiredInput" layout="block">
+					<apex:outputPanel styleClass="requiredBlock" layout="block"/>
+					<apex:inputField value="{!dlrs__LookupRollupSummary__c.dlrs__AggregateOperation__c}">
+						<apex:actionSupport event="onchange" reRender="child" />
+					</apex:inputField> 
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem helpText="{!$ObjectType.dlrs__LookupRollupSummary__c.Fields.dlrs__FieldToAggregate__c.inlineHelpText}" rendered="{!IF(dlrs__LookupRollupSummary__c.dlrs__AggregateOperation__c = 'Count',false,true)}">
+					<apex:outputLabel value="Child field to Aggregate: " for="childFields"/>
+					<apex:outputPanel styleClass="requiredInput" layout="block">
+					<apex:outputPanel styleClass="requiredBlock" layout="block"/>
+					<apex:selectList value="{!dlrs__LookupRollupSummary__c.dlrs__FieldToAggregate__c}" id="childFields" size="1">
+						<apex:selectOptions value="{!childFields}"/>
+					</apex:selectList>
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+			</apex:pageBlockSection>
+			<apex:pageBlockSection collapsible="false" columns="1" showHeader="true" title="Child Criteria" id="criteria">
+				<apex:inputField style="width:400px;" value="{!dlrs__LookupRollupSummary__c.dlrs__RelationshipCriteria__c}"/>
+				<apex:inputField style="width:175px; height:100px;" value="{!dlrs__LookupRollupSummary__c.dlrs__RelationshipCriteriaFields__c}"/>
+			</apex:pageBlockSection>
+			<apex:pageBlockSection collapsible="false" columns="1" showHeader="true" title="Calculation" id="mode">
+				<apex:inputField value="{!dlrs__LookupRollupSummary__c.dlrs__CalculationMode__c}"/>
+			</apex:pageBlockSection>
+		</apex:pageBlock>
+	</apex:form>
+
+</apex:page>

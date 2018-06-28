@@ -1,0 +1,52 @@
+--[[
+		This script is designed to be the endpoint for the Salesforce
+		SOAP Outbound Messaging. The Salesforce messages are part of the
+	  workflow functionality which can be customised to limit the
+		conditions under which a notification is sent as well as the 
+		subset of SObject fields that is sent as part of the message.
+		Salesforce will only send the field if it has a value. It is
+		also possible that up to 100 notifications (for separate SObjects)
+		to be sent in a single message.
+
+		v1 - Only handles a single notification per message
+
+--]]
+log(request.body)
+-- Get Session Id <SessionId>
+SessionId = request.body:match'%s<SessionId>(.-)</SessionId>'
+log(SessionId)
+-- Get organization Id <OrganizationId>
+OrganizationId = request.body:match'%s<OrganizationId>(.-)</OrganizationId>'
+log(OrganizationId)
+SObjects = { 
+	['a11'] = '/Contact/Supplier', -- a11 prefix for Card__c object
+	['a12'] = '/Contact/?????' -- a12 prefix for Address__c object
+	}
+log(#SObjects)
+log(SObjects['a11'])
+-- 	Parse the XML and grab only the SF fields
+--	(This will need to be made smarter to handle multiple SObjects
+--	 in a single message.)
+sf = {}
+for att,cont in request.body:gmatch'%s<sf:(.-)>(.-)</sf:' do
+	  sf[att] = cont
+end
+--debug
+for k,v in pairs(sf) do
+	print(k..":"..v)
+end
+
+--]]
+-- Setup a SOAP XML acknowledgement to make SF happy
+-- (If it doesn't receive one then the message will stay in the SF
+--	outbound message and be retried, possibly indefinitely)
+body = [[
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+  <soapenv:Body>
+    <notificationsResponse xmlns="http://soap.sforce.com/2005/09/outbound">
+      <Ack>true</Ack>
+    </notificationsResponse>
+  </soapenv:Body>
+</soapenv:Envelope>
+]]
+return 200,body,{['Content-Type']='text/xml'}

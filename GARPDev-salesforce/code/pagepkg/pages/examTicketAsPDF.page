@@ -1,0 +1,118 @@
+<apex:page showHeader="false" sidebar="false" showChat="false"  standardStylesheets="false" Controller="ExamTicketAsPDFController" applyhtmltag="false" applyBodyTag="false" action="{!fetchData}" renderAs="pdf">
+<apex:variable var="envPath" value="{!URLFOR($Resource.sfdcApp)}" />
+
+<head>
+    <style type="text/css" media="print">
+        .main-invoice-pdf { font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:14px; }
+        .panel-header-invoice-pdf { font-size:24px; }
+        .panel-header-exam-time-pdf { font-size:20px; }
+        .blue { color:#4F81BD; }
+        .blue-divider-invoice-pdf { height:3px;background-color:#6699FF;margin:15px 15px; }
+        .section-box-invoice-pdf { overflow:hidden; }
+        .panel-left-invoice-pdf { float:left;width:80%; }
+        .panel-right-invoice-pdf { float:right;width:48%; }
+        .panel-table-invoice-pdf { padding:5px;width:100%; line-height: 12px; }
+        .panel-table-invoice-pdf th, .panel-table-invoice-pdf td { border-collapse:collapse;padding:3px; }
+        .border-lbr-invoice-pdf { border:1px solid #ddd;border-top:0px; }
+        .text-right-invoice-pdf { text-align:right; }
+        .label-invoice-pdf { font-weight:bold; }  
+        li { margin: 2px 0; }     
+        @page{ 
+            @bottom-right { content:"Page " counter(page) " of " counter(pages);font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:14px; }
+            @bottom-left { content:"{!now}";font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:14px; } 
+        }
+    </style>
+</head>
+
+<div class="main-invoice-pdf">
+    <apex:image url="{!envPath}/img/logo.png" alt="logo" height="75px" />
+    
+    <!--Display the appropriate image for the Exam Type -->
+    <div style="text-align: right">
+       <apex:image url="{!envPath}/img/FRM_Part_1.png" alt="logo" height="50px" rendered="{! ExamName = 'FRM Part 1' }"/>  
+       <apex:image url="{!envPath}/img/FRM_Part_2.png" alt="logo" height="50px" rendered="{! ExamName = 'FRM Part 2' }"/>
+       <apex:image url="{!envPath}/img/ERP.png" alt="logo" height="50px" rendered="{! ExamName = 'ERP' }"/>
+    </div>
+    
+    <div class="section-box-invoice-pdf">
+      <span class="panel-header-invoice-pdf"><b>Admission Ticket - <span stype="padding-left:1em;" ><apex:outputText value="{! examDateString  }" /></span> </b></span>
+    </div>
+    
+    <apex:outputPanel layout="block" styleClass="section-box-invoice-pdf" rendered="{! ExamName = 'FRM Part 1' || ExamName = 'FRM Part 2' || isADA || isRAD  }">
+        <span class="panel-header-exam-time-pdf blue"><b>Exam Time: <span stype="padding-left:1em;" > <apex:outputText value="{! examTime  }" /></span></b></span>            
+    </apex:outputPanel>
+    
+    <!-- ERP is 8-hour exam and has both morning and afternoon sessions -->
+    <apex:outputPanel rendered="{! ExamName = 'ERP'  }">
+        <div class="section-box-invoice-pdf">
+            <span class="panel-header-exam-time-pdf blue"><b>A.M. Exam Time: <span stype="padding-left:1em;" ><apex:outputText value="{! morningExamTime  }" /></span> </b></span>  
+        </div>
+        <div class="section-box-invoice-pdf">
+            <span class="panel-header-exam-time-pdf blue"><b>P.M. Exam Time: <span stype="padding-left:1em;" > <apex:outputText value="{! afternoonExamTime  }" /></span></b></span>  
+        </div>
+    </apex:outputPanel>
+    <div>
+      You must be <b>checked in and seated by&nbsp;<apex:outputText value="{! doorClosingTimes  }"/></b>&nbsp;when the doors close; as they will not be reopened for candidates who arrive late. 
+    </div> 
+    <div class="blue-divider-invoice-pdf"></div>   
+    
+    <!--Section 3-->
+    
+    <div class="section-box-invoice-pdf">
+        <apex:outputPanel layout="block" styleClass="panel-left-invoice-pdf">
+           <apex:panelGrid columns="2" cellspacing="0" styleClass="panel-table-invoice-pdf" width="100%">
+                <apex:outputText value="GARP ID:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! Contact.GarpId }" />
+                <apex:outputText value="Candidate Name:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! candidateName }" />
+                <apex:outputText value="Exam Site Code:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! Venue.Code }" />
+                <apex:outputText value="Candidate Number:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! eaObj.CandidateId }" />
+                <apex:outputText value="Exam Site Address:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! address1 }" />
+                
+                <apex:outputText value="  " styleClass="label-invoice-pdf" rendered="{! address2 != '' }"/>
+                <apex:outputText value="{! address2 }" rendered="{! address2 != '' }" />
+                
+                <apex:outputText value="  " styleClass="label-invoice-pdf" rendered="{! address3 != '' }"/>
+                <apex:outputText value="{! address3 }" rendered="{! address3 != '' }" />
+                <apex:outputText value="  " styleClass="label-invoice-pdf" rendered="{! address4 != '' }"/>
+                <apex:outputText value="{! address4 }" rendered="{! address4 != '' }" />
+                <apex:outputText value="  " styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! Venue.City } {! Venue.State } {! Venue.Zipcode } {! Venue.Country }"/> 
+                
+                <apex:outputText value="{! examSiteRoomLabel }" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{! examSiteRoom }" />
+                <apex:outputText value="Seat Number:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{!eaObj.seat}" /> 
+           </apex:panelGrid>
+        </apex:outputPanel>
+    </div>
+    <div class="blue-divider-invoice-pdf"></div>
+    <!--Section 4 -->
+    <div class="section-box-invoice-pdf">
+            <span class="blue"><b>Important Exam Day Reminders:</b></span>
+            <br/>
+            <ul>
+            <li> <span class="blue">GARP will provide each candidate with (2) pencils. Do not bring your own writing instruments.</span> </li>
+            <li> <span class="blue"> No watches, cufflinks or erasers are allowed on exam day. </span></li>
+            <li> Please arrive at the Exam site <i>at least one hour</i> before the scheduled start time. If you arrive and are seated after the doors have closed at  <span stype="padding-left:1em;"><apex:outputText value="{! doorClosingTimes  }"/></span>, your exam will not be graded. No exceptions. </li>
+            <apex:variable var="e" value="{! ExamName }" rendered="{! ExamName = 'ERP' }" >
+                <li> ERP Candidates must attend both the AM and PM sessions. You cannot sit for just the PM session. </li>
+            </apex:variable>
+            <li> You must bring a <b>PRINTED</b> 2015 ADMISSION TICKET. No Admission Tickets via a Smartphone app will be considered or allowed. </li>
+            <li> <b>Garp's Identification Policy:</b> Only an original driver's license or passport with a photo will be allowed for entry. A driver's license will only be accepted in the country of issue. </li>
+            <li> Your name as printed above <b>must be EXACTLY the same </b>as the name of your government identification that you will present on Exam Day. No photocopies or expired IDs will be accepted. </li>
+            <li> If a candidate uses a non-authorized calculator at any time during the exam, your exam will not be graded. Be sure to carefully review GARP’s Calculator Policy. </li>
+            <li> All Examination materials - the admission ticket, exam booklet and answer sheet - are the sole property of GARP. As such they will be collected during and after the examination. </li>
+            <li> Carefully review and be aware of all exam violations that can result in your exam not being graded. </li>
+            <li> The <apex:outputText value=" ERP exam is" rendered="{! ExamName = 'ERP' }" />  <apex:outputText value=" FRM Exam(s) are" rendered="{! ExamName != 'ERP' }" /> administered via paper and pencil only. <b>Pens are not allowed.</b> </li> 
+            </ul>
+            Candidates are required to adhere to all published Exam Policies and follow all instructions as announced on Exam Day.  Neither GARP nor an individual testing facility shall be held responsible for stolen, lost or otherwise damaged property.
+    </div>
+    <div style="text-align:center;"><span class="blue"><b>DO NOT WRITE ON THE FRONT OR BACK OF THIS ADMISSION TICKET.</b></span> </div>
+    <div style="text-align:center;"><b>As this would be considered a GARP Exam Violation, and can result in your exam not being graded. </b></div>  
+    
+</div>
+</apex:page>

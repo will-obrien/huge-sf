@@ -1,0 +1,184 @@
+<apex:page standardController="lmscons__Learning_Path_Item__c" extensions="lmscons.LearningPathModuleItemsExt" id="LearningPathItemsPage">
+<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+    <apex:outputPanel id="pageMessages">
+        <!-- <apex:pageMessages /> -->
+    </apex:outputPanel>
+    <apex:outputPanel rendered="{!NOt(exRecords)}">
+ 		<a href="#" onClick="history.go(-1); return false;">Back</a>
+ 	</apex:outputPanel>
+
+	<apex:outputPanel id="Results">
+	<apex:form id="LearningPathItemsForm" rendered="{!exRecords}">
+
+    <apex:actionfunction name="previousCall" action="{!previous}" status="busyStatus" />
+    <apex:actionfunction name="nextCall" action="{!next}" status="busyStatus" />
+    <apex:actionFunction name="changePagesize" action="{!changePagesize}" rerender="Results" status="sortStatus"/>
+    <apex:actionfunction name="afdoSearch" action="{!searchByKey}" status="busyStatus" reRender="Results,pageMessages" />
+
+
+    <apex:actionStatus id="sortStatus">
+        <apex:facet name="start">
+            <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+                            borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif"
+                            Message="{!$Label.ConsumerUser_Message_Processing}" messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+        </apex:facet>
+        <apex:facet name="stop">
+        </apex:facet>
+    </apex:actionStatus>
+
+
+    <apex:actionStatus startText=""  id="busyStatus"
+            onStart="document.body.style.cursor = 'wait';return true;"
+            onStop="document.body.style.cursor = 'default';return true;" >
+    </apex:actionStatus>
+
+
+<apex:pageBlock mode="edit" title="Learning Path Item Edit">
+    <apex:pageBlockButtons >
+        <apex:commandButton action="{!Save}" value="Save"/>
+        <!-- <apex:commandButton action="{!saveNew}" value="Save & New"/> -->
+        <apex:commandButton action="{!cancel}" value="Cancel"/>
+    </apex:pageBlockButtons>
+    <apex:inputHidden value="{!lmscons__Learning_Path_Item__c.lmscons__Learning_Path__c}" id="tpid"/>
+
+                  <apex:outputPanel id="opPrevNextup">
+                      <table width="100%" id="tablePrevNextup" >
+                          <tr >
+                          	 <td width="50%" align="left" >
+
+                                      <span id="bySearchKeyWord" >
+                                        Search:&nbsp;<apex:inputText id="SearchKeyWord" value="{!searchKeyWord}" maxlength="200" style="width:200px;font-size:8pt" onkeypress="return handleKeyPress(event)"></apex:inputText>
+                                        &nbsp;
+                                        <apex:commandButton value="{!$Label.ConsumerUser_value_Search}" action="{!searchByKey}" id="go"  status="busyStatus" reRender="Results,pageMessages"/>
+                                      </span>
+
+                          	 </td>
+                             <td width="50%" align="right" >
+
+                                <font style="font-size:8.5pt">
+                                <apex:image url="/img/search_prevarrow.gif" styleClass="prevArrow" rendered="{!(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:image url="/img/search_prevarrow_disabled.gif" styleClass="prevArrow" rendered="{!NOT(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:outputlink onclick="javascript: return fillCurrentPage('prev');" disabled="{!NOT(hasPrevious)}" title="{!$Label.ConsumerUser_title_Previous_Page}" style="color:{!If(hasPrevious,'#000000','#999999')}" >{!$Label.ConsumerUser_oT_Previous_Page}</apex:outputlink>&nbsp;&nbsp;({!PageStartIndex}-{!PageStopIndex})&nbsp;&nbsp;<apex:outputlink onclick="javascript:return fillCurrentPage('next');" disabled="{!NOT(hasNext)}" title="{!$Label.ConsumerUser_title_Next_Page}" style="color:{!If(hasNext,'#000000','#999999')}">{!$Label.ConsumerUser_oT_Next_Page}</apex:outputlink>
+                                <apex:image url="/img/search_nextarrow_disabled.gif" styleClass="nextArrow" rendered="{!NOT(hasNext)}" alt="{!$Label.ConsumerUser_oT_No_Next_Page}" title="{!$Label.ConsumerUser_oT_No_Next_Page}"/>
+                                <apex:image url="/img/search_nextarrow.gif" styleClass="nextArrow" rendered="{!(hasNext)}" alt="{!$Label.ConsumerUser_oT_Next_Page}" title="{!$Label.ConsumerUser_oT_Next_Page}"/>
+                                </font>
+
+                              </td>
+                          </tr>
+                      </table>
+                  </apex:outputpanel>
+
+    <apex:dataTable width="100%" value="{!Modules}" var="m" id="AllModules" cellspacing="0" cellpadding="0" border="0" styleClass="list" rowClasses="dataRow even, dataRow odd" headerClass="headerRow" onrowmouseout="if (window.hiOff){hiOff(this);}" onrowmouseover="if (window.hiOn){hiOn(this);}">
+
+        <apex:column width="10">
+            <apex:facet name="header" >
+                <apex:inputCheckbox id="selectall" selected="false" onclick="jQuery('[id*=LearningPathItemsForm]').find(':checkbox').attr('checked', jQuery(this).attr('checked'))">Select All</apex:inputCheckbox>
+            </apex:facet>
+            <apex:inputCheckbox selected="false" value="{!m.checked}"/>
+        </apex:column>
+
+	    <apex:column >
+	        <apex:facet name="header">Title</apex:facet>
+            <apex:OutputLink target="_blank" value="/{!m.module.Id}">{!m.module.lmscons__Title__c}</apex:OutputLink>
+	    </apex:column>
+	    <apex:column >
+	        <apex:facet name="header">Module Id</apex:facet>
+            <apex:OutputField value="{!m.module.Name}" />
+	    </apex:column>
+	    <apex:column >
+	    	<apex:facet name="header">Last Modified Date</apex:facet>
+            <apex:OutputField value="{!m.module.LastModifiedDate}" />
+	    </apex:column>
+	    <apex:column >
+	    	<apex:facet name="header">Last Modified By</apex:facet>
+            <apex:OutputField value="{!m.module.LastModifiedById}" />
+	    </apex:column>
+	    <apex:column >
+	    	<apex:facet name="header">Sequence</apex:facet>
+            <apex:inputText value="{!m.Sequence}" />
+	    </apex:column>
+
+
+    </apex:dataTable>
+
+                  <apex:outputPanel id="opPrevNext">
+                      <table width="100%" id="tablePrevNext" >
+                          <tr >
+
+                             <td width="100%" align="right" >
+
+                                <font style="font-size:8.5pt">
+                                <apex:image url="/img/search_prevarrow.gif" styleClass="prevArrow" rendered="{!(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:image url="/img/search_prevarrow_disabled.gif" styleClass="prevArrow" rendered="{!NOT(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:outputlink onclick="javascript: return fillCurrentPage('prev');" disabled="{!NOT(hasPrevious)}" title="{!$Label.ConsumerUser_title_Previous_Page}" style="color:{!If(hasPrevious,'#000000','#999999')}" >{!$Label.ConsumerUser_oT_Previous_Page}</apex:outputlink>&nbsp;&nbsp;({!PageStartIndex}-{!PageStopIndex})&nbsp;&nbsp;<apex:outputlink onclick="javascript:return fillCurrentPage('next');" disabled="{!NOT(hasNext)}" title="{!$Label.ConsumerUser_title_Next_Page}" style="color:{!If(hasNext,'#000000','#999999')}">{!$Label.ConsumerUser_oT_Next_Page}</apex:outputlink>
+                                <apex:image url="/img/search_nextarrow_disabled.gif" styleClass="nextArrow" rendered="{!NOT(hasNext)}" alt="{!$Label.ConsumerUser_oT_No_Next_Page}" title="{!$Label.ConsumerUser_oT_No_Next_Page}"/>
+                                <apex:image url="/img/search_nextarrow.gif" styleClass="nextArrow" rendered="{!(hasNext)}" alt="{!$Label.ConsumerUser_oT_Next_Page}" title="{!$Label.ConsumerUser_oT_Next_Page}"/>
+                                </font>
+
+                              </td>
+                          </tr>
+                      </table>
+                  </apex:outputpanel>
+
+</apex:pageBlock>
+
+</apex:form>
+</apex:outputPanel>
+
+<script>
+jQuery.noConflict();
+
+
+	var intSelectedItemsCount = 0;
+
+    function fillCurrentPage(btnClicked)
+    {
+
+        //alert(' btnClicked ' + btnClicked);
+
+        var blnProceed = true;
+        if(intSelectedItemsCount!=0) {
+            if (confirm('{!$Label.ConsumerUser_js_1}'))
+                blnProceed = true;
+            else
+                blnProceed = false;
+        }
+
+        if (blnProceed) {
+            intSelectedItemsCount = 0;
+            //document.getElementById('LearningUserPageId:LearningUserFormId:resultsDataTable:selectall').checked = false;
+            if(btnClicked == 'prev' )
+            {
+                //intGlobalPageCounter--;
+                previousCall();
+                //setHeaderCheckBox();
+                return false;
+            }
+            else if (btnClicked == 'next' )
+            {
+                //intGlobalPageCounter++;
+                //alert(' calling nextCall ');
+                nextCall();
+                //setHeaderCheckBox();
+                return false;
+            }
+            else {
+                changepagesize();
+            }
+        }
+        return false;
+    }
+
+      window.onkeypress = handleKeyPress;
+      function handleKeyPress(e){
+        var eventInstance = window.event ? event : e;
+        //alert('entering key enter');
+        var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+        if (keyCode == 13){
+            afdoSearch();
+            return false;
+        }
+      }
+
+</script>
+</apex:page>

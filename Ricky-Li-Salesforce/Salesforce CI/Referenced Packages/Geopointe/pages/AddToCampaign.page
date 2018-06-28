@@ -1,0 +1,219 @@
+<apex:page controller="geopointe.AddToCampaign" sidebar="{!userSettings.geopointe__Hide_Sidebar__c = false}" showHeader="false" standardStylesheets="true" tabStyle="Lead" title="Geopointe - Add To Campaign">
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/><!-- Geopointe common css -->
+	
+	<style>
+		.vAlignTop{
+			vertical-align:top !important;
+		}
+	</style>
+	
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}" /> <!-- jQuery UI -->
+	<apex:includeScript value="{!$Resource.geopointe__GeopointeJS}" /> <!-- Geopointe universal functions -->
+	<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics --> 
+	
+	<apex:pageMessages id="pageMessages"></apex:pageMessages>
+
+	<apex:form >
+		<apex:outputPanel id="campaignselector" style="width:700px;" layout="block">
+			
+			<apex:pageBlock rendered="{!Not(Completed) && !IDsFiguredOut && campaignHandlersEmpty && hasMessages = false}">
+				
+				<apex:outputPanel style="margin: 10px 20px; font-size" layout="block">
+					<apex:pageMessage severity="info" strength="2" title="Objects have no Lead or Contact Relationship" summary="We could not determine a way to obtain Leads or Contacts using the records selected for Add to Campaign.">
+					</apex:pageMessage>
+				</apex:outputPanel>
+				
+			</apex:pageBlock>
+			
+			<apex:pageBlock rendered="{!Not(Completed) && !IDsFiguredOut && !campaignHandlersEmpty}">
+				
+				<apex:pageBlockButtons location="bottom">
+					<apex:commandButton value="Continue" action="{!processCampaignHandlers}" rerender="campaignselector,pageMessages" onclick="geopointeAjaxStart('body', 'Retrieving Records');" oncomplete="geopointeAjaxEnd();"/>
+				</apex:pageBlockButtons>
+				
+				<apex:outputPanel style="margin: 10px 20px; font-size" layout="block">
+					<apex:pageMessage severity="confirm" strength="2" title="Other Objects Detected" summary="How should Geopointe determine the Leads and Contacts to Add to the Campaign?">
+					</apex:pageMessage>
+				</apex:outputPanel>
+				
+				<apex:outputPanel style="margin: 10px 0px;" layout="block">
+					
+					<apex:pageBlockSection title="{!IF(numberOfLeads > 0,'Leads','')}  {!IF(AND(numberOfLeads > 0,numberOfContacts > 0),' & ','')}  {!IF(numberOfcontacts > 0,'Contacts','')}" columns="1" collapsible="false" rendered="{!OR(numberOfLeads > 0, numberOfContacts > 0)}">
+						{!IF(numberOfLeads > 0,TEXT(numberOfLeads) & ' Leads','')}  {!IF(AND(numberOfLeads > 0,numberOfContacts > 0),' and ','')}  {!IF(numberOfcontacts > 0,TEXT(numberOfContacts) & ' Contacts','')}
+						were selected based on the mapped data. These will be automatically added to the Campaign selected in the next step.
+					</apex:pageBlockSection>
+					
+					<apex:repeat value="{!campaignHandlers}" var="chKey">
+						<apex:pageBlockSection title="{!chKey}" columns="1" collapsible="false">
+							<apex:pageBlockTable value="{!campaignHandlers[chKey]}" var="ch"> 
+								<apex:column headerValue="Use?" styleClass="vAlignTop">
+									<div data-isOCR="{!ch.isOCR}" class="useCHcheckbox"><apex:inputCheckbox value="{!ch.selected}"/></div>
+								</apex:column>
+								<apex:column headerValue="Relationship">
+									<apex:outputText value="All {!ch.lookupObjectLabelPlural} identified by the '{!ch.lookupFieldLabel}' field on {!ch.objectLabel}" rendered="{!ch.handlerTypeName == 'LOOKUP'}"/>
+									<apex:outputText value="All {!ch.childObjectLabelPlural} related to these {!ch.objectLabelPlural} by the '{!ch.childRefFieldLabel}' field on {!ch.childObjectLabel}" rendered="{!AND(NOT(ch.isOCR),ch.handlerTypeName == 'CHILD')}"/>
+								
+									<apex:outputPanel rendered="{!AND(ch.isOCR,ch.handlerTypeName == 'CHILD')}">
+										All <strong>Opportunity Contact Roles</strong> with the selected Roles:<br/>
+										
+										<div style="margin-top:4px;" >
+											<a href="#" id="selectAllLink">Select All</a> | <a href="#" id="deselectAllLink">Deselect All</a>&nbsp;&nbsp; - &nbsp;
+											
+											<apex:inputCheckBox value="{!primaryOCRonly}"/> Primary Contacts only with the selected roles: 
+											
+										</div>
+										<span id="oppContactRoles">
+											<apex:selectCheckboxes value="{!selectedOppContactRoles}" layout="pageDirection">
+	            								<apex:selectOptions value="{!oppContactRoles}"/>
+											</apex:selectCheckBoxes>
+										</span>
+									</apex:outputPanel>
+								
+								</apex:column>
+								<apex:column headerValue="Relationship Type" styleClass="vAlignTop">
+									<div style="margin-top:2px;">{!ch.handlerTypeName}</div>
+								</apex:column>
+							</apex:pageBlockTable> 
+						</apex:pageBlockSection>
+					</apex:repeat>
+					
+				</apex:outputPanel>
+			</apex:pageBlock>
+			
+			<apex:pageBlock rendered="{!Not(Completed) && IDsFiguredOut}">
+			
+				<apex:pageBlockButtons location="bottom">
+					<apex:commandButton value="Create Members" action="{!save}" rerender="campaignselector" disabled="{!Not(createmembers)}" onclick="geopointeAjaxStart('body','Updating Members...');" oncomplete="geopointeAjaxEnd();"/>
+				</apex:pageBlockButtons>
+				
+				<apex:pageBlockSection title="Select a Campaign" collapsible="false" columns="2">
+				
+					<apex:selectList value="{!SelectedCampaign}" multiselect="false" size="1">
+						<apex:selectOptions value="{!CampaignSList}"/>
+						<apex:actionSupport event="onchange"   rerender="campaignselector" action="{!setCampaign}" onsubmit="geopointeAjaxStart('body');" oncomplete="geopointeAjaxEnd();"/>
+					</apex:selectList>
+					<apex:outputText ></apex:outputText>
+					
+					<apex:pageBlockSectionItem rendered="{!SelectedCampaign!=''}">
+						<apex:outputLabel value="Campaign Name" />
+						<apex:outputPanel >
+							<apex:outputText value="{!SelectedCampaignDetails.cname}" rendered="{!SelectedCampaignDetails.id = ''}"/>
+							<apex:outputLink value="/{!SelectedCampaignDetails.id}" rendered="{!SelectedCampaignDetails.id != ''}" target="_blank">
+								<apex:outputText value="{!SelectedCampaignDetails.cname}" />
+							</apex:outputLink>
+						</apex:outputPanel>
+					</apex:pageBlockSectionItem> 
+					<apex:pageBlockSectionItem rendered="{!SelectedCampaign!=''}">
+						<apex:outputLabel value="Number of Leads" />
+						<apex:outputText value="{!SelectedCampaignDetails.numleads}" />
+					</apex:pageBlockSectionItem>
+					
+					<apex:pageBlockSectionItem rendered="{!SelectedCampaign!=''}">
+						<apex:outputLabel value="Type" />
+						<apex:outputText value="{!SelectedCampaignDetails.ctype}" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!SelectedCampaign!=''}">
+						<apex:outputLabel value="Number of Converted Leads" />
+						<apex:outputText value="{!SelectedCampaignDetails.numconvertedleads}" />
+					</apex:pageBlockSectionItem>
+					
+					<apex:pageBlockSectionItem rendered="{!SelectedCampaign!=''}">
+						<apex:outputLabel value="Status" />
+						<apex:outputText value="{!SelectedCampaignDetails.cstatus}" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!SelectedCampaign!=''}">
+						<apex:outputLabel value="Number of Contacts" />
+						<apex:outputText value="{!SelectedCampaignDetails.numcontacts}" />
+					</apex:pageBlockSectionItem>
+				</apex:pageBlockSection>
+                    
+				<apex:pageBlockSection title="Add to Campaign Details" collapsible="false" columns="1" rendered="{!SelectedCampaign!=''}" >                     
+					<apex:pageMessage severity="confirm" strength="1" title="All records will be created as new Campaign Members" rendered="{!NumberofMembersToUpdate==0}">
+						<b>{!NumberofMemberstoAdd} member(s)</b> will be added to this campaign. <br/>
+						<apex:pageBlockSectionItem >
+							<apex:outputLabel value="Status for new members" for="SCMStatus" rendered="{!SelectedCampaign!=''}"/>
+							<apex:selectList style="margin: 0 0 0 5px;" value="{!SelectedCampaignMemberStatus}" multiselect="false" size="1" id="SCMStatus">
+								<apex:selectOptions value="{!CampaignMemberStatusList}"/>
+							</apex:selectList>
+						</apex:pageBlockSectionItem> 
+					</apex:pageMessage>
+					<apex:pageMessage severity="info" strength="1" title="Existing members found in this Campaign" rendered="{!NumberofMembersToUpdate!=0}">
+						<b>{!NumberofMemberstoAdd} member(s)</b> will be added to this campaign. <br/>
+						<apex:pageBlockSectionItem >
+							<apex:outputLabel value="Status for new members" for="SCMStatus"/>
+							<apex:selectList style="margin: 0 0 0 5px;" value="{!SelectedCampaignMemberStatus}" multiselect="false" size="1" id="SCMStatus">
+								<apex:selectOptions value="{!CampaignMemberStatusList}"/>
+							</apex:selectList>
+						</apex:pageBlockSectionItem> 
+						<br/><br/>
+						<b>{!NumberofMembersToUpdate} member(s)</b> exist in the current campaign.<br/>
+						<apex:pageBlockSectionItem >
+							<apex:outputLabel value="Overwrite the Status for existing members " for="OS"/>
+							<apex:inputCheckbox style="margin: 0 0 0 5px;" value="{!OverwriteStatus}" id="OS"/>
+						</apex:pageBlockSectionItem>
+					</apex:pageMessage>    
+				</apex:pageBlockSection>
+			
+			</apex:pageBlock> 
+			
+			<apex:pageBlock rendered="{!Completed}">
+				<apex:pageMessage severity="confirm" strength="1" title="Add to Campaign was successful">
+					<apex:outputPanel rendered="{!(NumberofMemberstoAdd>0)}"><b>{!NumberofMemberstoAdd} member(s)</b> were added to this campaign. <br/></apex:outputPanel>
+					<apex:outputPanel rendered="{!(NumberofMemberstoUpdate>0) && OverwriteStatus}"><b>{!NumberofMembersToUpdate} member(s)</b> were updated in this campaign. <br/></apex:outputPanel>
+					<apex:outputPanel rendered="{!NOT(OverwriteStatus)}"><b>0 member(s)</b> were updated in this campaign because you opted not to overwrite statuses for existing members. <br/></apex:outputPanel>
+					<br/>Go to <apex:commandLink target="_blank" action="{!linktoCampaign}">{!SelectedCampaignDetails.cname}</apex:commandlink>
+				</apex:pageMessage>
+			</apex:pageBlock>
+			
+		</apex:outputPanel>
+	</apex:form>
+	
+	<script type="text/javascript">
+		//Create event listener for select all opp contact roles functionality
+		var j$ = jQuery.noConflict();
+		
+		j$(document).ready(function(){
+			//Add toggle even listner for show hide links
+			j$("#selectAllLink").click(function(e){
+				j$("#oppContactRoles input").prop('checked', true);
+				j$(".useCHcheckbox[data-isOCR='true'] input").prop('checked', true);
+				e.preventDefault();
+			});
+			j$("#deselectAllLink").click(function(e){
+				j$("#oppContactRoles input").prop('checked', false);
+				j$(".useCHcheckbox[data-isOCR='true'] input").prop('checked', false);
+				e.preventDefault();
+			});
+			
+			//if someone choose the campaing handler for OCR, select all roles
+			j$(".useCHcheckbox").click(function(){
+				//Determine if this is for OCRs and update contact role checkboxes
+				if(j$(this).attr('data-isOCR') == 'true'){
+					var selected = j$(this).find("input").is(':checked');
+					j$("#oppContactRoles input").prop('checked', selected);
+				}
+			});
+			
+			//If user changes contact role selections ensure the use check box is updated appropriately
+			j$("#oppContactRoles input").click(function(){
+				var rolesSelected = 0;			
+				
+				//determine number of selected roles
+				j$("#oppContactRoles input").each(function(){
+					if(j$(this).is(':checked')){
+						rolesSelected++;
+					}
+				});
+				
+				//Update use OCR checkfox
+				if(rolesSelected == 0){
+					j$(".useCHcheckbox[data-isOCR='true'] input").prop('checked', false);
+				}else{
+					j$(".useCHcheckbox[data-isOCR='true'] input").prop('checked', true);
+				}
+			});
+		});
+	</script>
+</apex:page>

@@ -1,0 +1,113 @@
+<!-- Jonathan Hersh & Helder Rocha -- jhersh & hrocha at salesforce.com - 3/23/2010 -->
+<apex:page controller="ComboPack.chatterConnector" showheader="{!!showAbout}" tabstyle="Chatter_Connector__tab">
+
+<apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterConnector, 'styles.css' )}" />
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterConnector, 'scripts.js' )}" />
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterConnector, 'jquery.min.js' )}" />
+
+<style type="text/css">
+    .selected{
+        background: #E1F0F5 url({!URLFOR( $Resource.ComboPack__chatterConnector, 'chatter_selected.png' )}) no-repeat right bottom;
+    }  
+</style>
+
+<apex:sectionheader title="Chatter Connector" rendered="{!!showAbout}" />
+
+<apex:form id="theForm" rendered="{!!showAbout}">
+    <apex:pageblock tabstyle="Chatter_Connector__tab">
+        <div id="form_filter">
+            Show 
+            <apex:selectList value="{!whichUsers}" multiselect="false" size="1">
+                <apex:selectOptions value="{!UserTypes}" />
+                <apex:actionsupport event="onchange" action="{!setupSetController}" rerender="results" />
+            </apex:selectList>
+            in
+            <apex:selectList value="{!whichList}" multiselect="false" size="1">
+                <apex:selectOptions value="{!UserLists}" />
+                <apex:actionsupport event="onchange" action="{!setupSetController}" rerender="results" />
+            </apex:selectList>
+            . 
+            <apex:selectList value="{!maxUsers}" multiselect="false" size="1">
+                <apex:selectOptions value="{!UserLimits}" />
+                <apex:actionsupport event="onchange" action="{!setupSetController}" rerender="results" />
+            </apex:selectList>
+            people per page, ordered 
+            <apex:selectList value="{!whichOrder}" multiselect="false" size="1">
+                <apex:selectOptions value="{!UserOrders}" />
+                <apex:actionsupport event="onchange" action="{!setupSetController}" rerender="results" />
+            </apex:selectList>
+            .
+        </div>
+
+    </apex:pageblock>
+    
+    <apex:pageblock id="results">
+        <apex:pageblockbuttons >
+            <!-- Regular HTML buttons because commandbutton always refreshes the page -->
+            <input type="button" class="btn" value="Select All" style="float: left; display: {!if( userList.size > 0, 'block', 'none' )}" onclick="selectAll();" />
+            <input type="button" class="btn" value="Select None" style="float: left; display: {!if( userList.size > 0, 'block', 'none' )}" onclick="deselectAll();" /> <!-- Call javascript to select all/none -->
+            <apex:commandbutton value="Follow Selected" rendered="{!userList.size > 0}" action="{!massFollow}" rerender="results"/>
+            <apex:commandbutton value="Unfollow Selected" rendered="{!userList.size > 0}" action="{!massUnfollow}" rerender="results"/>
+        </apex:pageblockbuttons>
+        
+        <apex:outputPanel id="empty_list" layout="block" rendered="{!userList.size = 0}">
+            <span>We couldn't find anyone.</span>
+            <div id="empty_block" class="result_block" style="clear: both;">
+                <span class="name"><a href="#no_one">Saasy</a></span>
+                <div class="profile_pic" style="width: 64px; height: 64px;">
+                    <img src="{!URLFOR( $Resource.chatterConnector, 'saasy.png' )}" height="64" width="64" class="results_user_pic"/>
+                </div>
+                <div class="profile_detail">
+                    <span class="title">Ninja</span>
+                    <span class="location">Everywhere</span>
+                </div>
+            </div>
+            <span>Nice try Saasy, but that isn't what we're looking for.</span>
+        </apex:outputPanel>
+        
+        <p class="stats" style="display: {!if( userList.size > 0, 'block', 'none' )}">
+            <apex:commandbutton value="Previous" styleclass="nameLinkPrev" action="{!prevPeople}" rerender="results" rendered="{!hasPreviousPage}" />
+            Page <span class="slightlyLessBigFont">{!pageNum}</span> of <span class="slightlyLessBigFont">{!totalPages}</span>
+            <apex:commandbutton value="Next" styleclass="nameLinkNext" action="{!nextPeople}" rerender="results" rendered="{!hasNextPage}"/>
+        </p>
+        
+        <div class="clear"></div>
+            <apex:repeat value="{!userList}" var="u" rendered="{!userList.size >0}" >
+            
+                <div id="{!u.u.id}" class="result_block" onClick="looksGood(this);">
+                    <span class="name"><a href="/{!u.u.id}">{!u.u.name}</a></span>
+                    <div class="profile_pic">
+                        <c:userPhoto uid="{!u.u.id}" photoStr="{!u.u.smallphotourl}" height="64" width="64" styleclass="results_user_pic" />
+                        <apex:inputcheckbox value="{!u.checked}" styleclass="profileCheck" />
+                    </div>
+                    <div class="profile_detail">
+                        
+                        <span class="title">{!u.u.title}</span>
+                        <span class="location">{!u.u.city}{!if( AND( LEN( u.u.city ) > 0, LEN( u.u.state ) > 0 ), ', ', '' )}{!u.u.state}</span>
+                        <span class="followers"><!--<span class="num">{!u.followers}</span> followers-->
+                            <span class="heart" title="I'm Following" style="display: {!if( u.wefollow , 'inline', 'none')}">I'm following &hearts;</span>
+                        </span>
+                        <span class="following"><!--<span class="num">{!u.following}</span>-->
+                            <span class="heart" title="Follows Me" style="display: {!if( u.followsUs , 'inline', 'none')}">following me &hearts;</span>
+                        </span>
+                    </div>
+                </div>
+            </apex:repeat>
+        
+        <div class="clear"></div> 
+
+    </apex:pageblock>
+    
+    <div class="about">
+            <apex:outputlink value="javascript:void(0)" onclick="launchAboutBox();">About</apex:outputlink>
+    </div>
+
+</apex:form>
+
+<apex:pageblock rendered="{!showAbout}" tabstyle="Chatter_Connector__tab">
+        <apex:pageblocksection columns="1">
+            <p>Chatter Connector is proudly brought to you by <a href="mailto:jhersh@salesforce.com">Jonathan Hersh</a> and <a href="mailto:hrocha@salesforce.com">Helder Rocha</a>. Feedback? Email us!</p>
+        </apex:pageblocksection>
+</apex:pageblock>
+
+</apex:page>

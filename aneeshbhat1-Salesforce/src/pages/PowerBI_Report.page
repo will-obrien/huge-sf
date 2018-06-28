@@ -1,0 +1,70 @@
+<apex:page showHeader="true" controller="PowerBIController" action="{!redirectOnCallback}">
+
+<html>
+
+<head>
+    <apex:stylesheet value="{!URLFOR($Resource.LDS_Resource, 'assets/styles/salesforce-lightning-design-system-vf.min.css')}" />
+    <apex:includeScript value="{!$Resource.PBIJS}"/>
+</head>
+<apex:form >
+<apex:actionFunction name="refreshAccessToken" action="{!refreshAccessToken}"/>
+<apex:actionFunction name="autoLogin" action="{!autoLogin}"/>
+</apex:form>
+    <div id="myReport" powerbi-access-token="{!PBIaccess_token}" style="height: 800px;"/>
+<script>
+
+let accessToken = '{!PBIaccess_token}';
+let refreshToken = '{!PBIrefresh_token}';
+let expires_on = '{!PBIexpires_on}';
+
+window.onload = function() {
+    debugger;
+let expiresOn = parseInt(expires_on);
+let currentTime = Date.now()/1000;
+    if(!accessToken || currentTime > expiresOn)
+    {
+        autoLogin();
+    } else if(expiresOn <= currentTime)
+           {
+                refreshAccessToken();
+                location.reload(true);
+           }
+ }
+    
+    const basicFilter= {
+          $schema: "http://powerbi.com/product/schema#basic",
+          target: {
+                    table: "Interest (3)",
+                    column: "MarketCode"
+                  },
+          operator: "In",
+          values: ['BRS','ARB']
+        }
+
+var embedConfiguration = {
+
+    type: 'report',
+    pageName: 'Page 2',
+    id: '894b5e84-daae-4ca4-9a63-440aa95f19a5',
+    embedUrl: 'https://app.powerbi.com/reportEmbed',
+    settings: {
+
+            filterPaneEnabled: false,
+            navContentPaneEnabled: true
+        }
+};
+powerbi.accessToken = '{!PBIaccess_token}';
+
+var element = document.getElementById('myReport');
+
+var report = powerbi.embed(element, embedConfiguration);
+report.on('loaded', event => {
+  report.getFilters()
+    .then(filters => {
+      filters.push(basicFilter);
+      return report.setFilters(filters);
+    });
+});
+</script>
+</html>
+</apex:page>

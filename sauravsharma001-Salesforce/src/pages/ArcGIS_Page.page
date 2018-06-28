@@ -1,0 +1,253 @@
+<apex:page StandardController="Case" extensions="CaseGeocodeController" showHeader="false" sidebar="false" standardStyleSheets="false" cache="false">
+
+            <title>Address Locator</title>
+            <apex:stylesheet value="{!URLFOR($Resource.publicAssets,'css/reset.css')}" />  
+            <link href='//serverapi.arcgisonline.com/jsapi/arcgis/2.4/js/dojo/dijit/themes/tundra/tundra.css' rel='stylesheet' type='text/css' />
+            <link rel="stylesheet" href="//serverapi.arcgisonline.com/jsapi/arcgis/3.3/js/esri/css/esri.css" />
+            <script type="text/javascript" src="//serverapi.arcgisonline.com/jsapi/arcgis?v=2.4"></script>
+            <apex:includeScript value="{!URLFOR($Resource.publicAssets,'js/jquery.min.js')}" />   
+            <apex:includeScript value="{!URLFOR($Resource.publicAssets,'js/handlebars-1.0.rc.1.js')}" />
+            <apex:includeScript value="{!URLFOR($Resource.publicAssets,'js/handlebars.helpers.js')}" />
+            <apex:stylesheet value="{!URLFOR($Resource.publicAssets,'css/style.css')}" /> 
+           
+           <!-- If Customer is viewing this page, then he will only able to see the map not the related cases -->
+            <apex:outputPanel layout="none" rendered="{!$Profile.Name == 'Customer Portal user'}">
+                <style>
+                    map {
+                        width:99%;               
+                    }
+                </style>
+            </apex:outputPanel>   
+            <span class="tundra">
+            
+            <!-- Block containing Hampton Map -->
+                <div id="map" class="shadow roundedCorners">
+                
+                </div>
+           <!-- Block containing Related Cases -->     
+               <apex:outputPanel layout="none" rendered="{!$Profile.Name != 'Customer Portal user'}">   
+                    <div id="list" class="shadow roundedCorners">
+                        <ul id ="case-list"></ul>
+                    </div>
+                </apex:outputPanel>
+            </span>
+            
+            <script>
+                String.prototype.trunc = function(n) {
+                      return this.substr(0, n - 1);
+                };
+            </script>
+            
+            <!-- a template for displaying the related cases -->
+            <script id="template" type="text/x-handlebars-template">
+                
+                    {{#each this}}  
+                    <li>
+                       <span class='x-left'><a href='/{{Id}}' target='_blank'>{{CaseNumber}}</a></span><span class='x-right'>{{CreatedDateString__c}}</span><br />
+                        <span class='x-left'>Priority: {{Priority}}</span><span class='x-right'>{{Status}}</span> <br />
+                        <hr class='hr-line' />
+                        Address: {{Street__c}} <br />
+                        <span title='{{Subject}}'></span> <br />
+                        <br />
+                        <a class="button x-left" onclick="locate({{Address_X__c}},{{Address_Y__c}})">Locate</a>
+                        <a  class="button x-right" onclick="if(!confirm('Do you want to set the Primary Case field of the {!Case.casenumber} to the Case Number of the designated similar Case {{CaseNumber}}')){return false;}else{closeDupliacte('{{Id}}','{!Case.id}')}">Make this the parent</a>
+                    
+                    </li>
+                    {{/each}}   
+                
+            </script>
+            <script type="text/javascript">
+                if ( !Array.prototype.forEach ) {
+                    Array.prototype.forEach = function(fn, scope) {
+                        for(var i = 0, len = this.length; i < len; ++i) {
+                            fn.call(scope, this[i], i, this);
+                        }
+                    }
+                }
+                var delay = (function(){
+                    var timer = 0;
+                    return function(callback, ms){
+                        clearTimeout(timer);
+                        timer = setTimeout(callback, ms);
+                    };
+                })();
+                
+                dojo.require("esri.map");
+                var map, initExtent;
+                
+                function Init() {
+                    //dojo.style(dojo.byId("map"), { width: dojo.contentBox("map").w + "px", height: (esri.documentBox.h - dojo.contentBox("navTable").h -60) + "px" });
+                    initExtent = new esri.geometry.Extent({"xmin":-8512900,"ymin":4437157,"xmax":-8486800,"ymax":4454138,"spatialReference":{"wkid":3857}});
+                    map = new esri.Map("map",{ extent: initExtent});
+                    
+                    var layer = '{!esriConfig.Layer__c}';
+                    var layerList = layer.split(';');
+                    
+                    layerList.forEach(function(each, index, array) {
+                        map.addLayer(
+                            new esri.layers.ArcGISDynamicMapServiceLayer(each)
+                        );
+                    });
+                    map.setLevel(0.04);                       
+                    var resizeTimer;
+                    dojo.connect(map, 'onLoad', function(theMap) {
+                       
+                
+                        CaseGeocodeController.AddressGeocode("{!Case.id}", map.spatialReference, function(result,event){
+                           if (event.status){
+                                var x = "{!Case.Address_X__c}";
+                                var y = "{!Case.Address_Y__c}";    
+                                var symbol = new esri.symbol.SimpleMarkerSymbol();
+                                symbol.setStyle(esri.symbol.SimpleMarkerSymbol.STYLE_SQUARE);
+                                symbol.setColor(new dojo.Color("#B34066"));
+                                var point;
+                                point = new esri.geometry.Point(x,y, map.SpatialReference); 
+                                
+                                var displayText = "{!Case.Street__c}";
+                               
+                                var font = new esri.symbol.Font(
+                                            "12pt",
+                                            esri.symbol.Font.STYLE_NORMAL, 
+                                            esri.symbol.Font.VARIANT_NORMAL,
+                                            esri.symbol.Font.WEIGHT_BOLD,
+                                            "Helvetica"             
+                                        );
+                                var textSymbol = new esri.symbol.TextSymbol(displayText,font,new dojo.Color("#666633"));
+                                textSymbol.setOffset(0,8);
+                                map.graphics.add(new esri.Graphic(point,symbol));
+                                map.graphics.add(new esri.Graphic(point, textSymbol));
+                                if(point != undefined){
+                                       map.centerAt(point);
+                                }
+                            }
+                        });
+                        <apex:outputPanel layout="none" rendered="{!$Profile.Name != 'Customer Portal user'}">
+                       
+                        <!-- Compiling  the template -->
+                            var source = $("#template").html();
+                            var template = Handlebars.compile(source);
+                            
+                            CaseGeocodeController.GetRecentCases(4, "{!Case.id}" ,function(result,event){
+                               if (event.status){  
+                                var dist=0;
+                                var lat,long;
+                                var lat1 = {!Case.Address_X__c};
+                                var long1 = {!Case.Address_Y__c};
+                                var point2 = new esri.geometry.Point(lat1,long1, map.SpatialReference);
+                                var point1;
+                                for (var i=0 ; i < result.length ; i++) {
+                                    lat = result[i].Address_X__c;
+                                    long = result[i].Address_Y__c;  
+                                    point1 = new esri.geometry.Point(lat,long, map.SpatialReference);
+                                    
+                                    dist = esri.geometry.getLength(point1,point2);
+                                    result[i].distance = dist;    
+                                    if(dist > 1609.34 || lat == null){
+                                        result.splice(i,1);  
+                                        i--;
+                                     }   
+                                 }
+                                  
+                                  
+                               // For Sorting Cases according to proximity   
+                               for (var i=0 ; i < result.length ; i++) {
+                                    for(var j = 1; j < (result.length - i); j++){
+                                        if(result[j-1].distance > result[j].distance)    {
+                                            var a = result[j-1];
+                                            result[j-1] = result[j];
+                                            result[j] = a; 
+                                        }    
+                                     }   
+                                }
+                                
+                                   
+                                result.forEach(function(each, index, array) {
+                                    each.currentCaseId = "{!Case.id}";
+                                    each.shortSubject = ((typeof each.Subject) === 'string' ? each.Subject.trunc(20) : '') + '...' +each.distance;
+
+                                }); 
+                                                                       
+                                    console.log(result);
+                                    var caseListtoHtml = template(result);
+                                    document.getElementById('case-list').innerHTML = caseListtoHtml ;
+                                   
+                                    var points = new esri.geometry.Multipoint(map.spatialReference);
+                                   // var id = "{!Case.Parentid}"; 
+                                    var id = "{!Case.id}"; 
+                                    for (var i=0 ; i < result.length ; i++) {
+                                        var x = result[i].Address_X__c;
+                                        var y = result[i].Address_Y__c;
+                                        var parent = result[i].ParentId;
+                                      
+                                        
+                                        var symbol = new esri.symbol.SimpleMarkerSymbol();
+                                        symbol.setColor(new dojo.Color("#538F50"));
+                                        
+                                        //If it is a child case of the current case
+                                        if(result[i].ParentId == id)
+                                            symbol.setColor(new dojo.Color("#ffff00"));
+                                        
+                                        var point = new esri.geometry.Point(x,y, map.spatialReference); 
+                                        
+                                        var attributes = { 
+                                            
+                                            description: result[i].Description, 
+                                            caseNumber: result[i].CaseNumber,
+                                            caseSubject: result[i].Subject,
+                                            shortSubject: result[i].shortSubject,
+                                            createdBy: result[i].CreatedBy.Name,
+                                            createdDay: result[i].CreatedDateString__c,
+                                            street: result[i].Street__c,
+                                            priority: result[i].Priority,
+                                            status: result[i].Status,
+                                            id: result[i].Id,
+                                            address: result[i].Street__c,
+                                            confirmText:"Do you want to set the Primary Case field of the {!Case.casenumber} to the Case Number of the designated similar Case " + result[i].CaseNumber
+                                        };
+                                        
+                                            
+                                         infoTemplate = new esri.InfoTemplate("${caseNumber} &nbsp; ", 
+                                                                                "<div style='width:240px; line-height:14px;'>\
+                                                                                <span class='x-left'><a href='/${id}' target='_blank'>${caseNumber}</a></span> <span class='x-right'>${createdDay}</span><br />\
+                                                                                <span class='x-left'>Priority: ${priority}</span><span class='x-right'>${status}</span><br />\ \
+                                                                                <hr class='hr-line' />\
+                                                                                Address: ${address} <br />\
+                                                                                <span title='${caseSubject}'></span> <br /><br />\
+                                                                                <a  class='button' onclick='if(!confirm(\"${confirmText}\")){return false;}else{closeDupliacte(\"${id}\",\"{!Case.id}\")}'>Make this the parent</a>\
+                                                                                </div>"
+                                                                                );
+                                    
+                                        var graphic = new esri.Graphic(point, symbol, attributes, infoTemplate);
+                                        map.graphics.add(graphic);
+                                        points.addPoint(point);
+                                    
+                                    }
+                                }
+                            }); 
+                        </apex:outputPanel>
+                            
+                        dojo.connect(dijit.byId('map'), 'resize', function() {
+                            clearTimeout(resizeTimer);
+                            resizeTimer = setTimeout(function() {
+                                map.resize();
+                                map.reposition();
+                            }, 10);
+                        });
+                    });
+                }
+                dojo.addOnLoad(Init);
+                function locate(x2,y2){
+                                   
+                    var point = new esri.geometry.Point(x2,y2, map.spatialReference); 
+                    map.centerAt(point);
+                                
+                }
+                function closeDupliacte(parentId, childId){
+                    CaseGeocodeController.RelateCaseAndClose(parentId, childId ,function(result,event){
+                        alert(result);
+                    });
+                }
+            </script>
+            
+
+</apex:page>

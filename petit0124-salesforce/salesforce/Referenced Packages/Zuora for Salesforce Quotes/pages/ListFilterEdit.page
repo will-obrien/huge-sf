@@ -1,0 +1,413 @@
+<apex:page sidebar="false" title="{!$Label.CONFIG_LIST_FILTER_EDIT}"
+  tabStyle="Z_Quote_Config__tab" controller="zqu.ListFilterEditController">
+
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/ProductSelector-min.css')}"/>
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/Notification-min.css')}" />
+
+  <script type="text/javascript">
+    var $jqn = jQuery.noConflict();
+
+    function closeMe() {
+      $jqn(".filter-popup").css("display", "none");
+    }
+
+    function openLeftObjectModal(position) {
+      $jqn(".left-object-" + position).css("display", "block");
+    }
+
+    function openRightObjectModal(position) {
+      $jqn(".right-object-" + position).css("display", "block");
+    }
+
+    function disableCloseButton() {
+      $jqn(".closeButton").attr("disabled", true);
+    }
+
+    function enableCloseButton() {
+      $jqn(".closeButton").attr("disabled", false);
+    }
+  </script>
+
+  <style type="text/css">
+  .returnLink {
+    margin: 10px;
+  }
+  .inputFilterName {
+    width: 400px;
+  }
+  body .bPageBlock .pbBody .labelCol {
+    color: #4A4A56;
+    padding-top: 10px !important;
+  }
+  
+  body .bPageBlock .pbBody .dataCol {
+    padding-top: 10px !important;
+  }
+  
+  .tertiaryPalette {
+    background-color: #DADFEB !important;
+  }
+  .label {
+    border-collapse: separate;
+    color: #4A4A56;
+    cursor: default;
+    display: inline;
+    font-family: Arial, Helvitica, sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: bold;
+    height: auto;
+    line-height: 16px;
+    text-align: right;
+    width: auto;
+    padding-right: 20px;
+  }
+  /* Remove the border for each page block section */
+  .bPageBlock .detailList tr td {
+    border-bottom: 0px;
+  }
+  .apexp .bPageBlock .detailList .list {
+    width: 95%;
+  }
+  .action-table {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .action-table-add-col {
+    width: 40%;
+  }
+  .action-table tr, .action-table th, .action-table td {
+    border: 0px !important;
+  }
+  .row-protected {
+    background-color: #f8f8f8;
+  }
+  /* At first don't display any popup */
+  .filter-popup {
+    display: none;
+  }
+  .and-word {
+    color: #bbb;
+  }
+  .btn-lookup span {
+    display: none;
+  }
+  .btn-lookup {
+    display: inline-block;
+    width: 21px;
+    height: 20px;
+    margin-bottom: -5px;
+    background-image: url('/img/func_icons/util/lookup20.gif');
+  }
+  .btn-lookup:hover {
+    background-position: -22px 0;
+  }
+  .disabled-field {
+    width: 85%;
+  }
+  .disabled-right-field {
+    width: 65%;
+    margin-left: 5px;
+  }
+  .modal-table td {
+    width: 50%;
+    background-color: inherit !important;
+  }
+  .modal-table {
+    width: 80%;
+    margin: auto;
+  }
+  .full-select-size {
+    min-width: 90%;
+  }
+  /* Override the standard confirm box */
+  .config-box {
+    width: 70%;
+    right: 15%;
+  }
+  .pull-right {
+    text-align: right;
+  }
+  .code {
+    width: 90%;
+    font-family: "Andale Mono", AndaleMono, monospace;
+    border: 1px dashed #ccc;
+    background: #fff;
+    padding: 1em;
+  }
+  </style>
+
+  <c:PageTitle title="{!$Label.CONFIG_LIST_FILTER_EDIT}" subtitle="{!$Label.CONFIG_LIST_FILTER_EDIT_SUBTITLE}" />
+
+  <c:Notification id="msg" />
+
+  <c:StatusModal />
+
+  <apex:outputPanel rendered="{!NOT(isInitSuccess)}">
+    <p>{!errorNoAbstractImplementation}</p>
+  </apex:outputPanel>
+  
+  <apex:form id="main-form" rendered="{!isInitSuccess}">
+
+    <apex:actionStatus startText="" stopText="" id="process" onstart="javascript:displayStatusModal();" onstop="javascript:closeStatusModal();" />
+  
+    <apex:pageBlock >
+
+      <apex:pageBlockSection title="{!$Label.CONFIG_LIST_FILTER_EDIT}" columns="1" collapsible="false">
+      
+        <apex:outputPanel >
+          <apex:outputLabel styleClass="label" value="{!$Label.LIST_ADMIN_FILTER_NAME}" for="filterName" />
+          <apex:inputText value="{!listFilter.zqu__List_Name__c}" id="filterName" styleClass="inputFilterName" />
+        </apex:outputPanel>
+        
+        <apex:outputPanel >
+          <apex:outputLabel styleClass="label" value="{!$Label.LIST_ADMIN_APPLIED_TO}" for="filterAppliedTo" />
+          &nbsp;<apex:outputText value="{!listName}" id="filterAppliedTo" />
+        </apex:outputPanel>
+        
+        <apex:outputLabel styleClass="label" value="{!$Label.LIST_ADMIN_FILTER_LOGIC}" />
+
+        <!-- Filter table -->
+        <apex:pageBlockTable value="{!filters}" var="filter" styleClass="filterTable" id="filter-table">
+
+          <apex:column width="4%" style="text-align: center;" styleClass="{!IF(filter.isProtected, 'row-protected', '')}">
+            <!-- <apex:outputPanel rendered="{!NOT(filter.hasError)}">
+              <div class="and-word">AND</div>
+            </apex:outputPanel> -->
+            <apex:outputPanel rendered="{!filter.hasError}">
+              <apex:image value="{!$Resource.zqu__IconSaveAlert}" title="This filter has error(s) that prevent saving the list filter" />
+            </apex:outputPanel>
+          </apex:column>
+
+          <apex:column width="25%" headerValue="Field" styleClass="{!IF(filter.isProtected, 'row-protected', '')}">
+            <!-- Protected Left Object/Field Value -->
+            <apex:outputText value="{!filter.leftObjectValue} > {!filter.leftFieldValue}" rendered="{!filter.isProtected}" />
+            <!-- Read-only input field containing the left object/field selected -->
+            <apex:inputText id="leftStaticValue" disabled="true" value="{!filter.displayedLeftValue}" rendered="{!NOT(filter.isProtected)}" styleClass="disabled-field" />
+            <!-- hidden content for the left object selection -->
+            <apex:outputPanel styleClass="popup-overlay filter-popup left-object-{!filter.position}">
+              <apex:outputPanel styleClass="config-box">
+                <div class="header">
+                  {!$Label.LIST_ADMIN_INSERT_FIELD}
+                </div>
+                <table class="modal-table">
+                  <tr>
+                    <td>
+                      <p><strong>{!$Label.LIST_ADMIN_FIELD_TYPE}</strong></p>
+                      <!-- Left Object Selection -->
+                      <apex:selectList value="{!filter.leftObjectValue}" size="8" rendered="{!NOT(filter.isProtected)}" styleClass="full-select-size">
+                        <apex:actionSupport event="onchange"
+                                            rerender="{!$Component.leftStaticValue}, {!$Component.leftFieldPicklist}, {!$Component.operatorPicklist}, {!$Component.rightTypePicklist}, {!$Component.rightObjectPicklist}, {!$Component.rightFieldPicklist}, {!$Component.rightStaticValue}, {!$Component.rightLookupField}, {!$Component.leftFieldSelected}"
+                                            status="update-list-sts"
+                                            oncomplete="openLeftObjectModal({!filter.position});removeFirstAnd();"
+                                            action="{!onLeftObjectChange}">
+                          <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+                        </apex:actionSupport>
+                        <apex:selectOptions value="{!leftObjectOptions}" />
+                      </apex:selectList>
+                    </td>
+                    <td>
+                      <p><strong>{!$Label.LIST_ADMIN_FIELD}</strong></p>
+                      <!-- Left Field Selection -->
+                      <apex:selectList id="leftFieldPicklist" value="{!filter.leftFieldValue}" size="8" rendered="{!NOT(filter.isProtected)}" disabled="{!filter.leftObjectValue == '--'}" styleClass="full-select-size">
+                        <apex:actionSupport event="onchange"
+                                            rerender="{!$Component.leftStaticValue}, {!$Component.operatorPicklist}, {!$Component.rightTypePicklist}, {!$Component.rightObjectPicklist}, {!$Component.rightFieldPicklist}, {!$Component.rightStaticValue}, {!$Component.rightLookupField}, {!$Component.leftFieldSelected}"
+                                            status="update-list-sts"
+                                            oncomplete="openLeftObjectModal({!filter.position});removeFirstAnd();"
+                                            action="{!onLeftFieldChange}">
+                          <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+                        </apex:actionSupport>
+                        <apex:selectOptions value="{!leftFieldOptions[filter.leftObjectValue]}" />
+                      </apex:selectList>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td>
+                      <apex:outputPanel id="leftFieldSelected">
+                        <apex:outputText value="Selected field API name: <code>{!filter.leftFieldSelected}</code>" rendered="{!AND(filter.leftFieldValue != '', filter.leftFieldValue != '--')}" escape="false" />
+                      </apex:outputPanel>
+                    </td>
+                  </tr>
+                </table>
+                <p style="text-align: center;">
+                  <apex:actionStatus id="update-list-sts">
+                    <apex:facet name="stop">
+                      <apex:commandButton value="{!$Label.BUTTON_CLOSE}" onclick="closeMe();" reRender="{!$Component.rightLookupField}" styleClass="closeButton" />
+                    </apex:facet>
+                    <apex:facet name="start">
+                      <apex:commandButton value="{!$Label.LIST_ADMIN_PLEASE_WAIT}" disabled="true" />
+                    </apex:facet>
+                  </apex:actionStatus>
+                </p>
+              </apex:outputPanel>
+            </apex:outputPanel>
+            <!-- Button to display the popup -->
+            <apex:outputPanel rendered="{!NOT(filter.isProtected)}">
+              <a class="btn-lookup" href="#" onclick="openLeftObjectModal({!filter.position});"><span>Select</span></a>
+            </apex:outputPanel>
+          </apex:column>
+
+          <apex:column width="15%" headerValue="Operator" styleClass="{!IF(filter.isProtected, 'row-protected', '')}">
+            <!-- Protected Operator -->
+            <apex:outputText value="{!filter.operatorValue}" rendered="{!filter.isProtected}" />
+            <!-- Operator Selection -->
+            <apex:selectList id="operatorPicklist" value="{!filter.operatorValue}" size="1" rendered="{!NOT(filter.isProtected)}" disabled="{!filter.leftFieldValue == '--'}" style="width: 80%;">
+              <apex:actionSupport event="onchange" rerender="{!$Component.rightTypePicklist}, {!$Component.rightObjectPicklist}, {!$Component.rightFieldPicklist}, {!$Component.rightStaticValue}, {!$Component.rightLookupField}" oncomplete="removeFirstAnd();">
+                <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+              </apex:actionSupport>
+              <apex:selectOptions value="{!operators[leftFieldTypes[filter.leftFieldValue]]}" />
+            </apex:selectList>
+          </apex:column>
+
+          <apex:column width="40%" headerValue="Field / Value" styleClass="{!IF(filter.isProtected, 'row-protected', '')}">
+            <!-- Protected Right Object/Field Value -->
+            <apex:outputText value="{!filter.rightObjectValue} > {!filter.rightFieldValue}" rendered="{!AND(filter.isProtected, filter.rightObjectValue != '')}" />
+            <apex:outputText value="{!filter.rightFieldValue}" rendered="{!AND(filter.isProtected, filter.rightObjectValue == '')}" />
+            <!-- Right Type Selection -->
+            <apex:selectList id="rightTypePicklist" value="{!filter.rightType}" size="1" rendered="{!NOT(filter.isProtected)}" disabled="{!filter.operatorValue == '--'}">
+              <apex:actionSupport action="{!onRightTypeChange}" event="onchange" rerender="{!$Component.rightObjectPicklist}, {!$Component.rightFieldPicklist}, {!$Component.rightStaticValue}, {!$Component.rightLookupField}" oncomplete="removeFirstAnd();">
+                <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+              </apex:actionSupport>
+              <apex:selectOptions value="{!rightValueTypes}" />
+            </apex:selectList>
+            <!-- Display input text for static value, disabled if "field" is selected -->
+            <apex:inputText id="rightStaticValue" value="{!filter.staticValue}" disabled="{!filter.rightType != 'value'}" rendered="{!NOT(filter.isProtected)}" styleClass="disabled-right-field" />
+            <!-- hidden content for the right object selection -->
+            <apex:outputPanel styleClass="popup-overlay filter-popup right-object-{!filter.position}">
+              <apex:outputPanel styleClass="config-box">
+                <div class="header">
+                  {!$Label.LIST_ADMIN_INSERT_FIELD}
+                </div>
+                <table class="modal-table">
+                  <tr>
+                    <td>
+                      <p><strong>{!$Label.LIST_ADMIN_FIELD_TYPE}</strong></p>
+                      <!-- Right Object Selection -->
+                      <apex:selectList id="rightObjectPicklist" value="{!filter.rightObjectValue}" size="8" rendered="{!NOT(filter.isProtected)}" styleClass="full-select-size" disabled="{!filter.rightType == '--'}">
+                        <apex:actionSupport event="onchange"
+                                            rerender="{!$Component.rightFieldPicklist}, {!$Component.rightStaticValue}, {!$Component.rightFieldSelected}"
+                                            status="update-field-sts"
+                                            oncomplete="openRightObjectModal({!filter.position});removeFirstAnd();"
+                                            action="{!onRightObjectChange}">
+                          <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+                        </apex:actionSupport>
+                        <apex:selectOptions value="{!rightObjectOptions}" />
+                      </apex:selectList>
+                    </td>
+                    <td>
+                      <p><strong>{!$Label.LIST_ADMIN_FIELD}</strong></p>
+                      <!-- Right Field Selection -->
+                      <apex:selectList id="rightFieldPicklist" value="{!filter.rightFieldValue}" size="8" rendered="{!NOT(filter.isProtected)}" disabled="{!filter.rightObjectValue == '--'}" styleClass="full-select-size">
+                        <apex:actionSupport event="onchange"
+                                            rerender="{!$Component.rightStaticValue}, {!$Component.rightFieldSelected}"
+                                            status="update-field-sts"
+                                            oncomplete="openRightObjectModal({!filter.position});removeFirstAnd();"
+                                            action="{!onRightFieldChange}">
+                          <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+                        </apex:actionSupport>
+                        <apex:selectOptions value="{!rightFieldOptions[filter.rightObjectValue][leftFieldTypes[filter.leftFieldValue]]}" />
+                      </apex:selectList>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td>
+                      <apex:outputPanel id="rightFieldSelected">
+                        <apex:outputText value="Selected field API name: <code>{!filter.rightFieldSelected}</code>" rendered="{!AND(filter.rightFieldValue != '', filter.rightFieldValue != '--')}" escape="false" />
+                      </apex:outputPanel>
+                    </td>
+                  </tr>
+                </table>
+                <p style="text-align: center;">
+                  <apex:actionStatus id="update-field-sts">
+                    <apex:facet name="stop">
+                      <apex:commandButton value="{!$Label.BUTTON_CLOSE}" onclick="closeMe();" reRender="{!$Component.rightLookupField}" styleClass="closeButton" />
+                    </apex:facet>
+                    <apex:facet name="start">
+                      <apex:commandButton value="{!$Label.LIST_ADMIN_PLEASE_WAIT}" disabled="true" />
+                    </apex:facet>
+                  </apex:actionStatus>
+                </p>
+              </apex:outputPanel>
+            </apex:outputPanel>
+            <!-- Button to display the popup -->
+            <apex:outputPanel id="rightLookupField">
+              <apex:outputPanel rendered="{!AND(NOT(filter.isProtected), filter.rightType == 'field')}">
+                <a class="btn-lookup" href="#" onclick="openRightObjectModal({!filter.position});"><span>Select</span></a>
+              </apex:outputPanel>
+            </apex:outputPanel>
+          </apex:column>
+
+          <apex:column width="15%" headerValue="Action" styleClass="{!IF(filter.isProtected, 'row-protected', '')}">
+            <table class="action-table">
+              <tr>
+                <td>
+                  <apex:outputPanel rendered="{!filter.isProtected}">
+                    <img src="{!URLFOR($Resource.ImagesAndJavascriptZip, '/images/iconLock.png')}" alt="Lock" />
+                  </apex:outputPanel>
+                  <apex:commandLink value="Remove"
+                                    action="{!doRemoveItem}"
+                                    rendered="{!NOT(filter.isProtected)}"
+                                    rerender="main-form"
+                                    styleClass="removeRowLink"
+                                    onclick="javascript:displayStatusModal();"
+                                    oncomplete="javascript:closeStatusModal();removeFirstAnd();">
+                    <apex:param name="eventId" value="{!filter.position}" assignTo="{!selectedListFilterItem}" />
+                  </apex:commandLink>
+                </td>
+                <td class="action-table-add-col">
+                  <apex:commandLink action="{!doAddFilter}"
+                                    value="Add"
+                                    rerender="main-form"
+                                    styleClass="addRowLink"
+                                    rendered="{!filter.position == lastRowFilterPosition}"
+                                    onclick="javascript:displayStatusModal();"
+                                    oncomplete="javascript:closeStatusModal();removeFirstAnd();" />
+                </td>
+              </tr>
+            </table>
+          </apex:column>
+
+        </apex:pageBlockTable>
+      
+      </apex:pageBlockSection>
+
+      <apex:pageBlockSection title="Current Logic" collapsible="false" columns="1" rendered="{!hasSegmentation}">
+
+        <!-- <p class="infos-help"><a href="{!$Label.LINK_TO_KC_SEGMENTATION_PREVIEW}" target="_blank">What is this?</a></p> -->
+        <c:HelpComponent cid="COM-0022" />
+
+        <div class="code">{!currentSegmentation}</div>
+
+      </apex:pageBlockSection>
+
+      <apex:pageBlockButtons location="bottom" styleClass="pull-right">
+
+        <apex:commandButton value=" Next "
+                            action="{!doSave}"
+                            reRender="main-form, msg"
+                            onclick="javascript:displayStatusModal();"
+                            oncomplete="javascript:closeStatusModal();removeFirstAnd();" />
+
+        &nbsp;
+        <apex:commandLink value="{!$Label.BUTTON_CANCEL}" action="{!doCancel}" />
+
+      </apex:pageBlockButtons>
+    
+    </apex:pageBlock>
+    
+  </apex:form>
+
+  <script type="text/javascript">
+    function removeFirstAnd() {
+      // Remove the first "AND" from the first column
+      $jqn(".and-word:first").css("display", "none");
+    }
+    removeFirstAnd();
+  </script>
+  
+</apex:page>

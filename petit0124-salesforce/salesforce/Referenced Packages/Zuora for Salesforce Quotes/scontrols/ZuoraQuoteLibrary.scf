@@ -1,0 +1,1722 @@
+//
+// 
+// Zuora Quote Library - Share functions used across the application - lucena
+//
+
+// g_strMagic now set at very end of this file - lucena
+
+// set the connection client header for all calls.
+sforce.connection.client = "Zuora/1.0";
+sforce.connection.defaultNamespace = "zqu";
+
+var editState = false;
+
+// Get all the config settings
+var g_ZuoraQuoteURL = "";
+var g_ZuoraAPIURL = "";
+var g_ZuoraAPIUsername = "";
+var g_ZuoraAPIPassword = "";
+var g_BillingAccount_AllowInvoiceEdit = "";
+var g_BillingAccount_Batch = "";
+var g_BillingAccount_BillCycleDay = "";
+var g_Template_Id = "";
+var g_MatchContractEffectiveDate = false; //uni added
+var g_SubscriptionAutorenewDefault = false; //uni added
+var g_PaymentTerm = ""; //uni added
+var g_Currency = ""; //uni added
+var g_InvoiceDeliveryPreferences = "" ; //uni added
+var g_Debug = "";
+if (true) {
+    try { //uni added
+        var configQuery = sforce.connection.query("select InvoiceDeliveryPreferences__c , Currency__c, PaymentTerm__c,  MatchContractEffectiveDate__c,  SubscriptionAutorenewDefault__c,  QuoteURL__c,  APIURL__c,  APIUsername__c,  APIPassword__c,  BillingAccount_AllowInvoiceEdit__c,  BillingAccount_Batch__c,  BillingAccount_BillCycleDay__c,  Template_Id__c,  Debug__c from  ZuoraConfig__c WHERE  Active__c = TRUE ORDER BY LastModifiedDate DESC");
+        var configIterator = new sforce.QueryResultIterator(configQuery);
+        if (configIterator.hasNext()) {
+            var myConfig = configIterator.next();
+            g_ZuoraQuoteURL = myConfig["QuoteURL__c"];
+            g_ZuoraAPIURL = myConfig["APIURL__c"];
+            g_ZuoraAPIUsername = myConfig["APIUsername__c"];
+            g_ZuoraAPIPassword = myConfig["APIPassword__c"];
+            g_BillingAccount_AllowInvoiceEdit = myConfig["BillingAccount_AllowInvoiceEdit__c"];
+            g_BillingAccount_Batch = myConfig["BillingAccount_Batch__c"];
+            g_BillingAccount_BillCycleDay = myConfig["BillingAccount_BillCycleDay__c"];
+            g_Template_Id = myConfig["Template_Id__c"];
+            g_MatchContractEffectiveDate = myConfig.getBoolean("MatchContractEffectiveDate__c");
+            g_SubscriptionAutorenewDefault = myConfig.getBoolean("SubscriptionAutorenewDefault__c");
+            g_PaymentTerm = myConfig.PaymentTerm__c;
+            g_Currency = myConfig.Currency__c;
+            g_InvoiceDeliveryPreferences = myConfig.InvoiceDeliveryPreferences__c;
+            g_Debug = ((myConfig["Debug__c"] == "true") || (myConfig["Debug__c"] == "True"));
+        }
+    }
+    catch (myException) {
+        alert("Can't load the Zuora Config settings from the ZuoraConfig object: " + myException);
+    }
+}
+
+function IsZuoraConfigLoaded() {
+    return ((g_ZuoraAPIURL != null) && (g_ZuoraAPIURL != ""));
+}
+
+function isIE() {
+    return /msie/i.test(navigator.userAgent) && !/opera/i.test(navigator.userAgent);
+}
+
+function DateToString(myDate) {
+    return (myDate.getMonth() > 8 ? (myDate.getMonth() + 1) : "0" + (myDate.getMonth() + 1)) + "/" + (myDate.getDate() > 9 ? myDate.getDate() : "0" + myDate.getDate()) + "/" + myDate.getFullYear();
+}
+
+function DateToISOString(myDate) {
+    return "" + myDate.getFullYear() + "-" + (myDate.getMonth() > 8 ? (myDate.getMonth() + 1) : "0" + (myDate.getMonth() + 1)) + "-" + (myDate.getDate() > 9 ? myDate.getDate() : "0" + myDate.getDate());
+}
+
+function ListAdd(list, strName, strId) {
+    if (isIE())
+        list.add(new Option(strName, strId));
+    else
+        list.add(new Option(strName, strId), null);
+}
+
+function FormatDate(strDate) {
+    var strFormatted = "";
+    if ((strDate != null) && (strDate != "")) {
+        var myDate = new Date(Date.parse(strDate.replace(/-/g, "/")));
+        strFormatted = '' + (myDate.getMonth() + 1) + '/' + myDate.getDate() + '/' + myDate.getFullYear();
+    }
+    return strFormatted;
+}
+
+function isInteger(s) {
+    var i;
+    for (i = 0; i < s.length; i++) {
+        // Check that current character is number.
+        var c = s.charAt(i);
+        if (((c < "0") || (c > "9"))) return false;
+    }
+    // All characters are numbers.
+    return true;
+}
+
+function stripCharsInBag(s, bag) {
+    var i;
+    var returnString = "";
+    // Search through string's characters one by one.
+    // If character is not in bag, append to returnString.
+    for (i = 0; i < s.length; i++) {
+        var c = s.charAt(i);
+        if (bag.indexOf(c) == -1) returnString += c;
+    }
+    return returnString;
+}
+
+function XMLEncode(myString) {
+    myString = myString.replace(/&/g, "&amp;");
+    myString = myString.replace(/</g, "&lt;");
+    myString = myString.replace(/>/g, "&gt;");
+    myString = myString.replace(/'/g, "&#39;");
+    myString = myString.replace(/"/g, "&quot;");
+    return myString;
+}
+
+function XMLDecode(myString) {
+    myString = myString.replace(/&lt;/g, "<");
+    myString = myString.replace(/&gt;/g, ">");
+    myString = myString.replace(/&#39;/g, "'");
+    myString = myString.replace(/&quot;/g, "\"");
+    myString = myString.replace(/&amp;/g, "&");
+    return myString;
+}
+
+function XMLToPrettyText(strXML) {
+    var strText = strXML.replace(/>/g, ">\n");
+    strText = XMLEncode(strText);
+    return strText;
+}
+
+function XMLGetValue(strXml, strName) {
+    var strValue = "";
+    var strStartToken = "<" + strName + ">";
+    var strEndToken = "</" + strName + ">";
+    var nStartPosition = strXml.indexOf(strStartToken);
+    if (nStartPosition > -1) {
+        nStartPosition += strStartToken.length;
+        strValue = strXml.substr(nStartPosition, strXml.indexOf(strEndToken) - nStartPosition);
+    }
+    return strValue;
+}
+
+function daysInFebruary(year) {
+    // February has 29 days in any year evenly divisible by four,
+    // EXCEPT for centurial years which are not also divisible by 400.
+    return (((year % 4 == 0) && ((!(year % 100 == 0)) || (year % 400 == 0))) ? 29 : 28);
+}
+
+function DaysArray(n) {
+    for (var i = 1; i <= n; i++) {
+        this[i] = 31
+        if (i == 4 || i == 6 || i == 9 || i == 11) { this[i] = 30 }
+        if (i == 2) { this[i] = 29 }
+    }
+    return this
+}
+
+function IsValidDate(dtStr) {
+    //alert(__Dateformat+" | "+dtStr);
+    if(__Dateformat == "mm/dd/yyyy" || __Dateformat == "M\/d\/yyyy") {
+        var reg = new RegExp(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if(!reg.test(dtStr)) {
+            alert("The date format should be: " + __Dateformat)
+            return false;
+        }
+        else {
+            var s = dtStr.match(reg);
+            if(!validate(s[3],(parseInt(s[1],10)-1),s[2])) return false;
+            return new Date(s[3],parseInt(s[1],10)-1,s[2],0,0,0);
+        }
+    }
+    if(__Dateformat == "dd/mm/yyyy" || __Dateformat == "dd\/MM\/yyyy" || __Dateformat == "d\/MM\/yyyy") {
+        var reg = new RegExp(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if(!reg.test(dtStr)) {
+            alert("The date format should be: " + __Dateformat)
+            return false;
+        }
+        else {
+            var s = dtStr.match(reg);
+            //alert(s);
+            if(!validate(s[3],(parseInt(s[2],10)-1),s[1])) return false;
+            return new Date(s[3],parseInt(s[2],10)-1,s[1],0,0,0);
+        }
+    }
+    
+    if(__Dateformat == "yyyy-mm-dd" || __Dateformat == "yyyy\-M\-d") {
+        var reg = new RegExp(/^(\d{4})\-(\d{1,2})\-(\d{1,2})$/);
+        if(!reg.test(dtStr)) {
+            alert("The date format should be: " + __Dateformat)
+            return false;
+        }
+        else {
+            var s = dtStr.match(reg);
+            if(!validate(s[1],(parseInt(s[2],10)-1),s[3])) return false;
+            return new Date(s[1],parseInt(s[2],10)-1,s[3],0,0,0);
+        }
+    }
+    
+    
+    function validate(strYr,strMonth,strDay) {
+    //alert(strYr+"-"+strMonth+"-"+strDay);
+    var dtCh = "/";
+    var minYear = 1900;
+    var maxYear = 2100;
+    var daysInMonth = DaysArray(12);
+    //var pos1 = dtStr.indexOf(dtCh);
+    //var pos2 = dtStr.indexOf(dtCh, pos1 + 1);
+    //var strMonth = dtStr.substring(0, pos1);
+    //var strDay = dtStr.substring(pos1 + 1, pos2);
+    //var strYear = dtStr.substring(pos2 + 1);
+    //strYr = strYear;
+    //if (strDay.charAt(0) == "0" && strDay.length > 1) strDay = strDay.substring(1);
+    //if (strMonth.charAt(0) == "0" && strMonth.length > 1) strMonth = strMonth.substring(1);
+    //for (var i = 1; i <= 3; i++) {
+        //if (strYr.charAt(0) == "0" && strYr.length > 1) strYr = strYr.substring(1);
+    //}
+    month = parseInt(strMonth,10)+1;
+    day = parseInt(strDay,10);
+    year = parseInt(strYr,10);
+    strYear = year+'';
+    /*
+    if (pos1 == -1 || pos2 == -1) {
+        alert("The date format should be : mm/dd/yyyy");
+        return false;
+    }
+    */
+    if (strMonth.length < 1 || month < 1 || month > 12) {
+        alert("Please enter a valid month");
+        return false;
+    }
+    if (strDay.length < 1 || day < 1 || day > 31 || (month == 2 && day > daysInFebruary(year)) || day > daysInMonth[month]) {
+        alert("Please enter a valid day");
+        return false;
+    }
+    if (strYear.length != 4 || year == 0 || year < minYear || year > maxYear) {
+        alert("Please enter a valid 4 digit year between " + minYear + " and " + maxYear);
+        return false;
+    }
+    /*
+    if (dtStr.indexOf(dtCh, pos2 + 1) != -1 || isInteger(stripCharsInBag(dtStr, dtCh)) == false) {
+        alert("Please enter a valid date");
+        return false;
+    }
+    */
+    return true;
+    }
+    
+    return true;
+    
+    
+}
+
+
+function ISODateTimeToDate(xmlDate) {
+    var dt = new Date();
+    var dtS = xmlDate.slice(xmlDate.indexOf('T') + 1, xmlDate.indexOf('.'))
+    var TimeArray = dtS.split(":");
+    dt.setUTCHours(TimeArray[0], TimeArray[1], TimeArray[2]);
+    dtS = xmlDate.slice(0, xmlDate.indexOf('T'))
+    TimeArray = dtS.split("-");
+    dt.setUTCFullYear(TimeArray[0], TimeArray[1], TimeArray[2]);
+    return dt;
+}
+
+
+function AmountToDecimal(strAmount) {
+    var strCurrencySymbol = '$';
+    var regExp = new RegExp('\\' + strCurrencySymbol + '|\,', 'g');
+    return strAmount.toString().replace(regExp, '');
+}
+
+
+function FormatCurrency(dAmount) {
+    if (dAmount == null) {
+        dAmount = 0;
+    }
+    var strCurrencySymbol = '$';
+    var regExp = new RegExp('\\' + strCurrencySymbol + '|\,', 'g');
+    //dAmount = dAmount.toString().replace(/\$|\,/g,'');
+    dAmount = dAmount.toString().replace(regExp, '');
+    if (isNaN(dAmount)) {
+        dAmount = "0";
+    }
+    var bSign = (dAmount == (dAmount = Math.abs(dAmount)));
+    dAmount = Math.floor(dAmount * 100 + 0.50000000001);
+    var nCents = dAmount % 100;
+    dAmount = Math.floor(dAmount / 100).toString();
+    if (nCents < 10) {
+        nCents = "0" + nCents;
+    }
+    for (var i = 0; i < Math.floor((dAmount.length - (1 + i)) / 3); i++) {
+        dAmount = dAmount.substring(0, dAmount.length - (4 * i + 3)) + ',' + dAmount.substring(dAmount.length - (4 * i + 3));
+    }
+    //return (((bSign) ? '' : '-') + strCurrencySymbol + ' ' + dAmount + '.' + nCents);
+    return (((bSign) ? '' : '-') + ' ' + dAmount + '.' + nCents);
+}
+
+
+function TextToXMLDOM(strText) {
+    var xmlDoc = null;
+    try {
+        if (isIE()) {
+            xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+            xmlDoc.async = "false";
+            xmlDoc.loadXML(strText);
+        } else {
+            var parser = new DOMParser();
+            xmlDoc = parser.parseFromString(strText, "text/xml");
+        }
+        return xmlDoc;
+    }
+    catch (ex) {
+        alert(ex.message);
+        return null;
+    }
+}
+
+function SOAPElementNameGetValue(xmlDoc, strElementName) {
+    if (xmlDoc.getElementsByTagName(strElementName) == null) {
+        return "";
+    }
+    if (xmlDoc.getElementsByTagName(strElementName)[0] == null) {
+        return "";
+    }
+    if (xmlDoc.getElementsByTagName(strElementName)[0].childNodes == null) {
+        return "";
+    }
+    if (xmlDoc.getElementsByTagName(strElementName)[0].childNodes[0] == null) {
+        return "";
+    }
+    return (xmlDoc.getElementsByTagName(strElementName)[0].childNodes[0].nodeValue != null ? xmlDoc.getElementsByTagName(strElementName)[0].childNodes[0].nodeValue : "");
+}
+
+
+
+
+function CreateNewQuoteCharge(strQuoteChargeName, strQuoteId, strChargeId, strEffectivePrice, strQuantity, strPrepaymentPeriods,strDiscount,strUOM,strPeriod,strTotal,strModel,strFeeType,strCurrency,strDivListPrice,timeout,strListTotal,strType) {
+    var newQuoteCharge = null;
+    try {
+        
+        // Create new Quote
+        var myQuoteCharge = new sforce.SObject("QuoteCharge__c");
+        myQuoteCharge.Name = strQuoteChargeName;
+        myQuoteCharge["Quote__c"] = strQuoteId;
+        myQuoteCharge["ProductRatePlanCharge__c"] = strChargeId;
+        
+        if ((strEffectivePrice != "") && (!isNaN(strEffectivePrice))) {
+            myQuoteCharge["EffectivePrice__c"] = strEffectivePrice;
+        }
+        
+        if (strFeeType != "") {
+            //alert(strFeeType);
+            myQuoteCharge["FeeType__c"] = strFeeType;
+        }
+        
+        if ((strQuantity != "") && (!isNaN(strQuantity))) {
+            myQuoteCharge["Quantity__c"] = strQuantity;
+        }
+        if ((strPrepaymentPeriods != "") && (!isNaN(strPrepaymentPeriods))) {
+            myQuoteCharge["PrepaymentPeriods__c"] = strPrepaymentPeriods;
+        }
+        //alert(strDivListPrice);
+        myQuoteCharge.ListPriceDisplay__c =strDivListPrice;
+        myQuoteCharge.Currency__c = strCurrency;
+        myQuoteCharge.Discount__c = strDiscount; //uni added
+        myQuoteCharge.UOM__c = strUOM; // uni added
+        myQuoteCharge.Period__c = strPeriod; // uni added
+        if (strTotal != "") {
+            myQuoteCharge.Total__c = strTotal; // uni added
+        }
+        myQuoteCharge.Model__c = strModel; //uni added
+        myQuoteCharge.TimeProductAdded__c = timeout; // uni added
+        if ('usage' == strType.toLowerCase()) {
+            strListTotal = 0;
+        }
+        myQuoteCharge.ListTotal__c = strListTotal;
+        
+        //alert(myQuoteCharge);
+        var results = sforce.connection.create([myQuoteCharge]);
+        newQuoteCharge = results[0];
+    }
+    catch (myException) {
+        alert(myException+"/////");
+    }
+
+    // return the Id you just created
+    return (newQuoteCharge != null ? newQuoteCharge.id : "");
+}
+
+function CreateNewQuote(strQuoteName, strOpportunityId, dateValidUntil, strBillingAccount, strBillToContactId, strSoldToContactId, dateStart, strCurrency, bAutoRenew, strInitialTerm, strRenewalTerm, strBillingMethod, strPaymentMethod, strPaymentTerm, strTax, strTerms, zuoraAccountId, zuoraSubscriptionId, zuoraSubscriptionType) {
+    var newQuote = null;
+    try {
+        // Create new Quote
+        var myQuote = new sforce.SObject("Quote__c");
+        myQuote.Name = strQuoteName;
+        myQuote["Opportunity__c"] = strOpportunityId;
+        myQuote["ValidUntil__c"] = dateValidUntil;
+        // just to avoid setting it unneccesarily as that field may not even be present - lucena
+        // don't set it at all - gone from quote object
+        //if ((strBillingAccount != null) && (strBillingAccount != "")) {
+        //    myQuote["BillingAccount__c"] = strBillingAccount;
+        //} 
+        myQuote["BillToContact__c"] = strBillToContactId;
+        myQuote["SoldToContact__c"] = strSoldToContactId;
+        myQuote["StartDate__c"] = dateStart;
+        myQuote["Currency__c"] = strCurrency;
+        myQuote["AutoRenew__c"] = bAutoRenew;
+        if ((strInitialTerm != "") && (!isNaN(strInitialTerm))) {
+            myQuote["InitialTerm__c"] = strInitialTerm;
+        }
+        if ((strRenewalTerm != "") && (!isNaN(strRenewalTerm))) {
+            myQuote["RenewalTerm__c"] = strRenewalTerm;
+        }
+        myQuote["BillingMethod__c"] = strBillingMethod;
+        myQuote["PaymentMethod__c"] = strPaymentMethod;
+        myQuote["PaymentTerm__c"] = strPaymentTerm;
+        if ((strTax != "") && (!isNaN(strTax))) {
+            myQuote["Tax__c"] = strTax;
+        }
+        myQuote["Terms__c"] = strTerms;
+        //myQuote["Status__c"] = "New"; - will happen by default - lucena
+        
+        var zc = sforce.connection.query('SELECT Id, ProductSelectorVersion__c FROM ZuoraConfig__c WHERE Active__c = true').getArray('records');
+        if (zc.length > 0) {
+            myQuote.ZuoraConfig__c = zc[0].Id;
+            // parent contextmenu variable (enclosure)
+            productselector = zc[0].ProductSelectorVersion__c;
+        }
+        
+        if (zuoraAccountId) {
+            myQuote['ZuoraAccountID__c'] = zuoraAccountId;
+        }
+        
+        if (zuoraSubscriptionId) {
+            myQuote['ExistSubscriptionID__c'] = zuoraSubscriptionId;
+        }
+        
+        myQuote['SubscriptionType__c'] = null;
+        if (zuoraSubscriptionType) {
+            myQuote['SubscriptionType__c'] = zuoraSubscriptionType;
+        }
+        var results = sforce.connection.create([myQuote]);
+        for (var i=0;i<results.length;i++) {
+            if (results[i].getBoolean('success') === false) {
+                 throw('Error occurs on field: ' + results[i].errors.fields + '\nError message: ' + results[i].errors.message);
+            } else {
+                newQuote = results[i];
+            }
+        }
+    }
+    catch (myException) {
+        alert(myException);
+    }
+
+    // return the Id you just created
+    return (newQuote != null ? newQuote.id : "");
+}
+
+function UpdateQuoteTaxAndTerms(strQuoteId, strTax, strTerms) {
+    var updatedQuote = null;
+    try {
+        // Create new Quote
+        var myQuote = new sforce.SObject("Quote__c");
+        myQuote.Id = strQuoteId;
+        if ((strTax != "") && (!isNaN(strTax))) {
+            myQuote["Tax__c"] = strTax;
+        }
+        myQuote["Terms__c"] = strTerms;
+        var results = sforce.connection.update([myQuote]);
+        updatedQuote = results[0];
+    }
+    catch (myException) {
+        alert(myException);
+    }
+
+    // return the Id you just updated
+    return (updatedQuote != null ? updatedQuote.id : "");
+}
+
+function UpdateQuoteStatus(strQuoteId, strStatus) {
+    var updatedQuote = null;
+    try {
+        // Create new Quote
+        var myQuote = new sforce.SObject("Quote__c");
+        myQuote.Id = strQuoteId;
+        myQuote["Status__c"] = strStatus;
+        var results = sforce.connection.update([myQuote]);
+        updatedQuote = results[0];
+    }
+    catch (myException) {
+        alert(myException);
+    }
+
+    // return the Id you just updated
+    return (updatedQuote != null ? updatedQuote.id : "");
+}
+
+function RenderQuoteChargesInDiv(strQuoteChargeDivId, strQuoteId, bShowDelete) {
+    // if you didn't get a div - then bail.
+    if ((strQuoteChargeDivId == null) || (strQuoteChargeDivId == "")) {
+        return;
+    }
+    
+    var result = sforce.connection.query("Select z.Name, z.Id, z.Active__c,z.QuoteReadOnly__c From ZuoraConfig__c z where z.Active__c=true");
+    var records = result.getArray("records");
+    
+    var _zuoraReadOnly = records[0].getBoolean("QuoteReadOnly__c");
+    
+    if(_quoteStatus=="Sent to Z-Billing" && _zuoraReadOnly) bShowDelete = false;
+
+    var strContent = "";
+    try {
+        //alert(g_Currency);
+        var dSubTotal = 0;
+        var strProductName = "";
+        var strRatePlan = "";
+        
+        var strTimeOut = "";
+        
+        var soql = "SELECT Id,Name,Total__c,ListTotal__c,Discount__c,TimeProductAdded__c, EffectivePrice__c, FeeType__c, ListPriceDisplay__c, Quantity__c, PrepaymentPeriods__c, Quote__c, ProductRatePlanCharge__r.Id, ProductRatePlanCharge__r.Name, ProductRatePlanCharge__r.Description__c, ProductRatePlanCharge__r.Type__c, ProductRatePlanCharge__r.Model__c, ProductRatePlanCharge__r.ListPrice__c, ProductRatePlanCharge__r.DefaultQuantity__c, ProductRatePlanCharge__r.UOM__c, ProductRatePlanCharge__r.RecurringPeriod__c, ProductRatePlanCharge__r.ProductRatePlan__r.Id, ProductRatePlanCharge__r.ProductRatePlan__r.Name, ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__c, ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__r.Id, ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__r.Name FROM  QuoteCharge__c WHERE  Quote__c = '" + strQuoteId + "' ORDER BY  ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__r.Name,  ProductRatePlanCharge__r.ProductRatePlan__r.Name ASC,  TimeProductAdded__c ASC";
+        var quoteCharges = sforce.connection.query(soql);
+        
+        var quoteChargeIterator = new sforce.QueryResultIterator(quoteCharges);
+        
+        
+        //ListPriceDisplay__c
+        while (quoteChargeIterator.hasNext()) {
+        
+            var myChargeQuote = quoteChargeIterator.next();
+
+            // May need a new header
+            var strPropertyProduct = "ZProduct__r";
+            var strPropertyRatePlan = "ProductRatePlan__r";
+            var strPropertyRatePlanCharge = "ProductRatePlanCharge__r";
+            
+            var strRatePlanChargeId = myChargeQuote[strPropertyRatePlanCharge].Id;
+            
+            if ((strProductName != myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan][strPropertyProduct].Name) || (strRatePlan != myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan].Name) || (strTimeOut != myChargeQuote["TimeProductAdded__c"])) {
+                // close previous
+                if (strContent != "") {
+                    strContent += "</table></div></div><div class=\"pbFooter secondaryPalette\"><div class=\"bg\"></div></div></div>";
+                }
+                
+                // start new
+                strTimeOut = myChargeQuote["TimeProductAdded__c"];
+                strProductName = myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan][strPropertyProduct].Name;
+                strRatePlan = myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan].Name;
+                strRatePlanId = myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan].Id;
+                var strProductId = myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan][strPropertyProduct].Id;
+                var strDelete = (bShowDelete ? "<input type=\"button\" class=\"btn\" value=\"Delete\" onclick=\"OnDeleteProductFromQuote('" + strQuoteId + "', '" + strProductId + "', '" + strQuoteChargeDivId + "', '" + strTimeOut + "');\" />&nbsp;&nbsp;" : "");
+                
+                var strEdit = (bShowDelete ? "<input type=\"button\" class=\"btn\" value=\"Edit\" onclick=\"getQuoteChargeId('" + strQuoteId + "', '" + strProductId + "', '" + strQuoteChargeDivId + "', '" + strTimeOut + "');\" />&nbsp;&nbsp;" : "");
+                
+                strContent += "<div class=\"pbSubheader first tertiaryPalette\" id=\"DivHeader" + strTimeOut + "\"><h3>" + strDelete + strEdit + strProductName + " : " + strRatePlan + "<span class=\"titleSeparatingColon\">:</span></h3>";
+                strContent += "</div><div class=\"bPageBlock bEditBlock secondaryPalette\" id=\"DivBody" + strTimeOut + "\"><div class=\"pbBody\"><div class=\"pbSubsection\">";
+                strContent += "<table class=\"detailList\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">";
+                strContent += "<tr class=\"headerRow\"><th scope=\"col\">Name</th><th scope=\"col\">Description</th><th scope=\"col\">Type</th><th scope=\"col\">Model</th><th scope=\"col\" style=\"text-align:right\">List Price</th><th scope=\"col\" style=\"text-align:right\">Discount</th><th scope=\"col\" style=\"text-align:right\">Effective Price</th><th scope=\"col\" style=\"text-align:right\">Quantity</th><th scope=\"col\">&nbsp;&nbsp;UOM</th><th scope=\"col\">&nbsp;&nbsp;Period</th><th scope=\"col\" style=\"text-align:right\">ListTotal</th><th scope=\"col\" style=\"text-align:right\">Total</th></tr>";
+            }
+
+            // calculations
+            
+            var strType = myChargeQuote[strPropertyRatePlanCharge]["Type__c"];
+            var strModel = myChargeQuote[strPropertyRatePlanCharge]["Model__c"];
+            var strDescription = myChargeQuote[strPropertyRatePlanCharge]["Description__c"];
+            var strListPrice = myChargeQuote[strPropertyRatePlanCharge]["ListPrice__c"];
+            var strUOM = myChargeQuote[strPropertyRatePlanCharge]["UOM__c"];
+            var strRecurringPeriod = myChargeQuote[strPropertyRatePlanCharge]["RecurringPeriod__c"];
+            
+            var strEffectivePrice = myChargeQuote["EffectivePrice__c"];
+            var strListPrice_Actually = myChargeQuote["ListPriceDisplay__c"];
+            var strFeeType = myChargeQuote["FeeType__c"];
+            var strQuantity = myChargeQuote["Quantity__c"];
+            var strPrepaymentPeriods = myChargeQuote["PrepaymentPeriods__c"];
+
+            //var strTotal = CalculateTotal(strType, strModel, strEffectivePrice, strQuantity, strPrepaymentPeriods);
+            
+            if ('usage' == strType.toLowerCase()) {
+                var strTotal = '-';
+            } else {
+                var strTotal = myChargeQuote.Total__c;            
+            }
+            
+            dSubTotal = dSubTotal + (1 * (strTotal == '-' ? 0 : strTotal));
+            
+            if ('usage' == strType.toLowerCase()) {
+                var strListTotal = '-';
+            } else {
+                var strListTotal = myChargeQuote.ListTotal__c;
+            }
+            
+
+            var bPriceVaries = ((strModel == 'Tiered Pricing') || (strModel == 'Tiered with Overage Pricing') || (strModel == 'Volume Pricing' && (strType == "Usage")));
+            
+            var bDiscount = ((strModel == 'Volume Pricing') && (strType == "Usage"));
+
+            // display it up
+            strContent += '<tr qid="'+myChargeQuote.Id+'" id="'+strRatePlanChargeId+'_'+strTimeOut+'" class=" dataRow even last first" onblur="if (window.hiOff){hiOff(this);}" onfocus="if (window.hiOn){hiOn(this);}" onmouseout="if (window.hiOff){hiOff(this);}" onmouseover="if (window.hiOn){hiOn(this);}">';
+            strContent += '<td class=" dataCell"><a target="_top" href="/' + myChargeQuote[strPropertyRatePlanCharge].Id + '">' + myChargeQuote[strPropertyRatePlanCharge].Name + '</a></td>';
+            strContent += '<td class=" dataCell">' + (strDescription != null ? strDescription : '&nbsp;') + '</td>';
+            strContent += '<td class=" dataCell">' + strType + '</td>';
+            strContent += '<td class=" dataCell">' + strModel + '</td>';
+            
+            if(strFeeType == "Flat Fee"){
+                strContent += '<td class=\"dataCell\" disnum=\"'+strListPrice_Actually+'\" style=\"text-align:right\">Flat Fee</td>';
+            }else{
+                strContent += '<td class=\"dataCell\" disnum=\"'+strListPrice_Actually+'\" style=\"text-align:right\">' + (bPriceVaries ? 'Varies' : FormatCurrency(strListPrice_Actually)) + '</td>';
+            }
+            
+            
+           strContent += '<td class=" dataCell" dis_num="'+(bDiscount ? 0 : parseFloat(myChargeQuote.Discount__c))+'" type="Discount" style="text-align:right">' + (bDiscount ? '0.0%' : parseFloat(myChargeQuote.Discount__c).toFixed(1) + '%') + '</td>';
+            
+            //alert(strEffectivePrice);
+            
+            //alert(strEffectivePrice+"///"+strFeeType);
+            
+            //alert(strEffectivePrice+"///"+strFeeType);
+            
+            if(strEffectivePrice && strFeeType != "Flat Fee" && strFeeType != "n/a"){
+                strContent += '<td class=" dataCell" type="effectivePrice" style="text-align:right">' + FormatCurrency(strEffectivePrice) + '</td>';
+                
+            }else{
+                if(strFeeType == "Flat Fee"){
+                    strContent += '<td class=" dataCell" type="effectivePrice" style="text-align:right">Flat Fee</td>';
+                }else{
+                    strContent += '<td class=" dataCell" type="effectivePrice" style="text-align:right"> - </td>';
+                }
+            }
+            
+            
+            
+            strContent += '<td class=" dataCell" type="Quantity" style="text-align:right">' + Math.round(strQuantity) + '</td>';
+            //strContent += '<td class=" dataCell" style="text-align:right">' + Math.round(strPrepaymentPeriods) + '</td>';
+            strContent += '<td class=" dataCell" type="Period">&nbsp;&nbsp;' + (strUOM != null ? strUOM : '&nbsp;') + '</td>';
+            strContent += '<td class=" dataCell">&nbsp;&nbsp;' + (strRecurringPeriod != null ? strRecurringPeriod : '&nbsp;') + '</td>';
+            strContent += '<td class=" dataCell" type="ListTotal" style="text-align:right">' + (isNaN(strListTotal) ? strListTotal : FormatCurrency(strListTotal)) + '</td>';
+            strContent += '<td class="totalPrice dataCell" type="totalPrice" style="text-align:right">' + FormatCurrency(strTotal) + '</td>';
+            strContent += '</tr>';
+        }
+        // close it up if you got something
+        if (strContent != "") {
+            strContent += "</table></div></div><div class=\"pbFooter secondaryPalette\"><div class=\"bg\"></div></div></div>";
+            strContent += "<div class=\"bPageBlock bEditBlock secondaryPalette\"><div class=\"pbHeader\"><div class=\"pbTitle\" style=\"text-align:right; width:98%\"><h3 id=\"subtotal_area\">Subtotal: " + FormatCurrency(dSubTotal) + "</h3></div></div><div class=\"pbFooter secondaryPalette\"><div class=\"bg\"></div></div></div>";
+        }
+    }
+    catch (myException) {
+        alert(myException);
+        return;
+    }
+
+
+    // render it up, yo!
+    document.getElementById(strQuoteChargeDivId).innerHTML = strContent;
+
+    // return true if you rendered something
+    return (strContent != "");
+}
+
+
+
+/*get Quote RatePlanChargeId*/
+function getQuoteChargeId(strQuoteId, strProductId, strQuoteChargeDivId, rateplanId){
+    
+    if(editState){
+        return;
+    }
+    
+    editState = true;
+    
+    var input_Array = parent.document.getElementsByTagName("input");
+    for(var i=0; i<input_Array.length; i++){
+        if($(input_Array[i]).hasClass("btn")){
+            $(input_Array[i]).attr("disabled","disabled");
+        }
+    }
+    
+    $("#btn_area_finish").css("display","none");
+    ClearAllProductCatalogPanes();
+    
+    $("#DivHeader"+rateplanId).find("input").css("display","none");
+    
+    var heard_div = $("#divSelectedProducts").find(".pbSubheader");
+    var body_div = $("#divSelectedProducts").find(".bPageBlock");
+    
+    for(var i=0; i<heard_div.length; i++){
+        var id_text = $(heard_div[i]).attr("id");
+        var h = "DivHeader"+rateplanId;
+        if(id_text != h){
+            $(heard_div[i]).css("display","none");
+            $(body_div[i]).css("display","none");
+        }
+    }
+    
+    
+    var charge_tr = $("#DivBody"+rateplanId).find(".dataRow");
+    var charge_id_array = [];
+    for(var i=0; i<charge_tr.length; i++){
+        var a = $(charge_tr[i]).attr("id").split("_");
+        //alert(a[0]);
+        charge_id_array[i] = a[0];
+    }
+    
+    
+    
+    OnEditProductFromQuote(charge_id_array,rateplanId,strQuoteId, strProductId, strQuoteChargeDivId);
+}
+
+/*edit quote*/
+function OnEditProductFromQuote(charge_id,rateplanId,strQuoteId, strProductId, strQuoteChargeDivId){
+    Q_chargeObj = {};
+    chargeObj = {};
+    /*try {
+        console.log(charge_id);
+        console.log(typeof charge_id);
+        console.log(charge_id.constructor);
+    } catch(e) {}*/
+    
+    var spinner = $(".spinner");
+    spinner.css('top', (getScrollTop(parent) + getScrollTop(window)) + 'px');
+    spinner.toggle();
+    
+    setTimeout(function(){
+    try {
+    charge_id_array = "'" + charge_id.join("','") + "'";
+
+    var sql = "select Id, Name, UOM__c, Type__c, Model__c, MinQuantity__c, MaxQuantity__c, ListPrice__c, Description__c, (select Id, Tier__c, StartingUnit__c, Price__c, PriceFormat__c, Name, IsOveragePrice__c, EndingUnit__c, Currency__c from Product_RatePlan_Charge_Tier__r where currency__c = '{!Quote__c.Currency__c}') from ProductRatePlanCharge__c WHERE Id IN (" + charge_id_array + ")";
+   
+    var result = sforce.connection.query(sql);
+    var row = new sforce.QueryResultIterator(result);
+    var tier;
+    while (row.hasNext()) {
+        rowdata = row.next();
+        
+        if (rowdata['Product_RatePlan_Charge_Tier__r'].size > 0) {
+            if (rowdata['Product_RatePlan_Charge_Tier__r'].size == 1) {
+                tier = [rowdata['Product_RatePlan_Charge_Tier__r'].records]
+            } else {
+                tier = rowdata['Product_RatePlan_Charge_Tier__r'].records; 
+            }
+        }
+        
+        chargeObj[rowdata['Id']] = tier;
+        
+        Q_chargeObj[rowdata['Id']] = {
+            'Id__c' : rowdata['Id'],
+            'Name__c' : rowdata['Name'],
+            'UOM__c' : rowdata['UOM__c'], 
+            'Type__c' : rowdata['Type__c'], 
+            'Model__c' : rowdata['Model__c'], 
+            'MinQuantity__c' : rowdata['MinQuantity__c'], 
+            'MaxQuantity__c' : rowdata['MaxQuantity__c'], 
+            'ListPrice__c' : rowdata['ListPrice__c'], 
+            'Description__c' : rowdata['Description__c'],
+            'Tier' : tier 
+        }
+    }
+    
+    $("#DivBody"+rateplanId).css("display","none");
+    
+    var chargeDiv = $("<div></div>");
+    $(chargeDiv).attr("id","chargeDiv"+rateplanId);
+    $(chargeDiv).insertAfter($("#DivBody"+rateplanId));
+    
+    var chargeDivHtml = "<div class=\"bPageBlock bEditBlock secondaryPalette\"><div class=\"pbBody\"><div class=\"pbSubsection\">";
+    chargeDivHtml += "<table class=\"detailList\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">";
+    chargeDivHtml += "<tr class=\"headerRow\"><th scope=\"col\">Name</th><th>Description</th><th scope=\"col\">Type</th><th scope=\"col\">Model</th><th scope=\"col\" style=\"text-align:right\">List Price</th><th scope=\"col\" style=\"text-align:right\">Discount</th><th scope=\"col\" style=\"text-align:right\">Effective Price</th><th scope=\"col\" style=\"text-align:right\">Quantity</th><th scope=\"col\" style=\"display:none;text-align:right\">Prepay Periods</th><th scope=\"col\">&nbsp;&nbsp;UOM</th><th scope=\"col\">&nbsp;&nbsp;Period</th><th scope=\"col\">List Total</th><th scope=\"col\">Total</th></tr>";
+    
+    for(var i=0; i<charge_id.length; i++){
+        var str = charge_id[i];
+        var t_obj = Q_chargeObj[str];
+        
+        var strline = $("#"+t_obj.Id__c+"_"+rateplanId).find("td");
+        var strType = $(strline[2]).html();
+        var strModel = $(strline[3]).html();
+        //var strListPrice = $(strline[4]).html();
+        var listPriceType = "";
+        if($(strline[4]).html() == "Flat Fee"){
+            listPriceType = "Flat Fee";
+        }
+        
+        //alert(listPriceType);
+        var strListPrice = $(strline[4]).attr("disnum");
+        var strDiscount = $(strline[5]).attr("dis_num");
+        var strEffectPrice = $(strline[6]).html();
+        var strQuantity = $(strline[7]).html();
+        var strUOM = $(strline[8]).html();
+        var strPeriod = $(strline[9]).html();
+        if ('usage' == strType.toLowerCase()) {
+            var strListTotal = '0';
+        } else {
+            var strListTotal = strQuantity * strListPrice;
+        }
+        var strTotalPrice = $(strline[11]).html();
+        
+        var strTierCurrency = "{!Quote__c.Currency__c}";
+        
+        var bHasQuantity = (((strType == 'One-Time') && (strModel == 'Per Unit Pricing')) || ((strType == 'Recurring') && (strModel == 'Per Unit Pricing'))) || ((strType != 'Usage') && (strModel.indexOf('Tiered')!=-1)) || ((strType != 'Usage') && strModel.indexOf('Volume')!=-1);
+        var bHasPrepaymentPeriods = (((strType == 'Recurring') && (strModel == 'Flat Fee Pricing')) || ((strType == 'Recurring') && (strModel == 'Per Unit Pricing')));
+        var bPriceVaries = ((strModel == 'Tiered Pricing') || (strModel == 'Tiered with Overage Pricing') || (strType == "Usage" && strModel == 'Volume Pricing'));
+        var bHasEffectviePrice = ((strType == "Usage" && ((strModel.indexOf('Tiered')!=-1) || (strModel.indexOf('Volume')!=-1)) && (strModel.indexOf('Overage')== -1)) || (strModel == "Volume Pricing" && listPriceType == "Flat Fee")) ? false : true;
+        var bHasListTotal = (bPriceVaries) || (strType == "Usage" && strModel == "Per Unit Pricing") || (strType == "Usage" && strModel == "Overage Pricing") ? false : true;
+        var bHasListTotal = (bPriceVaries) || (strType == "Usage" && strModel == "Per Unit Pricing") || (strType == "Usage" && strModel == "Overage Pricing") ? false : true;
+        var bHasTotal = (((strType == 'One-Time') || (strType == 'Recurring')) && (strModel.indexOf('Flat')==-1) && (strModel.indexOf('Tiered')==-1));
+        
+        chargeDivHtml += '<tr id=\"chargeTr'+t_obj.Id__c+'\" class=" dataRow even last first" onblur="if (window.hiOff){hiOff(this);}" onfocus="if (window.hiOn){hiOn(this);}" onmouseout="if (window.hiOff){hiOff(this);}" onmouseover="if (window.hiOn){hiOn(this);}">';
+        chargeDivHtml += "<td class=\" dataCell\"><a href=\"/"+t_obj.Id__c+"\" target=\"_top\">"+t_obj.Name__c+"</a></td>";
+        chargeDivHtml += "<td class=\" dataCell\">"+(t_obj.Description__c != null ? t_obj.Description__c : '&nbsp;')+"</td>";
+        chargeDivHtml += '<td id="TextType'+charge_id[i]+'">'+t_obj.Type__c+'</td>';
+        chargeDivHtml += '<td id="TextModel'+charge_id[i]+'">'+t_obj.Model__c+'</td>';
+        
+        
+        chargeDivHtml += '<td style="text-align:right">';
+        if(bPriceVaries){
+            chargeDivHtml += '<div id="divListPrice' + charge_id[i] + '">-</div>';
+        }else{
+            if((strModel == 'Volume Pricing') && (listPriceType == "Flat Fee")){
+                chargeDivHtml += '<div price="'+strListPrice+'" id="divListPrice' + charge_id[i] + '">Flat Fee</div>';
+            }else{
+                chargeDivHtml += '<div id="divListPrice' + charge_id[i] + '">' + (strListPrice) + '</div>';
+            }
+        }
+        chargeDivHtml += '</td>'
+        
+        chargeDivHtml += '<td style="text-align:right">' + (bPriceVaries ? 'n/a' : '<input onfocus="saveval(this)" id="TextDiscount' + charge_id[i] + '" name="TextDiscount' + charge_id[i] + '" onchange="myCalcTotal(this,\''+charge_id[i]+'\',\'d\',\''+strType+'\',\''+strModel+'\',\''+strTierCurrency+'\')"  size="3" type="text" value="'+strDiscount+'" style=\"text-align:right\" />%') + '</td>';
+        
+        if(strModel == 'Volume Pricing' && strType != "Usage"){
+            chargeDivHtml += '<td style="text-align:right"> <input onfocus="saveval(this)" onchange="myCalcTotal(this,\''+charge_id[i]+'\',\'e\',\''+strType+'\',\''+strModel+'\',\''+strTierCurrency+'\')" '+(bHasEffectviePrice ? '' : 'disabled' )+' id="TextEffectivePrice' + charge_id[i] + '" name="TextEffectivePrice' + charge_id[i] + '"  size="9" type="text" value="' + ((strModel == "Volume Pricing" && listPriceType == "Flat Fee") ? "Flat Fee" : AmountToDecimal(FormatCurrency(strEffectPrice))) + '" style=\"text-align:right\" /></td>';
+        }else{
+            if(bHasEffectviePrice){
+                chargeDivHtml += '<td style="text-align:right"> <input onchange="myCalcTotal(this,\''+charge_id[i]+'\',\'e\',\''+strType+'\',\''+strModel+'\',\''+strTierCurrency+'\')" '+' id="TextEffectivePrice' + charge_id[i] + '" name="TextEffectivePrice' + charge_id[i] + '"  size="9" type="text" value="'+AmountToDecimal(FormatCurrency(strEffectPrice))+ '" style=\"text-align:right\" /></td>';
+            }else{
+                chargeDivHtml += '<td style="text-align:right">-</td>';
+            }
+        }
+        
+        chargeDivHtml += '<td style="text-align:right">' + (bHasQuantity ? '<input id="TextQuantity' + charge_id[i] + '" onchange="myCalcTotal(this,\''+charge_id[i]+'\',\'q\',\''+strType+'\',\''+strModel+'\',\''+strTierCurrency+'\')" onfocus="saveval(this)" name="TextQuantity' + charge_id[i] + '" size="2" type="text" value="'+(strQuantity)+'" style=\"text-align:right\" min="'+t_obj.MinQuantity__c+'" max="'+t_obj.MaxQuantity__c+'" title="'+t_obj.MinQuantity__c+'|'+t_obj.MaxQuantity__c+'" />' : '-') + '</td>';
+        
+        chargeDivHtml += '<td>&nbsp;&nbsp;<span id="TextUOM'+charge_id[i]+'">' + ((strUOM != null) ? strUOM : '-') + '<span></td>';
+        
+        chargeDivHtml += '<td>&nbsp;&nbsp;<span id="TextPeriod'+charge_id[i]+'">' + ((strPeriod != null) ? strPeriod : '-') + '</span></td>';
+        
+        chargeDivHtml += '<td style="text-align:right; padding:0px 2px;" id="ListTotal'+charge_id[i]+'">';
+        if(bHasListTotal){
+            if((strModel == 'Volume Pricing' && listPriceType == "Flat Fee")){
+                chargeDivHtml += AmountToDecimal(FormatCurrency(strListPrice)) +'</td>';
+            }else if(strType.toLowerCase() == 'usage') {
+                chargeDivHtml += '-' + '</td>';
+            }else{
+                chargeDivHtml += AmountToDecimal(FormatCurrency(strListPrice * strQuantity))+'</td>';
+            }       
+        }else{
+            chargeDivHtml += '-';
+        }
+        chargeDivHtml += '</td>'
+        
+        if(bHasTotal){
+            chargeDivHtml += '<td><input type="text" size="8" value="'+AmountToDecimal(FormatCurrency(strTotalPrice))+'" id="TextTotal'+charge_id[i]+'" onfocus="saveval(this)" onchange="myCalcTotal(this,\''+charge_id[i]+'\',\'t\',\''+strType+'\',\''+strModel+'\',\''+strTierCurrency+'\')"></td>';
+        }else{
+            if(strType == "Usage" || strModel.indexOf('Tiered')!=-1){
+                chargeDivHtml += '<td>-</td>';
+            }else{
+                chargeDivHtml += '<td><input disabled="disabled" type="text" size="8" value="'+AmountToDecimal(FormatCurrency(strTotalPrice))+'" id="TextTotal'+charge_id[i]+'" onfocus="saveval(this)" onchange="myCalcTotal(this,\''+charge_id[i]+'\',\'t\',\''+strType+'\',\''+strModel+'\',\''+strTierCurrency+'\')"></td>';
+            }
+        }
+        
+        //chargeDivHtml += "<td>"+t_obj.UOM__c+"</td>";
+        //chargeDivHtml += "<td>"+strPeriod+"</td>";
+        //chargeDivHtml += "<td style=\"text-align:right; padding:0px 2px;\">"+strListTotal+"</td>";
+        //chargeDivHtml += "<td><input size=\"8\" type=\"text\" name=\"Quantity\" value=\""+strTotalPrice+"\" /></td>";
+        
+        chargeDivHtml += "</tr>";
+    }
+    
+    chargeDivHtml += "</table></div></div></div>";
+    
+    //strQuoteId, strProductId, strQuoteChargeDivId
+    
+    chargeDivHtml += "<div style=\"text-align:center; padding-bottom:8px;\"><input class=\"btn\" type=\"button\" id=\"EditUpdata"+rateplanId+"\" value=\"Update\" onclick=\"updataQuoteCharge('"+rateplanId+"','"+strQuoteId+"')\" /><input class=\"btn\" type=\"button\" value=\"Cancel\" onclick=\"cancelQuoteCharge('"+rateplanId+"')\" /></div>";
+    
+    $("#chargeDiv"+rateplanId).html(chargeDivHtml);
+    spinner.toggle();
+    } catch(e) {};
+    },0);
+    
+    
+    
+    //RenderQuoteChargesInDiv(strQuoteChargeDivId, strQuoteId, true);
+    
+    /*try {
+    console.log(sql);
+    console.log(row);
+    console.log(Q_chargeObj);
+    } catch(e) {}*/
+    
+    
+}
+
+function updataQuoteCharge(id,strQuoteId){
+    //alert(strQuoteId);
+    try {
+        var updataArray = [];
+        var charge_array = [];
+        var t = $("#DivBody"+id).find(".dataRow");
+        for(var i=0; i<t.length; i++){
+            var qid = $(t[i]).attr("qid");
+            var Q_RatePlanId = $(t[i]).attr("id").split("_")[0];
+            
+            var strFeeType = "";
+                    
+            if(document.getElementById('TextEffectivePrice' + Q_RatePlanId)){
+                var strEffectivePrice = document.getElementById('TextEffectivePrice' + Q_RatePlanId).value;
+                strEffectivePrice = jQuery.trim(strEffectivePrice);
+                if(strEffectivePrice == "Flat Fee"){
+                    strEffectivePrice = $("#TextTotal"+Q_RatePlanId).val();
+                    strFeeType = "Flat Fee";
+                }
+            }else{
+                var strEffectivePrice = "";
+                strFeeType = "n/a";
+            }
+                    
+            var strQuantity = 1;
+            var elementQuantity = document.getElementById('TextQuantity' + Q_RatePlanId);
+            if (elementQuantity != null) {
+                strQuantity = elementQuantity.value;
+            }
+                    
+            var strDivListPrice = document.getElementById('divListPrice' + Q_RatePlanId).innerHTML;
+            
+                    
+            if(strDivListPrice == "Flat Fee"){
+                strDivListPrice = $('#ListTotal' + Q_RatePlanId).html();
+            }
+                    
+            if(strDivListPrice == "-"){
+                strDivListPrice = 0;
+            }
+                    
+            var strPrepaymentPeriods = 0;
+            var elementPrepaymentPeriods = document.getElementById('TextPrepaymentPeriods' + Q_RatePlanId);
+            if (elementPrepaymentPeriods != null) {
+                strPrepaymentPeriods = elementPrepaymentPeriods.value;
+            }
+            var strDiscount = 0;
+            try {
+                strDiscount = document.getElementById('TextDiscount' + Q_RatePlanId).value;
+            }catch (e){  }
+            var strUOM = "";
+            try {
+                strUOM = $('#TextUOM' + Q_RatePlanId).text().replace("-","");
+            }catch (e){  }
+            var strPeriod = "";
+            try {
+                strPeriod = document.getElementById('TextPeriod' + Q_RatePlanId).innerHTML.replace("-","");
+            }catch (e){ }
+                    
+            var strCurrency = "{!Quote__c.Currency__c}";
+                    
+            var strTotal = 0;
+            var strListTotal = 0;
+                    
+            try {
+                strType = document.getElementById('TextType' + Q_RatePlanId).innerHTML;
+                strModel = document.getElementById('TextModel' + Q_RatePlanId).innerHTML;
+                        
+                if(document.getElementById('TextTotal' + Q_RatePlanId)){
+                    strTotal = $("#TextTotal"+Q_RatePlanId).val();
+                    strTotal = jQuery.trim(strTotal);
+                }else{
+                    strTotal = "";
+                }
+                
+                if (document.getElementById('ListTotal' + Q_RatePlanId)) {
+                   strListTotal = $("#ListTotal"+Q_RatePlanId).html();
+                   strListTotal = jQuery.trim(strListTotal);
+                   if (strListTotal == '-') {
+                       strListTotal = 0;
+                   }
+                   strListTotal = Number(strListTotal);
+                }
+            }catch (e){}
+            
+            var obj = {};
+            obj.strChargeId = qid;
+            obj.strEffectivePrice = strEffectivePrice;
+            obj.strQuantity = strQuantity;
+            obj.strDiscount = strDiscount;
+            obj.strTotal = strTotal;
+	        if ('usage' == strType.toLowerCase()) {
+	            strListTotal = 0;
+	        }
+            obj.strListTotal = strListTotal;
+            obj.strFeeType = strFeeType;
+            obj.strCurrency = strCurrency;
+            obj.strDivListPrice = strDivListPrice;
+            
+            updataArray[i] = obj;
+            
+        }
+        
+        var strQuoteId = strQuoteId;
+        //alert(strQuoteId);
+        
+        UpdataQuoteChargeAction(updataArray,id,strQuoteId);
+
+    }
+    catch (myException) {
+        alert(myException);
+    }
+}
+
+function UpdataQuoteChargeAction(data,id,strQuoteId){
+    
+    
+    var spinner = $(".spinner");
+    spinner.css('top', (getScrollTop(parent) + getScrollTop(window)) + 'px');
+    spinner.toggle();
+    
+    setTimeout(function(){
+    var records = [];
+    
+    for(var i=0; i<data.length; i++){
+        var record = new sforce.SObject("QuoteCharge__c");
+        record.Id                    = data[i]['strChargeId'];
+        if ('' != data[i]['strEffectivePrice']) {
+            record.EffectivePrice__c = data[i]['strEffectivePrice'];
+        }
+        record.Quantity__c           = data[i]['strQuantity'];
+        record.Discount__c           = data[i]['strDiscount'];
+        if ('' != data[i]['strTotal']) {
+            record.Total__c          = data[i]['strTotal'];
+        }
+        record.ListTotal__c          = data[i]['strListTotal'];
+        record.FeeType__c            = data[i]['strFeeType'];
+        record.Currency__c           = data[i]['strCurrency'];
+        record.ListPriceDisplay__c = data[i]['strDivListPrice'];
+        records.push(record);
+    }
+    
+    var results = sforce.connection.update(records);
+    
+    //var strQuoteId = strQuoteId;
+    //alert(strQuoteId);
+    
+    var sql = "SELECT Id,Name,Total__c,ListTotal__c,Discount__c,TimeProductAdded__c, EffectivePrice__c, FeeType__c, ListPriceDisplay__c, Quantity__c, PrepaymentPeriods__c, Quote__c, ProductRatePlanCharge__r.Id, ProductRatePlanCharge__r.Name, ProductRatePlanCharge__r.Description__c, ProductRatePlanCharge__r.Type__c, ProductRatePlanCharge__r.Model__c, ProductRatePlanCharge__r.ListPrice__c, ProductRatePlanCharge__r.DefaultQuantity__c, ProductRatePlanCharge__r.UOM__c, ProductRatePlanCharge__r.RecurringPeriod__c, ProductRatePlanCharge__r.ProductRatePlan__r.Id, ProductRatePlanCharge__r.ProductRatePlan__r.Name, ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__c, ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__r.Id, ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__r.Name FROM  QuoteCharge__c WHERE  Quote__c = '" + strQuoteId + "' AND  TimeProductAdded__c = '" + id + "' ORDER BY  ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__r.Name,  ProductRatePlanCharge__r.ProductRatePlan__r.Name ASC,  TimeProductAdded__c ASC";
+
+    var quoteCharges = sforce.connection.query(sql);
+
+    
+        
+    var quoteChargeIterator = new sforce.QueryResultIterator(quoteCharges);
+    
+    
+    $("#chargeDiv"+id).remove();
+    var strContent = "";
+    var strProductName = "";
+    var strRatePlan = "";
+    var dSubTotal = 0;
+    try{
+        while (quoteChargeIterator.hasNext()) {
+            var myChargeQuote = quoteChargeIterator.next();
+            // May need a new header
+            var strPropertyProduct = "ZProduct__r";
+            var strPropertyRatePlan = "ProductRatePlan__r";
+            var strPropertyRatePlanCharge = "ProductRatePlanCharge__r";
+            
+            var strRatePlanChargeId = myChargeQuote[strPropertyRatePlanCharge].Id;
+            
+            //alert(strRatePlanChargeId);
+            
+            if ((strProductName != myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan][strPropertyProduct].Name) || (strRatePlan != myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan].Name)) {
+                strProductName = myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan][strPropertyProduct].Name;
+                strRatePlan = myChargeQuote[strPropertyRatePlanCharge][strPropertyRatePlan].Name;
+                strContent += "<div class=\"pbBody\"><div class=\"pbSubsection\">";
+                strContent += "<table class=\"detailList\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">";
+                strContent += "<tr class=\"headerRow\"><th scope=\"col\">Name</th><th scope=\"col\">Description</th><th scope=\"col\">Type</th><th scope=\"col\">Model</th><th scope=\"col\" style=\"text-align:right\">List Price</th><th scope=\"col\" style=\"text-align:right\">Discount</th><th scope=\"col\" style=\"text-align:right\">Effective Price</th><th scope=\"col\" style=\"text-align:right\">Quantity</th><th scope=\"col\">&nbsp;&nbsp;UOM</th><th scope=\"col\">&nbsp;&nbsp;Period</th><th scope=\"col\" style=\"text-align:right\">ListTotal</th><th scope=\"col\" style=\"text-align:right\">Total</th></tr>";
+            }
+            
+
+            // calculations
+            
+            var strType = myChargeQuote[strPropertyRatePlanCharge]["Type__c"];
+            var strModel = myChargeQuote[strPropertyRatePlanCharge]["Model__c"];
+            var strDescription = myChargeQuote[strPropertyRatePlanCharge]["Description__c"];
+            var strListPrice = myChargeQuote[strPropertyRatePlanCharge]["ListPrice__c"];
+            var strUOM = myChargeQuote[strPropertyRatePlanCharge]["UOM__c"];
+            var strRecurringPeriod = myChargeQuote[strPropertyRatePlanCharge]["RecurringPeriod__c"];
+            
+            var strEffectivePrice = myChargeQuote["EffectivePrice__c"];
+            var strListPrice_Actually = myChargeQuote["ListPriceDisplay__c"];
+            var strFeeType = myChargeQuote["FeeType__c"];
+            var strQuantity = myChargeQuote["Quantity__c"];
+            var strPrepaymentPeriods = myChargeQuote["PrepaymentPeriods__c"];
+
+            //var strTotal = CalculateTotal(strType, strModel, strEffectivePrice, strQuantity, strPrepaymentPeriods);
+            var strTotal = myChargeQuote.Total__c;
+            dSubTotal = dSubTotal + (1 * strTotal);
+            
+            if ('usage' == strType.toLowerCase()) {
+                var strListTotal = '-';
+            } else {
+                var strListTotal = myChargeQuote.ListTotal__c;
+            }
+
+            var bPriceVaries = ((strModel == 'Tiered Pricing') || (strModel == 'Tiered with Overage Pricing') || (strModel == 'Volume Pricing' && (strType == "Usage")));
+            
+            var bDiscount = ((strModel == 'Volume Pricing') && (strType == "Usage"));
+
+            // display it up
+            strContent += '<tr qid="'+myChargeQuote.Id+'" id="'+strRatePlanChargeId+'_'+id+'" class=" dataRow even last first" onblur="if (window.hiOff){hiOff(this);}" onfocus="if (window.hiOn){hiOn(this);}" onmouseout="if (window.hiOff){hiOff(this);}" onmouseover="if (window.hiOn){hiOn(this);}">';
+            strContent += '<td class=" dataCell"><a target="_top" href="/' + myChargeQuote[strPropertyRatePlanCharge].Id + '">' + myChargeQuote[strPropertyRatePlanCharge].Name + '</a></td>';
+            strContent += '<td class=" dataCell">' + (strDescription != null ? strDescription : '&nbsp;') + '</td>';
+            strContent += '<td class=" dataCell">' + strType + '</td>';
+            strContent += '<td class=" dataCell">' + strModel + '</td>';
+            
+            if(strFeeType == "Flat Fee"){
+                strContent += '<td class=\"dataCell\" disnum=\"'+strListPrice_Actually+'\" style=\"text-align:right\">Flat Fee</td>';
+            }else{
+                strContent += '<td class=\"dataCell\" disnum=\"'+strListPrice_Actually+'\" style=\"text-align:right\">' + (bPriceVaries ? 'Varies' : FormatCurrency(strListPrice_Actually)) + '</td>';
+            }
+            
+            
+           strContent += '<td class=" dataCell" dis_num="'+(bDiscount ? 0 : parseFloat(myChargeQuote.Discount__c))+'" type="Discount" style="text-align:right">' + (bDiscount ? '0.0%' : parseFloat(myChargeQuote.Discount__c).toFixed(1) + '%') + '</td>';
+            
+            
+            if(strEffectivePrice && strFeeType != "Flat Fee" && strFeeType != "n/a"){
+                strContent += '<td class=" dataCell" type="effectivePrice" style="text-align:right">' + FormatCurrency(strEffectivePrice) + '</td>';
+                
+            }else{
+                if(strFeeType == "Flat Fee"){
+                    strContent += '<td class=" dataCell" type="effectivePrice" style="text-align:right">Flat Fee</td>';
+                }else{
+                    strContent += '<td class=" dataCell" type="effectivePrice" style="text-align:right"> - </td>';
+                }
+            }
+            
+            strContent += '<td class=" dataCell" type="Quantity" style="text-align:right">' + Math.round(strQuantity) + '</td>';
+            strContent += '<td class=" dataCell" type="Period">&nbsp;&nbsp;' + (strUOM != null ? strUOM : '&nbsp;') + '</td>';
+            strContent += '<td class=" dataCell">&nbsp;&nbsp;' + (strRecurringPeriod != null ? strRecurringPeriod : '&nbsp;') + '</td>';
+            strContent += '<td class=" dataCell" type="ListTotal" style="text-align:right">' + (isNaN(strListTotal) ? strListTotal : FormatCurrency(strListTotal)) + '</td>';
+            strContent += '<td class="totalPrice dataCell" type="totalPrice" style="text-align:right">' + FormatCurrency(strTotal) + '</td>';
+            strContent += '</tr>';
+        }
+        //alert(strContent);
+        // close it up if you got something
+        if (strContent != "") {
+            strContent += "</table></div></div><div class=\"pbFooter secondaryPalette\"><div class=\"bg\"></div></div>";
+        }
+        
+        //alert(strContent);
+        
+        
+        
+        
+        $("#DivBody"+id).html(strContent);
+        $("#DivBody"+id).css("display","");
+        $("#btn_area_finish").css("display","");
+        $("#DivHeader"+id).find("input").css("display","");
+        var n = 0;
+        var t_a = $(".totalPrice");
+        for(var i=0; i<t_a.length; i++){
+            var t = $(t_a[i]).html();
+            t = t.replace(/\,/g, "");
+            n += parseFloat(t);
+        }
+        $("#subtotal_area").html("Subtotal: " + FormatCurrency(n));
+        var input_Array = parent.document.getElementsByTagName("input");
+        for(var i=0; i<input_Array.length; i++){
+            if($(input_Array[i]).hasClass("btn")){
+                $(input_Array[i]).removeAttr("disabled");
+            }
+        }
+        
+        var heard_div = $("#divSelectedProducts").find(".pbSubheader");
+        var body_div = $("#divSelectedProducts").find(".bPageBlock");
+    
+        for(var i=0; i<heard_div.length; i++){
+            var id_text = $(heard_div[i]).attr("id");
+            var h = "DivHeader"+id;
+            if(id_text != h){
+                $(heard_div[i]).css("display","");
+                $(body_div[i]).css("display","");
+            }
+        }
+        
+        editState = false;
+        
+    }
+    catch (myException) {
+        alert(myException);
+        editState = false;
+        return;
+    }
+    
+    spinner.toggle();
+    
+    },0);
+    
+    
+}
+
+
+function cancelQuoteCharge(id){
+    $("#DivHeader"+id).find("input").css("display","");
+    $("#DivBody"+id).css("display","");
+    $("#btn_area_finish").css("display","");
+    $("#chargeDiv"+id).remove();
+    var input_Array = parent.document.getElementsByTagName("input");
+    for(var i=0; i<input_Array.length; i++){
+        if($(input_Array[i]).hasClass("btn")){
+            $(input_Array[i]).removeAttr("disabled");
+        }
+    }
+    
+    var heard_div = $("#divSelectedProducts").find(".pbSubheader");
+    var body_div = $("#divSelectedProducts").find(".bPageBlock");
+    
+    for(var i=0; i<heard_div.length; i++){
+        var id_text = $(heard_div[i]).attr("id");
+        var h = "DivHeader"+id;
+        if(id_text != h){
+            $(heard_div[i]).css("display","");
+            $(body_div[i]).css("display","");
+        }
+    }
+    
+    editState = false;
+}
+
+function OnDeleteProductFromQuote(strQuoteId, strProductId, strQuoteChargeDivId, timeOut) {
+    if (confirm("Are you sure you want to delete this Product from your Quote?")) {
+        //alert(strQuoteId + " " + strProductId + " " + strQuoteChargeDivId);
+        DeleteQuoteCharges(strQuoteId, strProductId, timeOut);
+
+        // refresh if you have a div to refresh
+        RenderQuoteChargesInDiv(strQuoteChargeDivId, strQuoteId, true);
+    }
+}
+
+// check here
+function DeleteQuoteCharges(strQuoteId, strProductId, timeOut) {
+    try {
+        var charge_array = [];
+        var t = $("#DivBody"+timeOut).find(".dataRow");
+        for(var i=0; i<t.length; i++){
+            charge_array[i] = $(t[i]).attr("qid");
+        }
+        
+        //console.log(charge_array);
+        
+        if (charge_array.length > 0) {
+            var results = sforce.connection.deleteIds([charge_array]);
+        }
+        
+        /*
+        var quoteCharges = sforce.connection.query("SELECT Id FROM  QuoteCharge__c WHERE  Quote__c = '" + strQuoteId + "' and  ProductRatePlanCharge__r.ProductRatePlan__r.ZProduct__c = '" + strProductId + "'");
+        var arrRecords = quoteCharges.getArray("records");
+        if (arrRecords.length > 0) {
+            var arrDelete = new Array(arrRecords.length);
+            for (var nIndex = 0; nIndex < arrRecords.length; ++nIndex) {
+                arrDelete[nIndex] = arrRecords[nIndex].Id;
+            }
+            var results = sforce.connection.deleteIds([arrDelete]);
+            //alert(results);
+        }
+        */
+    }
+    catch (myException) {
+        alert(myException);
+    }
+}
+
+function GetAccountIdFromOpportunity(strOpportunityId) {
+    var strAccountId = "";
+    try {
+        var opportunities = sforce.connection.query("SELECT AccountId FROM Opportunity WHERE Id = '" + strOpportunityId + "'");
+        var opportunityIterator = new sforce.QueryResultIterator(opportunities);
+        if (opportunityIterator.hasNext()) {
+            var myOpportunity = opportunityIterator.next();
+            strAccountId = myOpportunity.AccountId;
+        }
+    }
+    catch (myException) {
+        alert(myException);
+    }
+    return strAccountId;
+}
+
+
+function CalculateDiscount(strListPrice, strEffectivePrice) {
+    var dDiscount = 0;
+    
+    try {
+        var strCurrencySymbol = '$';
+        var regExp = new RegExp('\\' + strCurrencySymbol + '|\,', 'g');
+        var dListPrice = strListPrice.toString().replace(regExp, '');
+        if(parseFloat(dListPrice)==0.00) return dDiscount;
+        var dEffectivePrice = strEffectivePrice.toString().replace(regExp, '');
+        var dDiscount = Math.round((1 - (dEffectivePrice / dListPrice)) * 100);
+    }
+    catch (myException) {
+        //alert("List: " + strListPrice + ", Effective: " + strEffectivePrice);
+        alert("Please enter a valid number.");
+        //alert(myException);
+        return (isNaN(dDiscount) ? 0 : dDiscount);
+    }
+    return (isNaN(dDiscount) ? 0 : dDiscount);
+}
+
+function CalculateEffectivePrice(strListPrice, strDiscount) {
+    var dEffectivePrice = 0;
+    try {
+        var strCurrencySymbol = '$';
+        var regExp = new RegExp('\\' + strCurrencySymbol + '|\,', 'g');
+        var dListPrice = strListPrice.toString().replace(regExp, '');
+        var dEffectivePrice = dListPrice * (1 - (strDiscount / 100));
+    }
+    catch (myException) {
+        //alert("List: " + strListPrice + ", Discount: " + strDiscount);
+        alert("Please enter a valid number.");
+        //alert(myException);
+        return (isNaN(dEffectivePrice) ? 0 : dEffectivePrice);
+    }
+    return (isNaN(dEffectivePrice) ? 0 : dEffectivePrice);
+}
+
+function IsValidNumber(strNumber) {
+    if ((strNumber == "") || (isNaN(strNumber))) {
+        alert("Please enter a valid number.");
+        return false;
+    }
+    return true;
+}
+
+function CalculateTotal(strType, strModel, strEffectivePrice, strQuantity, strPaymentPeriods) {
+    var dTotal = 0.0;
+    var strCurrencySymbol = '$';
+    var regExp = new RegExp('\\' + strCurrencySymbol + '|\,', 'g');
+    var dEffectivePrice = strEffectivePrice.toString().replace(regExp, '');
+    var dQuantity = 0;
+    if ((strQuantity != null) && (!isNaN(strQuantity))) {
+        dQuantity = strQuantity;
+    }
+    var dPaymentPeriods = 0;
+    if ((strPaymentPeriods != null) && (!isNaN(strPaymentPeriods))) {
+        dPaymentPeriods = strPaymentPeriods;
+    }
+    
+    if(strModel.indexOf("Tiered")!=-1) return 0;
+
+    //alert(strType + " " + strModel + " " + dEffectivePrice + " " + dQuantity + " " + dPaymentPeriods);
+    switch (strType) {
+        case 'One-Time':
+            {
+                // One Time Charge Model
+                switch (strModel) {
+                    case 'Flat Fee':
+                    case 'Flat Fee Pricing':
+                        // Flat Fee -- this has only a price (no quantity).  Example -- One time installation fee = $1000.  Total price is the same as the price.
+                        dTotal = dEffectivePrice;
+                        break;
+                    case 'Tiered Pricing':
+                    case 'Volume Pricing':
+                    case 'Per Unit':
+                    case 'Per Unit Pricing':
+                        // Per Unit -- This has price and quantity.  Total Price is the Price times the Quantity.  Example -- One-time Fee per iPhone -- $199 each x 2 phones = $398
+                        dTotal = dEffectivePrice * dQuantity;
+                        break;
+                }
+                break;
+            }
+        case 'Recurring':
+            {
+                // Recurring Charge Model
+                switch (strModel) {
+                    case 'Flat Fee':
+                    case 'Flat Fee Pricing':
+                        // Flat Fee -- This has price and Period (monthly, quarterly, annually).  Example -- Basic Cable Service = $54.99 per month.  Total price is the same as the price
+                        //dTotal = dEffectivePrice * dPaymentPeriods;
+                        dTotal = dEffectivePrice;
+                        break;
+                    case 'Tiered Pricing':
+                    case 'Volume Pricing':
+                    case 'Per Unit':
+                    case 'Per Unit Pricing':
+                        // Per Unit -- This has Price, Quantity and period.  Example -- Salesforce Enterprise Seat licenses = $60 per month per seat.  Total price is the Quantity times the price for each period.
+                        //dTotal = dEffectivePrice * dQuantity * dPaymentPeriods;
+                        dTotal = dEffectivePrice * dQuantity;
+                        break;
+                    
+                }
+                break;
+            }
+        case 'Usage':
+            {
+                // Usage Models (all usage models are billed in arrears after the usage in incurred -- for purposes of quotes, no total charge should be displayed in the quote, since we won't know the usage until after the usage is incurred)
+                break;
+            }
+
+    }
+    //alert(dTotal);
+    return dTotal;
+}
+
+function loadPicklistValues(describeResult, fieldName, defaultValue, allowNone){
+    var values = [];
+    var count = 0;
+    
+    if (allowNone){
+        values[count++] = ['', '', '--None--'];
+    }
+    if(sforce.connection.defaultNamespace != "")
+        fieldName = sforce.connection.defaultNamespace + "__" + fieldName;
+    for (var i=0; i<describeResult.fields.length; i++) {
+        var field = describeResult.fields[i];
+        if (fieldName == field.name){
+            var picklistValues = field.picklistValues;
+            for (var j = 0; j < picklistValues.length; j++){
+               var picklistValue = picklistValues[j];
+               // format for values is array of array, where second array is id/value/label/isDefault
+               values[count++] = [picklistValue.label, picklistValue.label, picklistValue.label, picklistValue.label == defaultValue];
+            }
+        }
+    }
+    return values;
+}
+
+
+// format for values is defined in loadPicklistValues (above)
+function initializePicklist(id, values){
+    var elSel = document.getElementById(id);
+    if (elSel == null){
+        alert("Element " + id + " not found");
+        return;
+    }
+    for (var i = 0; i < values.length; i++){
+       el = values[i];
+       var elOption = document.createElement('option');
+       elOption.id = el[0];
+       elOption.value = el[1];
+       elOption.text = el[2];
+       elOption.selected = el[3];
+       try {
+           elSel.add(elOption, null); // standards compliant; doesn't work in IE
+       }
+       catch(ex) {
+           elSel.add(elOption); // IE only
+       }
+    }
+}
+
+/**
+*
+*  Base64 encode / decode
+*  http://www.webtoolkit.info/
+*
+**/
+
+var Base64 = {
+
+    // private property
+    _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+
+    // public method for encoding
+    encode: function(input) {
+        var output = ""; 
+        var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+        var i = 0;
+
+        input = Base64._utf8_encode(input);
+
+        while (i < input.length) {
+
+            chr1 = input.charCodeAt(i++);
+            chr2 = input.charCodeAt(i++);
+            chr3 = input.charCodeAt(i++);
+
+            enc1 = chr1 >> 2;
+            enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+            enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+            enc4 = chr3 & 63;
+
+            if (isNaN(chr2)) {
+                enc3 = enc4 = 64;
+            } else if (isNaN(chr3)) {
+                enc4 = 64;
+            }
+
+            output = output +
+            this._keyStr.charAt(enc1) + this._keyStr.charAt(enc2) +
+            this._keyStr.charAt(enc3) + this._keyStr.charAt(enc4);
+
+        }
+
+        return output;
+    },
+
+    // public method for decoding
+    decode: function(input) {
+        var output = "";
+        var chr1, chr2, chr3;
+        var enc1, enc2, enc3, enc4;
+        var i = 0;
+
+        input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+        while (i < input.length) {
+
+            enc1 = this._keyStr.indexOf(input.charAt(i++));
+            enc2 = this._keyStr.indexOf(input.charAt(i++));
+            enc3 = this._keyStr.indexOf(input.charAt(i++));
+            enc4 = this._keyStr.indexOf(input.charAt(i++));
+
+            chr1 = (enc1 << 2) | (enc2 >> 4);
+            chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+            chr3 = ((enc3 & 3) << 6) | enc4;
+
+            output = output + String.fromCharCode(chr1);
+
+            if (enc3 != 64) {
+                output = output + String.fromCharCode(chr2);
+            }
+            if (enc4 != 64) {
+                output = output + String.fromCharCode(chr3);
+            }
+
+        }
+
+        output = Base64._utf8_decode(output);
+
+        return output;
+
+    },
+
+    // private method for UTF-8 encoding
+    _utf8_encode: function(string) {
+        string = string.replace(/\r\n/g, "\n");
+        var utftext = "";
+
+        for (var n = 0; n < string.length; n++) {
+
+            var c = string.charCodeAt(n);
+
+            if (c < 128) {
+                utftext += String.fromCharCode(c);
+            }
+            else if ((c > 127) && (c < 2048)) {
+                utftext += String.fromCharCode((c >> 6) | 192);
+                utftext += String.fromCharCode((c & 63) | 128);
+            }
+            else {
+                utftext += String.fromCharCode((c >> 12) | 224);
+                utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+                utftext += String.fromCharCode((c & 63) | 128);
+            }
+
+        }
+
+        return utftext;
+    },
+
+    // private method for UTF-8 decoding
+    _utf8_decode: function(utftext) {
+        var string = "";
+        var i = 0;
+        var c = c1 = c2 = 0;
+
+        while (i < utftext.length) {
+
+            c = utftext.charCodeAt(i);
+
+            if (c < 128) {
+                string += String.fromCharCode(c);
+                i++;
+            }
+            else if ((c > 191) && (c < 224)) {
+                c2 = utftext.charCodeAt(i + 1);
+                string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
+                i += 2;
+            }
+            else {
+                c2 = utftext.charCodeAt(i + 1);
+                c3 = utftext.charCodeAt(i + 2);
+                string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+                i += 3;
+            }
+
+        }
+
+        return string;
+    }
+
+}
+
+/*
+* Date Format 1.2.2
+* (c) 2007-2008 Steven Levithan <stevenlevithan.com>
+* MIT license
+* Includes enhancements by Scott Trenda <scott.trenda.net> and Kris Kowal <cixar.com/~kris.kowal/>
+*
+* Accepts a date, a mask, or a date and a mask.
+* Returns a formatted version of the given date.
+* The date defaults to the current date/time.
+* The mask defaults to dateFormat.masks.default.
+*/
+var dateFormat = function() {
+    var token = /d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,
+        timezone = /\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g,
+        timezoneClip = /[^-+\dA-Z]/g,
+        pad = function(val, len) {
+            val = String(val);
+            len = len || 2;
+            while (val.length < len) val = "0" + val;
+            return val;
+        };
+
+    // Regexes and supporting functions are cached through closure
+    return function(date, mask, utc) {
+        var dF = dateFormat;
+
+        // You can't provide utc if you skip other args (use the "UTC:" mask prefix)
+        if (arguments.length == 1 && (typeof date == "string" || date instanceof String) && !/\d/.test(date)) {
+            mask = date;
+            date = undefined;
+        }
+
+        // Passing date through Date applies Date.parse, if necessary
+        date = date ? new Date(date) : new Date();
+        if (isNaN(date)) throw new SyntaxError("invalid date");
+
+        mask = String(dF.masks[mask] || mask || dF.masks["default"]);
+
+        // Allow setting the utc argument via the mask
+        if (mask.slice(0, 4) == "UTC:") {
+            mask = mask.slice(4);
+            utc = true;
+        }
+
+        var _ = utc ? "getUTC" : "get",
+            d = date[_ + "Date"](),
+            D = date[_ + "Day"](),
+            m = date[_ + "Month"](),
+            y = date[_ + "FullYear"](),
+            H = date[_ + "Hours"](),
+            M = date[_ + "Minutes"](),
+            s = date[_ + "Seconds"](),
+            L = date[_ + "Milliseconds"](),
+            o = utc ? 0 : date.getTimezoneOffset(),
+            flags = {
+                d: d,
+                dd: pad(d),
+                ddd: dF.i18n.dayNames[D],
+                dddd: dF.i18n.dayNames[D + 7],
+                m: m + 1,
+                mm: pad(m + 1),
+                mmm: dF.i18n.monthNames[m],
+                mmmm: dF.i18n.monthNames[m + 12],
+                yy: String(y).slice(2),
+                yyyy: y,
+                h: H % 12 || 12,
+                hh: pad(H % 12 || 12),
+                H: H,
+                HH: pad(H),
+                M: M,
+                MM: pad(M),
+                s: s,
+                ss: pad(s),
+                l: pad(L, 3),
+                L: pad(L > 99 ? Math.round(L / 10) : L),
+                t: H < 12 ? "a" : "p",
+                tt: H < 12 ? "am" : "pm",
+                T: H < 12 ? "A" : "P",
+                TT: H < 12 ? "AM" : "PM",
+                Z: utc ? "UTC" : (String(date).match(timezone) || [""]).pop().replace(timezoneClip, ""),
+                o: (o > 0 ? "-" : "+") + pad(Math.floor(Math.abs(o) / 60) * 100 + Math.abs(o) % 60, 4),
+                S: ["th", "st", "nd", "rd"][d % 10 > 3 ? 0 : (d % 100 - d % 10 != 10) * d % 10]
+            };
+
+        return mask.replace(token, function($0) {
+            return $0 in flags ? flags[$0] : $0.slice(1, $0.length - 1);
+        });
+    };
+} ();
+
+// Some common format strings
+dateFormat.masks = {
+    "default": "ddd mmm dd yyyy HH:MM:ss",
+    shortDate: "m/d/yy",
+    mediumDate: "mmm d, yyyy",
+    longDate: "mmmm d, yyyy",
+    fullDate: "dddd, mmmm d, yyyy",
+    shortTime: "h:MM TT",
+    mediumTime: "h:MM:ss TT",
+    longTime: "h:MM:ss TT Z",
+    isoDate: "yyyy-mm-dd",
+    isoTime: "HH:MM:ss",
+    isoDateTime: "yyyy-mm-dd'T'HH:MM:ss",
+    isoUtcDateTime: "UTC:yyyy-mm-dd'T'HH:MM:ss'Z'"
+};
+
+// Internationalization strings
+dateFormat.i18n = {
+    dayNames: [
+        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
+        "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+    ],
+    monthNames: [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"
+    ]
+};
+
+// For convenience...
+Date.prototype.format = function(mask, utc) {
+    return dateFormat(this, mask, utc);
+};
+
+// to bootstrap - lucena
+var g_strMagic = Base64.encode(g_ZuoraAPIUsername + ',' + g_ZuoraAPIPassword + ',' + g_ZuoraAPIURL);

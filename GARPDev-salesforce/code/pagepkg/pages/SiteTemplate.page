@@ -1,0 +1,180 @@
+<apex:page showHeader="false" id="SiteTemplate">
+  <apex:variable var="envPath" value="{!URLFOR($Resource.sfdcApp1)}" />
+  <link href="{!envPath}/lib/bootstrap/css/bootstrap.garp.css" rel="stylesheet"/>
+  <apex:includeScript value="{!envPath}/lib/spinjs/spin.min.js"/>   
+    
+<script src="{!envPath}/lib/jquery/jquery-1.10.2.min.js"></script>
+<script>
+var jq = jQuery.noConflict();
+</script>    
+
+<style>
+.pc_page_content {
+    display: none;
+}
+</style>
+    
+  <apex:insert name="header">
+    <c:SiteHeader />
+  </apex:insert>
+  <apex:insert name="body"/>
+  <apex:insert name="footer">
+    <hr/>
+    <script>
+      //debugger;
+    var regInfo = {
+        fname: '',
+        lname: '',
+        email: '',
+        ccnumber: '',
+        ccvnumber: '',
+        ccmonth: '',
+        ccyear: ''
+      }
+      
+      function delete_cookie(name) {
+          document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      }
+      
+      function getCookie(name) {
+          var value = "; " + document.cookie;
+          var parts = value.split("; " + name + "=");
+          if (parts.length == 2) return parts.pop().split(";").shift();
+      }      
+
+      function createCookie(name,value,min) {
+          if (min) {
+              var date = new Date();
+              date.setTime(date.getTime()+(min*60*1000));
+              var expires = "; expires="+date.toGMTString();
+          }
+          else var expires = "";
+          document.cookie = name+"="+value+expires+"; path=/";
+      }
+      
+      if(document.URL.indexOf('apex') > -1) {
+      
+          jq('.pc_page_content').attr('style','display:inline');
+          
+      } else if(document.URL.indexOf('pymt__sitecheckoutconfirm') > -1) {
+          document.getElementById("pc_context_website").style.display = "none";
+          var contactId = getCookie('contactId');
+          for (var property in regInfo) {
+              delete_cookie(property);
+          }
+          document.location="/reg#!/registerInfo" + contactId;
+          
+          
+      } else if(document.URL.indexOf('pymt__sitesubscribeconfirm') > -1) {
+          
+          document.getElementById("pc_context_").style.display = "none";
+          var contactId = getCookie('contactId');
+          for (var property in regInfo) {
+              delete_cookie(property);
+          }
+          document.location="/reg#!/registerInfo" + contactId;
+          
+      } else {
+
+        var opts = {
+          lines: 10, // The number of lines to draw
+          length: 20, // The length of each line
+          width: 15, // The line thickness
+          radius: 30, // The radius of the inner circle
+          corners: 1, // Corner roundness (0..1)
+          rotate: 0, // The rotation offset
+          direction: 1, // 1: clockwise, -1: counterclockwise
+          color: '#000', // #rgb or #rrggbb or array of colors
+          speed: 1, // Rounds per second
+          trail: 60, // Afterglow percentage
+          shadow: false, // Whether to render a shadow
+          hwaccel: false, // Whether to use hardware acceleration
+          className: 'spinner', // The CSS class to assign to the spinner
+          zIndex: 2e9, // The z-index (defaults to 2000000000)
+          top: '20%', // Top position relative to parent
+          left: '50%' // Left position relative to parent
+        };
+    
+        var envPath = "{!envPath}";
+        var regType = getCookie('regType');
+
+        jq('body').attr('style','background: #FFFFFF url({!envPath}/img/light_noise_diagonal.png) repeat;');
+                  
+         var root = "";
+          var formpath = "";
+          var submitButton = "";
+          var msg = "";
+          var err = "";
+          if(document.URL.indexOf('pymt__SiteSubscribePRB') > -1) {
+              root = "#website";
+              formpath = "#siteSubscribePRBPage\\:SiteTemplate\\:checkoutForm";
+              submitButton = "#siteSubscribePRBPage\\:SiteTemplate\\:checkoutForm\\:createSubscription";
+              msg = "siteSubscribePRBPage\\:SiteTemplate\\:messages";
+              err = "Errors";
+          } else {
+              root = "#pc_context_website";
+              formpath = "#siteCheckoutPage\\:SiteTemplate\\:checkoutForm";
+              submitButton = "#siteCheckoutPage\\:SiteTemplate\\:checkoutForm\\:processCard";
+              msg="siteCheckoutPage\\:SiteTemplate\\:messages";
+              err = "Transaction failed";
+          }
+            
+          
+        jq(root).hide()
+        jq("<div class='navbar navbar-default navbar-fixed-top' role='navigation' ng-controller='SFDCAppNavPublicCtrl'><div class='container'><div class='navbar-header'><button type='button' class='navbar-toggle' data-toggle='collapse' data-target='.navbar-collapse'><span class='sr-only'>Toggle navigation</span><span class='icon-bar'></span><span class='icon-bar'></span><span class='icon-bar'></span></button><a class='navbar-brand' href='#'>GARP</a></div><div class='navbar-collapse collapse'><ul class='nav navbar-nav'></ul><ul class='nav navbar-nav navbar-right'><li id='mainnav-dashboard'><a href='/login'>Sign In</a></li></ul></div><!--/.nav-collapse --></div></div><div class='container page-container'><div id='spin'></div><div class='row'><div class='col-md-12'><div id='heading' style='margin-top:75px;'><h2>Processing Your Order</h2><br><br><b>Almost there...</b></div></div></div></div>").insertBefore(root);
+                   
+        var obj = jq('#spin');
+        if(obj !== null && typeof obj !== "undefined" && obj.length > 0) {
+            var spinner = new Spinner(opts).spin(obj[0]);
+        }   
+              
+        jq(formpath + '\\:ccNumber').val(getCookie("ccnumber"))
+        jq(formpath + '\\:cvvNumber').val(getCookie("ccvnumber"))
+        jq(formpath + '\\:expMonth').val(getCookie("ccmonth"))
+        jq(formpath + '\\:expYear').val(getCookie("ccyear"))
+     
+        v = jq(submitButton).attr('onClick')
+        v = v.replace('enableValidation = true','enableValidation = false')
+        jq(submitButton).attr('onClick',v) 
+        jq(submitButton).click()
+        
+        var foundError = false;
+        var pollCnt=0;
+        window.setInterval(function(){
+          /// call your function here
+          if(foundError == false) {  
+              pollCnt++;
+              var errHTML = jq("[id^=" + msg + "]").html();
+              var error = errHTML.indexOf(err);
+              if(error > -1 || pollCnt > 5) {
+                  foundError = true;
+                  spinner.stop();
+                  if(error == -1) {
+                      var errorMsg = " There was an error processing your order, please go back and try again.";
+                  } else {
+                      //debugger;
+                      if(document.URL.indexOf('pymt__SiteSubscribePRB') > -1) {
+                          //var idx1 = errHTML.indexOf('No profile has been created.');
+                          var idx1 = errHTML.lastIndexOf('<li style="padding-top:5px">')
+                          idx1=idx1+28;
+                          var idx2 = errHTML.indexOf('</li></ul>');
+                          var errorMsg = errHTML.substring(idx1, idx2);
+                      } else {
+                          var str1 = errHTML.substring(error);
+                          var idx = str1.indexOf("<br>");
+                          var errorMsg = errHTML.substring(error, error+idx);
+                      }
+                  }
+                  createCookie('ccError',errorMsg,5);
+                  document.location="/reg#!/registration" + regType;
+                  //jq("<div id='error'><div><span style='color:red'>" + errorMsg + "</span><br><a href='/reg#!/registration" + regType + "'>Go Back</a></div>" ).insertAfter("#heading");
+              }
+          }
+        }, 5000);
+          
+      }      
+    </script>
+    <c:SiteFooter />
+    <site:googleAnalyticsTracking />
+  </apex:insert>
+</apex:page>

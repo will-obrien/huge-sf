@@ -1,0 +1,75 @@
+<apex:page sidebar="false" showHeader="true" controller="PGIQuoteApprovalActionController" >
+ <apex:form >
+     <apex:pageBlock rendered="{!Isapprovalprocess}" title="Approval Request Details">
+        <apex:pageBlockSection columns="3">
+        <apex:outputLabel value="{!$Label.pgiAccount}" style="font-weight:bold;">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.accountName}" style="font-weight: normal;"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.pgiQuoteStatus}" style="font-weight:bold">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.quoteStatus}" style="font-weight:normal"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.PGINonStdTermsConditions}" style="font-weight:bold;">&nbsp;&nbsp;<apex:inputCheckbox value="{!bypass}" disabled="true"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.pgiQuoteName}" style="font-weight:bold;">
+        <apex:commandLink value="{!quoteInfo.quoteName}" action="{!QuoteDetailpage}" style="font-weight:normal;">
+        </apex:commandLink>
+        </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.pgiPhone}" style="font-weight:bold;">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.quoteContact}" style="font-weight:normal;"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.pgiQuoteOwner}" style="font-weight:bold;">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.salesRepName}" style="font-weight:normal;"/></apex:outputLabel>
+        <apex:outputLabel value="{!$Label.pgiEmail}" style="font-weight:bold;">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.Email}" style="font-weight:normal;"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.PgiQuoteApprovalTCV}" style="font-weight:bold">&nbsp;&nbsp;<apex:outputText value="{0, number, ###.##}" style="font-weight: normal;"><apex:param value="{!quoteInfo.totalContractValue}"/></apex:outputText></apex:outputLabel>
+        <apex:outputLabel value="{!$Label.PgiQuoteApprovalTMRR}" style="font-weight:bold"><b><apex:outputText value="{0, number, ###.##}" style="font-weight:normal"><apex:param value="{!quoteInfo.totalMRR}"/></apex:outputText>  </b> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.PgiQuoteApprovalCur}" style="font-weight:bold">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.quoteCurrency}" style="font-weight:normal"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.PgiQuoteApprovalRTC}" style="font-weight:bold">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.territorycode}" style="font-weight:normal"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.PgiQuoteApprovalQType}"  style="font-weight:bold">&nbsp;&nbsp;<apex:outputtext value="{!quoteInfo.dealType}" style="font-weight:normal"/></apex:outputlabel> 
+        <apex:outputLabel value="{!$Label.PgiQuoteApprovalRFP}" style="font-weight:bold">&nbsp;&nbsp;<apex:inputcheckbox value="{!quoteInfo.isRFP}" disabled="true"/> </apex:outputLabel>
+        <apex:outputLabel value="{!$Label.Comments_for_approver}"  style="font-weight:bold">&nbsp;&nbsp;<apex:outputtext value="{!commentsforapprovar}" style="font-weight:normal"/> </apex:outputLabel>
+        </apex:pageBlockSection>
+        <br/>
+        <apex:pageBlockTable value="{!allProductDetailsList}" var="allProduct"   Title="Finalize Quotes"  >
+        <apex:column headerValue="{!$Label.pgiService}" value="{!allProduct.productName}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>  
+        <apex:column headerValue="{!$Label.pgiUnitType}" value="{!allProduct.unit}" style="{!If(allProduct.meetAuthority=='No','background-color: #f8cfdd',If(allProduct.isServiceProduct,'background-color: #ff9f3b',''))}"/>
+        <apex:column headerValue=" {!$Label.PgiQuantity1}" style="{!If(allProduct.meetAuthority=='No','background-color: #f8cfdd',If(allProduct.isServiceProduct,'background-color: #ff9f3b',''))}">     
+        <apex:outputText value="{!allProduct.oldQuantity}"> <!--Changed from Quantity to old Quantity -->  
+        </apex:outputText> 
+        
+        </apex:column>      
+        
+        <!--Added for Amendment-->       
+        <apex:column headerValue=" {!$Label.pgiQuantity}" rendered="{!iscloned}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}" >
+          <apex:outputText value="{!allProduct.quantity}">   
+          </apex:outputText>
+          </apex:column>  
+             
+        <apex:column headerValue="{!$Label.pgiListPrice}" value="{!allProduct.listPrice}" style="{!If(allProduct.meetAuthority=='No','background-color: #f8cfdd',If(allProduct.isServiceProduct,'background-color: #ff9f3b',''))}"/>
+        <apex:column headerValue=" {!$Label.sellPrice}" style="{!If(allProduct.meetAuthority=='No','background-color: #f8cfdd',If(allProduct.isServiceProduct,'background-color: #ff9f3b',''))}" >
+        <apex:outputText value="{!allProduct.bidPrice}"  ></apex:outputText>           
+        </apex:column>
+        <apex:column headerValue="{!$Label.PgiTerm1}"  style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}">
+         <apex:outputtext value="{0, number}"> <apex:param value="{!allProduct.oldtermLength}" /> </apex:outputtext> <!--Changed from term to old Term -->  
+        </apex:column>
+        <!--Added for Amendment-->
+        <apex:column headerValue="{!$Label.pgiTerm}" rendered="{!iscloned}" value="{!allProduct.termLength}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>        
+        
+        <apex:column headerValue="{!$Label.pgiBillingFrequency1}" value="{!allProduct.billingFrequency}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>
+        <apex:column headerValue="{!$Label.pgicontractvalue1}" value="{!allProduct.contractValue}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>
+         <apex:column headerValue="{!$Label.MRR}" value="{!allProduct.MRR}" style="{!If(allProduct.meetAuthority=='No','background-color: #f8cfdd',If(allProduct.isServiceProduct,'background-color: #ff9f3b',''))}"/>
+         <apex:column headerValue="ChangeType" value="{!allProduct.changeType }" rendered="{!iscloned}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>
+         <apex:column headerValue="{!$Label.Status}"  style="{!If(allProduct.meetAuthority=='No','background-color: #f8cfdd',If(allProduct.isServiceProduct,'background-color: #ff9f3b',''))}">
+         <apex:outputText value="{!allProduct.approvalLevel}" rendered="{!allProduct.approvalLevel!='None'}"/>&nbsp;<br/>
+         <apex:outputText value="{!allProduct.approvalStatus}"/>
+         </apex:column>
+        
+        </apex:pageBlockTable> 
+        <apex:pageBlockButtons location="bottom" > 
+        <apex:commandButton value="{!$Label.pgiApprove}" action="{!approveRequest}" oncomplete="window.location.reload()" style="align:left;"></apex:commandButton>
+        <apex:commandButton value="{!$Label.pgiReject}" action="{!rejectRequest}" oncomplete="window.location.reload()"></apex:commandButton>
+        </apex:pageBlockButtons> 
+        <br/>
+        <apex:pageblocksection >
+        <apex:outputPanel >
+        <apex:outputlabel ><b>{!$Label.PgiCommentBox}</b></apex:outputlabel> &nbsp;&nbsp;&nbsp;&nbsp;
+        <apex:inputtextarea value="{!approvalProcessComment}"  style="width:260%;height:180%;" ></apex:inputtextarea> <br/>
+        </apex:outputPanel>
+        </apex:pageblocksection>
+      </apex:pageBlock>
+      <apex:pageBlock rendered="{!approvalProcessed}">
+      <apex:outputLabel > <b>{!$Label.PgiQuoteApprovalProAction}</b></apex:outputLabel> 
+      </apex:pageBlock>
+   </apex:form>
+</apex:page>

@@ -1,0 +1,104 @@
+<apex:component allowDML="true">
+    <apex:attribute name="editMode" Description="Edit Mode" type="boolean" required="false"/>
+    <apex:attribute name="fieldId" description="The field ID" type="string"
+        required="true" />
+    <apex:attribute name="targetId" Description="The target Id value"
+        type="string" required="true" />
+    <apex:attribute name="targetName" Description="The target Name value"
+        type="string" required="true" />
+    <apex:attribute name="objectId" Description="The object ID value"
+        type="string" required="true" />
+    <apex:attribute name="lookupType" Description="The lookup type value"
+        type="string" required="true" />
+
+	<style>
+	
+	A:link {text-decoration: none}
+	
+.deleteIconOn {
+    background-image: url("{!$Resource.zqu__IconDelete}");
+    background-position: top right; 
+    vertical-align:middle; 
+    height: 20px;
+    width: 20px;
+}
+
+.deleteIcon {
+	background-image: url("{!$Resource.zqu__IconDelete}");
+	background-position: top left; 
+	vertical-align:middle; 
+	height: 20px;
+	width: 20px;
+}
+</style>
+
+    <script>
+  function {!fieldId}() {}
+  
+  {!fieldId}.clear = function() {
+    var nameElement = document.getElementById('{!$Component.targetName}');
+    var nameDisplayElement = document.getElementById('{!$Component.targetName}Display');
+    var idElement = document.getElementById('{!$Component.targetId}');
+    nameElement.value = '';
+    nameDisplayElement.value = ''; 
+    idElement.value = '';
+    if ( onChange{!fieldId} ) {
+      onChange{!fieldId}(); 
+    }
+    clear{!fieldId}();
+  }
+  
+  {!fieldId}.contextParameters = []; 
+  
+  {!fieldId}.addContextParameter = function( paramName, paramValue ) {
+    var param = {}; 
+    param.name = paramName; 
+    param.value = paramValue; 
+    for ( var i=0; i<{!fieldId}.contextParameters.length; i++ ) {
+      if ( {!fieldId}.contextParameters[i].name == paramName ) {
+        {!fieldId}.contextParameters.splice(i);
+      }
+    }
+    {!fieldId}.contextParameters.push( param ); 
+  }
+  
+  {!fieldId}.openLookupPopup = function(name, id, objectId, lookupType, fieldId) {
+    var url = "/apex/LookupBrowse?namefield=" + name + "&idfield=" + id + "&objectId=" + objectId + "&lookupType=" + lookupType + "&fieldId=" + fieldId;
+    var contextParameters = {!fieldId}.contextParameters;  
+    for ( var i=0; i<contextParameters.length; i++ ) {
+      url += "&" + escape( contextParameters[i].name ) + "=" + escape( contextParameters[i].value ); 
+    }
+    var newWin = window.open(url, 'Popup', 'height=600,width=600,left=200,top=100,resizable=no,scrollbars=yes,toolbar=no,status=no');
+    if (window.focus) {
+      newWin.focus();
+    }
+    return false;
+  }
+  </script>
+
+    <apex:actionRegion rendered="{!editMode}">
+
+        <apex:inputHidden value="{!targetId}" id="targetId" />
+        <apex:inputHidden value="{!targetName}" id="targetName" />
+        <apex:inputText size="40" value="{!targetName}" id="targetNameDisplay"
+			disabled="true" onkeyup="clear{!fieldId}();" title="Please use the browse icon to select a value. "/>
+            
+    <img title="Lookup"
+      onmouseover="this.className = 'lookupIconOn';this.className = 'lookupIconOn';"
+      onmouseout="this.className = 'lookupIcon';this.className = 'lookupIcon';"
+      onfocus="this.className = 'lookupIconOn';"
+      onclick="{!fieldId}.openLookupPopup('{!$Component.targetName}', '{!$Component.targetId}', '{!objectId}', '{!lookupType}', '{!fieldId}'); return false"
+      onblur="this.className = 'lookupIcon';" class="lookupIcon"
+      src="/s.gif" />
+    <img title="Clear Value"
+      onmouseover="this.className = 'deleteIconOn';" 
+      onmouseout="this.className = 'deleteIcon';"
+      onfocus="this.className = 'deleteIconOn';"
+      onclick="{!fieldId}.clear();return false"
+      onblur="this.className = 'deleteIcon';" class="deleteIcon"
+      src="/s.gif" />
+    </apex:actionRegion>
+    <apex:outputText value="{!targetName}" rendered="{!NOT(editMode)}"/>
+    
+    
+</apex:component>

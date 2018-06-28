@@ -1,0 +1,108 @@
+<apex:page standardController="Voiture__c">
+
+	<apex:includeScript value="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>
+	<apex:includeScript value="/soap/ajax/15.0/connection.js" />
+	<apex:includeScript value="/soap/ajax/15.0/apex.js" />
+	
+	<script type="text/javascript">
+		$jquery = jQuery.noConflict();
+		
+		function init(){
+			sforce.connection.sessionId = '{!$Api.Session_ID}';
+		}
+		
+		function submitForm(){
+			var voiture = sforce.apex.execute("Voiture_Ajax","saveVoiture",{
+               nom : $jquery('[id$=nom]').val(),                              
+               reference : $jquery('[id$=reference]').val(),
+               couleur : $jquery('[id$=couleur]').val(),
+               prix : $jquery('[id$=prix]').val(),
+            });   
+           alert("Completed !");
+           resetForm(); 
+           populateVoiture(voiture[0]);     
+		}
+		
+		function resetForm(){
+			$jquery('[id$=nom]').val('');                          
+            $jquery('[id$=reference]').val('');
+            $jquery('[id$=couleur]').val('');
+            $jquery('[id$=prix]').val('');
+		}
+		
+		function populateVoiture(voiture){
+			$jquery('#nom_ajax').html(voiture.Nom__c);                          
+            $jquery('#reference_ajax').html(voiture.Reference__c);
+            $jquery('#couleur_ajax').html(voiture.Couleur__c);
+            $jquery('#prix_ajax').html(voiture.Prix__c);
+		} 
+	</script>
+	
+	<style type="text/css">
+		#fieldset_form{
+			width:400px;
+		}
+	</style>
+	
+	<apex:form >
+		<fieldset id="fieldset_form">
+			<legend>Création d'une voiture en Ajax</legend>
+			<div>
+				<table>
+					<tr>
+						<th>Nom : </th>
+						<td><apex:inputField id="nom" value="{!Voiture__c.Nom__c}" /></td>
+					</tr>
+					<tr>
+						<th>Référence : </th>
+						<td><apex:inputField id="reference" value="{!Voiture__c.Reference__c}" /></td>
+					</tr>
+					<tr>
+						<th>Couleur : </th>
+						<td>
+							<apex:inputField id="couleur" value="{!Voiture__c.Couleur__c}" />
+						</td>
+					</tr>
+					<tr>
+						<th>Prix : </th>
+						<td><apex:inputField id="prix" value="{!Voiture__c.Prix__c}" /></td>
+					</tr>
+				</table>
+			</div>
+			<a href="javascript:void(0)" onCLick="submitForm();return false;">Valider le formulaire</a>
+		</fieldset>
+	</apex:form>
+	
+	<fieldset id="fieldset_form">
+		<legend>La voiture créée en Ajax</legend>
+		<div>
+			<table>
+				<tr>
+					<th>Nom : </th>
+					<td><span id="nom_ajax"></span></td>
+				</tr>
+				<tr>
+					<th>Référence : </th>
+					<td><span id="reference_ajax"></span></td>
+				</tr>
+				<tr>
+					<th>Couleur : </th>
+					<td><span id="couleur_ajax"></span></td>
+				</tr>
+				<tr>
+					<th>Prix : </th>
+					<td><span id="prix_ajax"></span></td>
+				</tr>
+			</table>
+		</div>
+	</fieldset>
+	
+	<apex:outputLink value="/apex/test_ajax" >Rafraîchir la page</apex:outputLink>
+
+	<script type="text/javascript">
+		$jquery(function() {
+			init();
+		});
+	</script>
+
+</apex:page>

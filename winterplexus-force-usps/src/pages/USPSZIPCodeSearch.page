@@ -1,0 +1,176 @@
+<apex:page id="USPSZIPCodeSearch" title="USPS: ZIP Code Search" controller="USPSZIPCodeSearchController" showHeader="false" sidebar="false">
+  <!-- Resources -->
+  <apex:stylesheet value="{!URLFOR($Resource.wiregrass_resources, 'wiregrass.css')}"/>
+
+  <!-- Header -->
+  <div id="header_container">
+    <div id="header">
+      USPS
+    </div>
+  </div>
+
+  <!-- Content container -->
+  <div id="container">
+    <div id="content">
+      <!-- Page messages -->
+      <apex:pageMessages />
+
+      <!-- Page form -->
+      <apex:form id="ZIPCodeSearchForm">
+        <!-- User input block -->
+        <apex:pageBlock id="inputBlock" title="USPS">
+          <!-- Inline heading -->
+          <apex:outputText value="ZIP Code Search" style="font-weight: bold"></apex:outputText><p />
+
+          <!-- User input grid -->
+          <apex:panelGrid columns="2" id="inputGrid">
+            <!-- Inline heading -->
+            <apex:panelGroup id="inputInlineHeadingLabelGroup">
+            </apex:panelGroup>
+            <apex:panelGroup id="inputInlineHeadingGroup">
+              <apex:outputText value="Enter postal address:" style="font-weight: bold"></apex:outputText>
+            </apex:panelGroup>
+
+            <!-- Firm name -->
+            <apex:panelGroup id="inputFirmNameLabelGroup">
+              <apex:outputLabel value="Firm Name:" for="inputFirmNameText"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="inputFirmNameGroup">
+              <apex:inputText value="{!inputFirmName}" id="inputFirmNameText" size="60" maxlength="60"/>&nbsp;
+            </apex:panelGroup>
+
+            <!-- Address1 -->
+            <apex:panelGroup id="inputAddress1LabelGroup">
+              <apex:outputLabel value="Address Line 1:" for="inputAddress1Text"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="inputAddress1Group">
+              <apex:inputText value="{!inputAddress1}" id="inputAddress1Text" size="50" maxlength="50"/>&nbsp;
+            </apex:panelGroup>
+
+            <!-- Address2 -->
+            <apex:panelGroup id="inputAddress2LabelGroup">
+              <apex:outputLabel value="Address Line 2:" for="inputAddress2Text"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="inputAddress2Group">
+              <apex:inputText value="{!inputAddress2}" id="inputAddress2Text" size="50" maxlength="50"/>&nbsp;
+              <apex:outputText value="required" style="color:red"></apex:outputText>
+            </apex:panelGroup>
+
+            <!-- City name -->
+            <apex:panelGroup id="inputLabelCityGroup">
+              <apex:outputLabel value="City:" for="inputCityText"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="inputCityGroup">
+              <apex:inputText value="{!inputCity}" id="inputCityText" size="45" maxlength="45"/>&nbsp;
+              <apex:outputText value="required" style="color:red"></apex:outputText>
+            </apex:panelGroup>
+
+            <!-- State (drop down list) -->
+            <apex:panelGroup id="inputStateLabelGroup">
+              <apex:outputLabel value="State:" for="inputStateList"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="inputStateGroup">
+              <apex:selectList value="{!inputState}" id="inputStateList" size="1" multiselect="false">
+                <apex:actionSupport event="onchange" rerender="list"/>
+                <apex:selectOptions value="{!states}"/>
+              </apex:selectList>&nbsp;
+              <apex:outputText value="required" style="color:red"></apex:outputText>
+            </apex:panelGroup>
+
+            <!-- Empty line -->
+            <apex:outputText value=" "></apex:outputText>
+            <apex:outputText value=" "></apex:outputText>
+
+            <!-- Inline heading -->
+            <apex:panelGroup id="oututInlineHeadingLabelGroup" rendered="{!IF(displayOutput,true,false)}">
+            </apex:panelGroup>
+            <apex:panelGroup id="outputInlineHeadingGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputText value="ZIP code search result:" style="font-weight: bold"></apex:outputText>
+            </apex:panelGroup>
+
+            <!-- Firm name -->
+            <apex:panelGroup id="outputFirmNameLabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="Firm Name:" for="outputFirmNameText"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputFirmNameGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputFirmName}" id="outputFirmNameText" size="60" maxlength="60" disabled="true"/>
+            </apex:panelGroup>
+
+            <!-- Address1 -->
+            <apex:panelGroup id="outputAddress1LabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="Address Line 1:" for="outputAddress1Text"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputAddress1Group" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputAddress1}" id="outputAddress1Text" size="50" maxlength="50" disabled="true"/>
+            </apex:panelGroup>
+
+            <!-- Address2 -->
+            <apex:panelGroup id="outputAddress2LabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="Address Line 2:" for="outputAddress2Text"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputAddress2Group" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputAddress2}" id="outputAddress2Text" size="50" maxlength="50" disabled="true"/>
+            </apex:panelGroup>
+
+            <!-- City name -->
+            <apex:panelGroup id="outputCityLabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="City:" for="outputCityText"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputCityGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputCity}" id="outputCityText" size="45" maxlength="45" disabled="true"/>
+            </apex:panelGroup>
+
+            <!-- State (drop down list) -->
+            <apex:panelGroup id="outputStateLabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="State:" for="outputStateList"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputStateGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:selectList value="{!outputState}" id="outputStateList" size="1" multiselect="false">
+                <apex:actionSupport event="onchange" rerender="list"/>
+                <apex:selectOptions value="{!states}"/>
+              </apex:selectList>
+            </apex:panelGroup>
+
+            <!-- ZIP5 -->
+            <apex:panelGroup id="outputZIP5LabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="ZIP5:" for="outputZIP5Text"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputZIP5Group" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputZIP5}" id="outputZIP5Text" size="5" maxlength="5" disabled="true"/>&nbsp;
+            </apex:panelGroup>
+
+            <!-- ZIP4 -->
+            <apex:panelGroup id="outputZIP4LabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="ZIP4:" for="outputZIP4Text"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputZIP4Group" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputZIP4}" id="outputZIP4Text" size="4" maxlength="4" disabled="true"/>&nbsp;
+            </apex:panelGroup>
+
+            <!-- Return message -->
+            <apex:panelGroup id="outputMessageLabelGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:outputLabel value="Message:" for="outputMessageText"></apex:outputLabel>
+            </apex:panelGroup>
+            <apex:panelGroup id="outputMessageGroup" rendered="{!IF(displayOutput,true,false)}">
+              <apex:inputText value="{!outputMessage}" id="outputMessageText" size="80" maxlength="160" disabled="true"/>
+            </apex:panelGroup><p />
+
+            <!-- Navigation buttons -->
+            <apex:panelGroup >
+              <apex:commandButton action="{!back}" value="Back" id="backButton" title="Back to main page"/>&nbsp;&nbsp;
+              <apex:commandButton action="{!clear}" value="Clear" id="clearButton" title="Clear fields"/>&nbsp;&nbsp;
+              <apex:commandButton action="{!search}" value="Search" id="searchButton" title="Search and verify address using USPS ZIP code search service"/>
+            </apex:panelGroup>
+          </apex:panelGrid>
+        </apex:pageBlock>
+      </apex:form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div id="footer_container">
+    <div id="footer">
+      &copy; Wiregrass Code Technology 2014-17. All rights reserved.
+    </div>
+  </div>
+</apex:page>

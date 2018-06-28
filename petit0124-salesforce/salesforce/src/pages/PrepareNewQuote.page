@@ -1,0 +1,45 @@
+<apex:page showHeader="true" sidebar="true" standardController="Opportunity" extensions="PrepareNewQuoteController" action="{!onload}">
+    <apex:form >
+        <apex:pageMessages id="pageErrors"/>
+        <apex:pageBlock rendered="{!!initFailed}">
+            <apex:pageBlockSection columns="1" id="accountsection">
+                <apex:outputLabel rendered="{!billingAccountList.size != 0}" value="There is one or more Z-Billing Account corresponding to this Salesforce Account." />
+                <apex:outputLabel value="Please select the account to use:" style="font-weight:bold"></apex:outputLabel>
+                <apex:selectRadio layout="pageDirection" id="accTypeRadio" value="{!selectedAccountType}">
+                    <apex:actionSupport event="onclick"  action="{!onSelectAccountType}" reRender="accListRadio, subscriptionSection, pageErrors"/>                     
+                    <apex:selectOption itemEscaped="false" itemlabel="New billing account" itemValue="new"  id="new_billingaccount"/> 
+                    <apex:selectOption itemEscaped="false" itemLabel="Existing billing account" itemValue="existing" itemDisabled="{!billingAccountList.size == 0}" id="existing_billingaccount"></apex:selectOption>
+                </apex:selectRadio>
+                <apex:outputPanel id="accListRadio">
+                    <apex:selectRadio layout="pageDirection" value="{!selectedAccount}"  style="position:relative;left:5%" rendered="{!selectedAccountType == 'existing' && billingAccountList.size > 0 }"> 
+                        <apex:actionSupport event="onclick" action="{!onSelectAccount}" reRender="subscriptionSection, pageErrors"/>
+                        <apex:selectOptions value="{!billingAccountList}" ></apex:selectOptions>
+                    </apex:selectRadio>
+                </apex:outputPanel>
+            </apex:pageBlockSection>
+            <apex:pageBlockSection columns="1" id="subscriptionSection">
+                <apex:outputLabel value="Create quote for:" style="font-weight:bold"></apex:outputLabel>
+                <apex:selectRadio layout="pageDirection" id="subTypeRadio" value="{!selectedSubscriptionType}" >
+                    <apex:actionSupport event="onclick"  action="{!onSelectSubscriptionType}" reRender="existingSubscriptionOptions, pageErrors"/>
+                    <apex:selectOption itemEscaped="false" itemLabel="New subscription for this account" itemValue="new"> </apex:selectOption>
+                    <apex:selectOption itemEscaped="false" itemLabel="Existing subscription" itemValue="existing"  itemDisabled="{!subscriptionList.size == 0}" rendered="{!selectedAccountType == 'existing'}"></apex:selectOption>                   
+                </apex:selectRadio>
+                <apex:outputPanel id="existingSubscriptionOptions">
+                        <apex:selectList value="{!selectedSubscription}" style="position:relative;left:3%;background:#fbfbd7" size="1" rendered="{!selectedSubscriptionType == 'existing' && subscriptionList.size > 0}">
+                            <apex:selectOptions value="{!subscriptionList}"></apex:selectOptions>
+                        </apex:selectList>                     
+                        <apex:outputPanel style="position:relative;left:5%" rendered="{!selectedSubscriptionType == 'existing' && subscriptionList.size > 0}">
+                            <apex:selectRadio style="position:relative;left:5%" layout="pageDirection" value="{!selectedAmendmentType}">
+                                <apex:selectOption itemescaped="false" itemLabel="Amend this subscription" itemValue="amend"></apex:selectOption>
+                                <apex:selectOption itemescaped="false" itemLabel="Renew this subscription" itemValue="renew" ></apex:selectOption>
+                            </apex:selectRadio>
+                        </apex:outputPanel>
+                </apex:outputPanel>
+            </apex:pageBlockSection>
+            <apex:pageBlockButtons location="bottom">   
+                <apex:commandButton value="Continue" action="{!goNewQuote}"/>
+                <apex:commandButton value="Cancel" action="{!cancel}"/>
+            </apex:pageBlockButtons>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

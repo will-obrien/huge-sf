@@ -1,0 +1,297 @@
+<apex:page sidebar="false" showheader="false" docType="html-5.0">
+<html lang="en">
+<head>
+<title>Find your location</title>
+<style type="text/css"> 
+
+body  {
+	font: 100% Arial, Helvetica, sans-serif;
+	background: #efefef;
+	margin: 0; /* it's good practice to zero the margin and padding of the body element to account for differing browser defaults */
+	padding: 0;
+	text-align: center; /* this centers the container in IE 5
+ browsers. The text is then set to the left aligned default in the #container selector */
+	color: #000000;
+}
+ 
+#container { 
+	width: 950px;
+	height: 500px;
+	background: #fff;
+	margin: 0 auto; /* the auto margins (in conjunction with a width) center the page */
+	padding: 10px;
+	text-align: left; /* this overrides the text-align: center on the body element. */
+	min-height:100%; /* for mozilla as IE treats height as min-height */
+	-moz-box-shadow:5px 5px 5px #909090;
+	-webkit-box-shadow:5px 5px 5px #909090;
+	box-shadow:5px 5px 5px #909090;	
+}
+ 
+#mainContent { 
+	margin: 0 260px 0 10px; /* the left margin should mirror the margin on the header and footer for proper alignment. */
+} 
+
+#map_canvas {
+border: 1px solid #bbbbbb;
+width: 500px;
+height: 400px;
+float:left;
+}
+#long-lat_display {
+border: 1px solid blue;
+width: 600px;
+height: 50px;
+margin-top: 10px;
+float:left;
+}
+#long-lat_entry {
+border: 1px solid red;
+width: 600px;
+height: 100px;
+margin-top: 10px;
+float:left;
+}
+ 
+#mainContent {
+margin-right: 0px;
+}
+
+table {
+border: 1px solid #000
+}
+td {
+border: 1px solid #000
+}
+
+</style>
+	<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=geometry&amp;sensor=false"></script>
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>
+
+<script>
+var map = null;
+var geocoder = null;
+var marker = null;
+var mapPoint = null;
+var tabAccuracy = new Array(2,4,6,10,12,13,16,16,17);
+var chosenLat = null;
+var chosenLng = null;
+var centerLat = null;
+var centerLng = null;
+var chosenPoint = null;
+var chosenAddr = null;
+var placeMarker = new google.maps.Marker();
+
+jQuery(document).ready(function() {
+     initialize();
+ });
+
+function initialize() {
+	geocoder = new google.maps.Geocoder();
+	map = new google.maps.Map(document.getElementById('map_canvas'));
+	
+	chosenPoint = getRequestParameter("location");
+	if(chosenPoint > "")
+		centerPoint = chosenPoint;
+	else
+		centerPoint = "37.09024,-95.712891";
+	var points = centerPoint.split(",");
+	var centerLat = parseFloat(points[0]);
+	var centerLng = parseFloat(points[1]);
+	var mapCenter = new google.maps.LatLng(centerLat, centerLng);
+	
+	map.setCenter(mapCenter);
+	map.setZoom(4);
+	map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+	
+	endDrag(mapCenter);
+	if(chosenPoint > "") 
+		map.setZoom(14);
+	google.maps.event.addListener(map, "dblclick", function(e) {
+		var point = e.latLng;
+		mapPoint = point;
+		map.setCenter(point);
+        createMarker(point);
+		endDrag(point);
+	});
+
+	jQuery("#findAddressButton").bind('click',function() {
+		showAddress();
+	}); 
+	jQuery("#saveLocationButton").bind('click',function() {
+		saveLocation();
+	}); 
+	jQuery("#cancelButton").bind('click',function() {
+		window.close();
+	});
+	jQuery("#enteredAddr").bind('keypress',function(e) {
+		var key=e.keyCode || e.which;
+		if (key==13){
+			showAddress();
+		}
+	}).focus();
+}
+
+function createMarker(point) {
+	placeMarker.setPosition(point);
+	placeMarker.setMap(map);
+	placeMarker.setDraggable(true);
+	google.maps.event.addListener(placeMarker, 'dragend', endDrag);
+}
+
+function endDrag(point) {
+	if(typeof(point.latLng) == "object") {
+		point = point.latLng;
+	}
+   	mapPoint = point;
+	if (geocoder) {
+		geocoder.geocode({latLng: point}, showLocation);
+	}
+	chosenLat = point.lat();
+	chosenLng = point.lng();
+}
+
+function showLocation(response, status) {
+	if(status != google.maps.GeocoderStatus.OK) {
+         alert("Location not found");
+	} 
+	else {
+		var place = response[0].geometry.location;
+		var chosenAddr = response[0].formatted_address;
+		var lat = place.lat().toFixed(6);
+		var lng = place.lng().toFixed(6);
+		document.getElementById("latDisplay").innerHTML = lat;
+		document.getElementById("lngDisplay").innerHTML = lng;
+    	document.getElementById("addrDisplay").innerHTML = chosenAddr;
+		createMarker(mapPoint);
+		map.setCenter(mapPoint);
+		if(chosenPoint > "") {
+			jQuery("#saveLocation").show();
+		}
+	}
+}
+
+function showAddress() {
+     address = document.getElementById("enteredAddr").value;
+     if (geocoder) {
+       geocoder.geocode(
+         {address: address},
+         function(response, status) {
+           if (!response) {
+             alert("Address not found");
+           } else {
+           	if(status != google.maps.GeocoderStatus.OK) {
+           		alert("Address Not Found (error code " + status + ")");
+           	}
+           	else {
+				var place = response[0].geometry.location;
+				var lat = place.lat().toFixed(6);
+				var lng = place.lng().toFixed(6);
+      			point = new google.maps.LatLng(lat, lng);
+      			document.getElementById("lngDisplay").innerHTML = lng;
+      			document.getElementById("latDisplay").innerHTML = lat;
+      			chosenAddr = response[0].formatted_address;
+      			document.getElementById("addrDisplay").innerHTML = chosenAddr;
+		        createMarker(point);
+
+		        //accuracy = adjustAccuracy(parseInt(place.AddressDetails.Accuracy));
+				//map.setZoom(tabAccuracy[accuracy]);
+				if(map.getZoom() < 8)
+					map.setZoom(8);
+		        map.setCenter(point);
+		        jQuery("#saveLocation").show();
+	        }
+             }
+          }
+       );
+   	}
+}
+
+function saveLocation() {
+try {
+	chosenAddr = document.getElementById("addrDisplay").innerHTML;
+	var point = map.getCenter();
+	if (window.opener && !window.opener.closed) {
+		window.opener.setLocation(point.lat().toFixed(6), point.lng().toFixed(6), chosenAddr);
+	}
+	} catch(obj) {}
+	window.close();
+}
+
+function adjustAccuracy(accuracy) {
+	if(accuracy > 8)
+		accuracy = 8;
+	return accuracy;
+}
+
+function getRequestParameter( name ) {
+	name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+	var regexS = "[\\?&]"+name+"=([^&#]*)";
+	var regex = new RegExp( regexS );
+	var results = regex.exec( window.location.href );
+	if( results == null )
+		return "";
+	else
+		return unescape(results[1]);
+}
+</script>
+
+</head>
+
+<body>
+
+	<noscript>
+		<p style="background: red; color: white;">This site uses
+			JavaScript therefore it is suggested that you either enable it in
+			your browser preferences or upgrade to a more contemporary browser
+			that supports it.</p>
+	</noscript>
+
+	<div id="container">
+
+		<!-- begin #maincontent -->
+		<div id="mainContent">
+
+			<div align="center">
+				<h2>Find your Location</h2>
+			</div>
+
+			<div id="map_canvas"></div>
+
+			<div id="infoDisplay" align="center">
+				<br />&nbsp;<br /> <b>Latitude:</b> <span id="latDisplay">37.09024</span>&nbsp;
+				&nbsp; <b>Longitude:</b> <span id="lngDisplay">-95.712891</span> <br />
+				<b>Address:</b> <span id="addrDisplay">United States</span> <br />&nbsp;<br />
+
+				<span style="font-size: 14px"> To find your location, enter
+					City, State or Zip or Complete Address <br /> Then click "Find
+					Address" to show the address on the map <br /> You may drag and
+                    drop the pointer to fine tune your location<br/>&nbsp;<br />
+				</span> <b>Enter City, State or Zip or Complete Address</b> <input
+					id="enteredAddr" size="40" />
+
+				<div align="center">
+                    <br />
+					<input type="submit" id="findAddressButton" value="Find Address" />
+					<br />
+					<br /> <input type="submit" id="cancelButton" value="Cancel" />
+				</div>
+
+				<!-- end #maincontent -->
+
+				<div id="testdiv"></div>
+				<!-- This clearing element should immediately follow the #mainContent div in order to force the #container div to contain all child floats -->
+				<br class="clearfloat" />
+
+
+			</div>
+			<!-- end #container -->
+
+			<p>&nbsp;</p>
+			<!-- fixes container bug in safari -->
+
+
+		</div>
+	</div>
+</body>
+</html>
+</apex:page>

@@ -1,0 +1,110 @@
+<!--
+
+Visualforce page for the Cursos Calendar, which displays the Calendar in a Salesforce tab.
+If a course is clicked on the calendar, page is redirected to the Course record in Salesforce.
+
+CreatAed by: Elizabeth Tian, 2016
+
+-->
+
+<apex:page controller="Calendar" standardStylesheets="false" sidebar="false">
+    
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"/>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.3/moment.min.js"/>
+    <script src="//cdn.jsdelivr.net/qtip2/3.0.3/jquery.qtip.min.js"/>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/fullcalendar/2.3.1/fullcalendar.min.js"/>
+	<script src="{!$Resource.FullCalendarLang}"/>
+    
+    <link href="//cdnjs.cloudflare.com/ajax/libs/fullcalendar/2.3.1/fullcalendar.min.css" rel="stylesheet" />
+    <link href="//cdnjs.cloudflare.com/ajax/libs/fullcalendar/2.3.1/fullcalendar.print.css" rel="stylesheet" media="print"  />
+    <link href="//cdn.jsdelivr.net/qtip2/3.0.3/jquery.qtip.min.css" rel="stylesheet" />
+
+    <script type="text/javascript">
+		
+        function getCourseDates() {
+        	Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.Calendar.pageLoad}',
+                function(result, event) {
+                    if (event.status) {
+                		evt =  JSON.parse(result);                       
+                        $('#calendar').fullCalendar({
+                            lang: 'es',
+                            aspectRatio: 1.75,
+                            header: { 
+                                left:'month,agendaWeek,agendaDay',
+                                center: 'title'
+                            },
+                            eventRender: function(event, element) {
+                                var cont = '<p><b>Inscriptos:</b> ' + event.inscriptos + '<br /></p>'+
+                                		   '<p><b>Limite:</b> ' + event.limite + '<br /></p>'+
+                                    	   '<p><b>Fecha de Inicio:</b> '+event.fechaInicio+'<br />' +
+										   '<p><b>Fecha de Finalizacion:</b> '+event.fechaFinal+'<br />' +
+										   '<p><b>Dias:</b> '+event.dias+'<br />' +
+										   '<p><b>Frecuencia:</b> '+event.frecuencia+'<br />' +
+										   '<p><b>Tipo de Curso:</b> '+event.tipo+'<br />' +
+										   '<p><b>Dirigido a:</b> '+event.dirigido+'<br />' +
+										   '<p><b>Importe:</b> '+event.importe+'<br />' +
+										   '<p><b>Moneda Importe:</b> '+event.moneda+'<br />' +
+										   '<p><b>Responsable:</b> '+event.responsable+'<br />' +
+										   '<p><b>Comentarios:</b> '+event.comentarios+'<br />';
+                                element.qtip( {
+                                    content: {
+                                        title: event.title,
+                                        text: cont
+                                    },
+                                    style: 'qtip-blue qtip-rounded qtip-shadow',
+                                    position: {
+                                        my: 'top center',
+                                        at: 'bottom center',
+                                        viewport: $(window)
+                                    },
+                                    show: {
+                                        effect: function(offset) {
+                                            $(this).fadeTo(500, 1); // "this" refers to the tooltip
+                                        }
+                                    }
+                                });
+                                // Will this event show?
+                                var fil = '{!filterCriteria}'
+                                return event.title.toLowerCase().indexOf(fil.toLowerCase()) >= 0;
+                            },
+                            editable: true,
+                            events: evt
+                        })
+                    } else if (event.type === 'exception') {
+                    	console.log(event.message);
+                    } else {
+                        console.log(event.message);
+                    }
+                },
+                {escape: false}
+             );
+        }
+
+    	$(document).ready(function() {
+            getCourseDates();
+		});
+	</script>
+
+    <style>
+		#cal-options {float:left;}
+		#calendar {margin:20px auto;width:68%;height:75%;horizontal-align:middle;}
+		#calendar a:hover {color:#fff !important;}
+
+		.fc-event-inner {padding:3px;}
+		.course {background:#56458c;border-color:#56458c;}
+        .hover{
+        	background-color:#F3FFFF;
+        	border-color:#DFEBEB;
+        }
+	</style>
+    <apex:sectionHeader title="Cursos Calendar"/>
+    <apex:outputPanel style="float: right; padding: 0.5em 1em 0 1em;">
+        <apex:form >
+            <apex:inputText value="{!filterCriteria}"/>
+            <apex:commandButton value="Filtro"/>
+        </apex:form>
+    </apex:outputPanel>
+	<div id='calendar'></div>
+
+</apex:page>

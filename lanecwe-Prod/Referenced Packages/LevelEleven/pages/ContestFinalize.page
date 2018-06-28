@@ -1,0 +1,174 @@
+<apex:page sidebar="false"
+           id="ContestFinalize"
+           controller="ePrize_Zemzu.ContestFinalizeController"
+           tabStyle="Contests__tab">
+
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+
+    <apex:define name="head">
+        <script>
+            (function($) {
+              $(document).ready(function() {
+                if(window.Compete && window.Compete.initControls) {
+                  window.Compete.initControls();
+                }
+              });
+            }(jQuery));
+
+            beenFocused = true;
+        </script>
+
+    </apex:define>
+
+    <apex:define name="contentHeader">
+      <h1 class="lb-title">Finalize Contest</h1>
+      <h2 class="lb-subtitle">{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}</h2>
+    </apex:define>
+
+    <apex:define name="contentMain">
+
+      <apex:outputPanel rendered="{!IF(contestId != null, true, false)}">
+        <apex:form >
+            <apex:pageBlock title="Finalize Contest">
+            <apex:pageMessage summary="Make sure you have reviewed the leaderboard and are confident the final results are accurate. You will not be able to make any additional modifications to the contest leaderboard after this point. To confirm and proceed, click again on the Finalize button above." severity="warning" strength="3" />
+            <apex:pageMessages />
+                
+                <p style="margin-bottom: 1em;">
+                You can use our automatic notifications below to send final contest results to the contest
+                participants and winners. Check the boxes below to expand and see your options. If you don't
+                want to use these notifications, click the Finalize button.
+                </p>
+
+                <apex:pageBlockButtons >
+                    <apex:commandButton action="{!saveFinalizedContest}" value="Finalize" rendered="{!(fullContest.isCurrentUserAdminAndCanFinalize || isCurrentUserSalesContestBuilderAdmin) && fullContest.isReadyToBeFinalized}">
+                        <apex:param name="contestId" value="{!contestId}"/>
+                    </apex:commandButton>
+                </apex:pageBlockButtons>
+
+                <apex:pageBlockSection title="Notify Winners" columns="1">
+                    <p style="margin-bottom: 1em;">
+                    These are notifications sent to all the winners of the contest. The email will include the
+                    details on which prize they won, and include a link to the final contest leaderboard.
+                    </p>
+
+                    <apex:pageBlockSection >
+                        <apex:inputCheckbox id="winningPrizes" value="{!fullContest.contestEntity.ePrize_Zemzu__WinningPrizes__c}" disabled="{!fullContest.contestEntity.ePrize_Zemzu__HideContest__c}"/>
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection id="winningPrizes_sub" columns="1">
+                        <apex:inputField id="winningPrizesMessage" value="{!fullContest.contestEntity.ePrize_Zemzu__WinningPrizesMessage__c}" />
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection columns="1">
+                        <apex:pageBlockSectionItem >
+                            <apex:outputLabel for="winningPrizesChatter" value="Chatter Notifications"/>
+                            <apex:pageBlockSectionItem >
+                                <apex:inputCheckbox id="winningPrizesChatter" value="{!fullContest.contestEntity.ePrize_Zemzu__WinningPrizesChatter__c}" disabled="{!!isChatterEnabled || fullContest.contestEntity.ePrize_Zemzu__HideContest__c}"/>
+                                <apex:outputLabel styleClass="font-smaller font-gray font-italic" value="Feature unavailable. Chatter is disabled for your organization." rendered="{!!isChatterEnabled}"/>
+                            </apex:pageBlockSectionItem>
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection id="winningPrizesChatter_sub" columns="1">
+                        <apex:inputField id="winningPrizesChatterTo" value="{!fullContest.contestEntity.ePrize_Zemzu__WinningPrizesChatterTo__c}" />
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection columns="1">
+                        <apex:inputCheckbox id="winningPrizesPopup" value="{!fullContest.contestEntity.ePrize_Zemzu__WinningPrizesPopup__c}" disabled="{!fullContest.contestEntity.ePrize_Zemzu__HideContest__c}" />
+                    </apex:pageBlockSection>
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection title="Send Contest End Notification" columns="1">
+                    <p style="margin-bottom: 1em;">
+                    These are notifications sent to all contest participants to announce that the contest is finalized.
+                    The email will include a link to the final contest leaderboard.
+                    </p>
+
+                    <apex:pageBlockSection >
+                        <apex:inputField id="notifyOnEnd" value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEnd__c}" />
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection id="notifyOnEnd_sub" columns="1">
+                        <apex:inputField id="notifyOnEndMessage" value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEndMessage__c}" />
+                        <apex:inputField id="notifyOnEndTo" value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEndTo__c}" />
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection >
+                        <apex:pageBlockSectionItem >
+                            <apex:outputLabel for="notifyOnEndChatter" value="Chatter Notifications"/>
+                            <apex:pageBlockSectionItem >
+                                <apex:inputCheckbox id="notifyOnEndChatter" value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEndChatter__c}" disabled="{!!isChatterEnabled || fullContest.contestEntity.ePrize_Zemzu__HideContest__c}"/>
+                                <apex:outputLabel styleClass="font-smaller font-gray font-italic" value="Feature unavailable. Chatter is disabled for your organization." rendered="{!!isChatterEnabled}"/>
+                            </apex:pageBlockSectionItem>
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection id="notifyOnEndChatter_sub" columns="1">
+                        <apex:inputField id="notifyOnEndChatterMessage" styleClass="fullwidth" value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEndChatterMessage2__c}" />
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection columns="1" rendered="true">
+                        <apex:inputCheckbox id="notifyOnEndPopup" value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEndPopup__c}" disabled="{!fullContest.contestEntity.ePrize_Zemzu__HideContest__c}" />
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection id="notifyOnEndPopup_sub" columns="1" rendered="true">
+                        <apex:inputField value="{!fullContest.contestEntity.ePrize_Zemzu__NotifyOnEndPopupMessage__c}" />
+                    </apex:pageBlockSection>
+                    <!-- This is needed to properly populate the notify to dropdown -->
+                    <apex:pageBlockSection id="hideContest" columns="1">
+                        <apex:inputField value="{!fullContest.contestEntity.ePrize_Zemzu__HideContest__c}" />
+                        <script>{document.getElementById('{!$Component.hideContest}').style.visibility='collapse';} </script>
+                    </apex:pageBlockSection>
+
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection title="Key Influencer Notifications" columns="1" rendered="{!hasInfluencers}">
+                    <p style="margin-bottom: 1em;">
+                    These are notifications sent to all contest influencers to announce that the contest is finalized.
+                    The email will include a link to the final contest leaderboard.
+                    </p>
+                    <apex:pageBlockSection columns="1" rendered="true">
+                        <apex:inputCheckbox id="notifyOnEndKeyInfluencer" value="{!fullContest.contestEntity.ePrize_Zemzu__Key_Influence_Finalize_Notification__c}"/>
+                    </apex:pageBlockSection>
+
+                    <apex:pageBlockSection id="notifyOnEndKeyInfluencer_sub" columns="1" rendered="true">
+                        <apex:inputField value="{!fullContest.contestEntity.ePrize_Zemzu__Key_Influence_Finalize_message__c}" />
+                    </apex:pageBlockSection>
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection title="Contest Survey" columns="1" rendered="{!hasSurvey}">
+                    
+                    <apex:pageBlockSectionItem rendered="{!!hasSurveyBeenCompleted}">
+                        <apex:repeat var="question" value="{!surveyQuestions}" >
+                            <apex:pageBlockSection rendered="{!question.isSelectOption}">
+                                <apex:outputLabel value="{!question.sobj.ePrize_Zemzu__Question__c}"></apex:outputLabel>
+                                <apex:selectList value="{!question.response.sobj.ePrize_Zemzu__Answer__c}" size="1" >
+                                    <apex:selectOptions value="{!question.options}"/>
+                                </apex:selectList>
+                            </apex:pageBlockSection>
+                            <apex:pageBlockSection rendered="{!question.isTextArea}">
+                                <apex:outputLabel value="{!question.sobj.ePrize_Zemzu__Question__c}"></apex:outputLabel>
+                                <apex:inputTextarea value="{!question.response.sobj.ePrize_Zemzu__Answer__c}"></apex:inputTextarea>
+                            </apex:pageBlockSection>
+                        </apex:repeat>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem rendered="{!hasSurveyBeenCompleted}">
+                        <apex:repeat var="question" value="{!surveyQuestions}" >
+                            <apex:pageBlockSection rendered="{!question.isSelectOption}">
+                                <apex:outputLabel value="{!question.sobj.ePrize_Zemzu__Question__c}"></apex:outputLabel>
+                                <apex:inputText disabled="true"  value="{!question.response.sobj.ePrize_Zemzu__Answer__c}" ></apex:inputText>
+                            </apex:pageBlockSection>
+                            <apex:pageBlockSection rendered="{!question.isTextArea}">
+                                <apex:outputLabel value="{!question.sobj.ePrize_Zemzu__Question__c}"></apex:outputLabel>
+                                <apex:inputTextarea disabled="true" value="{!question.response.sobj.ePrize_Zemzu__Answer__c}" ></apex:inputTextarea>
+                            </apex:pageBlockSection>
+                        </apex:repeat>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </apex:form>
+      </apex:outputPanel>
+    </apex:define>
+  </apex:composition>
+</apex:page>

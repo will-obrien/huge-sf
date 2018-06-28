@@ -1,0 +1,135 @@
+<apex:page StandardController="lmscons__Content_Upload__c" tabStyle="Upload_Content__tab" extensions="lmscons.UploadExt" action="{!initPage}" cache="false">
+    <apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+
+    <apex:includeScript value="{!URLFOR($Resource.lmscons__lmslightbox, 'js/jquery.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.lmscons__lmslightbox, 'js/init.js')}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.lmscons__lmslightbox, 'css/lms-lightbox.css')}"/>
+
+    <apex:form >
+        <apex:sectionHeader title="Upload Modules" />
+        <apex:pageMessages />
+        <apex:actionFunction name="getUploadUrl" action="{!getUploadUrl}" rerender="upload_frame, upload_id" onComplete="setUploadId_Complete();" />
+
+
+        <!-- light box -->
+
+        <div class="b-overlay"></div>
+        <div class="b-lightbox">
+            <div class="b-title-bar">
+                <div class="b-title">{!$ObjectType.Content_Upload__c.label}</div>
+                <div class="b-close-btn"><a href="#">Close</a></div>
+            </div>
+            <div class="b-content">
+                <div class="b-scroller">
+                    <p><strong class="m-faded">Instructions: </strong> <apex:outputPanel >Please select the package to upload. Do not refresh this page during upload.</apex:outputPanel></p>
+                    <p><strong class="m-faded">Fully Supported File Types: </strong> <apex:outputPanel >SCORM 1.2, SCORM 2004, AICC, MP4</apex:outputPanel></p>
+                    <p><strong class="m-faded">Partially Supported File Types: </strong> <apex:outputPanel >Most other file types are supported, but will not stream. Potentialy harmful file types are not allowed, including .EXE, .COM, .BAT, and .VBxxx</apex:outputPanel></p>
+                    <p class="b-title">Select File</p>
+
+                    <apex:outputPanel id="upload_frame" rendered="true" >
+                        <iframe id="iframeCyberu" onload="testT()" src="{!iframeUrl}" width="100%" height="150" scrolling="yes" frameborder="0">{!$Label.Upload_msg}</iframe>
+                    </apex:outputPanel>
+                    <apex:outputPanel id="upload_id" rendered="true" >
+                        <apex:inputHidden value="{!UploadId}" id="UploadId" />
+                    </apex:outputPanel>
+
+                </div>
+            </div>
+        </div>
+        <!-- Light box -->
+    </apex:form>
+    <apex:pageBlock title="Uploads" id="upload_list_all">
+        <apex:ListViews type="lmscons__Content_Upload__c" />
+    </apex:pageBlock>
+
+    <script>
+        var enableRedir = false;
+        jQuery.noConflict();
+        jQuery('[name="new"]').attr('onclick', '');
+
+        jQuery('[name="new"]').click(function() {
+            enableRedir = true;
+            Lightbox();
+        });
+
+		jQuery(document).ready(function(){
+
+			overlay = jQuery('.b-overlay');
+			lightbox = jQuery('.b-lightbox');
+			closelightbox = jQuery('.b-lightbox .b-close-btn');
+
+			closelightbox.click( function() {
+				lightbox.fadeOut('fast');
+				overlay.fadeOut('fast');
+			});
+
+		});
+
+        var UploadId = '';
+        var newwindow;
+        var idisSet = false;
+        function open_popup(){
+            /*newwindow=window.open('/apex/Upload_Popup','name','height=500,width=1000');
+            if (window.focus) {newwindow.focus()}*/
+            enableRedir = true;
+            Lightbox();
+        }
+
+        function redirectWindow(){
+            window.location.href = '/'+UploadId;
+        }
+
+        function getUrlVars()
+        {
+            var vars = [], hash;
+            var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+            for(var i = 0; i < hashes.length; i++)
+            {
+                hash = hashes[i].split('=');
+                vars.push(hash[0]);
+                vars[hash[0]] = hash[1];
+            }
+            return vars;
+        }
+        jQuery(document).ready(function() {
+            jQuery("th:contains('{!$ObjectType.Content_Upload__c.fields.CreatedDate.label}')").text('Upload Date');
+            if(getUrlVars()['open_popup']){
+                open_popup();
+            }
+        });
+
+        function setUploadId_Complete(){
+            UploadId = jQuery('input[name$="UploadId"]').val();
+            idisSet = true;
+        }
+
+        var i = 0;
+
+        function testT(){
+            i++;
+
+            var ua = jQuery.browser;
+            if ( ua.mozilla || ua.msie) {
+                if( i > 2) {
+                    if(enableRedir == true) {
+                        if(idisSet == true) {
+                            redirectWindow()
+                        }
+                    }
+                }
+            } else {
+                if( i >= 2) {
+                    if(enableRedir == true) {
+                        if(idisSet == true) {
+                            redirectWindow()
+                        }
+                    }
+                }
+            }
+
+        }
+
+        window.onload = getUploadUrl;
+    </script>
+
+</apex:page>

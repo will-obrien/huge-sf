@@ -1,0 +1,1590 @@
+<apex:page standardController="TIMBASURVEYS__Survey__c" extensions="TIMBASURVEYS.SurveyDesignController" showheader="false" sidebar="false" standardstylesheets="false">
+    <script type="text/javascript">
+        var isImgUp = '';
+        var imageStyle = '';
+
+        function editQuestionProperties(id){
+            //reset image propertier
+            resetImageAttributes();
+
+
+            idEditIEPrevious = id;
+
+            currentQuestionId = id;
+
+            //this is for fix the background of the restored question after undo
+            //without this the background remains like a selected question
+            refreshQuestionList();
+
+            console.log("currQuest "+currentQuestionId);
+            var qp=dojo.byId('questionProps');
+            var targetOfEdition = dojo.byId(id);
+            var currentCoords = dojo.position(qp);
+            var coords = dojo.position(targetOfEdition);
+            var cq = Survey[targetOfEdition.id];
+            qp.innerHTML = buildQuestionPanel2(cq);
+
+            $("#editorBodyId").accordion({autoHeight: false,
+                changestart: function(event, ui) {
+                    if(SurveyModified) {
+                        alert("{!$Label.timbasurveys_branchingJS_please_save}");
+                    }
+                },
+                change: function(event, ui) {
+                    $('#editorBodyId').children(':first').removeClass('ui-corner-all').addClass('ui-corner-top-first');
+                    if($('#editorBodyId').children(':last').is(':visible')) {
+                        //last panel is selected
+                        $('#editorBodyId').children('.ui-accordion-header:last').removeClass('ui-corner-bottom-last')
+                        $('#editorBodyId').children(':last').removeClass('ui-corner-all').addClass('ui-corner-bottom-last');
+                    }
+                    else {
+                        //last panel is not selected, apply corner styles to last header
+                        $('#editorBodyId').children('.ui-accordion-header:last').removeClass('ui-corner-all').addClass('ui-corner-bottom-last');
+                    }
+                }
+            });
+
+            $('#editorBodyId').children(':first').removeClass('ui-corner-all').addClass('ui-corner-top-first');
+            if(!$('#editorBodyId').children('.ui-accordion-header:last').hasClass('ui-state-active'))
+                $('#editorBodyId').children('.ui-accordion-header:last').removeClass('ui-corner-all').addClass('ui-corner-bottom-last');
+            else
+                $('#editorBodyId').children(':last').removeClass('ui-corner-all').addClass('ui-corner-bottom-last');
+
+            /*************************************************
+            var bqpresult = buildQuestionPanel1(cq);
+            qp.innerHTML = '<img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/triangle.png')}" class="arrow" /><div class="editorBody" id="editorBodyId" style="width: 275px;height: 289px;"></div>';
+
+            var aContainer = new dijit.layout.AccordionContainer({
+                style: "width: 275px;height: 289px;"
+            },
+            "editorBodyId");
+
+            aContainer.addChild(new dijit.layout.ContentPane({
+                title: "Normal pane",
+                content: "Normal panel"
+            }));
+            aContainer.addChild(new dijit.layout.ContentPane({
+                title: "New pane",
+                content: "Hi how are you?"
+            }));
+
+
+            aContainer.startup();
+            ***************************************************/
+
+
+
+            var limitOp = getQuestionOptionLimit(cq);
+
+            if(cq.NumberOfOptions >= limitOp){
+                dojo.byId('addOption').style.display = 'none';
+            }
+            if(cq.NumberOfChildQuestions >= MaxGridQuestions){
+                dojo.byId('addChildQuestion').style.display = 'none';
+            }
+            if(cq.NumberOfOptions == 1){
+                var deleteAnswer = dojo.query('.removeLink.answer')[0];
+                if(deleteAnswer != null){
+                    deleteAnswer.style.display = 'none';
+                }
+            }
+            if(cq.NumberOfChildQuestions == 1){
+                var deleteChild = dojo.query('.removeLink.childq')[0];
+                if(deleteChild != null){
+                    deleteChild.style.display = 'none';
+                }
+            }
+
+            if(qp.style.display == 'none'){
+                qp.style.display = '';
+            }
+
+
+            var options = dojo.query('#text_length option');
+            if(options.length > 0){
+                if( cq.EditorLength == null || cq.EditorLength == ''){
+                    cq.EditorLength = 'length_255';
+                }
+                for(var i = 0; i < options.length; i++){
+                    var n = dojo.query(options[i])[0];
+                    if(n.value == cq.EditorLength){
+                        n.selected = 'true';
+                    }
+                }
+            }
+
+            if(dojo.byId('rich_text_editor_enabled_container') != null){
+                dojo.byId('rich_text_editor_enabled_container').style.display = 'none';
+                if(cq.EditorLength == null || cq.EditorLength == 'null' || cq.EditorLength != 'length_255' || cq.EditorLength == ''){
+                    dojo.byId('rich_text_editor_enabled_container').style.display = '';
+                }
+            }
+
+            currentCoords = dojo.position(qp);
+            coords = dojo.position(targetOfEdition);
+
+            var designerBody = dojo.byId('formRails');
+
+            var designerBodyCoords = dojo.position(designerBody);
+            var qpCoords = dojo.position(qp);
+            if((qpCoords.h + coords.y) > designerBodyCoords.h){
+                var newHeight = (qpCoords.h + coords.y) + 90;
+                //designerBody.style.height = newHeight + 'px';
+            }
+
+            dojox.fx.slideBy({
+                node: qp,
+                duration: 2000,
+                easing: dojo.fx.easing.elasticOut,
+                top: coords.y - currentCoords.y
+            }).play();
+
+            fixContainerHeight();
+        }
+
+        function fixContainerHeight(){
+            fixContainerHeight_setNewHeightFormRailHeight();
+        }
+
+        function hideEditor(){
+            var qp = dojo.byId('questionProps');
+            qp.style.display = 'none';
+        }
+
+
+        function fixContainerHeight_setNewHeightFormRailHeight(){
+
+            var editor = dojo.query('.editorBody')[0];
+            var editor_h = 0;
+            var editor_y = 0;
+            var extend_size_byEditionPanel = 0;
+            if(editor != null){
+                editor_h = dojo.query(editor).position()[0]['h'];
+                editor_y = dojo.query(editor).position()[0]['y'];
+
+                if((Survey[currentQuestionId] != null) && (typeof(dojo.query('#' + Survey[currentQuestionId]['Id']).position()[0]) != 'undefined')){
+                    var currentQuestion_y = dojo.query('#' + Survey[currentQuestionId]['Id']).position()[0]['y'];
+                    extend_size_byEditionPanel = currentQuestion_y + editor_h;
+                }
+            }
+
+            var formRail_h = dojo.query('#formRails').position()[0]['h'];
+            var formRail_y = dojo.query('#formRails').position()[0]['y'];
+
+            var middleRail_h = dojo.query('#middleRail').position()[0]['h'];
+            var middleRail_y = dojo.query('#middleRail').position()[0]['y'];
+
+            var newHeight_byQuestionsHeights = 0;
+
+            if( extend_size_byEditionPanel > (middleRail_y + middleRail_h)){
+                newHeight_byQuestionsHeights = (extend_size_byEditionPanel - formRail_y);
+            }else{
+                newHeight_byQuestionsHeights = ((middleRail_y + middleRail_h) - formRail_y);
+            }
+
+            newHeight_byQuestionsHeights += 180;
+
+            if(newHeight_byQuestionsHeights < 460){
+                newHeight_byQuestionsHeights = 460;
+            }
+
+            if($('#formRails').length > 0){
+                $('#formRails').css('height', newHeight_byQuestionsHeights);
+            }
+        }
+
+        function liveUpdate(parentQuestionId,id,type){
+            var input_temp;
+            if(type == 'AnswerOption'){
+                var SurveyQuestion = Survey[parentQuestionId];
+                for(property in SurveyQuestion.AnswerOptions){
+                    if(SurveyQuestion.AnswerOptions[property].Id == id){
+                        var option = SurveyQuestion.AnswerOptions[property];
+                        var inputWithNewData = dojo.byId(option.Id + '-edition');
+                        option.OptionValue = dojo.byId(option.Id + '-edition').value.replace(/^\s*|\s*$/g,"");
+                        input_temp = option.OptionValue;
+                        option.OptionValue = option.OptionValue.replace(/\</g,"\&lt;");
+                        option.OptionValue = option.OptionValue.replace(/\>/g,"\&gt;");
+                        if(SurveyQuestion.QuestionType == SurveyEnviroment.Picklist){
+                            var optionLabel = dojo.byId(option.Id + '-container');
+                        }else{
+                            var optionLabel = dojo.byId(option.Id + '-label');
+                        }
+                        setInnerText(optionLabel, input_temp);
+                    }
+                }
+            }else{
+                var SurveyQuestion = Survey[parentQuestionId];
+                for(property in SurveyQuestion.ChildQuestions){
+                    if(SurveyQuestion.ChildQuestions[property].Id == id){
+                        var childQ = SurveyQuestion.ChildQuestions[property];
+                        if(childQ != null){
+                            var inputWithNewData = dojo.byId(childQ.Id + '-edition');
+                            childQ.Text = dojo.byId(childQ.Id + '-edition').value.replace(/^\s*|\s*$/g,"");
+                            var rowHeaderToModify = dojo.byId('rowHeader-' + childQ.Id);
+                            setInnerText(rowHeaderToModify,childQ.Text);
+                        }
+                    }
+                }
+            }
+            SurveyModified = true;
+        }
+
+        String.prototype.escape_quotes_for_js = function(){
+            return this.replace(/"/g,'&quot;').replace(/'/, '&#39;');
+        };
+
+        function limitText(limitField, limitNum) {
+            if (limitField.value.length > limitNum) {
+                limitField.value = limitField.value.substring(0, limitNum);
+            }
+        }
+
+        function buildQuestionPanel1(SurveyQuestion){
+            //var qpContent = '<img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/triangle.png')}" class="arrow" /><div class="editorBody">';
+            var qpContent = '';
+            switch(SurveyQuestion.QuestionType){
+                case SurveyEnviroment.MultipleTextboxes:
+                case SurveyEnviroment.NumericalTextboxes:
+                case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                case SurveyEnviroment.Picklist:
+                    qpContent += '<ul><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>';
+                    qpContent += '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    qpContent += '</li>';
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onClick="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul><ul class="subSection">';
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_options}</h2>';
+                    qpContent += '</li>';
+                    qpContent += '<li class="suboption" >';
+                    qpContent += '<ul id="answerOptions" >';
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var ao = SurveyQuestion.AnswerOptions[property];
+                        qpContent += '<li id="' + ao.Id + '-editionContainer" class="suboption">';
+                        //entity.decode(ao.OptionValue).escape_quotes_for_js()
+                        qpContent += '<input type="text" maxlength="200" ';
+
+                        if( SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                            qpContent += 'style="width:210px;" ';
+                        }
+                        qpContent += 'value="' + entity.decode( property.OptionValue ).escape_quotes_for_js() + '" id="' + ao.Id + '-edition" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onFocus="this.select();" />';
+                        qpContent += '<a id="' + ao.Id + '-removeOption" href="javascript:;" onclick="removeOption(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\'); return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+
+                        if( SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                            qpContent += '<a id="' + ao.Id + '-branchingOption" href="javascript:;" onclick="s_branching__create_option_branch(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\'); return false;" class="branchLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        }
+
+                        qpContent += '</li>';
+                    }
+                    qpContent += '  </ul>';
+                    qpContent += '</li>';
+                    qpContent += '<li id="addOption" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addOption(\''+SurveyQuestion.Id+'\');return false;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addOption}</span></a></span></li></ul>';
+                    var QuestionOptions = SurveyQuestion.AnswerOptions;
+                    optPosition = 1;
+                    for(property in QuestionOptions){
+                        QuestionOptions[property].Position = optPosition;
+                        optPosition++;
+                    }
+                break;
+                case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                case SurveyEnviroment.RatingScale:
+                    qpContent += '<ul><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>';
+                    qpContent += '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    qpContent += '</li>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul><ul class="subSection">';
+                    qpContent += '<li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_questions}</h2></li>';
+                    qpContent += '<li class="suboption"><ul id="listOfChildQuestions">';
+                    var ff = SurveyQuestion.ChildQuestions.length;
+                    for(var lo = 0; lo < ff; lo++) {
+                        var cq = SurveyQuestion.ChildQuestions[lo];
+                        qpContent += '<li id="' + cq.Id + '-editionContainer" class="suboption">';
+                        qpContent += '<input maxlength="150" type="text" value="' + entity.decode(cq.Text).escape_quotes_for_js() + '" id="' + cq.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');"  onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');" />'
+                        qpContent += '<a id="' + cq.Id + '-removeQuestion"  href="javascript:;" onclick="removeChildQuestion(\'' + SurveyQuestion.Id + '\', \'' + cq.Id + '\');return false;" class="removeLink childq" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        qpContent += '</li>';
+                    }
+                    qpContent += '</ul><li>';
+                    qpContent += '<li id="addChildQuestion" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addChildQuestion(\'' + SurveyQuestion.Id + '\');return false;" ><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addQuestion}</span></a></span></li>';
+                    qpContent += '</ul><ul class="subSection"><li><h2>{!$Label.timbasurveys_002surveyDesigner_options}</h2></li>';
+                    qpContent += '<li class="suboption"><ul id="answerOptions">';
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var ao = SurveyQuestion.AnswerOptions[property];
+                        qpContent += '<li id="' + ao.Id + '-editionContainer" class="suboption">';
+                        if(isNaN(ao.OptionValue)){
+                            qpContent += '<input maxlength="200" type="text" value="' + entity.decode(ao.OptionValue).escape_quotes_for_js() + '" id="' + ao.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" />'
+                        } else {
+                            qpContent += '<input maxlength="200" type="text" value="' + ao.OptionValue + '" id="' + ao.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" />'
+                        }
+                        qpContent += '<a id="' + ao.Id + '-removeOption"  href="javascript:;" onclick="removeOption(\'' + SurveyQuestion.Id + '\', \'' + ao.Id + '\'); return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        qpContent += '<div class="clear"></div>';
+                        qpContent += '</li>';
+                    }
+                    qpContent += '</ul><li>';
+                    qpContent += '<li id="addOption" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addOption(\''+SurveyQuestion.Id+'\'); return false;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addOption}</span></a></span></li></ul>';
+                break;
+                case SurveyEnviroment.DescriptiveText:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_questionType_DescriptiveText}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea></li></ul>';
+                break;
+                default:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul>';
+                break;
+            }
+            qpContent += '';
+            qpContent += '<div class="additionalEditionTools"><ul>';
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox){
+                if(SurveyQuestion.AnswerOptions[0].ResponseType == 'Number'){
+                    var RangeMax = 0;
+                    var RangeMin = 0;
+                    if(typeof(SurveyQuestion.AnswerOptions[0].range) != 'undefined'){
+                        RangeMin = SurveyQuestion.AnswerOptions[0].range.min;
+                        RangeMax = SurveyQuestion.AnswerOptions[0].range.max;
+                        if(RangeMin == '' || typeof(RangeMin) == 'undefined' ){
+                            RangeMin = 0;
+                        }
+                        if(RangeMax == '' || typeof(RangeMax) == 'undefined'){
+                            RangeMax = 0;
+                        }
+                    }else{
+                        SurveyQuestion.AnswerOptions[0].range = new Object();
+                        SurveyQuestion.AnswerOptions[0].range.min = 0;
+                        SurveyQuestion.AnswerOptions[0].range.max = 0;
+                    }
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="true" checked="checked" id="allowNumbersOnly" name="allowNumbersOnly" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> <label for="allowNumbersOnly" >{!$Label.timbasurveys_002surveyDesigner_allowOnlyNumericalValues}</label></li>';
+                    //Numerical Range
+                    qpContent += '<div id="rangeControls"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_setNumericalRange}</h2><br /><label>{!$Label.timbasurveys_002surveyDesigner_ceroEqualsNoLimit}</label></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_minValue}</label><input id="rangeMinValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="'+RangeMin+'" name="rangeMinValue"/></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_maxValue}</label><input id="rangeMaxValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="'+RangeMax+'" name="rangeMaxValue"/></li>';
+                    qpContent += '</div>';
+                } else {
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="false" id="allowNumbersOnly" name="allowNumbersOnly" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> <label for="allowNumbersOnly" >{!$Label.timbasurveys_002surveyDesigner_allowOnlyNumericalValues}</label> </li>';
+                    //Numerical Range
+                    qpContent += '<div id="rangeControls" style="display:none"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_setNumericalRange}</h2><br /><label>{!$Label.timbasurveys_002surveyDesigner_ceroEqualsNoLimit}</label></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_minValue}</label><input id="rangeMinValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="0" name="rangeMinValue"/></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_maxValue}</label><input id="rangeMaxValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="0" name="rangeMaxValue"/></li>';
+                    qpContent += '</div>';
+                }
+            }
+
+            if(SurveyQuestion.QuestionType != SurveyEnviroment.DescriptiveText){
+                if(SurveyQuestion.IsRequired){
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" checked="' + SurveyQuestion.IsRequired + '" value="' + SurveyQuestion.IsRequired + '" id="IsRequired" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" name="requiredQuestion" />  <label for="IsRequired" >{!$Label.timbasurveys_002surveyDesigner_thisQuestionRequired}</label> </li>';
+                } else {
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="' + SurveyQuestion.IsRequired + '" id="IsRequired"  name="requiredQuestion" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" />  <label for="IsRequired" >{!$Label.timbasurveys_002surveyDesigner_thisQuestionRequired}</label> </li>';
+
+                }
+            }
+
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox || SurveyQuestion.QuestionType == SurveyEnviroment.CommentEssayBox){
+                qpContent += '</ul>';
+                if(SurveyQuestion.mappedFieldId != null){
+                    qpContent += '<div style="cursor: pointer;" class="linkROp" onclick="question2field__show_dialog(); return false;" ><a href="javascript:;" class="buttonIconB" onmouseover="over2(this, true);" onmouseout="over2(this, false);" ></a><div class="questionMapping"><span class="titleBR">{!$Label.timbasurveys_002surveyDesigner_questionToFieldMapping}</span><span class="condition"> '+ SurveyQuestion.mappedFieldLabel +' of '+ SurveyQuestion.mappedObjectName +'</span><a href="javascript:;" onclick="confirm_remove_mapping(); return false;" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);" class="closeX"></a></div></div>';
+                } else {
+                    qpContent += '<div style="cursor: pointer;" class="linkRnoOp" onclick="question2field__show_dialog(); return false;" ><a href="javascript:;" class="buttonIconB" onmouseover="over(this, true);" onmouseout="over(this, false);" ></a><span class="titleBR">{!$Label.timbasurveys_002surveyDesigner_questionToFieldMapping}</span><br /><br /><span class="contBR">{!$Label.timbasurveys_002surveyDesigner_questionNotLinkedYet}</span></div>';
+                }
+                qpContent += '<ul>';
+            }
+
+            /* Add Different Text Lenghts */
+
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.CommentEssayBox){
+
+                qpContent += '<li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_TextareaProperties}</h2></li>';
+
+                qpContent += '<li class="suboption">' +
+                        '<select id="text_length" onchange="set_char_limit(this.value);">' +
+                        '   <option value="length_255">255 {!$Label.timbasurvey_Designer_Character_limit}</option>' +
+                        '   <option value="length_32000">32,000 {!$Label.timbasurvey_Designer_Character_limit}</option>' +
+                        '</select>' +
+                        '</li>';
+
+
+                        if(SurveyQuestion.RichTextEditorEnabled == true || SurveyQuestion.RichTextEditorEnabled == 'true'){
+                            qpContent += '<li class="suboption" id="rich_text_editor_enabled_container" >' +
+                            '<input type="checkbox" class="checkbox" id="rich_text_editor_enabled" checked="checked" name="enable_rich_editor" onchange="enable_rich_text(this.checked);" />' +
+                            '<label for="enable_rich_editor">{!$Label.timbasurveys_002surveyDesigner_enableRichTextEditor}</label>' +
+                            '</li>';
+                        }else{
+                            qpContent += '<li class="suboption" id="rich_text_editor_enabled_container" style="display: none;" >' +
+                            '<input type="checkbox" class="checkbox" id="rich_text_editor_enabled" name="enable_rich_editor" onchange="enable_rich_text(this.checked);" />' +
+                            '<label for="enable_rich_editor">{!$Label.timbasurveys_002surveyDesigner_enableRichTextEditor}</label>' +
+                            '</li>';
+                        }
+
+            }
+
+            qpContent += '</ul>';
+
+            qpContent += '</div>';
+            qpContent += '</div>';
+
+            qpContent += '</div>';
+
+            return qpContent;
+        }
+
+        /**
+        * Deprecated
+        **/
+        function buildQuestionPanel(SurveyQuestion){
+            var qpContent = '<img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/triangle.png')}" class="arrow" /><div class="editorBody">';
+            qpContent += '';
+
+            switch(SurveyQuestion.QuestionType){
+                case SurveyEnviroment.MultipleTextboxes:
+                case SurveyEnviroment.NumericalTextboxes:
+                case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                case SurveyEnviroment.Picklist:
+                    qpContent += '<ul><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>';
+                    qpContent += '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    qpContent += '</li>';
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onClick="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul><ul class="subSection">';
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_options}</h2>';
+                    qpContent += '</li>';
+                    qpContent += '<li class="suboption" >';
+                    qpContent += '<ul id="answerOptions" >';
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var ao = SurveyQuestion.AnswerOptions[property];
+                        qpContent += '<li id="' + ao.Id + '-editionContainer" class="suboption">';
+                        //entity.decode(ao.OptionValue).escape_quotes_for_js()
+                        qpContent += '<input type="text" maxlength="200" ';
+
+                        if( SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                            qpContent += 'style="width:210px;" ';
+                        }
+
+                        qpContent += 'value="' + ao.OptionValue + '" id="' + ao.Id + '-edition" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onFocus="this.select();" />';
+                        qpContent += '<a id="' + ao.Id + '-removeOption" href="javascript:;" onclick="removeOption(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\'); return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+
+                        if( SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                            qpContent += '<a id="' + ao.Id + '-branchingOption" href="javascript:;" onclick="s_branching__create_option_branch(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\'); return false;" class="branchLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        }
+
+                        qpContent += '</li>';
+                    }
+                    qpContent += '  </ul>';
+                    qpContent += '</li>';
+                    qpContent += '<li id="addOption" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addOption(\''+SurveyQuestion.Id+'\');return false;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addOption}</span></a></span></li></ul>';
+                    var QuestionOptions = SurveyQuestion.AnswerOptions;
+                    optPosition = 1;
+                    for(property in QuestionOptions){
+                        QuestionOptions[property].Position = optPosition;
+                        optPosition++;
+                    }
+                break;
+                case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                case SurveyEnviroment.RatingScale:
+                    qpContent += '<ul><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>';
+                    qpContent += '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    qpContent += '</li>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul><ul class="subSection">';
+                    qpContent += '<li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_questions}</h2></li>';
+                    qpContent += '<li class="suboption"><ul id="listOfChildQuestions">';
+                    var ff = SurveyQuestion.ChildQuestions.length;
+                    for(var lo = 0; lo < ff; lo++) {
+                        var cq = SurveyQuestion.ChildQuestions[lo];
+                        qpContent += '<li id="' + cq.Id + '-editionContainer" class="suboption">';
+                        qpContent += '<input maxlength="150" type="text" value="' + entity.decode(cq.Text).escape_quotes_for_js() + '" id="' + cq.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');"  onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');" />'
+                        qpContent += '<a id="' + cq.Id + '-removeQuestion"  href="javascript:;" onclick="removeChildQuestion(\'' + SurveyQuestion.Id + '\', \'' + cq.Id + '\');return false;" class="removeLink childq" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        qpContent += '</li>';
+                    }
+                    qpContent += '</ul><li>';
+                    qpContent += '<li id="addChildQuestion" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addChildQuestion(\'' + SurveyQuestion.Id + '\');return false;" ><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addQuestion}</span></a></span></li>';
+                    qpContent += '</ul><ul class="subSection"><li><h2>{!$Label.timbasurveys_002surveyDesigner_options}</h2></li>';
+                    qpContent += '<li class="suboption"><ul id="answerOptions">';
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var ao = SurveyQuestion.AnswerOptions[property];
+                        qpContent += '<li id="' + ao.Id + '-editionContainer" class="suboption">';
+                        if(isNaN(ao.OptionValue)){
+                            qpContent += '<input maxlength="200" type="text" value="' + entity.decode(ao.OptionValue).escape_quotes_for_js() + '" id="' + ao.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" />'
+                        } else {
+                            qpContent += '<input maxlength="200" type="text" value="' + ao.OptionValue + '" id="' + ao.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" />'
+                        }
+                        qpContent += '<a id="' + ao.Id + '-removeOption"  href="javascript:;" onclick="removeOption(\'' + SurveyQuestion.Id + '\', \'' + ao.Id + '\'); return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        qpContent += '<div class="clear"></div>';
+                        qpContent += '</li>';
+                    }
+                    qpContent += '</ul><li>';
+                    qpContent += '<li id="addOption" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addOption(\''+SurveyQuestion.Id+'\'); return false;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addOption}</span></a></span></li></ul>';
+                break;
+                case SurveyEnviroment.DescriptiveText:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_questionType_DescriptiveText}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea></li></ul>';
+                break;
+                default:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul>';
+                break;
+            }
+            qpContent += '';
+            qpContent += '<div class="additionalEditionTools"><ul>';
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox){
+                if(SurveyQuestion.AnswerOptions[0].ResponseType == 'Number'){
+                    var RangeMax = 0;
+                    var RangeMin = 0;
+                    if(typeof(SurveyQuestion.AnswerOptions[0].range) != 'undefined'){
+                        RangeMin = SurveyQuestion.AnswerOptions[0].range.min;
+                        RangeMax = SurveyQuestion.AnswerOptions[0].range.max;
+                        if(RangeMin == '' || typeof(RangeMin) == 'undefined' ){
+                            RangeMin = 0;
+                        }
+                        if(RangeMax == '' || typeof(RangeMax) == 'undefined'){
+                            RangeMax = 0;
+                        }
+                    }else{
+                        SurveyQuestion.AnswerOptions[0].range = new Object();
+                        SurveyQuestion.AnswerOptions[0].range.min = 0;
+                        SurveyQuestion.AnswerOptions[0].range.max = 0;
+                    }
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="true" checked="checked" id="allowNumbersOnly" name="allowNumbersOnly" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> <label for="allowNumbersOnly" >{!$Label.timbasurveys_002surveyDesigner_allowOnlyNumericalValues}</label></li>';
+                    //Numerical Range
+                    qpContent += '<div id="rangeControls"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_setNumericalRange}</h2><br /><label>{!$Label.timbasurveys_002surveyDesigner_ceroEqualsNoLimit}</label></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_minValue}</label><input id="rangeMinValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="'+RangeMin+'" name="rangeMinValue"/></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_maxValue}</label><input id="rangeMaxValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="'+RangeMax+'" name="rangeMaxValue"/></li>';
+                    qpContent += '</div>';
+                } else {
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="false" id="allowNumbersOnly" name="allowNumbersOnly" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> <label for="allowNumbersOnly" >{!$Label.timbasurveys_002surveyDesigner_allowOnlyNumericalValues}</label> </li>';
+                    //Numerical Range
+                    qpContent += '<div id="rangeControls" style="display:none"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_setNumericalRange}</h2><br /><label>{!$Label.timbasurveys_002surveyDesigner_ceroEqualsNoLimit}</label></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_minValue}</label><input id="rangeMinValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="0" name="rangeMinValue"/></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_maxValue}</label><input id="rangeMaxValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="0" name="rangeMaxValue"/></li>';
+                    qpContent += '</div>';
+                }
+            }
+
+            if(SurveyQuestion.QuestionType != SurveyEnviroment.DescriptiveText){
+                if(SurveyQuestion.IsRequired){
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" checked="' + SurveyQuestion.IsRequired + '" value="' + SurveyQuestion.IsRequired + '" id="IsRequired" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" name="requiredQuestion" />  <label for="IsRequired" >{!$Label.timbasurveys_002surveyDesigner_thisQuestionRequired}</label> </li>';
+                } else {
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="' + SurveyQuestion.IsRequired + '" id="IsRequired"  name="requiredQuestion" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" />  <label for="IsRequired" >{!$Label.timbasurveys_002surveyDesigner_thisQuestionRequired}</label> </li>';
+
+                }
+            }
+
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox || SurveyQuestion.QuestionType == SurveyEnviroment.CommentEssayBox){
+                qpContent += '</ul>';
+                if(SurveyQuestion.mappedFieldId != null){
+                    qpContent += '<div style="cursor: pointer;" class="linkROp" onclick="question2field__show_dialog(); return false;" ><a href="javascript:;" class="buttonIconB" onmouseover="over2(this, true);" onmouseout="over2(this, false);" ></a><div class="questionMapping"><span class="titleBR">{!$Label.timbasurveys_002surveyDesigner_questionToFieldMapping}</span><span class="condition"> '+ SurveyQuestion.mappedFieldLabel +' of '+ SurveyQuestion.mappedObjectName +'</span><a href="javascript:;" onclick="confirm_remove_mapping(); return false;" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);" class="closeX"></a></div></div>';
+                } else {
+                    qpContent += '<div style="cursor: pointer;" class="linkRnoOp" onclick="question2field__show_dialog(); return false;" ><a href="javascript:;" class="buttonIconB" onmouseover="over(this, true);" onmouseout="over(this, false);" ></a><span class="titleBR">{!$Label.timbasurveys_002surveyDesigner_questionToFieldMapping}</span><br /><br /><span class="contBR">{!$Label.timbasurveys_002surveyDesigner_questionNotLinkedYet}</span></div>';
+                }
+                qpContent += '<ul>';
+            }
+
+            /* Add Different Text Lenghts */
+
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.CommentEssayBox){
+
+                qpContent += '<li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_TextareaProperties}</h2></li>';
+
+                qpContent += '<li class="suboption">' +
+                        '<select id="text_length" onchange="set_char_limit(this.value);">' +
+                        '   <option value="length_255">255 {!$Label.timbasurvey_Designer_Character_limit}</option>' +
+                        '   <option value="length_32000">32,000 {!$Label.timbasurvey_Designer_Character_limit}</option>' +
+                        '</select>' +
+                        '</li>';
+
+
+                        if(SurveyQuestion.RichTextEditorEnabled == true || SurveyQuestion.RichTextEditorEnabled == 'true'){
+                            qpContent += '<li class="suboption" id="rich_text_editor_enabled_container" >' +
+                            '<input type="checkbox" class="checkbox" id="rich_text_editor_enabled" checked="checked" name="enable_rich_editor" onchange="enable_rich_text(this.checked);" />' +
+                            '<label for="enable_rich_editor">{!$Label.timbasurveys_002surveyDesigner_enableRichTextEditor}</label>' +
+                            '</li>';
+                        }else{
+                            qpContent += '<li class="suboption" id="rich_text_editor_enabled_container" style="display: none;" >' +
+                            '<input type="checkbox" class="checkbox" id="rich_text_editor_enabled" name="enable_rich_editor" onchange="enable_rich_text(this.checked);" />' +
+                            '<label for="enable_rich_editor">{!$Label.timbasurveys_002surveyDesigner_enableRichTextEditor}</label>' +
+                            '</li>';
+                        }
+
+            }
+
+            qpContent += '</ul>';
+
+            qpContent += '</div>';
+            qpContent += '</div>';
+
+            qpContent += '</div>';
+            qpContent += '</div>';
+
+            return qpContent;
+        }
+
+        function buildQuestionPanel2(SurveyQuestion){
+            var qpContent = '<img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/arrow.png')}" class="arrow" /><div class="editorBody" id="editorBodyId">';
+            qpContent += '<div id="accordion-first-child"><a href="#">{!$Label.timbasurveys_DesignerJS_properties}</a></div>';
+            qpContent += '<div id="propertiesPanelId" style="overflow:hidden;">'+getQuestionPanelMarkup(SurveyQuestion)+'</div>';
+            if (SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer) {
+                qpContent += '<div><a id="WHeaderId" href="#" >{!$Label.timbasurveys_DesignerJS_weights}</a></div>';
+                qpContent += '<div id="weightsPanelId">'+getWeightsPanelMarkup(SurveyQuestion)+'</div>';
+            }
+            qpContent += '<div><a id="ImgHEaderId" href="#">{!$Label.timbasurveys_DesignerJS_image}</a></div>';
+            if(SurveyQuestion.Id.toLowerCase().indexOf('unique')>0){
+                qpContent +='<div id="imagePanelId">{!$Label.timbasurveys_branchingJS_please_save}</div>';
+            } else {
+                qpContent +='<div id="imagePanelId">'+getImagePanelMarkup(SurveyQuestion)+'</div>';
+            }
+            qpContent += '</div>'; //editorBody
+            return qpContent;
+        }
+
+
+        function getQuestionPanelMarkup(SurveyQuestion){
+            var qpContent = '';
+
+            switch(SurveyQuestion.QuestionType){
+                case SurveyEnviroment.MultipleTextboxes:
+                case SurveyEnviroment.NumericalTextboxes:
+                case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                case SurveyEnviroment.Picklist:
+                    qpContent += '<ul><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>';
+                    qpContent += '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    qpContent += '</li>';
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onClick="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li>';
+
+                    //new field tooltip
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_tooltip}</h2>';
+                    var tooltipText = '';
+                    if(SurveyQuestion.ToolTip != null && SurveyQuestion.ToolTip != 'null'){
+                        tooltipText = SurveyQuestion.ToolTip;
+                    }
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(tooltipText).escape_quotes_for_js() + '" id="question-tooltip" onClick="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul>';
+
+                    qpContent += '<ul class="subSection"><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_options}</h2>';
+                    qpContent += '</li>';
+                    qpContent += '<li class="suboption" >';
+                    qpContent += '<ul id="answerOptions" >';
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var ao = SurveyQuestion.AnswerOptions[property];
+                        qpContent += '<li id="' + ao.Id + '-editionContainer" class="suboption">';
+                        qpContent += '<input type="text" maxlength="200" ';
+
+                        if( SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                            qpContent += 'style="width:210px;" ';
+                        }
+
+                        qpContent += 'value="' + entity.decode(ao.OptionValue).escape_quotes_for_js() + '" id="' + ao.Id + '-edition" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onFocus="this.select();" />';
+                        qpContent += '<a id="' + ao.Id + '-removeOption" href="javascript:;" onclick="removeOption(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\'); return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+
+                        if( SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                            qpContent += '<a id="' + ao.Id + '-branchingOption" href="javascript:;" onclick="s_branching__create_option_branch(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\'); return false;" class="branchLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        }
+
+                        qpContent += '</li>';
+                    }
+                    qpContent += '  </ul>';
+                    qpContent += '</li>';
+                    qpContent += '<li id="addOption" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addOption(\''+SurveyQuestion.Id+'\');return false;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addOption}</span></a></span></li></ul>';
+                    var QuestionOptions = SurveyQuestion.AnswerOptions;
+                    optPosition = 1;
+                    for(property in QuestionOptions){
+                        QuestionOptions[property].Position = optPosition;
+                        optPosition++;
+                    }
+                break;
+                case SurveyEnviroment.DateAndOrTime:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li>';
+
+                    //new field tool tip
+                    var tooltipText = '';
+                    if(SurveyQuestion.ToolTip != null && SurveyQuestion.ToolTip != 'null'){
+                        tooltipText = SurveyQuestion.ToolTip;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_tooltip}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(tooltipText).escape_quotes_for_js() + '" id="question-tooltip" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul>';
+                break;
+                case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                case SurveyEnviroment.RatingScale:
+                    qpContent += '<ul><li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>';
+                    qpContent += '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    qpContent += '</li>';
+
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li>';
+
+                    //new field tool tip
+                    var tooltipText = '';
+                    if(SurveyQuestion.ToolTip != null && SurveyQuestion.ToolTip != 'null'){
+                        tooltipText = SurveyQuestion.ToolTip;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_tooltip}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(tooltipText).escape_quotes_for_js() + '" id="question-tooltip" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul>';
+
+                    qpContent += '<ul class="subSection"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_questions}</h2></li>';
+                    qpContent += '<li class="suboption"><ul id="listOfChildQuestions">';
+                    var ff = SurveyQuestion.ChildQuestions.length;
+                    for(var lo = 0; lo < ff; lo++) {
+                        var cq = SurveyQuestion.ChildQuestions[lo];
+                        qpContent += '<li id="' + cq.Id + '-editionContainer" class="suboption">';
+                        qpContent += '<input maxlength="150" type="text" value="' + entity.decode(cq.Text).escape_quotes_for_js() + '" id="' + cq.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');"  onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');" />'
+                        qpContent += '<a id="' + cq.Id + '-removeQuestion"  href="javascript:;" onclick="removeChildQuestion(\'' + SurveyQuestion.Id + '\', \'' + cq.Id + '\');return false;" class="removeLink childq" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        qpContent += '</li>';
+                    }
+                    qpContent += '</ul><li>';
+                    qpContent += '<li id="addChildQuestion" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addChildQuestion(\'' + SurveyQuestion.Id + '\');return false;" ><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addQuestion}</span></a></span></li>';
+                    qpContent += '</ul><ul class="subSection"><li><h2>{!$Label.timbasurveys_002surveyDesigner_options}</h2></li>';
+                    qpContent += '<li class="suboption"><ul id="answerOptions">';
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var ao = SurveyQuestion.AnswerOptions[property];
+                        qpContent += '<li id="' + ao.Id + '-editionContainer" class="suboption">';
+                        if(isNaN(ao.OptionValue)){
+                            qpContent += '<input maxlength="200" type="text" value="' + entity.decode(ao.OptionValue).escape_quotes_for_js() + '" id="' + ao.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" />'
+                        } else {
+                            qpContent += '<input maxlength="200" type="text" value="' + ao.OptionValue + '" id="' + ao.Id + '-edition" onFocus="this.select();" onKeyUp="liveUpdate(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + SurveyQuestion.Id + '\',\'' + ao.Id + '\',\'AnswerOption\');" />'
+                        }
+                        qpContent += '<a id="' + ao.Id + '-removeOption"  href="javascript:;" onclick="removeOption(\'' + SurveyQuestion.Id + '\', \'' + ao.Id + '\'); return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        qpContent += '<div class="clear"></div>';
+                        qpContent += '</li>';
+                    }
+                    qpContent += '</ul><li>';
+                    qpContent += '<li id="addOption" class="suboption"><span class="editionPanelButton"><a href="javascript:;" onclick="addOption(\''+SurveyQuestion.Id+'\'); return false;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /><span>{!$Label.timbasurveys_002surveyDesigner_addOption}</span></a></span></li></ul>';
+                break;
+                case SurveyEnviroment.DescriptiveText:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_questionType_DescriptiveText}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea></li></ul>';
+                break;
+                default:
+                    qpContent += '<ul><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_question}</h2>'
+                    + '<textarea rows="5" class="rte-zoneQ" WRAP=OFF id="question-text" onFocus="this.select();" onPaste="limitText(this,30000); savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyDown="limitText(this,30000);" onKeyUp="limitText(this,30000); saveQuestion(\'' + SurveyQuestion.Id + '\');" >' + entity.decode(SurveyQuestion.Text).escape_quotes_for_js() + '</textarea>';
+                    var commentText = '';
+                    if(SurveyQuestion.Comment != null){
+                        commentText = SurveyQuestion.Comment;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_comment}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(commentText).escape_quotes_for_js() + '" id="question-comment" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');" onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li>';
+
+                    //new field tool tip
+                    var tooltipText = '';
+                    if(SurveyQuestion.ToolTip != null && SurveyQuestion.ToolTip != 'null'){
+                        tooltipText = SurveyQuestion.ToolTip;
+                    }
+                    qpContent += '<li class="suboption">';
+                    qpContent += '<h2>{!$Label.timbasurveys_002surveyDesigner_tooltip}</h2>';
+                    qpContent += '<input type="text" maxlength="150" value="' + entity.decode(tooltipText).escape_quotes_for_js() + '" id="question-tooltip" onFocus="this.select();" onpaste="savePastedQuestion(\'' + SurveyQuestion.Id + '\');"  onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" />';
+                    qpContent += '</li></ul>';
+                break;
+            }
+            qpContent += '';
+            qpContent += '<div class="additionalEditionTools"><ul>';
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox){
+                if(SurveyQuestion.AnswerOptions[0].ResponseType == 'Number'){
+                    var RangeMax = 0;
+                    var RangeMin = 0;
+                    if(typeof(SurveyQuestion.AnswerOptions[0].range) != 'undefined'){
+                        RangeMin = SurveyQuestion.AnswerOptions[0].range.min;
+                        RangeMax = SurveyQuestion.AnswerOptions[0].range.max;
+                        if(RangeMin == '' || typeof(RangeMin) == 'undefined' ){
+                            RangeMin = 0;
+                        }
+                        if(RangeMax == '' || typeof(RangeMax) == 'undefined'){
+                            RangeMax = 0;
+                        }
+                    }else{
+                        SurveyQuestion.AnswerOptions[0].range = new Object();
+                        SurveyQuestion.AnswerOptions[0].range.min = 0;
+                        SurveyQuestion.AnswerOptions[0].range.max = 0;
+                    }
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="true" checked="checked" id="allowNumbersOnly" name="allowNumbersOnly" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> <label for="allowNumbersOnly" >{!$Label.timbasurveys_002surveyDesigner_allowOnlyNumericalValues}</label></li>';
+                    //Numerical Range
+                    qpContent += '<div id="rangeControls"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_setNumericalRange}</h2><br /><label>{!$Label.timbasurveys_002surveyDesigner_ceroEqualsNoLimit}</label></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_minValue}</label><input id="rangeMinValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="'+RangeMin+'" name="rangeMinValue"/></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_maxValue}</label><input id="rangeMaxValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="'+RangeMax+'" name="rangeMaxValue"/></li>';
+                    qpContent += '</div>';
+                } else {
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="false" id="allowNumbersOnly" name="allowNumbersOnly" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> <label for="allowNumbersOnly" >{!$Label.timbasurveys_002surveyDesigner_allowOnlyNumericalValues}</label> </li>';
+                    //Numerical Range
+                    qpContent += '<div id="rangeControls" style="display:none"><li class="suboption"><h2>{!$Label.timbasurveys_002surveyDesigner_setNumericalRange}</h2><br /><label>{!$Label.timbasurveys_002surveyDesigner_ceroEqualsNoLimit}</label></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_minValue}</label><input id="rangeMinValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="0" name="rangeMinValue"/></li>';
+                    qpContent += '<li class="suboption"><label>{!$Label.timbasurveys_002surveyDesigner_maxValue}</label><input id="rangeMaxValue" onBlur="validateRange(this,\''+SurveyQuestion.Id+'\');" onKeyDown="return IsNumeric(event);" onKeyUp="saveQuestion(\''+SurveyQuestion.Id+'\');" onpaste="savePastedQuestion(\''+SurveyQuestion.Id+'\');" type="text" value="0" name="rangeMaxValue"/></li>';
+                    qpContent += '</div>';
+                }
+            }
+
+            if(SurveyQuestion.QuestionType != SurveyEnviroment.DescriptiveText){
+                if(SurveyQuestion.IsRequired){
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" checked="' + SurveyQuestion.IsRequired + '" value="' + SurveyQuestion.IsRequired + '" id="IsRequired" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" name="requiredQuestion" />  <label for="IsRequired" >{!$Label.timbasurveys_002surveyDesigner_thisQuestionRequired}</label> </li>';
+                } else {
+                    qpContent += '<li class="suboption"><input type="checkbox" class="checkbox" value="' + SurveyQuestion.IsRequired + '" id="IsRequired"  name="requiredQuestion" onClick="saveQuestion(\'' + SurveyQuestion.Id + '\');" />  <label for="IsRequired" >{!$Label.timbasurveys_002surveyDesigner_thisQuestionRequired}</label> </li>';
+
+                }
+            }
+
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox || SurveyQuestion.QuestionType == SurveyEnviroment.CommentEssayBox){
+                qpContent += '</ul>';
+                if(SurveyQuestion.mappedFieldId != null){
+                    qpContent += '<div style="cursor: pointer;" class="linkROp" onclick="question2field__show_dialog(); return false;" ><a href="javascript:;" class="buttonIconB" onmouseover="over2(this, true);" onmouseout="over2(this, false);" ></a><div class="questionMapping"><span class="titleBR">{!$Label.timbasurveys_002surveyDesigner_questionToFieldMapping}</span><span class="condition"> '+ SurveyQuestion.mappedFieldLabel +' of '+ SurveyQuestion.mappedObjectName +'</span><a href="javascript:;" onclick="confirm_remove_mapping(); return false;" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);" class="closeX"></a></div></div>';
+                } else {
+                    qpContent += '<div style="cursor: pointer;" class="linkRnoOp" onclick="question2field__show_dialog(); return false;" ><a href="javascript:;" class="buttonIconB" onmouseover="over(this, true);" onmouseout="over(this, false);" ></a><span class="titleBR">{!$Label.timbasurveys_002surveyDesigner_questionToFieldMapping}</span><br /><br /><span class="contBR">{!$Label.timbasurveys_002surveyDesigner_questionNotLinkedYet}</span></div>';
+                }
+                qpContent += '<ul>';
+            }
+
+            /* Add Different Text Lenghts */
+
+            if(SurveyQuestion.QuestionType == SurveyEnviroment.CommentEssayBox){
+
+                qpContent += '<li class="suboption" style="float:left;"><h2>{!$Label.timbasurveys_002surveyDesigner_TextareaProperties}</h2></li>';
+
+                qpContent += '<li class="suboption" style="float:left;">' +
+                        '<select id="text_length" onchange="set_char_limit(this.value);">' +
+                        '   <option value="length_255">255 {!$Label.timbasurvey_Designer_Character_limit}</option>' +
+                        '   <option value="length_32000">32,000 {!$Label.timbasurvey_Designer_Character_limit}</option>' +
+                        '</select>' +
+                        '</li>';
+
+
+                        if(SurveyQuestion.RichTextEditorEnabled == true || SurveyQuestion.RichTextEditorEnabled == 'true'){
+                            qpContent += '<li class="suboption" id="rich_text_editor_enabled_container" style="float:left;">' +
+                            '<input type="checkbox" class="checkbox" id="rich_text_editor_enabled" checked="checked" name="enable_rich_editor" onchange="enable_rich_text(this.checked);" />' +
+                            '<label for="enable_rich_editor">{!$Label.timbasurveys_002surveyDesigner_enableRichTextEditor}</label>' +
+                            '</li>';
+                        }else{
+                            qpContent += '<li class="suboption" id="rich_text_editor_enabled_container" style="float:left;display: none;" >' +
+                            '<input type="checkbox" class="checkbox" id="rich_text_editor_enabled" name="enable_rich_editor" onchange="enable_rich_text(this.checked);" />' +
+                            '<label for="enable_rich_editor">{!$Label.timbasurveys_002surveyDesigner_enableRichTextEditor}</label>' +
+                            '</li>';
+                        }
+
+            }
+
+            qpContent += '</ul>';
+
+            qpContent += '</div>';
+            //qpContent += '</div>';
+
+            //qpContent += '</div>';
+
+            return qpContent;
+        }
+
+        function getWeightsPanelMarkup(SurveyQuestion){
+            var qpContent = '';
+            qpContent += '<table class="subSection" style="width:100%;color: #000000;">';
+            qpContent += '<tr>';
+            qpContent += '<td class="suboption"> <h2>{!$Label.timbasurveys_DesignerJS_answer}</h2></td><td class="suboption" style="text-align: right;"> <h2>{!$Label.timbasurveys_DesignerJS_weight}</h2></td>';
+            qpContent += '</tr>';
+
+            for(property in SurveyQuestion.AnswerOptions){
+                var ao = SurveyQuestion.AnswerOptions[property];
+                var strW='';
+                if(ao.Weight != undefined && ao.Weight != '') {
+                    strW = parseInt(ao.Weight);
+                }
+                qpContent += '<tr id="' + ao.Id + '-weightsContainer" class="suboption">';
+                qpContent += '<td>'+ ao.OptionValue +'</td>';
+                qpContent += '<td align="right"> <input maxlength="3" size="2" type="text" value="' + strW + '" id="' + ao.Id + '-weightEdition" onKeyDown="return IsNumeric(event);" onPaste="return false;" onKeyUp="saveQuestion(\'' + SurveyQuestion.Id + '\');" /> </td> <td style="text-align: left;"> <b> {!$Label.timbasurveys_DesignerJS_points} </b></td>';
+                qpContent += '</tr>';
+            }
+
+            qpContent += '</table>'; //end subsection
+            return qpContent;
+        }
+
+        function getImagePanelMarkup(SurveyQuestion){
+            var qpContent = '';
+
+            //get the align property
+
+            qpContent += '<iframe src="/apex/file_upload?parent_id=' + SurveyQuestion.Id + '&isProperty=true&question_image" scrolling="no" style="margin-left: 0px; margin-top: 0px; border:none !important; overflow: hidden; width:-moz-available; outline: none; width:100%; background-color:#217BA4;height:325px;" id="image_uploader_iframe" frameborder="0"></iframe><br />';
+
+            qpContent = qpContent.replace(/&amp;/g, "&");
+            return qpContent;
+        }
+
+        function IsNumeric(e){
+            var sText = '';
+            if(typeof(e.keyCode) == 'undefined'){
+                sText = e.charCode;
+            }else{
+                sText = e.keyCode;
+            }
+            var IsNumber = false;
+            var specialCharArray = {8:1,37:1,39:1,46:1,9:1};
+            //Alow Numbers And BackSpace Only
+            if( ((sText >= 48 && sText <= 57) || (sText >= 96 && sText <= 105) || (sText in specialCharArray)) && !e.shiftKey ){
+                IsNumber = true;
+            }
+            return IsNumber;
+        }
+
+        function validateRange(obj,qid){
+            var minInput = dojo.byId('rangeMinValue');
+
+            if(isNaN(parseInt(minInput.value, 10))){
+                minInput.value = 0;
+            }
+
+            var maxInput = dojo.byId('rangeMaxValue');
+            var isValid = false;
+
+            if( (parseInt(minInput.value, 10) < parseInt(maxInput.value, 10)) || (parseInt(maxInput.value, 10) == 0) ){
+                isValid = true;
+            }else{
+                alert('{!$Label.timbasurvey_surveyDesigner_Incorrect}');
+                obj.value = 0;
+                saveQuestion(qid);
+            }
+            //Normailize
+            maxInput.value = parseInt(maxInput.value, 10);
+            minInput.value = parseInt(minInput.value, 10);
+        }
+
+        function addChildQuestion(qid){
+            SurveyModified = true;
+            var ParentQuestion = Survey[qid];
+            if(ParentQuestion.NumberOfChildQuestions < MaxGridQuestions){
+                switch(ParentQuestion.QuestionType){
+                    case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                    case SurveyEnviroment.RatingScale:
+                        var ChildQuestion = {};
+                        var childIndex = ParentQuestion.ChildQuestions.length + 1;
+                        ChildQuestion.Id = qid + '-Unique-' + rnd();
+                        ChildQuestion.Text = '{!$Label.timbasurveys_002surveyDesigner_newQuestionTitle}'; //'Question ';
+                        ChildQuestion.Comment = '';
+                        ChildQuestion.QuestionType = SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow;
+                        ChildQuestion.RowPlacement = childIndex;
+                        ChildQuestion.ParentId = qid;
+                        ChildQuestion.PageNumber = '';
+                        ChildQuestion.Columns = '';
+                        ChildQuestion.IsRequired = false;
+                        ChildQuestion.HasChild = false;
+                        ChildQuestion.MatrixId = '';
+                        ChildQuestion.y = ParentQuestion.ChildQuestions.length;
+                        var gridBody = dojo.query('#grid-' + qid + ' tbody');
+                        var grid = gridBody[0];
+                        var tr = dojo.doc.createElement('tr');
+                        tr.id = ChildQuestion.Id + '-row';
+                        var td = dojo.doc.createElement('td');
+                        td.innerHTML = ChildQuestion.Text;
+                        td.id = 'rowHeader-' + ChildQuestion.Id;
+                        tr.appendChild(td);
+                        for(var i = 0; i < ParentQuestion.AnswerOptions.length; i++) {
+                            if(ParentQuestion.AnswerOptions[i] != null){
+                                td = dojo.doc.createElement('td');
+                                td.className = 'cell-' + ParentQuestion.AnswerOptions[i].Id;
+                                td.innerHTML = '<input type="radio" name="' + ParentQuestion.AnswerOptions[i].Id + '" />';
+                                tr.appendChild(td);
+                            }}
+                        grid.appendChild(tr);
+                        var cq = ChildQuestion;
+                        var newQuestionEditionInput = dojo.doc.createElement('li');
+                        newQuestionEditionInput.id = cq.Id + '-editionContainer';
+                        var qpContent = '<input type="text" maxlength="150" value="' + entity.decode(cq.Text) + '" id="' + cq.Id + '-edition" onKeyUp="liveUpdate(\'' + ParentQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');"  onpaste="liveUpdatePaste(\'' + ParentQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');" onFocus="this.select();" />'
+                        + '<a id="' + cq.Id + '-removeQuestion href="javascript:;" onclick="removeChildQuestion(\'' + ParentQuestion.Id + '\', \'' + cq.Id + '\'); return false;" class="removeLink childq" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        newQuestionEditionInput.innerHTML = qpContent;
+                        var listOfChildQuestions = dojo.byId('listOfChildQuestions');
+                        listOfChildQuestions.appendChild(newQuestionEditionInput);
+                        //dojo.byId(cq.Id + '-edition').select();
+                        ParentQuestion.ChildQuestions.push(ChildQuestion);
+                    break;
+                    case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                        var ChildQuestion = {};
+                        var childIndex = ParentQuestion.ChildQuestions.length + 1;
+                        ChildQuestion.Id = qid + '-Unique-' + rnd();
+                        ChildQuestion.Text = '{!$Label.timbasurveys_002surveyDesigner_newQuestionTitle}'; //'Question';
+                        ChildQuestion.Comment = '';
+                        ChildQuestion.QuestionType = SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow;
+                        ChildQuestion.RowPlacement = childIndex;
+                        ChildQuestion.ParentId = qid;
+                        ChildQuestion.PageNumber = '';
+                        ChildQuestion.Columns = '';
+                        ChildQuestion.IsRequired = false;
+                        ChildQuestion.HasChild = false;
+                        ChildQuestion.MatrixId = '';
+                        ChildQuestion.y = ParentQuestion.ChildQuestions.length;
+                        var gridBody = dojo.query('#grid-' + qid + ' tbody');
+                        var grid = gridBody[0];
+                        var tr = dojo.doc.createElement('tr');
+                        tr.id = ChildQuestion.Id + '-row';
+                        var td = dojo.doc.createElement('td');
+                        td.innerHTML = ChildQuestion.Text;
+                        td.id = 'rowHeader-' + ChildQuestion.Id;
+                        tr.appendChild(td);
+                        for(var i = 0; i < ParentQuestion.AnswerOptions.length; i++) {
+                            if(ParentQuestion.AnswerOptions[i] != null){
+                                td = dojo.doc.createElement('td');
+                                td.className = 'cell-' + ParentQuestion.AnswerOptions[i].Id;
+                                td.innerHTML = '<input type="checkbox" class="checkbox" name="' + ParentQuestion.AnswerOptions[i].Id + '" />';
+                                tr.appendChild(td);}}
+                        grid.appendChild(tr);
+                        var cq = ChildQuestion;
+                        var newQuestionEditionInput = dojo.doc.createElement('li');
+                        newQuestionEditionInput.id = cq.Id + '-editionContainer';
+                        var qpContent = '<input type="text" maxlength="150" value="' + entity.decode(cq.Text) + '" id="' + cq.Id + '-edition" onKeyUp="liveUpdate(\'' + ParentQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');" onpaste="liveUpdatePaste(\'' + ParentQuestion.Id + '\',\'' + cq.Id + '\',\'childq\');" onFocus="this.select();" />'
+                        + '<a id="' + cq.Id + '-removeQuestion" href="javascript:;" onclick="removeChildQuestion(\'' + ParentQuestion.Id + '\', \'' + cq.Id + '\');return false;" class="removeLink childq" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        newQuestionEditionInput.innerHTML = qpContent;
+                        var listOfChildQuestions = dojo.byId('listOfChildQuestions');
+                        listOfChildQuestions.appendChild(newQuestionEditionInput);
+                        //dojo.byId(cq.Id + '-edition').select();
+                        ParentQuestion.ChildQuestions.push(ChildQuestion);
+
+                    break;
+
+                }
+
+                ParentQuestion.NumberOfChildQuestions++;
+                if(ParentQuestion.NumberOfChildQuestions >= MaxGridQuestions){
+                    dojo.byId('addChildQuestion').style.display = 'none';
+                }
+                if(ParentQuestion.NumberOfChildQuestions > 1){
+                    dojo.query('.removeLink.childq')[0].style.display = '';
+                }
+                fixContainerHeight();
+                dojo.byId(cq.Id + '-edition').select();
+            }
+        }
+
+        function removeChildQuestion(parentQuestionId,childQuestionId){
+            SurveyModified = true;
+            var currentQuestion = Survey[parentQuestionId];
+            if(currentQuestion.NumberOfChildQuestions > 1){
+                switch(currentQuestion.QuestionType){
+                    case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                    case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                    case SurveyEnviroment.RatingScale:
+                        for(var i = 0; i < currentQuestion.ChildQuestions.length; i++){
+                            if(currentQuestion.ChildQuestions[i].Id == childQuestionId){
+                                currentQuestion.ChildQuestions.splice(i, 1);
+                            }
+                        }
+                        if(childQuestionId.indexOf('Unique') == -1){
+                            SurveyQuestionsToDelete.push(childQuestionId);
+                        }
+                        var rowToDelete = dojo.byId(childQuestionId + '-row');
+                        rowToDelete.parentNode.removeChild(rowToDelete);
+                        var nodeId = childQuestionId + '-editionContainer';
+                        var nodeToRemove = dojo.byId(nodeId);
+                        nodeToRemove.parentNode.removeChild(nodeToRemove);
+                        break;
+                    default:
+                        break;
+                }
+                currentQuestion.NumberOfChildQuestions--;
+            }
+
+            if(currentQuestion.NumberOfChildQuestions < MaxGridQuestions){
+                dojo.byId('addChildQuestion').style.display = '';
+            }
+            if(currentQuestion.NumberOfChildQuestions == 1){
+                dojo.query('.removeLink.childq')[0].style.display = 'none';
+            }
+
+            fixContainerHeight();
+        }
+
+        function removeOption(QuestionId,AnswerOptionId){
+
+            SurveyModified = true;
+            var Question = Survey[QuestionId];
+            if ( ( (Question.NumberOfOptions > 1) && (Question.QuestionType != SurveyEnviroment.MultipleChoiceSingleAnswer) )
+              || ( (Question.NumberOfOptions > 2) && ( (Question.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer)
+                         ||  (Question.QuestionType == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow)
+                         ||  (Question.QuestionType == SurveyEnviroment.RatingScale)   ) ) )
+            {
+                switch(Question.QuestionType){
+                    case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                    case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                    case SurveyEnviroment.RatingScale:
+                        var QuestionOptions=Question.AnswerOptions;
+                        var tdsToRemove = dojo.query('#grid-' + QuestionId + ' td.cell-' + AnswerOptionId);
+                        for(var t = 0;t < tdsToRemove.length; t++){
+                            nodeToRemove = tdsToRemove[t];
+                            nodeToRemove.parentNode.removeChild(nodeToRemove);
+                        }
+                        var nodeId = AnswerOptionId + '-editionContainer';
+                        var nodeToRemove = dojo.byId(nodeId);
+
+                        if(nodeToRemove != null){
+                            nodeToRemove.parentNode.removeChild(nodeToRemove);
+                        }
+
+                        for(property in QuestionOptions){
+                            if(QuestionOptions[property].Id == AnswerOptionId){
+                                delete QuestionOptions[property];
+                                if(AnswerOptionId.indexOf('option') == -1){
+                                    SurveyOptionsToDelete.push(AnswerOptionId);
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    default:
+                        var QuestionOptions = Question.AnswerOptions;
+                        for(property in QuestionOptions){
+                            if(QuestionOptions[property].Id == AnswerOptionId){
+                                var nodeId = AnswerOptionId + '-editionContainer';
+                                var nodeToRemove = dojo.byId(nodeId);
+
+                                if(nodeToRemove != null){
+                                    nodeToRemove.parentNode.removeChild(nodeToRemove);
+                                }
+
+                                //nodeToRemove.parentNode.removeChild(nodeToRemove);
+                                nodeId = AnswerOptionId + '-container';
+                                nodeToRemove = dojo.byId(nodeId);
+                                nodeToRemove.parentNode.removeChild(nodeToRemove);
+                                delete QuestionOptions[property];
+                                if(AnswerOptionId.indexOf('option') == -1){
+                                    SurveyOptionsToDelete.push(AnswerOptionId);
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                }
+                Question.NumberOfOptions = Question.NumberOfOptions - 1;
+            }
+            if( ( (Question.NumberOfOptions == 1) && (Question.QuestionType != SurveyEnviroment.MultipleChoiceSingleAnswer) )
+              || ( (Question.NumberOfOptions == 2) && ( (Question.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer)
+                         ||  (Question.QuestionType == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow)
+                         ||  (Question.QuestionType == SurveyEnviroment.RatingScale)   ) ) ){
+                var QuestionOptions = Question.AnswerOptions;
+                for(property in QuestionOptions){
+                    if(QuestionOptions[property].Id != AnswerOptionId){
+                        var nodeId = Question.AnswerOptions[property].Id + '-edition';
+                        var nodeToRemove = dojo.byId(nodeId);
+                        if(nodeToRemove != null){
+                            //nodeToRemove.nextSibling.style.setProperty('display', 'none', null);
+                            dojo.byId(Question.AnswerOptions[property].Id + '-removeOption').style.display = 'none';
+                        }
+                    }
+                }
+            }
+            dojo.byId('addOption').style.display = 'block';
+
+            fixContainerHeight();
+
+            /************************************************
+            if(!undo){
+                var undoAction = {};
+                undoAction.method = 'addOption';
+                undoAction.params = QuestionId;
+                undoAction.Position = position;
+                undoAction.Value = value;
+                undoAction.survey_modified = SurveyModified;
+                undoActions.push(undoAction);
+            }
+            *************************************************/
+        }
+
+        function getQuestionOptionLimit(Question){
+            var limit = 0;
+
+            switch(Question.QuestionType){
+                case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                    limit = MaxGridOptions;
+                    break;
+                case SurveyEnviroment.RatingScale:
+                    limit = 11;
+                    break;
+                default:
+                    limit = MaxOptions;
+                    break;
+            }
+            return limit;
+        }
+
+        function addOption(QuestionId){
+
+            SurveyModified = true;
+            var Question = Survey[QuestionId];
+            var limit = getQuestionOptionLimit(Question);
+
+            var QuestionOptions = Question.AnswerOptions;
+            if(Question.NumberOfOptions < limit){
+                if(Question.NumberOfOptions == 1){
+                    var QuestionOptions = Question.AnswerOptions;
+                    for(property in QuestionOptions){
+                        var nodeId = Question.AnswerOptions[property].Id + '-edition';
+                        var nodeToRemove = dojo.byId(nodeId);
+                        if(nodeToRemove != null){
+                            dojo.byId(Question.AnswerOptions[property].Id + '-removeOption').style.display = '';
+                        }
+                    }
+                }
+                var AnswerOption = {};
+                AnswerOption.Id = 'option-' + QuestionId + '-' + rnd();
+                AnswerOption.QuestionId = QuestionId;
+                AnswerOption.ResponseType = 'Text';
+                AnswerOption.IsPicklist = false;
+
+                AnswerOption.Position = QuestionOptions.length + 1;
+                AnswerOption.OptionValue = '{!$Label.timbasurveys_002surveyDesigner_newOptionTitle}'; //'Option';
+                QuestionOptions.push(AnswerOption);
+
+                var newNode = dojo.doc.createElement('li');
+                newNode.className = 'suboption';
+                newNode.id = AnswerOption.Id + '-editionContainer';
+                switch(Question.QuestionType){
+                    case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                    case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                    case SurveyEnviroment.RatingScale:
+                        var qpContent = '<input type="text" maxlength="200" style="width:210px;" value="' + entity.decode(AnswerOption.OptionValue).escape_quotes_for_js() + '" id="' + AnswerOption.Id + '-edition" onKeyUp="liveUpdate(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\',\'AnswerOption\');"  onFocus="this.select();" />';
+                        qpContent += '<a id="' + AnswerOption.Id + '-removeOption" href="javascript:;" onclick="removeOption(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\');return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a><br class="clear" />';
+                        break;
+                    case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                    case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                    case SurveyEnviroment.Picklist:
+                        var qpContent = '<input type="text" maxlength="200" style="width:210px;" value="' + entity.decode(AnswerOption.OptionValue).escape_quotes_for_js() + '" id="' + AnswerOption.Id + '-edition" onKeyUp="liveUpdate(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\',\'AnswerOption\');" onFocus="this.select();" />';
+                        qpContent += '<a id="' + AnswerOption.Id + '-removeOption" href="javascript:;" onclick="removeOption(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\');return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        break;
+                    default:
+                        var qpContent = '<input type="text" maxlength="200" value="' + entity.decode(AnswerOption.OptionValue) + '" id="' + AnswerOption.Id + '-edition" onKeyUp="liveUpdate(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\',\'AnswerOption\');" onpaste="liveUpdatePaste(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\',\'AnswerOption\');" onFocus="this.select();" />';
+                        qpContent += '<a id="' + AnswerOption.Id + '-removeOption" href="javascript:;" onclick="removeOption(\'' + QuestionId + '\',\'' + AnswerOption.Id + '\');return false;" class="removeLink answer" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></a>';
+                        break;
+                }
+                newNode.innerHTML = qpContent;
+                var answerOptionsCont = dojo.byId('answerOptions');
+                answerOptionsCont.appendChild(newNode);
+
+                var representationContent = '';
+                switch(Question.QuestionType){
+                    case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                        representationContent += '<input id="' + AnswerOption.Id + '" type="checkbox" class="checkbox" />';
+                        representationContent += '<label for="' + AnswerOption.Id + '" id="' + AnswerOption.Id + '-label">{!$Label.timbasurveys_002surveyDesigner_newOptionTitle}</label>';
+                        break;
+                    case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                    case SurveyEnviroment.RatingScale:
+                        representationContent += '<input id="' + AnswerOption.Id + '" type="radio"/>';
+                        representationContent += '<label for="' + AnswerOption.Id + '" id="' + AnswerOption.Id + '-label">{!$Label.timbasurveys_002surveyDesigner_newOptionTitle}</label>';
+                        break;
+                    case SurveyEnviroment.Picklist:
+                        representationContent += '{!$Label.timbasurveys_002surveyDesigner_newOptionTitle}'; //'Option';
+                        break;
+                    default:
+                        representationContent += '<label for="' + AnswerOption.Id + '" id="' + AnswerOption.Id + '-label">{!$Label.timbasurveys_002surveyDesigner_newOptionTitle}</label>';
+                        representationContent += '<input id="' + AnswerOption.Id + '" type="text" />';
+                        break;
+                }
+                switch(Question.QuestionType){
+                    case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                    case SurveyEnviroment.RatingScale:
+                        var tableRows = dojo.query('#grid-' + QuestionId + ' tr');
+                        for(var t = 0 ; t < tableRows.length ; t++) {
+                            var row = tableRows[t];
+                            var newTd = dojo.doc.createElement('td');
+                            if(row.id != ''){
+                                if(row.id != 'gridHeader-' + Question.Id){
+                                    newTd.className = 'cell-' + AnswerOption.Id;
+                                    newTd.innerHTML = '<input type="radio" />';
+                                } else {
+                                    newTd.innerHTML = AnswerOption.OptionValue;
+                                    newTd.className = 'cell-' + AnswerOption.Id;
+                                    newTd.id = AnswerOption.Id + '-label';
+                                }
+                            }
+                            row.appendChild(newTd);
+                        }
+                        break;
+                    case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                        var tableRows = dojo.query('#grid-' + QuestionId + ' tr');
+                        for(var t = 0; t < tableRows.length; t++) {
+                            var row = tableRows[t];
+                            var newTd = dojo.doc.createElement('td');
+                            if(row.id != ''){
+                                if(row.id != 'gridHeader-' + Question.Id){
+                                    newTd.className = 'cell-' + AnswerOption.Id;
+                                    newTd.innerHTML = '<input type="checkbox" class="checkbox" />';
+                                } else {
+                                    newTd.innerHTML = AnswerOption.OptionValue;
+                                    newTd.className = 'cell-' + AnswerOption.Id;
+                                    newTd.id = AnswerOption.Id + '-label';
+                                }
+                            }
+                            row.appendChild(newTd);
+                        }
+                        break;
+                    default:
+                        var optionsContainer = dojo.byId(QuestionId + '-optionsContainer');
+                        var representationNode = null;
+                        if(Question.QuestionType == SurveyEnviroment.Picklist){
+                            representationNode = dojo.doc.createElement('option');
+                        } else {
+                            representationNode = dojo.doc.createElement('li');
+                        }
+                        representationNode.id = AnswerOption.Id + '-container';
+                        representationNode.innerHTML = representationContent;
+                        optionsContainer.appendChild(representationNode);
+                        optPosition = 1;
+                        for(property in QuestionOptions){
+                            QuestionOptions[property].Position = optPosition;
+                            optPosition++;
+                        }
+                        break;
+                }
+                Question.NumberOfOptions++;
+            }
+            if(Question.NumberOfOptions >= limit){
+                dojo.byId('addOption').style.display = 'none';
+            }else{
+                dojo.byId('addOption').style.display = 'block';
+            }
+            fixContainerHeight();
+            dojo.byId(AnswerOption.Id + '-edition').select();
+
+            /************************************************
+            if(!undo){
+                var undoAction = {};
+                undoAction.method = 'removeOption';
+                undoAction.params = AnswerOption;
+                undoAction.survey_modified = SurveyModified;
+                undoActions.push(undoAction);
+            }
+            ************************************************/
+        }
+
+        function savePastedQuestion(qid){
+            setTimeout('saveQuestion(\'' + qid + '\')',200);
+        }
+        function liveUpdatePaste(qid,aoid,type){
+            setTimeout('liveUpdate(\'' + qid + '\',\'' + aoid + '\',\'' + type + '\')',200);
+        }
+
+        function saveQuestion(qid){
+
+            var SurveyQuestion=Survey[qid];
+            if (SurveyQuestion === undefined){
+                return ;
+            }
+
+            //check if there are images styles
+            var options = getImageAttributes(qid);
+            //console.log('save question ['+qid+']FUNCTION:');      console.log(options);
+            if ( options !== undefined ){
+
+                /* CHECK BEFORE COMMMIT*/
+
+                if (options != null ){
+                    if (options.width !=''){
+                        SurveyQuestion.img_width = options.width;
+                    }
+                    if (options.height !=''){
+                        SurveyQuestion.img_height = options.height;
+                    }
+                    if (options.alignment !=''){
+                        if (options.alignment =='center' || options.alignment =='right')
+                            SurveyQuestion.img_alignment = options.alignment;
+                        else
+                            SurveyQuestion.img_alignment = 'left';
+                    }
+                    if (options.alt_text !=''){
+                        SurveyQuestion.img_alt_text = options.alt_text;
+                    }
+                    if (options.above_question !='' && options.above_question){
+                        SurveyQuestion.img_above_question = 'true';
+                    }else{
+                        SurveyQuestion.img_above_question = 'false';
+                    }
+                }else{
+                    delete SurveyQuestion.img_width;
+                    delete SurveyQuestion.img_height;
+                    delete SurveyQuestion.img_alignment;
+                    delete SurveyQuestion.img_alt_text;
+                    delete SurveyQuestion.img_above_question;
+
+                }
+
+            }else{
+                SurveyModified = true;
+            }
+
+
+
+            switch(SurveyQuestion.QuestionType){
+                case SurveyEnviroment.MultipleTextboxes:
+                case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                    SurveyQuestion.Text = dojo.byId('question-text').value.replace(/^\s*|\s*$/g,"");
+                    SurveyQuestion.Comment = dojo.byId('question-comment').value.replace(/^\s*|\s*$/g,"");
+                    SurveyQuestion.ToolTip = dojo.byId('question-tooltip').value.replace(/^\s*|\s*$/g,"");
+                    var question = dojo.query('#' + qid + ' .question');
+                    setInnerText(question[0],SurveyQuestion.Text);
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var option = SurveyQuestion.AnswerOptions[property];
+                        var inputWithNewData = dojo.byId(option.Id + '-edition');
+                        option.OptionValue = dojo.byId(option.Id + '-edition').value.replace(/^\s*|\s*$/g,"");
+                        if(SurveyQuestion.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer) {
+                            option.Weight = dojo.byId(option.Id + '-weightEdition').value;
+                        }
+                        var optionLabel = dojo.byId(option.Id + '-label');
+                        setInnerText(optionLabel, option.OptionValue);
+                    }
+                    break;
+
+                case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                case SurveyEnviroment.RatingScale:
+                    SurveyQuestion.Text = dojo.byId('question-text').value.replace(/^\s*|\s*$/g,"");
+                    SurveyQuestion.Comment = dojo.byId('question-comment').value.replace(/^\s*|\s*$/g,"");
+                    SurveyQuestion.ToolTip = dojo.byId('question-tooltip').value.replace(/^\s*|\s*$/g,"");
+                    var question = dojo.query('#' + qid + ' .question');
+                    setInnerText(question[0], SurveyQuestion.Text);
+
+                    for(property in SurveyQuestion.AnswerOptions){
+                        var option = SurveyQuestion.AnswerOptions[property];
+                        var inputWithNewData = dojo.byId(option.Id + '-edition');
+                        option.OptionValue = dojo.byId(option.Id + '-edition').value.replace(/^\s*|\s*$/g,"");
+                        var optionLabel = dojo.byId(option.Id + '-label');
+                        setInnerText(optionLabel, option.OptionValue);
+                    }
+                    for(property in SurveyQuestion.ChildQuestions){
+                        var childQ = SurveyQuestion.ChildQuestions[property];
+                        if(childQ != null && dojo.byId(childQ.Id + '-edition')!== undefined){
+                            var inputWithNewData = dojo.byId(childQ.Id + '-edition');
+                            childQ.Text = dojo.byId(childQ.Id + '-edition').value.replace(/^\s*|\s*$/g,"");
+                            var rowHeaderToModify = dojo.byId('rowHeader-' + childQ.Id);
+                            rowHeaderToModify.innerHTML = childQ.Text;
+                        }
+                    }
+                    break;
+
+                case SurveyEnviroment.DescriptiveText:
+                    SurveyQuestion.Text = dojo.byId('question-text').value.replace(/^\s*|\s*$/g,"");
+                    var question = dojo.query('#' + qid + ' .question');
+                    setInnerText(question[0], SurveyQuestion.Text);
+                    break;
+
+                case SurveyEnviroment.CommentEssayBox:
+                    // Set if text editor is rich or not
+                    SurveyQuestion.RichTextEditorEnabled = dojo.byId('rich_text_editor_enabled').checked;
+                    // Set text editor length
+                    SurveyQuestion.EditorLength = dojo.byId('text_length').value;
+
+                    SurveyQuestion.Text = dojo.byId('question-text').value;
+                    SurveyQuestion.Comment = dojo.byId('question-comment').value;
+                    SurveyQuestion.ToolTip = dojo.byId('question-tooltip').value.replace(/^\s*|\s*$/g,"");
+
+                    var node = dojo.query('#' + SurveyQuestion.Id + ' .question')[0];
+                    node.innerHTML = SurveyQuestion.Text;
+                    break;
+
+                default:
+                    SurveyQuestion.Text = dojo.byId('question-text').value.replace(/^\s*|\s*$/g,"");
+                    SurveyQuestion.Comment = dojo.byId('question-comment').value.replace(/^\s*|\s*$/g,"");
+                    SurveyQuestion.ToolTip = dojo.byId('question-tooltip').value.replace(/^\s*|\s*$/g,"");
+                    if(SurveyQuestion.QuestionType == SurveyEnviroment.SingleTextbox){
+                        if(typeof(SurveyQuestion.AnswerOptions[0].range) == 'undefined'){
+                            SurveyQuestion.AnswerOptions[0].range = new Object();
+                        }
+                        if(dojo.byId('allowNumbersOnly').checked){
+                            SurveyQuestion.AnswerOptions[0].ResponseType = 'Number';
+                            if(dojo.byId('rangeControls').style.display == 'none'){
+                                dojo.byId('rangeControls').style.display = 'block';
+                                SurveyQuestion.AnswerOptions[0].range.min = 0;
+                                SurveyQuestion.AnswerOptions[0].range.max = 0;
+                            }else{
+                                SurveyQuestion.AnswerOptions[0].range.min = dojo.byId('rangeMinValue').value;
+                                SurveyQuestion.AnswerOptions[0].range.max = dojo.byId('rangeMaxValue').value;
+                            }
+                        }else{
+                            SurveyQuestion.AnswerOptions[0].ResponseType = 'Text';
+                            SurveyQuestion.AnswerOptions[0].range.min = '';
+                            SurveyQuestion.AnswerOptions[0].range.max = '';
+                            dojo.byId('rangeControls').style.display = 'none';
+                        }
+                    }
+                    var question=dojo.query('#' + qid + ' .question');
+                    setInnerText(question[0],SurveyQuestion.Text);
+                    break;
+            }
+            if(SurveyQuestion.QuestionType != SurveyEnviroment.DescriptiveText){
+                SurveyQuestion.IsRequired = dojo.byId('IsRequired').checked;
+                if(SurveyQuestion.IsRequired == true){
+                    dojo.query('#' + qid + ' .requiredItemShow')[0].style.display = 'block';
+                }else{
+                    dojo.query('#' + qid + ' .requiredItemShow')[0].style.display = 'none';
+                }
+            }
+
+            fixContainerHeight();
+        }
+    </script>
+</apex:page>

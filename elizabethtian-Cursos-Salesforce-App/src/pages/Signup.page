@@ -1,0 +1,79 @@
+<!--
+
+Visualforce page for Signup that allows for website integration through
+Force.com site hosting and an iframe. A user is directed to this page after clicking on
+a course on the Calendar_Website page. When a user signs up, a SOQL query is made to check
+if the attendant email already exists in the Salesforce database - if it does not, the
+page creates a new Contact and subscribes them to the course (with a new Inscripcion record
+and the automatically created Asistencia records). An automatic confirmation email is also
+sent to the user after subscribing.c
+
+Created by: Elizabeth Tian, 2016
+
+-->
+
+<apex:page standardController="Curso__c" extensions="Signup" sidebar="false" showHeader="false">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+    
+    <div class="left">
+    </div>
+    <div class="main">
+    <apex:form >
+        <apex:sectionHeader title="Inscribite al Curso"/>
+        <apex:pageBlock >
+            <apex:pageBlockSection title="Informacion del Curso" collapsible="true">
+                <apex:outputField value="{!Curso__c.Name}"/>
+                <apex:outputField value="{!Curso__c.Fecha_de_Inicio__c}"/>
+                <apex:outputField value="{!Curso__c.Fecha_de_Finalizacion__c}"/>
+                <apex:outputField value="{!Curso__c.Frecuencia__c}"/>
+                <apex:outputField value="{!Curso__c.D_as__c}"/>
+                <apex:outputField value="{!Curso__c.Inscriptos__c}"/>
+                <apex:outputField value="{!Curso__c.Limite_de_inscripciones__c}"/>
+                <apex:outputField value="{!Curso__c.Importe__c}"/>
+                <apex:outputField value="{!Curso__c.Moneda_Importe__c}"/>
+                <apex:outputField value="{!Curso__c.Responsable__c}"/>
+                <apex:outputField value="{!Curso__c.Tipo_de_Curso__c}"/>
+                <apex:outputField value="{!Curso__c.Comentarios__c}"/>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+        <apex:pageBlock title="Inscribite" id="inscribe">
+            <apex:pageBlockButtons location="top">
+                <apex:commandButton value="Asistente Nuevo" action="{!showNewContact}" reRender="inscribe" immediate="true"/>
+                <apex:commandButton value="Asistente Viejo" action="{!showOld}" reRender="inscribe" immediate="true"/>
+            </apex:pageBlockButtons>
+            <apex:pageBlockButtons location="bottom">
+                <apex:commandButton value="Inscribite" action="{!inscrib}" rendered="{!OR(newContact,oldContact)}"/>
+                <apex:commandButton value="Regresa a Calendario" action="{!calendar}" immediate="true"/>
+            </apex:pageBlockButtons>
+            <apex:pageBlockSection title="Asistente Nuevo" collapsible="false" columns="1" rendered="{!newContact}">
+                <apex:pageMessages ></apex:pageMessages>
+                <apex:inputField value="{!contact.FirstName}" required="{!newContact}"/>
+                <apex:inputField value="{!contact.LastName}" required="{!newContact}"/>
+                <apex:inputField value="{!contact.Email}" required="{!newContact}"/>
+                <apex:inputField value="{!contact.Phone}" required="{!newContact}"/>
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Asistente Viejo" collapsible="false" columns="1" rendered="{!oldContact}">
+                <apex:pageMessages ></apex:pageMessages>
+                <apex:inputField value="{!contact.Email}" required="{!oldContact}"/>
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Otra Informacion" collapsible="false" columns="1" rendered="{!OR(newContact,oldContact)}">
+                <apex:inputField value="{!newInscrip.Modo_de_in__c}"/>
+                <apex:inputField value="{!newInscrip.Tipo_de__c}"/>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+    </div>
+    <style>
+        .left {
+            position:absolute;
+            left:0; top:0; bottom: 0;
+            width: 100px;
+            background-color: #9e4fa5;
+        }
+        .main {
+            position: absolute;
+            left:128px; top:0; right:0; bottom:0;
+        }
+    </style>
+</apex:page>

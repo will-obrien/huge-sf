@@ -1,0 +1,154 @@
+<apex:page standardController="rh2__Job__c" extensions="rh2.PS_DefineJob_Controller">
+
+    <apex:includeScript value="{! URLFOR($Resource.PT_Resources_v1, '/js/modernizr-1.7.min.js') }"/>
+    <apex:includeScript value="{! URLFOR($Resource.PT_Resources_v1, '/js/RollupRun.js') }"/>
+    <apex:includeScript value="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"/>
+    <apex:includeScript value="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"/>
+    
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/smoothness/jquery-ui-1.8.21.custom.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/reset.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/grid.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/general.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/css3.css') }"/>    
+    
+    <style>
+        .caption {font-size:smallest; padding-left:10px; padding-bottom:5px; padding-top:5px;}
+  		.breadcrumb {font-size:small;}
+    </style>
+    
+	<script>
+
+		//Verify namespace is ready
+		var rh = rh || {};
+		
+		rh.j$ = $.noConflict(true);
+		rh.j$(document).ready(function() {
+			countRecords(rh.j$);
+		});
+
+		function countRecords($) {
+			
+			var maxRecords, sliderMin = 500;
+
+		    Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.PS_DefineJob_Controller.maxRecords}',
+		                   '{! JSENCODE(parentObjectName) }', function(result, event){           
+		        
+		        if (event.status && event.result) {
+		        	maxRecords = result;
+		        } else {
+		           maxRecords = 50000;
+		        }
+		        
+		        if(sliderMin != maxRecords) {
+					$( "[id$=slider]" ).slider({
+						value: parseInt($( "[id$=amount]" ).val().replace(',','')),
+						min: sliderMin,
+						max : maxRecords,
+						step: 500,
+						slide: function( event, ui ) {
+					    	$( "[id$=amount]" ).val( ui.value );
+					  	}
+					});
+					$( "[id$=amount]" ).val( $( "[id$=slider]" ).slider("option", "value") );			
+				}
+				
+				$( "[id$=runOnce]" ).val('Run Once For ' + maxRecords + ' Records');
+				$( "[id$=maxRecords]" ).val(maxRecords);		        	
+		        
+		    }, {escape:true});
+		    
+		}	
+		
+		function estimateWaitTime() {
+
+			var rollupRun = new RollupRun();
+			rollupRun.numRecords = rh.j$("[id$=maxRecords]").val();
+			rollupRun.batchSize = {!maxBatchSize};
+			
+			window.alert('Your request will take an estimated ' + rollupRun.duration() + ' to complete');
+		
+		}
+  </script>
+ 
+
+    <apex:outputPanel styleClass="row" layout="block">
+        <apex:outputPanel styleClass="col col_16 breadcrumb" id="heading">
+       		<apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_AllSettings)}">All Rollup Settings</apex:outputLink>                	
+           	<apex:outputText value=" > Edit Schedule"/>
+        </apex:outputPanel>
+        <apex:outputPanel styleClass="col col_16">
+			<apex:pageMessages />
+		</apex:outputPanel>
+    </apex:outputPanel>
+
+    <apex:form >
+    <apex:outputPanel styleClass="row" layout="block" rendered="{!NOT(ISBLANK(targetField))}">
+    	<apex:pageBlock helpUrl="http://rolluphelper.passagetech.com/resources/user-guide/scheduling-your-rollup-settings"
+        				helpTitle="Help for this Page"
+         				title="Define Rollup Schedule"
+        >
+        <apex:pageBlockButtons >
+            <!-- Premium Feature Notice -->
+			<apex:outputLink style="margin-left:0px;" rendered="{!notPaid}" target="_blank" value="http://www.passagetech.com/products/rollup-helper/premium-features">
+				<apex:image value="{!URLFOR($Resource.rh2__PT_Resources_v1, 'images/upgrade_icon_green.gif')}" width="16" height="17" style="vertical-align:text-top;"/>
+			</apex:outputLink>
+			<apex:commandButton rendered="{!notPaid}" value="Upgrade" onClick="window.open('http://www.passagetech.com/products/rollup-helper/premium-features');"/>
+            <!-- Premium Feature Notice -->
+            <apex:commandButton action="{! save }" value="Save"/>
+			<apex:commandButton id="runOnce" value="Run Once" action="{!runForAllRecords}" onClick="estimateWaitTime();"/>
+			<apex:inputHidden value="{!maxRecords}" id="maxRecords"/>			
+	  		<apex:commandButton rendered="{!not(isBlank(rh2__Job__c.Id))}" action="{!oDelete}" 
+	  			value="Delete" />                	
+	  		<apex:commandButton action="{!URLFOR($Page.rh2__PS_AllSettings)}" 
+	  			value="Cancel" />                	
+            
+            <!-- FOR DEV ONLY - BELOW >
+	            <apex:commandButton disabled="{!notPaid}" action="{! save }" 
+	            	value="Save" />
+				<apex:outputLink style="margin-left:0px;" rendered="{!notPaid}" target="_blank" value="http://www.passagetech.com/products/rollup-helper/premium-features">
+					<apex:image value="{!URLFOR($Resource.rh2__PT_Resources_v1, 'images/upgrade_icon_green.gif')}" width="16" height="17" style="vertical-align:text-top;"/>
+				</apex:outputLink> 
+				<apex:commandButton rendered="{!notPaid}" onClick="window.open('http://www.passagetech.com/products/rollup-helper/premium-features');"
+					value="Upgrade" />            
+	        <!-- FOR DEV ONLY - ABOVE -->
+	         
+        </apex:pageBlockButtons>
+        
+        <apex:pageBlockSection title="{!targetField} Rollup" columns="1" collapsible="false">
+			<apex:outputPanel styleClass="row" layout="block">
+	            <apex:inputHidden value="{!rh2__Job__c.rh2__Rollup_Name__c}" />
+	            <apex:outputText styleClass="col col_2 align_right" value="Active"/>
+	            <apex:inputField styleClass="col col_1 align_center" value="{!rh2__Job__c.rh2__Active__c}" />
+	            <apex:outputText styleClass="col col_2" value="Last Run" rendered="{!not(isBlank(rh2__Job__c.rh2__PreviousFireTime__c))}"/>
+	            <apex:outputText styleClass="col col_4" value="{!rh2__Job__c.rh2__PreviousFireTime__c}" rendered="{!not(isBlank(rh2__Job__c.rh2__PreviousFireTime__c))}"/>
+            </apex:outputPanel>        	
+			<apex:outputPanel styleClass="row" layout="block">
+	            <apex:outputText styleClass="col col_2 align_right" value="Repeat Every"/>
+	            <apex:inputField styleClass="col col_1 align_center" value="{!rh2__Job__c.rh2__Increment__c}"/>
+	            <apex:inputField styleClass="col col_2 align_left" value="{!rh2__Job__c.rh2__Unit__c}"/>
+	            <apex:outputText styleClass="col col_1 align_right" value="For"/>
+	            <apex:outputPanel styleClass="col col_2" layout="block">
+		            <apex:outputPanel styleClass="row" layout="block">
+			            <apex:inputField styleClass="col col_2 align_center" id="amount" value="{!rh2__Job__c.rh2__BatchSize__c}"/>
+		            </apex:outputPanel>
+		            <apex:outputPanel styleClass="row" layout="block">
+		            	<apex:outputPanel id="slider" styleClass="col col_2"/>
+		            </apex:outputPanel>
+	            </apex:outputPanel>
+	            <apex:outputText styleClass="col col_5 align_left" value="{!parentObjectName} records"/>
+        	</apex:outputPanel>
+			<apex:outputPanel styleClass="row" layout="block">
+	            <apex:outputText styleClass="col col_2 align_right" value="Next Run"/>
+            	<apex:inputField styleClass="col col_3" value="{!rh2__Job__c.rh2__NextFireTime__c}"/>
+	            <apex:outputText styleClass="col col_6 rounded align_center right"
+	            	value="Rollups will restart where they stopped on the last run to ensure all records are eventually updated."/>
+            </apex:outputPanel>
+	    </apex:pageBlockSection>
+	    
+		</apex:pageBlock>
+	</apex:outputPanel>
+	
+	</apex:form>
+
+	
+</apex:page>

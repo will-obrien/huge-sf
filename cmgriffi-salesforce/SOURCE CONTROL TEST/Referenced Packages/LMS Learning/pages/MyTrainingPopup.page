@@ -1,0 +1,672 @@
+<apex:page controller="lmscons.MyTrainingExtension" title="{!$Label.MyTraining_title_My_Training}" action="{!SetPopup}" showheader="false" sidebar="false">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>My Training</title>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/jquery.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/init.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__LMSSource, 'css/training.css')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__lmslightbox, 'css/lms-lightbox.css')}"/>
+<style type="text/css">
+/* sf fix */
+#tsid {z-index:200}
+</style>
+</head>
+<body>
+
+	<apex:outputpanel layout="none" id="mycontent">
+
+		<div class="b-tabs">
+			<div class="b-tab">Current Training</div>
+			<!-- <div class="b-tab">Historical Imports</div> -->
+			<div class="b-setting">
+				<div class="b-checkbox">
+					<input type="checkbox" checked="checked" id="a" /><label for="a">Show Completed Training</label>
+				</div>
+				<!--<div class="b-xls-print">
+					<a href="#" class="m-xls">excel</a>
+					<a href="#" class="m-print">print</a>
+				</div>-->
+			</div>
+		</div>
+
+		<div class="b-tab-bodies">
+			<div class="b-tab-body">
+				<apex:outputPanel rendered="{!TrainingList.size==0}">
+					<table width="100%" border="0" class="m-tbl">
+						<tr>
+							<td align="center">
+								You do not have any current training to complete.
+							</td>
+						</tr>
+					</table>
+				</apex:outputPanel>
+				<apex:dataTable rendered="{!TrainingList.size!=0}" headerClass="t-head-top" value="{!TrainingList}" var="c" width="100%" border="0" styleClass="m-tbl">
+					<!-- ------- -->
+					<apex:column headerClass="col1" styleClass="emptyFix m-col1 {!IF(ISNULL(c.TitleCurriculum), '', 'm-plus')}" rendered="{!IF(ISNULL(c.TitleCurriculum), true, false)}">
+						<apex:facet name="header" >
+							TRAINING
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col2" rendered="{!IF(lmsConfig.lmscons__Show_Type__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col2">
+						<apex:facet name="header" >
+							TRAINING TYPE
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col3" rendered="{!IF(lmsConfig.lmscons__Show_status__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col3">
+						<apex:facet name="header" >
+							STATUS
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col4" rendered="{!IF(lmsConfig.lmscons__Show_progress_bar__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col4">
+						<apex:facet name="header" >
+							PROGRESS
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col5" rendered="{!IF(lmsConfig.lmscons__Show_Score__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col5">
+						<apex:facet name="header" >
+							SCORE
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col6" rendered="{!IF(lmsConfig.lmscons__Show_Duration__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col6">
+						<apex:facet name="header" >
+							DURATION
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col7" rendered="{!IF(lmsConfig.lmscons__Show_Due_Date__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col7">
+						<apex:facet name="header" >
+							DUE DATE
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col8" rendered="{!IF(ISNULL(c.TitleCurriculum), true, false)}" styleClass="emptyFix m-col8">
+						&nbsp;
+					</apex:column>
+					<apex:column headerClass="col9" rendered="{!IF(lmsConfig.lmscons__Enable_certificate__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col9">
+						&nbsp;
+					</apex:column>
+					<!-- ------- -->
+					<apex:column styleClass="m-col1 {!IF(ISNULL(c.TitleCurriculum), '', 'm-plus')}" rendered="{!IF(ISNULL(c.TitleCurriculum), false, true)}">
+						<apex:facet name="header" >
+							TRAINING
+						</apex:facet>
+						<apex:outputText value="{!c.TitleCurriculum}"  />
+					</apex:column>
+					<apex:column styleClass="m-col2"  rendered="{!IF(lmsConfig.lmscons__Show_Type__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							TRAINING TYPE
+						</apex:facet>
+						<apex:outputText value="{!c.Type}"/>
+					</apex:column>
+					<apex:column styleClass="m-col3" rendered="{!IF(lmsConfig.lmscons__Show_status__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							STATUS
+						</apex:facet>
+						<apex:outputField value="{!c.CItem.Curriculum_Assignment__r.lmscons__Status__c}"/>
+					</apex:column>
+					<apex:column styleClass="m-col4" rendered="{!IF(lmsConfig.lmscons__Show_progress_bar__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							PROGRESS
+						</apex:facet>
+						<c:ProgressBar percent="{!IF(ISNULL(c.CItem.Curriculum_Assignment__r.lmscons__Curriculum_Progress__c), 0,ROUND(c.CItem.Curriculum_Assignment__r.lmscons__Curriculum_Progress__c,0))}"  ispath="true" score="" />
+					</apex:column>
+					<apex:column styleClass="m-col5" rendered="{!IF(lmsConfig.lmscons__Show_Score__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							SCORE
+						</apex:facet>
+					</apex:column>
+					<apex:column styleClass="m-col6" rendered="{!IF(lmsConfig.lmscons__Show_Duration__c,IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							DURATION
+						</apex:facet>
+						<apex:outputField value="{!c.CItem.Curriculum_Assignment__r.Curriculum__r.lmscons__Duration__c}"/>
+					</apex:column>
+					<apex:column styleClass="m-col7" rendered="{!IF(lmsConfig.lmscons__Show_Due_Date__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							DUE DATE
+						</apex:facet>
+						<apex:outputField value="{!c.CItem.Curriculum_Assignment__r.lmscons__Due_Date__c}"/>
+					</apex:column>
+					<apex:column styleClass="m-col8" rendered="{!IF(ISNULL(c.TitleCurriculum), false, true)}">
+						&nbsp;
+					</apex:column>
+
+
+					<!-- ---------------- -->
+					<!-- first level -->
+					<apex:column styleClass="m-hide-tbl m-first-level" colspan="{!Columns}" breakBefore="true">
+						<apex:dataTable width="100%" value="{!c.LpEntryList}" var="LP" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rendered="{!c.CuSeqList.size == 0}">
+							<apex:column styleClass="m-plus m-col1" style="{!IF(ISNULL(c.TitleCurriculum), 'background-position: 8px 17px;', '')}">
+								<div class="m-lev-0">
+									<apex:outputText value="{!LP.LpItem.Learning_Path_Assignment__r.Learning_Path__r.Name}"/>
+								</div>
+							</apex:column>
+							<apex:column styleClass="m-col2"  rendered="{!lmsConfig.lmscons__Show_Type__c}">
+								<apex:outputText value="{!LP.Type}"/>
+							</apex:column>
+							<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+								<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Status__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+								<c:ProgressBar percent="{!IF(ISNULL(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c),0,ROUND(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c,0))}"  ispath="false" score="" />
+							</apex:column>
+							<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+								&nbsp;
+							</apex:column>
+							<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+								<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.Learning_Path__r.lmscons__Duration__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+								<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Due_Date__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col8 m-center">
+								&nbsp;
+							</apex:column>
+
+
+							<!-- second level -->
+							<apex:column styleClass="m-hide-tbl m-second-level" breakBefore="true" colspan="{!Columns}">
+								<!-- sequence -->
+								<apex:repeat value="{!LP.LpSeqList}" var="LPS">
+									<apex:dataTable width="100%" value="{!LPS.LpEntryObj.MEntryList}" var="M" rowClasses="m-faded"  styleClass="m-hide">
+										<apex:column styleClass="m-col1">
+											<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-1', 'm-lev-0')}">
+												<span class="m-icon-type-1">&nbsp;</span>
+												<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+											</div>
+										</apex:column>
+										<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+											<apex:outputText value="{!M.Type}"/>
+										</apex:column>
+										<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+											<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+										</apex:column>
+										<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+											<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col8 m-center">
+											<apex:outputPanel rendered="{!LPS.seq != -1}">
+
+
+											</apex:outputPanel>
+											<apex:outputPanel rendered="{!LPS.seq == -1}">
+
+											</apex:outputPanel>
+										</apex:column>
+
+									</apex:dataTable>
+
+									<apex:dataTable width="100%" value="{!LPS.LpEntryObj.CoEntryList}" var="Co" border="0">
+										<apex:column styleClass="m-plus m-col1"  style="{!IF(ISNULL(c.TitleCurriculum), 'background-position: 23px 17px;', '')}">
+											<div class="m-lev-1">
+												<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+											</div>
+										</apex:column>
+										<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+											<apex:outputText value="{!Co.Type}"/>
+										</apex:column>
+										<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+											<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+											<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+										</apex:column>
+										<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+											&nbsp;
+										</apex:column>
+										<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+											<apex:outputField value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.lmscons__Duration__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+											<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col8 m-center">
+											&nbsp;
+										</apex:column>
+
+
+										<!-- three level -->
+										<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+											<apex:dataTable width="100%" rowClasses="m-faded" value="{!Co.MEntryList}" var="M" border="0"  styleClass="m-hide">
+												<apex:column styleClass="m-col1">
+													<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+														<span class="m-icon-type-1">&nbsp;</span>
+														<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+													</div>
+												</apex:column>
+												<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+													<apex:outputText value="{!M.Type}"/>
+												</apex:column>
+												<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+													<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+												</apex:column>
+												<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+													<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+												</apex:column>
+												<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+													<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+												</apex:column>
+												<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+													<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+												</apex:column>
+												<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+													<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+												</apex:column>
+												<apex:column styleClass="m-col8 m-center">
+													<apex:outputPanel rendered="{!LPS.seq != -1}">
+														<!--
+
+														-->
+
+
+
+
+													</apex:outputPanel>
+													<apex:outputPanel rendered="{!LPS.seq == -1}">
+
+													</apex:outputPanel>
+												</apex:column>
+
+											</apex:dataTable>
+										</apex:column>
+									</apex:dataTable>
+								</apex:repeat>
+								<!-- end sequence -->
+							</apex:column>
+						</apex:dataTable>
+
+						<!-- ------- -->
+						<apex:dataTable width="100%" value="{!c.CoEntryList}" var="Co" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}"  rendered="{!c.CuSeqList.size == 0}">
+							<apex:column styleClass="m-plus m-col1" style="{!IF(ISNULL(c.TitleCurriculum), 'background-position: 8px 17px;', '')}">
+								<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+									<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+								</div>
+							</apex:column>
+							<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+								<apex:outputText value="{!Co.Type}"/>
+							</apex:column>
+							<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+								<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+								<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+							</apex:column>
+							<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+								&nbsp;
+							</apex:column>
+							<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+								<apex:outputField value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.lmscons__Duration__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+								<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col8 m-center">
+								&nbsp;
+							</apex:column>
+
+							<!-- ------- -->
+							<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+								<apex:dataTable width="100%" value="{!Co.MEntryList}" var="M" border="0" styleClass="m-hide" rowClasses="m-faded">
+									<apex:column styleClass="m-col1">
+										<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+											<span class="m-icon-type-1">&nbsp;</span>
+											<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+										</div>
+									</apex:column>
+									<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+										<apex:outputText value="{!M.Type}"/>
+									</apex:column>
+									<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+										<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+										<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+									</apex:column>
+									<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+										<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+										<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+										<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col8 m-center">
+
+
+									</apex:column>
+
+								</apex:dataTable>
+							</apex:column>
+						</apex:dataTable>
+
+						<!-- ------- -->
+						<apex:dataTable rendered="{!c.CuSeqList.size == 0}" width="100%" value="{!c.MEntryList}" var="M" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rowClasses="{!IF(ISNULL(c.TitleCurriculum), '', 'm-faded')}">
+							<apex:column styleClass="m-col1">
+								<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+									<span class="m-icon-type-1">&nbsp;</span>
+									<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+								</div>
+							</apex:column>
+							<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+								<apex:outputText value="{!M.Type}"/>
+							</apex:column>
+							<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+								<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+								<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+							</apex:column>
+							<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+								<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+								<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+								<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col8 m-center">
+
+
+							</apex:column>
+
+						</apex:dataTable>
+
+						<!-- Sequence Curriculum -->
+						<apex:repeat value="{!c.CuSeqList}" var="Cu">
+							<!-- Single Or In Curriculum modules -->
+							<apex:dataTable width="100%" value="{!Cu.CurriculumEntryObj.MEntryList}" var="M" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rowClasses="{!IF(ISNULL(c.TitleCurriculum), '', 'm-faded')}">
+								<apex:column styleClass="m-col1">
+									<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+										<span class="m-icon-type-1">&nbsp;</span>
+										<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+									</div>
+								</apex:column>
+								<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+									<apex:outputText value="{!M.Type}"/>
+								</apex:column>
+								<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+									<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+									<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+								</apex:column>
+								<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+									<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+									<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+									<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col8 m-center">
+									<apex:outputPanel rendered="{!Cu.seq != -1}">
+
+
+									</apex:outputPanel>
+									<apex:outputPanel rendered="{!Cu.seq == -1}">
+
+									</apex:outputPanel>
+								</apex:column>
+
+							</apex:dataTable>
+
+							<!-- Course -->
+							<apex:dataTable width="100%" value="{!Cu.CurriculumEntryObj.CoEntryList}" var="Co" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}"  rendered="{!IF(ISNULL(c.CoEntryList), false, true)}">
+								<apex:column styleClass="m-plus m-col1">
+									<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+										<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+									</div>
+								</apex:column>
+								<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+									<apex:outputText value="{!Co.Type}"/>
+								</apex:column>
+								<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+									<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+									<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+								</apex:column>
+								<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+									&nbsp;
+								</apex:column>
+								<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+									<apex:outputField value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.lmscons__Duration__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+									<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col8 m-center">
+									&nbsp;
+								</apex:column>
+
+								<!-- Course three level  -->
+								<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+									<apex:dataTable width="100%" value="{!Co.MEntryList}" var="M" border="0" styleClass="m-hide" rowClasses="m-faded">
+										<apex:column styleClass="m-col1">
+											<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+												<span class="m-icon-type-1">&nbsp;</span>
+												<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+											</div>
+										</apex:column>
+										<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+											<apex:outputText value="{!M.Type}"/>
+										</apex:column>
+										<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+											<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+										</apex:column>
+										<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+											<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col8 m-center">
+											<apex:outputPanel rendered="{!Cu.seq != -1}">
+
+
+											</apex:outputPanel>
+											<apex:outputPanel rendered="{!Cu.seq == -1}">
+
+											</apex:outputPanel>
+										</apex:column>
+
+									</apex:dataTable>
+								</apex:column>
+							</apex:dataTable>
+
+							<!-- Learning Path -->
+							<apex:dataTable width="100%" value="{!Cu.CurriculumEntryObj.LpEntryList}" var="LP" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rendered="{!IF(ISNULL(c.LpEntryList), false, true)}">
+								<apex:column styleClass="m-plus m-col1">
+									<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+										<apex:outputText value="{!LP.LpItem.Learning_Path_Assignment__r.Learning_Path__r.Name}"/>
+									</div>
+								</apex:column>
+								<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+									<apex:outputText value="{!LP.Type}"/>
+								</apex:column>
+								<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+									<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Status__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+									<c:ProgressBar percent="{!IF(ISNULL(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c),0,ROUND(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c,0))}"  ispath="false" score="" />
+								</apex:column>
+								<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+									&nbsp;
+								</apex:column>
+								<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+									<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.Learning_Path__r.lmscons__Duration__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+									<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Due_Date__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col8 m-center">
+									&nbsp;
+								</apex:column>
+
+								<!-- Learning Path three level  -->
+								<apex:column styleClass="m-hide-tbl m-second-level" breakBefore="true" colspan="{!Columns}">
+									<!-- sequence -->
+									<apex:repeat value="{!LP.LpSeqList}" var="LPS">
+										<apex:dataTable width="100%" value="{!LPS.LpEntryObj.MEntryList}" var="M" rowClasses="m-faded"  styleClass="m-hide">
+											<apex:column styleClass="m-col1">
+												<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-1', 'm-lev-2')}">
+													<span class="m-icon-type-1">&nbsp;</span>
+													<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+												</div>
+											</apex:column>
+											<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+												<apex:outputText value="{!M.Type}"/>
+											</apex:column>
+											<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+												<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+												<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+											</apex:column>
+											<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+												<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+												<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+												<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col8 m-center">
+												<apex:outputPanel rendered="{!Cu.seq != -1}">
+													<!--
+													-->
+													<!--
+													-->
+													<apex:outputPanel rendered="{!LPS.seq != -1}">
+
+
+													</apex:outputPanel>
+													<apex:outputPanel rendered="{!LPS.seq == -1}">
+
+													</apex:outputPanel>
+
+
+												</apex:outputPanel>
+												<apex:outputPanel rendered="{!Cu.seq == -1}">
+
+												</apex:outputPanel>
+											</apex:column>
+
+										</apex:dataTable>
+
+										<!-- ------- -->
+										<apex:dataTable width="100%" value="{!LPS.LpEntryObj.CoEntryList}" var="Co" border="0">
+											<apex:column styleClass="m-plus m-col1">
+												<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-1', 'm-lev-2')}">
+													<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+												</div>
+											</apex:column>
+											<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+												<apex:outputText value="{!Co.Type}"/>
+											</apex:column>
+											<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+												<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+												<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+											</apex:column>
+											<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+												&nbsp;
+											</apex:column>
+											<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+												<apex:outputField value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.lmscons__Duration__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+												<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col8 m-center">
+												&nbsp;
+											</apex:column>
+
+											<!-- three level -->
+											<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+												<apex:dataTable width="100%" rowClasses="m-faded" value="{!Co.MEntryList}" var="M" border="0"  styleClass="m-hide">
+													<apex:column styleClass="m-col1">
+														<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+															<span class="m-icon-type-1">&nbsp;</span>
+															<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+														</div>
+													</apex:column>
+													<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+														<apex:outputText value="{!M.Type}"/>
+													</apex:column>
+													<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+														<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+														<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+													</apex:column>
+													<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+														<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+														<apex:outputField value="{!M.MItem.Training_Content__r.lmscons__Duration__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+														<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col8 m-center">
+														<apex:outputPanel rendered="{!Cu.seq != -1}">
+															<!--
+															-->
+
+															<apex:outputPanel rendered="{!LPS.seq != -1}">
+																<!--
+																-->
+
+
+															</apex:outputPanel>
+															<apex:outputPanel rendered="{!LPS.seq == -1}">
+
+															</apex:outputPanel>
+
+														</apex:outputPanel>
+														<apex:outputPanel rendered="{!Cu.seq == -1}">
+
+														</apex:outputPanel>
+													</apex:column>
+
+												</apex:dataTable>
+											</apex:column>
+										</apex:dataTable>
+									</apex:repeat>
+									<!-- end: sequence -->
+								</apex:column>
+							</apex:dataTable>
+
+						</apex:repeat>
+						<!-- End: Sequence Curriculum -->
+					</apex:column>
+				</apex:dataTable>
+			</div>
+		</div>
+		</apex:outputpanel>
+
+
+
+</body>
+</html>
+</apex:page>

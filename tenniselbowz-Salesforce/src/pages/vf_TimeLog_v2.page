@@ -1,0 +1,437 @@
+<apex:page standardController="Time_Log__c" extensions="cls_TimeLog_v3" id="pgtimelog">
+
+<style>
+    .descerror{ color: red; font-weight: strong;}
+    
+    </style>
+<!--<apex:messages id="error" styleClass="error"  rendered="true" />-->
+<apex:form id="form1">
+
+
+ 
+
+ 
+ <script>
+ /* //onload = disable_total;
+ function fnvalidateDay(){
+ //var result=validateDay();
+ validateDay();
+ alert('Sobia');
+ 
+ }*/
+ </script>
+
+<apex:pageBlock id="pg1">
+
+<apex:Pagemessages rendered="true" id="descmsg"/>
+
+<font face='verdana'> 
+
+
+
+
+
+<b>Select week start date:</b></font> &nbsp; &nbsp; &nbsp;&nbsp;<apex:inputHidden />
+<apex:inputField id="stWkDate" value="{!weekTime.Week_Start_Date__c}" required="true" >
+<apex:actionSupport event="onchange" action="{!changeDate}"   reRender="table,table2,table3,stWkDate" /  >
+</apex:inputField>
+
+
+
+<!--spyrel_pmo__Project__c , spyrel_pmo__Time_Log__c-->
+<br/>
+  </apex:pageBlock>
+  
+  
+  
+  <apex:pageBlock id="pg2"><apex:inputHidden id="lblprop" value="{!jprop}"/>
+    <!--onclick="alertfunc()-->
+    <apex:actionFunction name="fnvalidateDay" action="{!validateDay}" reRender="descmsg"/>
+
+  <script>
+  var tpg2;
+ tpg2= document.getElementById("{!$Component.pg2}");
+ </script>
+ 
+   <apex:pageblockButtons location="bottom"    >
+   
+    </apex:pageBlockButtons>
+  <br/>
+ <apex:pageBlockButtons >     
+ <apex:commandLink value="Add Row"   action="{!addRow}"  reRender="table,error"/> &nbsp; 
+  <apex:commandButton value="Save" action="{!save}" rerender="descmsg,stWkDate" />&nbsp; 
+  
+   
+  <apex:commandButton value="Done" action="{!Close}" rerender="error" /> 
+  <apex:commandButton value="Submit for Approval" action="{!getSelectedTimeRecordsForApproval}" 
+  rerender="descmsg,pg3,pg2,pg4,table,table2,table3,stWkDate"   /> 
+         
+  </apex:pageBlockButtons>
+  
+<!--<apex:outputtext value="{!errorLabel}" id="error1"></apex:outputtext>
+<apex:commandButton value="submit" onclick="validateDay"/>-->
+  <!-- Table starts from here -->
+  <apex:pageblockTable value="{!timeLog_recs}" var="t" id="table">
+    
+  <script>
+  var ttable;
+ ttable= document.getElementById("{!$Component.table}");
+ </script>
+  <apex:facet name="footer"  >                 <!--table,error-->
+   <apex:outputtext value="{!errorLabel}" ></apex:outputtext>
+ 
+                 
+  </apex:facet>
+  
+  <font face='verdana'> 
+  <apex:column >
+  <apex:inputCheckbox value="{!t.selected}" />
+                                                               
+  <!--  <apex:actionSupport event="onclick" action="{!getSelectedTimeRecordsForApproval}" rerender="pg2,pg3"/>-->
+                             
+                              </apex:column> 
+  <apex:column headerValue="Delete?">
+      <apex:commandLink value="Delete"   action="{!DeleteRow}"  reRender="stWkDate,table,error,pg2">
+        <apex:param value="{!t.IndexRow}"   assignTo="{!delIndex}" name="IndexRow"   id="indexToDel"      /> 
+      </apex:commandLink> 
+  </apex:column>
+  <apex:column headerValue="Line No" rendered="false">
+  <apex:outputtext rendered="true" value="{!t.IndexRow}"/>
+  </apex:column>
+   <apex:column headerValue="Status" >
+  <apex:outputfield value="{!t.tl.Status__c}"/>
+  </apex:column>
+  <apex:column >
+  <apex:inputField value="{!t.tl.id}" rendered="false"/>  
+  </apex:column>
+ <apex:column headerValue="Projects">
+  <apex:selectList id="ddlProject" value="{!t.SelectedProject}" style="width:150px" 
+ size="1" multiselect="false"  >
+  <apex:selectOptions value="{!t.Project_list}"/> <!-- ddlTasks,ddlcontractors-->
+   <apex:actionSupport event="onchange" action="{!t.getTasks}" reRender="ddlTasks"     >
+    </apex:actionSupport>          
+ </apex:selectList>
+  </apex:column>
+  <apex:column headerValue="Tasks">
+  <apex:selectList id="ddlTasks" value="{!t.SelectedTask}"    
+  size="1" multiselect="false" style="width:150px">
+  <apex:selectOptions value="{!t.Tasks_List}"/> <!--ddlcontractors-->
+ <!--  <apex:actionSupport event="onchange" action="{!t.getContractors}"  reRender="ddlcontractors" >
+    </apex:actionSupport>-->          
+ </apex:selectList>
+ </apex:column> <!--
+  <apex:column headerValue="Contractors">
+  <apex:selectList id="ddlcontractors" value="{!t.SelectedContractor}"    
+  size="1" multiselect="false" style="width:150px"  >
+  <apex:selectOptions value="{!t.Contractor_list}"/>             
+ </apex:selectList>
+ </apex:column> -->
+
+    <!--<apex:column headerValue="Task"  >                    
+ <apex:inputtext value="{!t.tl.spyrel_pmo__Tasks__r.name}"/>              
+  
+ </apex:column> --> 
+    <apex:column headerValue="Description"  >                    
+  <font color='red'>*</font>&nbsp;<apex:inputfield value="{!t.tl.Short_Description__c}" id="desc" required="false"/>                
+  </apex:column>
+     <!-- for="desc" styleClass="descerror"/>  -->            
+   <apex:column headerValue="Stop Date" rendered="false"   >                    
+ <apex:inputfield value="{!t.tl.Tasks__r.Project__r.Stop_Date__c}" 
+  id="stopdate" />                
+  </apex:column>
+              
+ 
+ 
+  <apex:column headerValue="MON :{!Monday}" >                    
+  <apex:inputfield value="{!t.tl.Monday_Hours__c}"    style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:inputfield>    
+               
+  </apex:column>                
+  <apex:column headerValue="TUE :{!Tuesday}">                    
+  <apex:inputfield value="{!t.tl.Tuesday_Hours__c}" style="width:30px">  
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:inputfield>    
+              
+  </apex:column>
+  <apex:column headerValue="WED : {!Wednesday}">                    
+  <apex:inputfield value="{!t.tl.Wednesday_Hours__c}" style="width:30px">
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:inputfield>    
+                
+  </apex:column> 
+  <apex:column headerValue="THU :{!Thursday}">                    
+  <apex:inputfield value="{!t.tl.Thursday_Hours__c}"  style="width:30px" > 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:inputfield>    
+               
+  </apex:column> 
+  <apex:column headerValue="FRI :{!Friday}">                    
+  <apex:inputfield value="{!t.tl.Friday_Hours__c}" style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:inputfield>    
+               
+  </apex:column>
+   
+  <apex:column headerValue="SAT :{!Saturday}" >                    
+  <apex:inputfield value="{!t.tl.Saturday_Hours__c}" style="width:30px;"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:inputfield>    
+               
+  </apex:column>
+
+   <apex:column headerValue="SUN :{!Sunday}">                    
+  <apex:inputfield value="{!t.tl.Sunday_Hours__c}" id="sun" style="width:30px" onkeyup="jvalidateDay()">
+  <!-- if('{!t.tl.Tasks__r.Project__r.Stop_Date__c}' == '{!weekTime.Week_Start_Date__c}') {alert('Project Date Expired');}" > 
+ <!-- <apex:actionSupport event="onclick" action="{!t.validateDay}" >    
+    </apex:actionSupport>-->
+
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}" reRender="totalrow"  >
+    </apex:actionSupport> 
+              
+  </apex:inputfield>    
+  </apex:column>
+   <apex:column headerValue="Total"  id="totalrow" width="30px" >   
+  <apex:inputfield id="TotalweekHrs" value="{!t.tl.Week_total_Hours__c}" style="width:30px;" ></apex:inputfield>                
+  </apex:column>
+  
+  <!-- RowTotalForVF__c<apex:column headerValue="Upload File">   
+  <apex:inputFile value="{!t.FileUpload}" ></apex:inputFile>                
+  </apex:column>-->
+ 
+  </font>                                 
+  </apex:pageblockTable>
+  
+  
+  
+  
+  </apex:pageBlock>
+  
+  
+  
+  
+  <apex:pageBlock id="pg3" title="Approved Time Records">
+  <apex:pageblockTable value="{!approvedtimeLog_recs}" var="t" id="table2">
+   <apex:facet name="footer"  >                
+   <apex:outputtext value="" ></apex:outputtext>
+ 
+                 
+  </apex:facet>
+  
+  <font face='verdana'> 
+   
+ <apex:column headerValue="Projects">
+ <apex:outputtext value="{!t.tl.Tasks__r.Project__r.name}"/> 
+   </apex:column>
+  <apex:column headerValue="Tasks">
+  <apex:outputtext value="{!t.tl.Tasks__r.name}"/> 
+   </apex:column> 
+ <!-- <apex:column headerValue="Contractors">
+              
+  </apex:column> -->
+                       
+              
+  
+     <apex:column headerValue="Description"  >                    
+  <apex:outputtext value="{!t.tl.Short_Description__c}" />                
+  </apex:column>
+  <apex:column headerValue="Status"> <apex:outputText value="{!t.tl.Status__c}" ></apex:outputText>
+   </apex:column>
+   
+            
+  
+ 
+  <apex:column headerValue="MON :{!Monday}" >                    
+  <apex:outputtext value="{!t.tl.Monday_Hours__c}"    style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+               
+  </apex:column>                
+  <apex:column headerValue="TUE :{!Tuesday}">                    
+  <apex:outputtext value="{!t.tl.Tuesday_Hours__c}" style="width:30px">  
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+              
+  </apex:column>
+  <apex:column headerValue="WED :{!Wednesday}">                    
+  <apex:outputtext value="{!t.tl.Wednesday_Hours__c}" style="width:30px">
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+                
+  </apex:column> 
+  <apex:column headerValue="THU :{!Thursday}">                    
+  <apex:outputtext value="{!t.tl.Thursday_Hours__c}"  style="width:30px" > 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+               
+  </apex:column> 
+  <apex:column headerValue="FRI :{!Friday}">                    
+  <apex:outputtext value="{!t.tl.Friday_Hours__c}" style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+               
+  </apex:column>
+ <apex:column headerValue="SAT :{!Saturday}" id="satCol">  
+    <script>
+  var tsatCol;
+ tsatCol= document.getElementById("{!$Component.satCol}");
+ </script>                  
+  <apex:outputfield value="{!t.tl.Saturday_Hours__c}" id="saturday" style="width:30px"> 
+   <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputfield>    
+</apex:column>
+
+<apex:column headerValue="SUN :{!Sunday}">                    
+  <apex:outputtext value="{!t.tl.Sunday_Hours__c}" style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+  </apex:column>
+  
+   <apex:column headerValue="Total"  id="totalrow">   
+  <apex:outputfield value="{!t.tl.Week_total_Hours__c}" ></apex:outputField>                
+  </apex:column>
+  
+   
+  </font>                                 
+  </apex:pageblockTable>
+  
+  </apex:pageBlock>
+  <apex:pageBlock id="pg4" title="Submitted Time Records">
+  <apex:pageblockTable value="{!SubmittedtimeLog_recs}" var="t" id="table3">
+   <apex:facet name="footer"  >                
+   <apex:outputtext value="" ></apex:outputtext>
+ 
+                 
+  </apex:facet>
+  
+  <font face='verdana'> 
+   
+ <apex:column headerValue="Projects">
+ <apex:outputtext value="{!t.tl.Tasks__r.Project__r.name}"/> 
+   </apex:column>
+  <apex:column headerValue="Tasks">
+  <apex:outputtext value="{!t.tl.Tasks__r.name}"/> 
+   </apex:column> 
+  
+                       
+              
+  
+     <apex:column headerValue="Description"  >                    
+  <apex:outputtext value="{!t.tl.Short_Description__c}" />                
+  </apex:column>
+  <apex:column headerValue="Status"> <apex:outputText value="{!t.tl.Status__c}" ></apex:outputText>
+   </apex:column>
+    
+            
+  
+ 
+  <apex:column headerValue="MON :{!Monday}" >                    
+  <apex:outputtext value="{!t.tl.Monday_Hours__c}"    style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+               
+  </apex:column>                
+  <apex:column headerValue="TUE :{!Tuesday}">                    
+  <apex:outputtext value="{!t.tl.Tuesday_Hours__c}" style="width:30px">  
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+              
+  </apex:column>
+  <apex:column headerValue="WED :{!Wednesday}">                    
+  <apex:outputtext value="{!t.tl.Wednesday_Hours__c}" style="width:30px">
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+                
+  </apex:column> 
+  <apex:column headerValue="THU :{!Thursday}">                    
+  <apex:outputtext value="{!t.tl.Thursday_Hours__c}"  style="width:30px" > 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+               
+  </apex:column> 
+  <apex:column headerValue="FRI :{!Friday}">                    
+  <apex:outputtext value="{!t.tl.Friday_Hours__c}" style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+               
+  </apex:column>
+  <apex:column headerValue="SAT :{!Saturday}" id="satCol">  
+                
+  <apex:outputtext value="{!t.tl.Saturday_Hours__c}" id="saturday" style="width:30px"> 
+   <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+   </apex:column> 
+  <apex:column headerValue="SUN :{!Sunday}">                    
+  <apex:outputtext value="{!t.tl.Sunday_Hours__c}" style="width:30px"> 
+  <apex:actionSupport event="onchange" action="{!t.getrowTotalHours}"  reRender="totalrow" >
+    </apex:actionSupport>          
+  </apex:outputtext>    
+  </apex:column>      
+      
+   <apex:column headerValue="Total"  id="totalrow" width="30px">   
+  <apex:outputtext value="{!t.tl.Week_total_Hours__c}" ></apex:outputtext>                
+  </apex:column>
+  
+   
+  </font>                                 
+  </apex:pageblockTable>
+  
+
+  
+
+  
+  </apex:pageBlock>
+   </apex:form> 
+ <script>
+ //alert(1);
+ //document.getElementById("{!$Component.Totalweekhrs}").disabled=true;
+ document.getElementById("pgtimelog:form1:pg2:table:0:TotalweekHrs").enabled=false;
+ function totalForRow(){
+ var tsaturday;
+ tsaturday= document.getElementById("{!$Component.form1.pg2.table.satCol.saturday}").disabled=true;
+ alert(tsaturday);
+ alert('Sobia');
+ 
+ }
+ 
+ function alertfunc()
+ {
+ alert('Time Entry Saved');
+ }
+ function closefunc()
+ {
+ alert(2);
+parent.window.close(); 
+alert(1);
+ }
+  function jvalidateDay(){
+  //alert('validate');
+  /*var result='o00';*/
+  fnvalidateDay();
+  /*result='{!jprop}' ;
+  alert('Sobia'+result);
+  fnvalidateDay();
+  result='{!jprop}' ;
+ alert('Sobia'+result);*/
+ }
+ </script>
+</apex:page>

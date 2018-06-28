@@ -1,0 +1,124 @@
+<apex:page controller="IFRE_SelectFieldsCtrl" id="pageId" tabStyle="Account" sidebar="false">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js" type="text/JavaScript" /> 
+    <style>    
+    #map {
+        font-family: Arial;
+        font-size:12px;
+        line-height:normal !important;
+        height:200px;        
+        padding: 20px;
+    }       
+    .roundCornerCss{ 
+        /* outer shadows  (note the rgba is red, green, blue, alpha) */
+        -webkit-box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.4); 
+        -moz-box-shadow: 0px 1px 6px rgba(23, 69, 88, .5);
+        
+        /* rounded corners */
+        -webkit-border-radius: 12px;
+        -moz-border-radius: 7px; 
+        border-radius: 7px;
+        
+        /* gradients */
+        background: -webkit-gradient(linear, left top, left bottom, 
+        color-stop(0%, white), color-stop(15%, white), color-stop(100%, #D7E9F5)); 
+        background: -moz-linear-gradient(top, white 0%, white 55%, #D5E4F3 130%); 
+    }   
+    </style>
+
+
+       <apex:form id="mainFormId">        
+        <apex:sectionHeader subtitle="Demo" title="Custom Lookup"/>        
+        <apex:pageMessages id="msgId"/>
+        <apex:pageBlock id="pgBId" >
+            <apex:outputPanel id="SearchPanelId">
+                <table class="list" border="0" cellspacing="0" cellpadding="0" style="width:44% !important">
+                    <tr class="headerRow">
+                        <th><b>Select Object</b></th>
+                        <th><b>Select Field</b></th>
+                        <th><b>Select Filter</b></th>
+                        <th><b>Value</b></th>
+                    </tr>
+                    <tr>
+                        <td style="white-space:nowrap;">
+                            <apex:selectList size="1" value="{!selectedObject}" id="selectedObjectId"  >                       
+                                <apex:selectOptions value="{!sObjects}"  />    
+                                 <apex:actionSupport event="onchange" action="{!populateFields}" rerender="selectfield,SearchPanelId" status="ajaxStatus"/>                
+                            </apex:selectList>
+                            <apex:actionStatus id="ajaxStatus">
+                                <apex:facet name="start">
+                                    <!--&nbsp;
+                                    <apex:image value="{!$Resource.ajaxLoad}" height="16"
+                                        width="16" />-->
+                                </apex:facet> 
+                            </apex:actionStatus>
+                        </td>
+                        <td>
+                            <apex:selectList size="1" value="{!selectedField}" id="selectfield" >
+                                <apex:selectOption itemValue="" itemLabel="--Select--"/>
+                                <apex:selectOptions value="{!allFieldsForSelectedObject}"/>
+                            </apex:selectList>
+                        </td>
+                        <td>
+                               <apex:selectList size="1" id="selectFitler">
+                                   <apex:selectOption itemValue="" itemLabel="--Select--"/>
+                                   <apex:selectOptions value="{!filterOperators}"/>
+                               </apex:selectList>
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <apex:inputText id="phoneNameFieldId" value="{!selectedValue}"/>
+                            <!--<apex:inputHidden id="phoneNameFieldId" value="{!selectedPhoneNumberContactName}"/>-->
+                            <a href="#" id="acc3_lkwgt" onclick="openLookupPopup();" tabindex="2" title="Parent Account Lookup (New Window)" style="text-decoration: none;">
+                                <img src="/s.gif" alt="Parent Account Lookup (New Window)" class="lookupIcon" onblur="this.className = 'lookupIcon';" onfocus="this.className = 'lookupIconOn';" onmouseout="this.className = 'lookupIcon';this.className = 'lookupIcon';" onmouseover="this.className = 'lookupIconOn';this.className = 'lookupIconOn';" title="Parent Account Lookup (New Window)"/>
+                            </a>
+                            <span class="helpButton" id="Phone.Search-_help">
+                                <label for="phoneNumberFieldId"></label>
+                                <img src="/s.gif" alt="" class="helpOrb" title=""/>
+                            <script type="text/javascript">sfdcPage.setHelp('Phone.Search', '<table><tr><td><center></center></td></tr><tr><td>Custom lookup Example</td></tr></table>');</script></span> 
+                        </td>
+                    </tr>
+                </table>
+            </apex:outputPanel>
+       </apex:pageBlock>   
+    </apex:form>    
+  <script> 
+    var $ = jQuery.noConflict();
+     $(document).ready(function(){
+      $("#toggleId").click(function(){
+        $("#detailTblId").toggle();
+        if($("#detailTblId").css('display')=='none'){
+            $('#linkTextId').html('Click here to show the Contact information in the Tabular form.');
+        }else{
+            $('#linkTextId').html('Click here to Hide.');
+        }
+      });                                           
+    }); 
+    var newWin=null;
+    function openLookupPopup(){ 
+       var objectName = $('select[id$=selectedObjectId]').val();
+       var fieldName = $('select[id$=selectfield]').val();
+       try{            
+            if(objectName == 'undefined' || objectName == '' || objectName == null){
+                alert('Error: Please select the Object name!');
+            }else if(fieldName == 'undefined' || fieldName == '' || fieldName == null){
+                alert('Error: Please select a Field Name!');
+            }
+            else{
+               var url="/apex/IFRE_PicklistLookup?oN="+objectName+"&fN="+fieldName+"&core.apexpages.devmode.url=1" ;
+               newWin=window.open(url, 'Popup','height=400,width=650,left=100,top=100,resizable=no,scrollbars=yes,toolbar=no,status=no');
+               if (window.focus){
+                    newWin.focus();
+               }
+            }
+        }catch(e){
+                alert('Server Error: '+e);
+        }                   
+        return false;
+    }                  
+    function closeLookupPopup(){
+       if (null!=newWin)
+       {
+          newWin.close();
+       }  
+    }
+    </script> 
+</apex:page>

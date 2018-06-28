@@ -1,0 +1,107 @@
+<apex:page showHeader="true" sidebar="false" controller="AccountInfoJSR">
+    <script>
+        var msgBox;
+        window.onload = function()
+        {
+            msgBox = document.getElementById("result");
+            msgBox.innerHTML += '<br/><br/><br/> Loading content..';
+            var accountId = window.location.search.substring(1).split('=')[1];
+            msgBox.innerHTML += '<br/> Loading account with Id ' + accountId + '..';
+            loadAccount(accountId);
+        }
+        
+        function hideTable()
+        {
+            msgBox.style.display = 'none';
+        }
+
+        function loadAccount(accountId)
+        {
+            Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.AccountInfoJSR.getAccountData}',
+            accountId,
+            function(result, event)
+            {
+              if(event.status)
+              {
+                  var accountName = document.getElementById("accountName");
+                  var linkedConName = document.getElementById("linkedConName");
+                  var linkedConLastName = document.getElementById("linkedConLastName");
+                  var linkedConPhone = document.getElementById("linkedConPhone");  
+                  accountName.innerHTML = result.Name;
+                  if(result.Contacts != undefined)
+                  {
+                  	linkedConName.innerHTML = result.Contacts[0].FirstName;
+                  	linkedConLastName.innerHTML = result.Contacts[0].LastName;
+                  	linkedConPhone.innerHTML = result.Contacts[0].Phone;
+                  }
+                  else
+                  {
+                  	linkedConName.innerHTML = 'No linked contacts!';
+                  }
+                  msgBox.innerHTML += '<br/> Account info populated.';
+              }
+              else if (event.type === 'exception')
+              {
+                  msgBox.innerHTML += '<br/>'+event.message + "<br/>\n<pre>" + event.where + "</pre>";
+              }
+              else
+              {
+                  msgBox.innerHTML += '<br/>'+event.message;
+              }
+            }
+        );
+        }
+    </script>
+    <style>
+      #result
+      {
+        color: #000000;
+        background-color: #DDFFFF;
+        width: auto;
+        height: 160px;
+        border:1px solid black;
+        font-size: 18px;
+        padding:20px;
+        float:left;
+      }
+      #accountInfo
+      {
+        background-color: aqua;
+        color: #333;
+        width: auto;
+        height: 160px;
+        border:1px solid black;
+        font-size: 18px;
+        padding:20px;
+        margin-left: 20px;
+        float:left;
+      }
+      #btn
+      {
+        background: aqua;
+        border: 1px solid black;
+        border-radius: 20px;
+        width: auto;
+        font-size: 1em;
+        cursor: pointer;
+        float: left;
+        color: #333;
+      }  
+        
+    </style>
+    <div id='result'>
+        <input type="button" id="btn" onClick="hideTable();" value="Hide Loading Table"/>
+    </div>
+    <div id='accountInfo'>
+        <h1>Account and linked Contact Info</h1><br/>
+        
+        <p>Account Name: <span id='accountName'></span></p>
+           
+        <p>Contact Name: <span id='linkedConName'></span></p>
+            
+        <p>Contact Last Name: <span id='linkedConLastName'></span></p>
+
+        <p>Contact Phone: <span id='linkedConPhone'></span></p>
+    </div>      
+</apex:page>

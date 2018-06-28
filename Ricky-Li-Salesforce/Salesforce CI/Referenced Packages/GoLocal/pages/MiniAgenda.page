@@ -1,0 +1,96 @@
+<apex:page showHeader="false" controller="GLOC.AgendaCtl" title="GoLocal Mini Agenda" tabStyle="Agenda__tab">
+
+    <link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.GoLocalRes, 'CSS/Listview.css')}"/>
+    
+    <script src="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/jquery-1.6.1.min.js')}"></script>
+    <script src="{!URLFOR($Resource.GoLocalRes, 'JS/Listview.js')}"></script>
+    
+    <div class="GoLocal">
+    <apex:form >
+   
+    <apex:pageBlock tabStyle="Agenda__tab" id="pbk">
+        <apex:facet name="header" ></apex:facet>
+        <div style="padding-bottom:7px">
+            <table class="filterBar" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                    <td class="title" style="font-size: 1.3em; font-weight: bold;">Tasks</td>
+                    <td><apex:commandButton style="padding: 2px 3px; margin-left:8px" value="New Task" action="{!newTask}" 
+                                onclick="top.location.href='/00T/e';return false;"/></td>
+                    <td class="fliters">
+                        <apex:outputPanel rendered="{!recLimit<=viewSize}" style="font-size: 91%">
+                            Only the first {!recLimit} records are displayed
+                        </apex:outputPanel>
+                        <apex:selectList style="font-size: 91%;" title="Task Filter" size="1" value="{!filterId}">
+                            <apex:actionSupport event="onchange" action="{!filter}" />
+                            <apex:selectOption itemLabel="All Open" itemValue="0"></apex:selectOption>
+                            <apex:selectOption itemLabel="Today" itemValue="1"></apex:selectOption>
+                            <apex:selectOption itemLabel="Overdue" itemValue="2"></apex:selectOption>
+                            <apex:selectOption itemLabel="Today & Overdue" itemValue="3"></apex:selectOption>
+                            <apex:selectOption itemLabel="Today & Onward" itemValue="4"></apex:selectOption>
+                        </apex:selectList>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div id="tableDiv" style="min-height:265px">
+            <apex:pageBlockTable value="{!items}" var="i" id="pbt" styleClass="tbl" rendered="{!NOT(Pages=0)}">
+                <apex:column headerValue="Action" styleClass="action">
+                    <apex:outputLink value="/{!i.taskId}/e" target="_top">Edit</apex:outputLink><span style="color: #999999">&nbsp;|&nbsp;</span>
+                    <apex:outputLink value="/{!i.taskId}/e?close=1" target="_top">Cls</apex:outputLink>
+                </apex:column>
+                <apex:column headerValue="Due Date" >
+                    <apex:outputPanel rendered="{!i.isOd=FALSE}">{!i.DueDate}</apex:outputPanel>
+                    <apex:outputPanel styleClass="taskOd" rendered="{!i.isOd=TRUE}">{!i.DueDate}</apex:outputPanel>
+                </apex:column>
+                <apex:column headerValue="Subject">
+                    <apex:outputLink value="/{!i.taskId}" target="_top">{!i.subject}</apex:outputLink>
+                </apex:column>
+                <!-- apex:column headerValue="Priority" value="{!i.priority}"/ -->
+                <!-- apex:column headerValue="Status" value="{!i.status}"/ -->
+                <apex:column headerValue="Name" >
+                    <apex:outputLink value="/{!i.nameId}" rendered="{!ISNULL(i.company)}" target="_top">{!i.name}</apex:outputLink>
+                    <apex:outputLink value="/{!i.nameId}" rendered="{!NOT(ISNULL(i.company))}" target="_top">{!i.name}  ({!i.company})</apex:outputLink>
+                </apex:column>
+                <apex:column headerValue="Time Zone" value="{!i.timezone}" rendered="false"/>
+                <apex:column headerValue="Location" >
+                    <apex:outputPanel rendered="{!NOT(ISNULL(i.country))}">
+                        <img src="{!URLFOR($Resource.GoLocalRes, 'Flags/' & LOWER(i.country) & '.png')}"/>
+                        &nbsp;
+                        <apex:outputText rendered="{!NOT(ISNULL(i.state))}">{!i.state},&nbsp;</apex:outputText>{!i.country}
+                    </apex:outputPanel>
+                </apex:column>
+                <apex:column headerValue="Local Time" value="{!i.localTime}"/>            
+                <apex:column headerValue="Related To">
+                    <apex:outputLink value="/{!i.relatedId}" target="_top">{!i.RelatedName}</apex:outputLink>
+                </apex:column>
+            </apex:pageBlockTable>
+                
+            <apex:pageBlockTable value="{!BlankList}" var="s" rendered="{!Pages=0}">
+                <apex:column headerValue="" headerClass="trans" style="text-align: center; padding-top:25px; padding-bottom:20px">
+                    You have no open tasks scheduled for this period.
+                </apex:column>
+            </apex:pageBlockTable>
+        </div>
+        
+        <apex:outputPanel id="pagePanel">        
+            <script>$j('#loadiv').hide();</script>
+            <table border="0" class="glPaginator" cellspacing="0" cellpadding="0" style="width:100%; padding-top: 10px;"><tr>
+                <td class="left">
+                    <apex:outputLink value="{!pageURL}" target="_top">Go to my full Agenda</apex:outputLink>
+                </td>
+                <td class="center">&nbsp;</td>  
+                <td class="right">
+                    <apex:commandLink onclick="toggleLoad();" value="< Previous Page" action="{!Prev}" rendered="{!Page>1}" rerender="pbt, pagePanel" />
+                    <apex:outputText rendered="{!AND(Page>1,Page<Pages)}"> | </apex:outputText>
+                    <apex:commandLink onclick="toggleLoad();" value=" Next Page >" action="{!Next}" rendered="{!Page<Pages}" rerender="pbt, pagePanel" />
+                </td>
+            </tr></table>
+        </apex:outputPanel>
+    </apex:pageBlock>
+    
+    <div id="loadiv" class="loadiv"><img src="/img/loading.gif" />Loading...</div>
+
+    </apex:form>
+    </div>
+</apex:page>

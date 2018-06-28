@@ -1,0 +1,152 @@
+<apex:page sidebar="false" showHeader="false" controller="TIMBASURVEYS.SurveyListPopupController">
+    <script type="text/javascript">
+        window.onunload = unloadPage;
+
+        function unloadPage()
+        {
+            if(opener.dojo.byId('select_survey_to_relate').style.display == ''){
+                opener.dojo.byId('select_survey_to_relate').setAttribute('href', 'javascript:popUp(\'surveylistpopup?oid={!JSENCODE($CurrentPage.parameters.rel_id)}\')');
+            }
+        }
+
+        
+        
+        /****************************************/
+        /*  Entity Encode And Decode Functions  */
+        /*  Author Bdiaz@timbasoftware.com      */
+        /*  Created Date 3/3/2010               */
+        /****************************************/
+        var entity = {
+            /* Get a String & Returns it Encoded */
+            encode: function(str){
+                if((str != '') && (str != null) && (typeof(str) != 'undefined')){
+                    //Fix For Ampersand Issues w\With Ie
+                    str = str.replace(/&amp;/g,'&');
+                    var elem = this._genEnvironment();
+                    setInnerText(elem,str);
+                    str = elem.innerHTML;
+                }
+                return str;
+            },
+            /* Get an Encoded string & Returns it Decoded */
+            decode: function(str){
+                var elem = this._genEnvironment();
+                //Fix For Ampersand Issues w\With Ie
+                str = this._ampFix(str);
+                
+                //Append Text To 'innerHTML'
+                elem.appendChild( document.createTextNode(str) );
+                //To Get The Decoded Value Form TextContent  
+                return this._escapeQuotes(getInnerText(elem));
+            },
+            /* Generate a Node */
+            _genEnvironment: function(){
+                var e;
+                e=document.createElement("span");
+                return e;
+            },
+            /* Escape Quotes            */
+            /* Add Fix For Compatibility*/
+            _escapeQuotes: function(str){
+                return str.replace(/"/g,'\"').replace(/&apos;/g,'\'');
+            },
+            /*Fix For Ampersand Issues w\With Ie*/
+            _ampFix: function(str){
+                isMessedUpAmp = true;
+                while (isMessedUpAmp){
+                    if(str.indexOf('&amp;')!=-1){
+                        str = str.replace(/&amp;/g,'&');
+                    }
+                    else{
+                        isMessedUpAmp = false;
+                    }
+                }
+                return str;         
+            }
+            
+        }
+        /********************************************/
+    /*  Set Inner Text|Cross Browser Compilant  */
+        /*  Author Bdiaz@timbasoftware.com          */
+        /*  Created Date 3/3/2010                   */
+        /********************************************/
+        function setInnerText (element, text){
+            if (element){
+                if (typeof(element.textContent) != 'undefined') {
+                    element.textContent = text;
+                }
+                else if (typeof(element.innerText) != 'undefined') {
+                    element.innerText = text;
+                }
+                else if (typeof(element.removeChild) != 'undefined') {
+                    while (element.hasChildNodes()) {
+                        element.removeChild(element.lastChild);
+                    }
+                    element.appendChild(document.createTextNode(text)) ;
+                }
+            }
+        }
+        /********************************************/
+        /*  Get Inner Text|Cross Browser Compilant  */
+        /*  Author Bdiaz@timbasoftware.com          */
+        /*  Created Date 3/3/2010                   */
+        /********************************************/  
+        function getInnerText(element){
+            var content;
+            if (element) {
+                if (typeof(element.textContent) != 'undefined') {
+                    content = element.textContent;
+                }
+                else if (typeof(element.innerText) != 'undefined') {
+                    content = element.innerText;
+                }
+            }
+            return content;
+        }
+        function setCurrentSurvey(s_id, s_name){
+            opener.dojo.byId('selected_survey_name').innerHTML = s_name;
+            opener.dojo.byId(opener.survey_id_input).value = s_id;
+            opener.dojo.byId('related_survey_div').style.display = '';
+            opener.dojo.byId('select_survey_to_relate').style.display = 'none';
+            opener.focus();
+            window.close();         
+        }
+        
+        
+    </script>
+    <br />
+    <p>{!$Label.timbasurvey_surveyList_Pick_survey}.</p>
+    <br />
+    <apex:form >
+    <apex:pageBlock >
+        <apex:outputPanel rendered="{!survey_list.size==0}">{!$Label.timbasurveys__timbasurvey_surveyList_no_surveys_relate}</apex:outputPanel>
+        <apex:pageBlockTable value="{!survey_list}" var="survey" id="survey_list">
+            <!-- Survey Name -->
+            <apex:column >
+                <apex:facet name="header">{!$Label.timbasurveys__timbasurveys_001overview_surveyTitle}</apex:facet>
+                <apex:outputPanel layout="block">
+                	<strong>
+                		<a href="javascript:;" onclick="setCurrentSurvey('{!survey.Id}', getInnerText(this));">
+                			<apex:outputText value="{!survey.Name}" />
+                		</a>
+                	</strong>
+                </apex:outputPanel>                 
+            </apex:column>
+            <!-- Responses -->
+            <apex:column >
+                <apex:facet name="header">{!$Label.timbasurveys__timbasurveys_analyzer_responses}</apex:facet>
+                <apex:outputText value="{!IF(ROUND(survey.CollectedResponses__c, 0) > 0, ROUND(survey.CollectedResponses__c, 0), 0)}" />
+            </apex:column>
+            <!-- Status -->
+            <apex:column >
+                <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Status}</apex:facet>
+                <apex:outputText value="{!IF(survey.TIMBASURVEYS__CollectingData__c, $Label.timbasurveys__timbasurveys_Collect_Collecting,$Label.timbasurveys__timbasurveys_collector_Not_Collecting)}" />
+            </apex:column>
+        </apex:pageBlockTable>
+        <table width="100%">
+            <td align="left"><apex:commandLink action="{!standard_set_survey_controller.previous}" rendered="{!RenderPrevious}">&lt;&lt; {!$Label.timbasurvey_surveyFiller_Previous_Page}</apex:commandlink></td>
+            <td align="right"><apex:commandLink action="{!standard_set_survey_controller.next}" rendered="{!RenderNext}" >{!$Label.timbasurvey_surveyFiller_Next_Page}&gt;&gt;</apex:commandlink></td>
+        </table>        
+    </apex:pageBlock>
+    </apex:form>
+</apex:page>

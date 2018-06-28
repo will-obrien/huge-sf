@@ -1,0 +1,239 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.LeaderboardMenuController" tabStyle="Contests__tab">
+
+  <script type="text/javascript">
+    if(!window.Compete) window.Compete = {};
+    window.Compete.ltvLicensed = {!isLeaderTVLicensed};
+  </script>
+
+  <div class="inner">
+    <h2 class="contest-label">Current Contest</h2>
+    <h1 class="contest-title">{!fullContest.contestEntity.ContestName__c}</h1>
+  </div>
+
+  <div class="inner">
+    <div class="divider"></div>
+  </div>
+
+  <div class="inner">
+    <ul class="contest-nav">
+
+      <li>
+        <a id="view-contest-link" href="/apex/ViewContest?contestId={!fullContest.contestEntity.id}">View Contest Details</a>
+      </li>
+
+      <li>
+        <a id="view-leaderboard-link" href="/apex/Leaderboard?contestId={!fullContest.contestEntity.id}">View Leaderboard</a>
+      </li>
+
+      <apex:outputPanel layout="none" rendered="{!showViewAllEntries}">
+      <li>
+        <a id="view-all-entries-link" href="/apex/ViewAllContestEntries?contestId={!fullContest.contestEntity.id}">View All Entries</a>
+      </li>
+      </apex:outputPanel>
+
+      <apex:outputPanel layout="none" rendered="{!showEditNotifications}">
+      <li>
+        <a id="edit-notifications-link" href="/apex/AdminContestNotifications?contestId={!fullContest.contestEntity.id}">Edit Notifications</a>
+      </li>
+      </apex:outputPanel>
+
+      <apex:outputPanel layout="none" rendered="{!showAdHocEntries}">
+      <li>
+        <a id="ad-hoc-entries-link" href="/apex/AdHocEntries?contestId={!fullContest.contestEntity.id}">{!adHocEntriesLinkText}</a>
+      </li>
+      </apex:outputPanel>
+
+      <apex:outputPanel layout="none" rendered="{!showExportToExcel}">
+      <li>
+        <a id="export-all-entries-link" href="/apex/LeaderboardExcel?contestId={!fullContest.contestEntity.id}">Export to Excel</a>
+      </li>
+      </apex:outputPanel>
+
+      <apex:outputPanel layout="none" rendered="{!showPrizeWinners}">
+      <li>
+        <a id="view-winners-link" href="/apex/AdminWinners?contestId={!fullContest.contestEntity.id}">View Prize Winners</a>
+      </li>
+      </apex:outputPanel>
+
+      <li>
+        <a href="/apex/Contests">Back to Contests</a>
+      </li>
+
+    </ul>
+  </div>
+
+  <div class="inner">
+    <a class="menu-image-button leadertv-button" href="#"></a>
+  </div>
+
+  <apex:outputPanel layout="none" rendered="{!isChatterEnabled && !fullContest.IsHidden && chatterGroupId != null}">
+  <div class="inner">
+    <a class="menu-image-button chatter-button" href="/{!chatterGroupId}"></a>
+  </div>
+  </apex:outputPanel>
+
+  <div class="inner">
+    <div class="divider"></div>
+  </div>
+
+  <apex:outputPanel layout="none" rendered="{!fullContest.contestEntity.ePrize_Zemzu__ContestBulletinBoard__c}">
+  <div class="inner">
+    <h3>Contest Bulletin</h3>
+    <div class="contest-bulletin">
+      <apex:outputField value="{!fullContest.contestEntity.ePrize_Zemzu__ContestBulletinBoardMessage__c}" />
+    </div>
+  </div>
+
+  <div class="inner">
+    <div class="divider"></div>
+  </div>
+  </apex:outputPanel>
+
+  <apex:outputPanel layout="none" rendered="{!(otherActiveContests.size > 0)}">
+  <div class="inner">
+    <h3>Other Active Contests</h3>
+    <ul class="other-contests">
+      <apex:repeat value="{!otherActiveContests}" var="contest">
+        <li><a href="/apex/Leaderboard?contestId={!contest.Id}">{!contest.ePrize_Zemzu__ContestName__c}</a></li>
+      </apex:repeat>
+    </ul>
+  </div>
+
+  <div class="inner">
+    <div class="divider"></div>
+  </div>
+  </apex:outputPanel>
+
+  <div class="inner">
+    <a href="http://leveleleven.com" class="powered-by">
+      <img src="{!URLFOR($Resource.compete, 'images/powered_by_watermark.png')}" />
+    </a>
+  </div>
+
+  <div id="ltv-settings-modal" class="l11-modal l11 modal" style="display:none;">
+    <apex:outputPanel layout="none" rendered="{!isLeaderTVLicensed}">
+      <h1>Configure and Launch LeaderTV</h1>
+      <div class="l11-panel">
+        <div class="inner l11-form">
+          <h2>Choose Settings</h2>
+          <div class="divider"></div>
+          <p>
+            <form class="">
+              <label for="leaders">Leaders Shown:</label>
+              <select name="leaders">
+                <option value="9999">All</option>
+                <option value="5">Top 5</option>
+                <option value="10">Top 10</option>
+                <option value="15">Top 15</option>
+                <option value="20">Top 20</option>
+                <option value="25" selected="selected">Top 25 (default)</option>
+                <option value="30">Top 30</option>
+                <option value="35">Top 35</option>
+                <option value="40">Top 40</option>
+                <option value="45">Top 45</option>
+                <option value="50">Top 50</option>
+                <option value="75">Top 75</option>
+                <option value="100">Top 100</option>
+                <option value="125">Top 125</option>
+                <option value="150">Top 150</option>
+                <option value="200">Top 200</option>
+              </select>
+
+              <label for="interval">Cycle Speed:</label>
+              <select name="interval">
+                <option value="3000">3s</option>
+                <option value="4000">4s</option>
+                <option value="5000" selected="selected">5s (default)</option>
+                <option value="6000">6s</option>
+                <option value="6000">7s</option>
+                <option value="8000">8s</option>
+                <option value="9000">9s</option>
+                <option value="10000">10s</option>
+              </select>
+
+              <label for="maxcycles">Cycles Per Leaderboard:</label>
+              <select name="maxcycles">
+                <option selected="selected" value="-1">Unlimited</option>
+              </select>
+
+              <label for="theme">Theme:</label>
+              <ul style="list-style: none; padding-left: 0">
+                <li>
+                  <input type="radio" checked="checked" name="theme" value="blackboard" />
+                  <span>Blackboard</span>
+                  <span style="background:#E76E18; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                  <span style="background:#000000; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                  <span style="background:#eeeeee; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                </li>
+                <li>
+                  <input type="radio" name="theme" value="sleek" />
+                  <span>Sleek</span>
+                  <span style="background:#EF4039; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                  <span style="background:#333333; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                  <span style="background:#ffffff; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                </li>
+                <li>
+                  <input type="radio" name="theme" value="funky" />
+                  <span>Funky</span>
+                  <span style="background:#EF4039; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                  <span style="background:#D5E03D; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                  <span style="background:#eeeeee; border: 1px solid #cccccc; width: 10px; height: 10px; display: inline-block"></span>
+                </li>
+              </ul>
+
+              <label for="tickertypes">Ticker Item Types:</label>
+
+              <label class="checkbox inline">
+                <input type="checkbox" name="tickertypes" value="actions" checked="checked" />Actions
+              </label>
+
+              <label class="checkbox inline">
+                <apex:outputPanel layout="none" rendered="{!isChatterEnabled}">
+                  <input type="checkbox" name="tickertypes" value="chatter" checked="checked" />Chatter
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!!isChatterEnabled}">
+                  <input type="checkbox" name="tickertypes" value="chatter" disabled="disabled" />Chatter
+                </apex:outputPanel>
+              </label>
+
+              <label class="checkbox inline">
+                <input type="checkbox" name="tickertypes" value="prizes" checked="checked" />Prizes
+              </label>
+
+            </form>
+          </p>
+          <h2>Choose Competitions to Show</h2>
+          <div class="divider"></div>
+            <p><em>Hold Ctrl/Cmd to select multiple</em></p>
+            <select class="multiselect" name="contests" multiple="multiple" style="width:320px">
+              <option value="{!fullContest.contestEntity.id}" selected="selected">{!fullContest.contestEntity.ContestName__c} (Current Contest)</option>
+
+            <!-- <label class="checkbox inline">
+              <input type="checkbox" name="contests" value="{!fullContest.contestEntity.id}" checked="checked" />{!fullContest.contestEntity.ContestName__c}
+            </label> -->
+            <apex:repeat value="{!allOtherActiveContests}" var="contest">
+              <option value="{!contest.Id}">{!contest.ePrize_Zemzu__ContestName__c}</option>
+              <!-- <label class="checkbox inline">
+                <input type="checkbox" name="contests" value="{!contest.Id}" />{!contest.ContestName__c}
+              </label> -->
+            </apex:repeat>
+            </select>
+          <div class="divider"></div>
+          <div class="text-center">
+            <a href="#" id="ltv-launch" class="l11-btn">Launch!</a>
+          </div>
+
+        </div>
+      </div>
+    </apex:outputPanel>
+    <apex:outputPanel layout="none" rendered="{!!isLeaderTVLicensed}">
+      <h1>Oops! You aren't yet licensed!</h1>
+      <div class="l11-panel">
+        <div class="inner">
+          <p>Your are not currently licensed for LeaderTV. Please contact your Account executive or submit a case to support at <a href="mailto:gethelp@leveleleven.com">gethelp@leveleleven.com</a>.</p>
+        </div>
+      </div>
+    </apex:outputPanel>
+  </div>
+
+</apex:page>

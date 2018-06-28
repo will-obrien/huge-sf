@@ -1,0 +1,667 @@
+<apex:page controller="geopointe.s_DataSet" extensions="geopointe.FieldSelector" tabStyle="Geopointe_Setup__tab" sidebar="false" title="Geopointe - Data Set - {!IF(cdataset.Data_Set_Name != '',cdataset.Data_Set_Name,'New')}">
+
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/ui/css/smoothness/jquery-ui-1.9.2.custom.min.css')}"/> <!-- jQuery UI CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/fieldSelector/css/fieldselector.css')}"/> <!-- FieldSelector plugin CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/plugins/minicolor/jquery.minicolors.css')}"/> <!-- Color picker plugin CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/> <!-- Common geopointe CSS -->
+	
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}" /> <!-- jQuery UI -->
+    <apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/fieldSelector/jquery.fieldselector.js')}"/><!-- fieldSelector plugin -->
+    <apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/js/data-set-filters.js')}"/><!-- Data Set Fitlers script -->
+
+	<apex:includeScript value="{!$Resource.geopointe__GeopointeJS}" /> <!-- Geopointe universal functions -->
+	<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics --> 
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/plugins/minicolor/jquery.minicolors.js')}" /> <!-- Color Picker --> <!-- Color Picker -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/json2.js')}" /> <!-- JSON.stringify support for IE -->
+
+	<apex:sectionHeader title="Geopointe" subtitle="{!pagetext}"/>
+	<apex:form >
+	<apex:outputPanel layout="block" style="margin: 5px;">
+		<apex:commandLink value="« Back to Geopointe Settings" action="{!cancel}" immediate="true" rendered="{!cdataset.dsType!='private'}"/>
+		<apex:commandLink value="« Back to My Settings" action="{!cancel}" immediate="true" rendered="{!cdataset.dsType='private'}"/>
+	</apex:outputPanel>
+  
+	<div id="modalWrapper">
+		<apex:pageBlock id="pentity">
+			<apex:pageblockbuttons >
+		        <apex:commandButton value="Save" action="{!save}" onclick="return beforeSave();"/>
+		        <apex:commandButton value="Quick Save" action="{!quicksave}" rendered="{!NOT(ISNULL($CurrentPage.parameters.dsobj))}" onclick="return beforeSave();"/>
+		        <apex:commandButton immediate="true" action="{!cancel}" value="Cancel"/>
+	   		</apex:pageblockbuttons>
+	   		<apex:pagemessages />
+	      	
+	      	<apex:pageBlockSection title="Select a Map Object to base the Data Set" collapsible="false" columns="1" rendered="{!selectedEntity=''}">
+	      	<apex:outputPanel >
+	            <apex:selectList value="{!SelectedEntity}" multiselect="false" size="1" disabled="{!selectedEntity!=''}">
+	                <apex:selectOptions value="{!LEntities}"/>
+	            	<apex:actionSupport event="onchange" action="{!chooseSelectedEntity}" rerender="pentity,initColorPicker,dynamicJavaScript" onsubmit="geopointeAjaxStart('#modalWrapper','Loading...');" oncomplete="rerenderComplete();"/>
+	            </apex:selectList>
+	      	</apex:outputPanel>  
+	      	
+	      	</apex:pageBlockSection>
+	        <apex:pageBlockSection title="Data Set Basics" rendered="{!selectedEntity!=''}" collapsible="false">   
+	            
+	            <apex:pageBlockSectionItem >
+	                <apex:outputLabel value="Data Set Name"/>
+	                <apex:outputPanel >
+	                    <apex:inputText value="{!cdataset.Data_Set_Name}" />
+	                </apex:outputPanel>
+	            </apex:pageBlockSectionItem>
+	            <apex:pageBlockSectionItem >
+	                <apex:outputLabel value="Map Object"/>
+	                <apex:outputText value="{!cdataset.MapObjectName}"/>
+	            </apex:pageBlockSectionItem>
+	            
+	            <apex:pageBlockSectionItem >
+	                <apex:outputLabel value="Color"/>
+	                <apex:outputPanel >
+	                    <apex:inputtext id="gp_selectedcolor" value="{!cdataset.Color}"/>
+	                </apex:outputPanel>
+	            </apex:pageBlockSectionItem>
+	            <apex:pageBlockSectionItem >
+	            	<apex:outputLabel value="Owner"/>
+	            	<apex:outputText value="{!cdataset.dsTypeLong}"/>
+	            </apex:pageBlockSectionItem>
+	            
+	            <apex:pageBlockSectionItem >
+	                <apex:outputPanel >
+		                Color Markers By<br/>
+		                <span style="font-weight:normal;">(The default Color Markers By selection for the Data Set. The end-user can override this on the Map tab.)</span>
+		            </apex:outputPanel> 
+	                <apex:outputPanel >
+	                    <select id="gp_ColorMarkersBy" onchange="javascript:gp_UIElem.hidden_colorMarkersBy.value=this.value;">
+	                    	<option value="" selected="selected">- Select a Field -</option> 
+	                    </select>
+	                    <apex:inputHidden id="hidden_colorMarkersBy" value="{!cdataset.ColorMarkersBy}"/>
+						<script> gp_UIElem.hidden_colorMarkersBy = document.getElementById("{!$Component.hidden_colorMarkersBy}"); </script>
+	                </apex:outputPanel>
+	            </apex:pageBlockSectionItem>
+	            <apex:pageBlockSectionItem >
+					<apex:outputPanel >
+		                Unique ID<br/>
+		                <span style="font-weight:normal;">(This value uniquely identifies the Data Set in the application. Use this when referencing the Data Set in custom buttons and code)</span>
+		            </apex:outputPanel> 
+	                <apex:outputText value="{!cdataset.recordName}" />
+	            </apex:pageBlockSectionItem>
+	            
+	        <apex:pageBlockSectionItem >
+	            <apex:outputPanel >
+	             Order By<br/>
+	             <span style="font-weight:normal;">(Use this setting to affect the order Geopointe queries results from Salesforce. If you are regularly querying amounts beyond the limits, this setting can help prioritize records to be returned.)</span>
+	        	</apex:outputPanel>
+	            <apex:outputPanel >
+	                <apex:selectList value="{!cdataset.OrderByField}" multiselect="false" size="1">
+	                    <apex:selectOptions value="{!sortableFieldOptions}"/>
+	                </apex:selectList>
+	                &nbsp;
+	                <apex:selectList value="{!cdataset.OrderByDirection}" multiselect="false" size="1">
+	                    <apex:selectOption itemValue="ASC" itemLabel="Ascending (ASC)"/>
+	                    <apex:selectOption itemValue="DESC" itemLabel="Descending (DESC)"/>
+	                </apex:selectList>
+	            </apex:outputPanel>
+	        </apex:pageBlockSectionItem>
+	        <apex:pageBlockSectionItem >
+	            <apex:outputLabel value=""/>
+	            <apex:outputText value=""/>
+	        </apex:pageBlockSectionItem>
+	        
+	            <apex:pageBlockSectionItem >
+	                <apex:outputPanel >
+		                Available (Maps)<br/>
+		                <span style="font-weight:normal;">(Whether this Data Set is available on the Map tab and on Mobile devices)</span>
+	            	</apex:outputPanel>
+	                <apex:inputcheckbox value="{!cdataset.Available_Maps}"/>
+	            </apex:pageBlockSectionItem>
+	            <apex:pageBlockSectionItem >
+	                <apex:outputLabel value=""/>
+	                <apex:outputText value=""/>
+	            </apex:pageBlockSectionItem>
+	            
+	            <apex:pageBlockSectionItem >
+	            	<apex:outputPanel >
+		                Available (Visualize)<br/>
+		                <span style="font-weight:normal;">(Whether this Data Set is available on the Visualize tab)</span>
+	            	</apex:outputPanel>
+	                <apex:inputcheckbox value="{!cdataset.Available_Visualize}"/>
+	            </apex:pageBlockSectionItem>
+	            <apex:pageBlockSectionItem >
+	                <apex:outputLabel value=""/>
+	                <apex:outputText value=""/>
+	            </apex:pageBlockSectionItem>
+	            
+	            
+	     </apex:pageBlockSection>
+	     <apex:pageBlockSection title="Data Set Fields" rendered="{!selectedEntity!=''}" collapsible="false" columns="1">
+	     
+	        <apex:pageBlockSectionItem >
+	            <apex:outputPanel >
+	                Output address to 1 column<br/>
+	                <span style="font-weight:normal;">(Outputs the record's address in 1 column in the Data Table on the Map tab)</span>
+	            </apex:outputPanel>
+	            <apex:inputcheckbox value="{!cdataset.Formatted_Address_for_Data_Table}"/>
+	        </apex:pageBlockSectionItem>
+	        
+	        <apex:pageBlockSectionItem >
+	            <apex:outputPanel >
+	                Fields to return when mapping<br/>
+	                <span style="font-weight:normal;">(Name and Address are automatically included, so don't include them here)</span>
+	            </apex:outputPanel> 
+	            <apex:outputPanel id="CSList">
+	            	<div id="fieldList">
+		            	
+		            	<ul class="sortableList sortableListHeader">
+		            		<li>
+								<div class="col action">Action</div>
+								<div class="col fieldOrder">Field Order</div>
+								<div class="col fieldName">Field Name</div>
+							</li>
+		            	</ul>
+		         
+						<ul class="sortableList sortableListBody" id="dataSetFieldList">
+							<apex:repeat value="{!dataSetFields}" var="dsf">
+								<li data-path="{!dsf.Path__c}" data-fullAPIName="{!dsf.Field__c}">
+									<div class="col action"><a href="#" class="deleteSelectedField">Del</a></div>
+									<div class="col fieldOrder">
+										<a href="#"><apex:image url="/s.gif" alt="Top" styleClass="doubleArrowUp" title="Top"/></a>
+										<a href="#"><apex:image url="/s.gif" alt="Up" styleClass="upArrowIcon" title="Up"/></a>
+										<a href="#"><apex:image url="/s.gif" alt="Down" styleClass="downArrowIcon" title="Down"/></a>   
+										<a href="#"><apex:image url="/s.gif" alt="Bottom" styleClass="doubleArrowDwn" title="Bottom"/></a>
+									</div>
+									<div class="col fieldName">{!dsf.geopointe__Field__c}</div>
+								</li>
+							</apex:repeat>
+						</ul>
+						
+						<a href="#" class="addFieldSelector">[Add Field]</a>
+						
+						<apex:inputTextArea value="{!selectedFieldDataJSON}" styleClass="selectedFieldData hiddenJSON"/>
+				    </div>
+	            </apex:outputPanel> 
+	        </apex:pageBlockSectionItem>
+	        
+	     </apex:pageBlockSection>
+	      
+	     <apex:pageBlockSection title="Data Set Filters" rendered="{!selectedEntity!=''}" collapsible="false" columns="1">
+	     	
+	     	<apex:pageblockSectionItem >
+	            <apex:outputPanel >
+	                Show Filter<br/>
+	                <span style="font-weight:normal;">(Apply ownership filters like "My" records or "All" records)</span>
+	            </apex:outputPanel>
+
+	            <apex:selectList size="1" value="{!cdataset.ShowFilter}">
+	            	<apex:selectOptions value="{!showFilterOptions}"/>
+	        	</apex:selectList>
+	        </apex:pageblockSectionItem>
+	         
+	         <apex:pageBlockSectionItem >
+	            <apex:outputPanel >
+	                Data Set Filters<br/>
+	                <span style="font-weight:normal;">(When this Data Set is selected, these filters will be automatically applied)</span>
+	            </apex:outputPanel>    
+				<apex:outputPanel id="filtergroup">
+	                
+	                <div style="float:left;">
+						<table id="filterCountTable" style="display: {!IF(dataSetHasFilterLogic,'block','none')}">
+							<thead>
+								<tr class="headerRow ">
+						            <th class="headerRow">
+						                <div>&nbsp;</div>
+						            </th>
+						        </tr>
+							</thead>
+							<tbody>
+						        <apex:repeat value="{!dataSetfilters}" var="f">
+						        	<tr class="dataRow">
+							            <td class="dataCell"><div class="filterTableCount">{!f.geopointe__Order__c}</div></td>
+							        </tr>
+						        </apex:repeat>
+						    </tbody>
+						</table>
+					</div>
+
+					<div style="float:left; width: 95%;">
+						<table id="dataFilterTable" class="list dataFilterTable" border="0" cellpadding="0" cellspacing="0">
+						    <thead class="rich-table-thead">
+						        <tr class="headerRow ">
+						            <th class="headerRow" width="20px">
+						                <div>Action</div>
+						            </th>
+						            <th class="headerRow" width="140px">
+						           		Filter Order
+						            </th>
+						            <th class="headerRow">
+						                <div>Field</div>
+						            </th>
+						            <th class="headerRow">
+						                <div>Operator</div>
+						            </th>
+						            <th class="headerRow">
+						                <div>Value</div>
+						            </th>
+						        </tr>
+						    </thead>
+						    <tbody id="dataFilterBody">
+						        <apex:repeat value="{!dataSetfilters}" var="f">
+						        	<tr class="dataRow" data-fullAPIName="{!f.Field_Name__c}" data-fieldType="{!f.Field_Type__c}" data-operator="{!f.Operator__c}" data-filterValue="{!f.Value__c}" data-filterObject="{!f.SObject__c}">
+							            <td class="dataCell"><a href="#" class="delFilter">Del</a></td>
+							            <td class="headerRow">
+							            	<a href="#"><apex:image url="/s.gif" alt="Top" styleClass="doubleArrowUp" title="Top"/></a>
+											<a href="#"><apex:image url="/s.gif" alt="Up" styleClass="upArrowIcon" title="Up"/></a>
+											<a href="#"><apex:image url="/s.gif" alt="Down" styleClass="downArrowIcon" title="Down"/></a>   
+											<a href="#"><apex:image url="/s.gif" alt="Bottom" styleClass="doubleArrowDwn" title="Bottom"/></a>
+							            </td>
+							            <td class="dataCell">{!f.Field_Name__c}</td>
+							            <td class="dataCell">{!f.Operator__c}</td>
+							            <td class="dataCell"><input type="text" class="filterValue" value="{!f.Value__c}" size="70"/></td>
+							        </tr>
+						        </apex:repeat>
+						    </tbody>
+						</table>  
+
+						<a href="#" id="addObjectFilter">[Add Filter]</a>  &nbsp;&nbsp;  <a href="#" id="showHideFilterLogic">[{!IF(dataSetHasFilterLogic,'Clear Filter Logic','Add Filter Logic')}]</a>    
+					
+						<div id="filterLogic" style="display: {!IF(dataSetHasFilterLogic,'block','none')}">
+			                <br/>Filter Logic:<br/>
+			                <apex:inputText id="filterLogicInput" value="{!cdataset.filterLogic}" style="width: 420px;"/> 
+		                </div>
+
+	                	<apex:inputTextArea value="{!dataSetFiltersJSON}" styleClass="dataSetFiltersJSON hiddenJSON"/>
+
+					</div>       
+	            </apex:outputPanel>
+	        </apex:pageBlockSectionItem>
+	        <apex:pageBlockSectionItem >
+	            <apex:outputPanel >
+	                Child Relationship Filters<br/>
+	                <span style="font-weight:normal;">(Allows for further filtering based on child relationships)</span>
+	            </apex:outputPanel>    
+				<apex:outputPanel id="childfiltergroup">
+	                
+	                <table class="list dataFilterTable" border="0" cellpadding="0" cellspacing="0">
+					    <thead class="rich-table-thead">
+					        <tr class="headerRow ">
+					            <th class="headerRow" width="20px;">
+					                <div>Action</div>
+					            </th>
+					            <th class="headerRow">
+					                <div>Relationship</div>
+					            </th>
+					            <th class="headerRow">
+					                <div>Child Object</div>
+					            </th>
+					            <th class="headerRow">
+					                <div>Field</div>
+					            </th>
+					            <th class="headerRow">
+					                <div>Operator</div>
+					            </th>
+					            <th class="headerRow">
+					                <div>Value</div>
+					            </th>
+					        </tr>
+					    </thead>
+					    <tbody id="dataChildFilterBody">
+					        <apex:repeat value="{!dataSetChildFilters}" var="f">
+					        	<tr class="dataRow" data-childFieldName="{!f.Child_Field__c}" data-relationshipName="{!f.Child_Relationship_Name__c}" data-objectName="{!f.Child_Sobject__c}" data-fullAPIName="{!f.Field_Name__c}" data-fieldType="{!f.Field_Type__c}" data-operator="{!f.Operator__c}" data-filterValue="{!f.Value__c}" data-filterObject="{!f.SObject__c}">
+						            <td class="dataCell"><a href="#" class="delFilter">Del</a></td>
+						            <td class="dataCell">{!f.Child_Relationship_Name__c}</td>
+						            <td class="dataCell">{!f.Child_SObject__c}</td>
+						            <td class="dataCell">{!f.Field_Name__c}</td>
+						            <td class="dataCell">{!f.Operator__c}</td>
+						            <td class="dataCell"><input type="text" class="filterValue" value="{!f.Value__c}" size="70"/></td>
+						        </tr>
+					        </apex:repeat>
+					    </tbody>
+					</table>      
+
+	                <a href="#" id="addChildObjectFilter">[Add Child Filter]</a>
+	                
+	                <apex:inputTextArea value="{!dataSetChildFiltersJSON}" styleClass="dataSetChildFiltersJSON hiddenJSON"/>
+	           
+	            </apex:outputPanel>
+	        </apex:pageBlockSectionItem>
+	        <apex:pageBlockSectionItem rendered="false">
+	            <apex:outputPanel >
+	                Custom SOQL
+	                <br/><span style="font-weight:normal;">(Add your own SOQL filter logic here and Geopointe will apply that filter to your Data Set query)</span>
+	                <p><span style="font-weight:normal;">(advanced use only)</span></p>
+	            </apex:outputPanel>    
+	            <apex:inputTextarea value="{!cdataset.CustomSOQL}" cols="150" rows="9"/>
+	        </apex:pageBlockSectionItem>
+	     </apex:pageBlockSection> 
+	  </apex:pageBlock>
+	</div>
+  </apex:form>
+
+    <!-- Initializes a color picker -->
+    <apex:outputPanel id="initColorPicker">
+        <script type="text/javascript">
+            gp_initColorPicker('gp_selectedcolor','input','');
+        </script>
+    </apex:outputPanel>
+  
+	<style>
+	 	.clear{
+	 		clear:both;
+	 	}
+	 	.dataFilterTable{
+	 		margin-bottom: 5px;
+	 	}
+	 	.dataFilterTable tr{
+	 		cursor: move; 
+	 	} 
+	 	.dataFilterTable tr:hover{
+	 		background-color: #e3f3ff;
+	 	}
+	 	.filterTableCount{
+	 		padding: 9px 5px 5px 5px;
+			font-weight: bold;
+	 	}
+	 	.hiddenJSON{
+	 		display: none;
+	 	}
+	 	.sortableList { 
+	 		list-style-type: none; 
+	 		margin: 0; 
+	 		padding: 0; 
+	 		width: 650px; 
+	 	}
+		.sortableList li {
+			margin: 0 0px -1px 0px;
+			padding: 4px 4px 5px 4px;
+			border: 1px solid #f2f3f3;
+			background: white;
+			height: 19px;
+		}
+		.sortableListBody{
+			cursor: move; 
+			margin-bottom: 5px;
+		}
+		.sortableListBody li:hover {
+			background-color: #e3f3ff;
+		}
+		.sortableList li .col{ 
+			float: left;
+		}
+		.sortableList .action{
+			width: 70px;
+		}
+		.sortableList .fieldName{
+			width: 400px;
+		}
+		.sortableList .fieldOrder{
+			width: 160px;
+		}
+		.sortableList .action, .sortableList .fieldName{
+			margin-top: 3px;
+		}
+		.sortableListHeader li { 
+			margin: 0 0px 0px 0px;
+			padding: 4px 0 0 6px;
+			height: 16px;
+			font-weight: bold;
+			background-color: #f2f3f3;
+			border: 1px solid #e0e3e5;
+			font-size: .9em;
+		}
+		.sortableListHeader .action, .sortableListHeader .fieldName { 
+			margin-top: 0px;
+		}
+	</style>
+
+	<!--[if lte IE 9]>
+		<style>
+			/*Dont add blue highlight to buttons on hover as they wont be removed on reorder*/
+			a:hover .doubleArrowDwn {
+				background-position: left -300px;
+			}
+			a:hover .doubleArrowUp {
+			    background-position: left -240px;
+			}
+			a:hover .upArrowIcon {
+			    background-position: left -120px;
+			}
+			a:hover .downArrowIcon {
+			    background-position: left -180px;
+			}
+		</style>
+	<![endif]-->
+		
+	<!-- Event Listeners -->
+	
+	<apex:outputPanel id="dynamicJavaScript">
+        <script type="text/javascript">
+			gp_loadColorBySelectFromObject('{!JSENCODE(selectedEntity)}', '{!JSENCODE(cdataset.ColorMarkersBy)}');
+			var selectedObject = '{!cdataset.MapObjectName}';
+        </script>
+	</apex:outputPanel>
+
+	<script type="text/javascript">
+		var j$ = jQuery.noConflict();
+		
+		gp_orgSettings = new Object();
+        gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';
+        var nameSpacePrefix = '{!orgFieldPrefix}';
+		
+		j$(document).ready(function(){
+		
+			// Load Map Object info into local JS variables
+			Visualforce.remoting.Manager.invokeAction(
+				'{!$RemoteAction.s_DataSet.buildObjectMetaforJS}',
+				function(result, event){ 
+					if (event.status) {
+						jQuery.each(result, function(key, obj) {
+							var metaObject = new Object();
+							metaObject.objectLabel = jQuery.trim(obj.objectLabel);
+							metaObject.objectName = jQuery.trim(obj.objectName);
+							metaObject.metaFields = new Object();
+							jQuery.each(obj.metaFields, function(key1, field) {
+								var metaField = new Object();
+								metaField.fieldLabel = jQuery.trim(field.fieldLabel);
+								metaField.fieldName = jQuery.trim(field.fieldName);
+								metaField.dataType = jQuery.trim(field.dataType);
+								metaField.isFilterable = field.isFilterable;
+								metaField.decimals = field.decimals;
+								metaField.referenceTo = jQuery.trim(field.referenceTo);
+								metaField.relationshipName = jQuery.trim(field.relationshipName);
+								metaObject.metaFields[metaField.fieldName] = metaField;
+							});
+							gp_objectMeta[metaObject.objectName] = metaObject;
+						});
+						gp_loadColorBySelectFromObject('{!JSENCODE(selectedEntity)}', '{!JSENCODE(cdataset.ColorMarkersBy)}');
+					}
+				}, {escape:true}
+			);
+					
+			//Attached field selector event listeners on load
+			createFieldSelectors();
+			
+			//Make selected fields sortable
+			makeDSfieldsSortable();
+			
+			//Event listener to remove a selected field
+			j$("body").on('click','.sortableListBody .deleteSelectedField',function(e){
+				//Remove the list item
+				j$(this).closest('li').remove();
+				
+				//prevent normal link behavior
+				e.preventDefault();
+			});
+						
+			//Event listens to move items in a UL
+			j$("body").on('click','.sortableListBody .upArrowIcon',function(e){ //Up
+				var $listElement = j$(this).closest("li");
+  				$listElement.prev().before($listElement);
+  				e.preventDefault();
+			});
+			
+			j$("body").on('click','.sortableListBody .downArrowIcon',function(e){ //Down
+				var $listElement = j$(this).closest("li");
+ 				$listElement.next().after($listElement);
+ 				e.preventDefault();
+			});
+			
+			j$("body").on('click','.sortableListBody .doubleArrowDwn',function(e){ //Bottom
+				var $listElement = j$(this).closest("li");
+				$listElement.appendTo($listElement.closest('ul'));
+				e.preventDefault();
+			});
+			
+			j$("body").on('click','.sortableListBody .doubleArrowUp',function(e){ //Top
+				var $listElement = j$(this).closest("li");
+				$listElement.prependTo($listElement.closest('ul'));
+				e.preventDefault();
+			});
+
+			//Event listens to move rows in a table using arrows
+			j$("body").on('click','#dataFilterTable tbody .upArrowIcon',function(e){ //Up
+				var $listElement = j$(this).closest("tr");
+  				$listElement.prev().before($listElement);
+  				e.preventDefault();
+			});
+			
+			j$("body").on('click','#dataFilterTable tbody .downArrowIcon',function(e){ //Down
+				var $listElement = j$(this).closest("tr");
+ 				$listElement.next().after($listElement);
+ 				e.preventDefault();
+			});
+			
+			j$("body").on('click','#dataFilterTable tbody .doubleArrowDwn',function(e){ //Bottom
+				var $listElement = j$(this).closest("tr");
+				$listElement.appendTo($listElement.closest('tbody'));
+				e.preventDefault();
+			});
+			
+			j$("body").on('click','#dataFilterTable tbody .doubleArrowUp',function(e){ //Top
+				var $listElement = j$(this).closest("tr");
+				$listElement.prependTo($listElement.closest('tbody'));
+				e.preventDefault();
+			});
+		});
+		
+		function makeDSfieldsSortable(){
+			j$(".sortableListBody").sortable({
+				axis: 'y',
+				containment: 'parent',
+				placeholder: "sortablePlaceholder",
+				forceHelperSize: true,
+				forcePlaceholderSize: true,
+				start: function(event, ui){
+					//Set proper height of helper
+					j$(".sortablePlaceholder").height(ui.item.height());
+				},
+				tolerance: 'pointer'
+			});
+		}
+		
+		function beforeSave(){
+			
+			//Show the modal
+			geopointeAjaxStart('#modalWrapper','Saving...');
+			
+			//------Build the JSON for the selected fields------
+			var selectedFieldsJSON = convertFieldListToJSON();
+			
+			//Add json to hidden inputText that will get posted back to controller on save
+			j$(".selectedFieldData").val(selectedFieldsJSON);
+		
+			//------Build the JSON for the filters------
+			var filtersJSON = convertFilterTableToJSON();
+			
+			//Add JSON to hidden inputText that will get psoted back to conroller on save
+			j$(".dataSetFiltersJSON").val(filtersJSON)
+			
+			//------Build the JSON for the child filters------
+			var childFiltersJSON = convertChildFilterTableToJSON();
+			
+			//Add JSON to hidden inputText that will get psoted back to conroller on save
+			j$(".dataSetChildFiltersJSON").val(childFiltersJSON);
+						
+			return true;
+		}
+		
+		function rerenderComplete(){
+			//Visualforce rerenders like to break event binds so re-attach necessary js functionality
+			geopointeAjaxEnd();
+			createFieldSelectors();
+			makeDSfieldsSortable();
+		}
+		
+		function createFieldSelectors(){
+			//Create event listener to add field to selected fields of the data set
+			j$(".addFieldSelector").fieldSelector({
+				isFilter : false,
+				showAll: true,
+				onSelect: function(field){
+					
+					//Check to make sure field is not already selected
+					var alreadySelected = false;
+					j$("#dataSetFieldList .fieldName").each(function(){
+						if(  j$(this).text().toLowerCase() == field.fullAPIName.toLowerCase() ){
+							alert('This field has already been selected.');
+							alreadySelected = true;
+							return false; //exit the .each() loop
+						}
+					});
+					
+					if(alreadySelected == false){
+						//Add a new <li> item to the select fields list
+						var newField = ''+
+						
+						'<li data-path="'+field.objectName+'" data-fullAPIName="'+field.fullAPIName+'">'+
+							'<div class="col action"><a href="#" class="deleteSelectedField">Del</a></div>'+
+							'<div class="col fieldOrder">'+
+								'<a href="#"><img src="/s.gif" alt="Top" title="Top" class="doubleArrowUp"></a> '+
+								'<a href="#"><img src="/s.gif" alt="Up" title="Up" class="upArrowIcon"></a> '+
+								'<a href="#"><img src="/s.gif" alt="Down" title="Down" class="downArrowIcon"></a> '+   
+								'<a href="#"><img src="/s.gif" alt="Bottom" title="Bottom" class="doubleArrowDwn"></a> '+
+							'</div>'+
+							'<div class="col fieldName">'+field.fullAPIName.toLowerCase()+'</div>'+
+						'</li>';
+						
+						j$("#dataSetFieldList").append(newField);
+					}else{
+						//Field was already selected keep the fieldselector box open by returning false
+						return false;
+					}
+							
+				},
+				startObject: selectedObject,
+				getFieldsForObjectRemoteMethod: '{!$RemoteAction.FieldSelector.getFieldsForObject}',
+				getChildObjectsRemoteMethod: '{!$RemoteAction.FieldSelector.getChildObjects}',
+				getPicklistValuesRemoteMethod: '{!$RemoteAction.FieldSelector.getPickListValues}'
+			});
+			
+			//Create event listener for adding an object filter
+			j$("#addObjectFilter").fieldSelector({
+				isFilter: true,
+				showAll: true,
+				onSelect: function(field){
+					addFilterTableRow(field,true); //true, include up down buttons on dataset page
+			        updateFilterCountLogicTable();
+				},
+				startObject: selectedObject,
+				getFieldsForObjectRemoteMethod: '{!$RemoteAction.FieldSelector.getFieldsForObject}',
+				getChildObjectsRemoteMethod: '{!$RemoteAction.FieldSelector.getChildObjects}',
+				getPicklistValuesRemoteMethod: '{!$RemoteAction.FieldSelector.getPickListValues}'
+			});
+			
+			//Create event listen for child object filter
+			j$("#addChildObjectFilter").fieldSelector({
+				isFilter: true,
+				isChildFilter: true,
+				showAll: true,
+				onSelect: function(field){
+					//Add table row to represent the selected child filter
+					addChildFilterTableRow({field: field});
+				},
+				startObject: selectedObject,
+				getFieldsForObjectRemoteMethod: '{!$RemoteAction.FieldSelector.getFieldsForObject}',
+				getChildObjectsRemoteMethod: '{!$RemoteAction.FieldSelector.getChildObjects}',
+				getPicklistValuesRemoteMethod: '{!$RemoteAction.FieldSelector.getPickListValues}'
+			});
+		}	
+   </script>
+</apex:page>

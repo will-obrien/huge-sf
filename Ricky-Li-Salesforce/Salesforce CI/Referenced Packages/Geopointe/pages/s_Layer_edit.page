@@ -1,0 +1,60 @@
+<apex:page showHeader="true" sidebar="false" title="Geopointe Layer Edit" standardController="geopointe__Layer__c" extensions="geopointe.s_LayerEdit_Extension" tabStyle="Geopointe_Setup__tab">
+    
+    <apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/><!-- Geopointe common css -->
+
+    <apex:sectionHeader title="{!$ObjectType.geopointe__Layer__c.Label} Edit" subtitle="{!geopointe__Layer__c.Name}" rendered="{!AND($CurrentPage.parameters.Id != '',$CurrentPage.parameters.clone != '1')}"/>
+    <apex:sectionHeader title="{!$ObjectType.geopointe__Layer__c.Label} Edit" subtitle="New {!$ObjectType.geopointe__Layer__c.Label}" rendered="{!OR($CurrentPage.parameters.Id == '',$CurrentPage.parameters.clone == '1')}"/>
+
+    <p>To learn more about Geopointe Layers visit our support site: <a href="http://support.arrowpointe.com/layers">http://support.arrowpointe.com/layers</a></p>
+
+    <apex:pageMessages />
+
+    <apex:form >
+        <apex:pageBlock title="{!$ObjectType.geopointe__Layer__c.Label} Edit" mode="edit" id="pageBlock">
+            <apex:pageBlockButtons >
+                <apex:commandButton action="{!save}" value="Save"/>
+                <apex:outputLink styleClass="btn gpLinkButton" style="top: 1px; position: relative;" value="{!URLFOR($Action.Layer__c.Share, geopointe__Layer__c.Id)}" rendered="{!$CurrentPage.parameters.Id != ''}">User Access</apex:outputLink> 
+                <apex:commandButton action="{!cancel}" value="Cancel"/>
+            </apex:pageBlockButtons>
+
+            <apex:pageBlockSection title="Layer Information" columns="2">
+                <apex:inputField value="{!geopointe__Layer__c.Name}" required="true" />
+                
+                <apex:pageBlockSectionItem rendered="{!$CurrentPage.parameters.Id != ''}">
+                    <apex:outputLabel value="Owner"/>
+                    <apex:outputPanel >
+                        <apex:outputField value="{!geopointe__Layer__c.OwnerId}"/>
+                        <a href="/{!geopointe__Layer__c.Id}/a?retURL={!$CurrentPage.URL}" onclick="return confirm('Changing the owner will reset the sharing for this Layer.\n\nAfter changing the owner use the User Access button to ensure the correct users can use this Layer.')">[Change Owner]</a>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:outputPanel rendered="{!$CurrentPage.parameters.Id == ''}"/>
+
+                <apex:inputField value="{!geopointe__Layer__c.geopointe__Active__c}"/>
+                <apex:outputPanel rendered="{!OR($CurrentPage.parameters.clone == '1',AND(showEnableForAllUsers,$CurrentPage.parameters.Id == ''),  AND(NOT(showEnableForAllUsers),$CurrentPage.parameters.Id != ''))}">
+                    <!--Empty placeholder for pageblock formatting -->
+                </apex:outputPanel>
+
+                <apex:pageBlockSectionItem rendered="{!showEnableForAllUsers}" helpText="Make this Layer availble to all users. This option available only when creating a new Layer.">
+                    <apex:outputLabel value="Enable for All Users"/>
+                    <apex:inputCheckbox value="{!enableForAllUsers}"/>
+                </apex:pageBlockSectionItem>
+                <apex:outputPanel rendered="{!OR($CurrentPage.parameters.Id == '',$CurrentPage.parameters.clone == '1')}"/>
+
+                <apex:inputField value="{!geopointe__Layer__c.geopointe__URL__c}" style="width: 600px" id="layerURL" required="true"/>
+                <apex:outputPanel />
+
+                <apex:inputField value="{!geopointe__Layer__c.geopointe__Description__c}" style="height: 55px; width: 240px;"/>
+                <apex:outputPanel />
+
+                <apex:inputField value="{!geopointe__Layer__c.geopointe__Auto_Load__c}"/>
+                <apex:outputPanel />
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+
+    <!--make the url textbox be one row -->
+    <script type="text/javascript">
+        jQuery("textarea[id$='layerURL']").attr('rows','1');
+    </script>
+</apex:page>

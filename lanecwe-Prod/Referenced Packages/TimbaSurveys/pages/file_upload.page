@@ -1,0 +1,916 @@
+<apex:page controller="TIMBASURVEYS.file_upload_controller" standardstylesheets="false" sidebar="false" showheader="false">
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'required/jquery-1.4.2.min.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqaccordion, 'js/jquery-ui-1.8.5.custom.min.js')}" />
+    
+    <style type="text/css">
+        body {
+            margin:0;
+            {!If(isProperty == true , ' background-color:#217BA4; overflow:hidden; background:none repeat no scroll 0 0 #217BA4; width:280px;', 'background:none repeat scroll 0 0 #F7F9FF; width:85%;')} 
+        }           
+        .DeleteImg {
+            width:          11px;
+            height:         11px;
+            background-image: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/edition_panel/x.png')}');
+            display:        block;
+            margin-left:    -11px;
+            position:       fixed;            
+        }
+        #hiddeImgButton{
+            display:    none;
+        }
+        .divImgContainer{
+            display: none;
+        }
+        .imagePropertiesBody ul, .imagePropertiesBody li {
+            list-style-type: none;
+            margin:     0px;
+            padding:    0px;
+        }
+
+        ul .suboption{
+            overflow:   hidden;
+        }
+        .imagePropertiesBody input,
+        .imagePropertiesBody ul li input{
+            color:      #7A7A7A;
+            margin:     0;
+            padding:    0;
+            vertical-align:middle;
+            display:    block;
+            float:      none;
+            clear:      none;
+        }
+        .imagePropertiesBody ul li ul li {
+            clear:      none;
+            overflow:   hidden;
+            padding:    0;
+            position:   static;
+        }
+        .imagePropertiesBody {
+
+            padding:    0;
+            width:      308px;
+            overflow:   hidden;
+            color:      #ffffff;
+                    
+            clear:  none;
+            float:  left;
+            display:block;
+            
+            -webkit-border-bottom-left-radius:  10px;
+            -webkit-border-bottom-right-radius: 10px;
+            -moz-border-radius-bottomleft:      10px;
+            -moz-border-radius-bottomright:     10px;
+            border-bottom-left-radius:          10px;
+            border-bottom-right-radius:         10px;
+            
+            -webkit-border-top-left-radius:     10px;
+            -webkit-border-top-right-radius:    10px;
+            -moz-border-radius-topleft:         10px;
+            -moz-border-radius-topright:        10px;
+            border-top-left-radius:             10px;
+            border-top-right-radius:            10px;
+            
+            width:  275px;
+            border: 0;
+            margin: 0;
+        }
+        .imagePropertiesBody ul .suboption h2 {
+            clear:          none;
+            margin:         0;
+            padding:        0;
+            font-size:      16px;
+            font-weight:    bold;
+            font-family :   Arial,Helvetica,sans-serif;
+            position:       static;
+            margin-left:    10px;
+        }
+        .imagePropertiesBody ul .suboption h3 {
+            clear:          none;
+            margin:         0;
+            padding:        0;
+            font-size:      14px;
+            font-weight:    bold;
+            font-family :   Arial,Helvetica,sans-serif;
+            position:       static;
+            margin-left:    10px;
+            color:          #2790C1;
+        }
+         .imagePropertiesBody ul .suboption .text_label {
+            float:          left;
+            margin:         0 0 5px;
+            padding:        0;
+            font-size:      13px;
+            font-weight:    bold;
+            font-family :   Arial,Helvetica,sans-serif;
+            margin-left:    10px;
+            color:          #2790C1;
+            width:          35%;
+        }       
+        .imagePropertiesBody ul .suboption .options_container {
+            float:  left;
+            margin: 0 0 5px;
+            padding:0;
+            width:  50%;
+        }        
+        .imagePropertiesBody .subSection .suboption h2{
+            margin: 0;
+        }
+        .suboption label{
+            font-size:  13px;
+        }
+        .subSection li h2{
+            color: #2790c1;
+        }
+        .imagePropertiesBody .editionPanelButton img{
+            width   : 16px;
+            height  : 16px;
+        }
+        .imagePropertiesBody input, .imagePropertiesBody button {
+            float:none;
+        }
+        
+        .imagePropertiesBody ul li input {
+            margin-left:    10px;
+            margin-top:     4px;
+            width:          251px;
+        }
+        .imagePropertiesBody ul li .checkbox {
+            margin:         0px;
+            margin-left:    10px;
+            display:        inline;
+            width:          auto;
+            height:         auto;
+        }
+        .imagePropertiesBody .subSection li input {
+            display:    block;
+            float:      left;
+            width:      100%;
+            margin:     0;
+            margin-right: 5px;
+
+        }
+        .suboption .editionPanelButton a{
+            text-decoration:    none;
+            background-color:   #ffffff;
+            width:              108px;
+            text-align:         center;
+            border:             1px #81b3c7 solid;
+            margin-top:         10px;
+            display:            block;
+            font-size:          13px;
+            font-weight:        bold;
+            color:              #1f9ecd;
+            
+            -webkit-border-bottom-left-radius:  5px;
+            -webkit-border-bottom-right-radius: 5px;
+            -moz-border-radius-bottomleft:      5px;
+            -moz-border-radius-bottomright:     5px;
+            border-bottom-left-radius:          5px;
+            border-bottom-right-radius:         5px;
+            
+            -webkit-border-top-left-radius:     5px;
+            -webkit-border-top-right-radius:    5px;
+            -moz-border-radius-topleft:         5px;
+            -moz-border-radius-topright:        5px;
+            border-top-left-radius:             5px;
+            border-top-right-radius:            5px;
+            
+        }
+        
+        .suboption .editionPanelButton a img{
+            border: 0;
+            vertical-align: middle;
+        }
+        
+        .imagePropertiesBody .subSection{
+            
+            border:             1px #196fa2 solid;
+            background-color:   #bfdeed;
+            padding:            12px;
+            margin-top:         20px;
+            
+            -webkit-border-bottom-left-radius:  5px;
+            -webkit-border-bottom-right-radius: 5px;
+            -moz-border-radius-bottomleft:      5px;
+            -moz-border-radius-bottomright:     5px;
+            border-bottom-left-radius:          5px;
+            border-bottom-right-radius:         5px;
+            
+            -webkit-border-top-left-radius:     5px;
+            -webkit-border-top-right-radius:    5px;
+            -moz-border-radius-topleft:         5px;
+            -moz-border-radius-topright:        5px;
+            border-top-left-radius:             5px;
+            border-top-right-radius:            5px;
+        }
+        
+        
+
+        #middleRail h2{
+            color:  #2C98C5;
+        }
+        
+        .imagePropertiesBody ul{
+            padding:    0px !important;
+            margin-top: 0px !important;
+            list-style-type: none !important;
+            line-height:20px !important;
+        }
+        
+        .imagePropertiesBody ul li input[type=radio]{
+            display :   inline !important;
+            width:      10px  !important;
+            float:      none  !important;
+        }
+      
+        .imagePropertiesBody ul li.suboption input[type=file]{
+            margin-left:    0px !important;
+            margin-top:     4px;
+            width:          100% !important;
+        }
+      
+        .imagePropertiesBody span.directionInput{
+            float:  left; 
+            width:  40%;
+            margin-left: 10px;
+        }
+
+         .imagePropertiesBody ul .suboption .aligment_label {
+            float:          left;
+            width:          30%;
+            padding-bottom: 5px;
+        }      
+      
+      
+      
+        .leftAlignmentIcon {
+            width:      24px;
+            height:     25px;
+            background-image: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/edition_panel/align-icons.png')}');
+            display:    block;
+            background-position: 0px 0px;       
+            margin-bottom:  5px;
+        }
+
+        .middleAlignmentIcon {
+            width:      24px;
+            height:     25px;
+            background-image: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/edition_panel/align-icons.png')}');
+            display: block;
+            background-position: 77px 0px;       
+            margin-bottom:  5px;          
+        }      
+
+        .rightAlignmentIcon {
+            width:      24px;
+            height:     25px;
+            background-image: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/edition_panel/align-icons.png')}');
+            display: block;
+            background-position: 51px 0;       
+            margin-bottom:  5px;            
+        } 
+
+        .questAlignmentIcon {
+            width:      24px;
+            height:     25px;
+            background-image: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/edition_panel/align-icons.png')}');
+            display: block;
+            background-position: 26px 0px;       
+            margin-bottom:  5px;         
+        }
+      
+        .fileUploadInput{
+            float: left;
+            width: 70%;
+        }
+        .cancelUpload{
+            width: 22%;
+            margin-right: 10px;
+            float: right;
+            margin-top:15px;
+        }
+    
+        .cancelUpload a {
+            width: 65px !important;
+        }
+      
+        .scaleOption{
+            float: left !important;
+            width: 10%  !important;
+            margin-top: 15px!important;
+        }
+        .applyChangeOption{
+            width: 70px !important;
+        }    
+        
+        .alignmentOptions{
+            width: 100%; 
+            margin-left: 60px;
+        }       
+         
+         .imagePropertiesBody ul, .imagePropertiesBody li {
+            margin-left: 0px !important;
+         
+        }
+        #imgPrevCont {
+            display: none;
+        }
+        /* ________________ end styles _____________________ */
+  
+    </style>
+    
+    
+    <script type="text/javascript">
+        var scaleFactor = 0;
+        var lastKey = 'height';
+        var viewResize = {!recentlyUploaded};
+        var PictureMaxWidth = 1000;
+        var PictureMaxHeight = 1000;
+        
+        
+        function setImgDimensions(w,h){
+                $('#img_width').val(w);
+                $('#img_height').val(h);
+                
+        }
+
+        function hasImage(){
+            var has = false;
+            var imgSrc = '{!JSENCODE(imageSrc)}'; 
+            if (mode =='true'){
+                has =   imgSrc!='';
+            }else{
+                has = true;
+            }
+
+            return has;
+        
+        }
+    
+        function callDeleteImg(){
+            
+            if (! hasImage()){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+            }else{
+                var btnaux = $('#hiddeImgButton input' )[0];
+                btnaux.click();
+            }
+            
+        }
+        
+        function callUpload(){
+            var btnUpload = $('.submitHidden input')[0];
+            btnUpload.click();
+        }
+        
+        function validate(){
+            if (document.images['propertyImagePreview']=== undefined){
+                return false;
+            }
+        
+            var inputs = document.getElementsByTagName('input');
+            var errorfound = false;
+            var imageToLoad = '';
+            for(var i = 0; i < inputs.length; i++ ){
+        
+                if(inputs[i].type == 'file'){
+                    if(inputs[i].value == ''){
+                        //No file selected to upload shows error
+                        alert('{!$Label.timbasurveys__timbasurvey_fileUpload_select_file}.');
+                        try {
+                            window.parent.hideThemeOverlay();
+                        } catch (exception) { 
+                        }                           
+                    return false;
+                }else{
+                    var val = inputs[i].value.toLowerCase();
+                    imageToLoad = inputs[i];
+                    if(val.lastIndexOf(".jpg") == -1 &&
+                        val.lastIndexOf(".jpeg") == -1 &&
+                        val.lastIndexOf(".tif")  == -1 &&
+                        val.lastIndexOf(".tiff")  == -1 &&
+                        val.lastIndexOf(".png")  == -1 &&
+                        val.lastIndexOf(".bmp")  == -1 &&
+                        val.lastIndexOf(".gif")  == -1){
+                        //The image its not a valid image type file
+                        //If some missing just add code
+                        alert('{!$Label.timbasurveys__timbasurvey_fileUpload_valid_image}.');
+                            
+                        return false;
+                    }
+                }
+                }           
+            }
+        overlay('show');    
+        return true;
+            
+        }
+        
+        function validateErase(){ 
+        
+            var parentImgObj    = parent.document.getElementById('img{!JSENCODE(attachmentId)}');
+        
+            try{        
+                    if ( parentImgObj !== undefined ) {
+                        document.images['propertyImagePreview'].src = '';
+                        document.images['propertyImagePreview'].height = 0;
+                        document.images['propertyImagePreview'].width = 0;
+                        parent.deleteImage('{!JSENCODE(attachmentId)}');
+                        //reset image options
+                        $('#updownimage').val('down');
+                        $('#img_alignment').val('left')
+                        $('#img_height').val('');
+                        $('#img_width').val('');
+                        $('#img_alt').val('');
+                    }   
+                    
+                } catch (exception) {
+                  //window.location.reload();
+                }
+            return true;
+        }
+        
+        
+        function parentSetImageSize(){
+            try{
+                parent.SetImageSize('{!JSENCODE(attachmentId)}');
+            } catch (e){
+            }           
+        }
+        
+        function moveImage(place){
+            if (! hasImage()){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            try{
+                parent.MoveImageUpDown(place, '{!JSENCODE(attachmentId)}');
+            } catch (e){
+            }
+        }
+
+        function alignImage(place){
+            if (! hasImage()){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            try{
+                parent.AlignImage(place, '{!JSENCODE(attachmentId)}');
+            } catch (e){
+            }
+        }
+
+        function changeHeightLocal(value){
+            var imgSrc = '{!JSENCODE(imageSrc)}'; 
+            if (imgSrc == ''){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            try{
+                parent.changeHeight(value, '{!JSENCODE(attachmentId)}');
+            } catch (e){
+            }
+        }
+
+        function changeWidthLocal(value){
+            var imgSrc = '{!JSENCODE(imageSrc)}'; 
+            if (imgSrc == ''){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            try{
+                parent.changeWidth(value, '{!JSENCODE(attachmentId)}');
+                
+            } catch (e){
+            
+            }
+        }
+
+        function recalc(newH, newW){
+            if (! hasImage()){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            if ($('#img_width').val() !='' && $('#img_height').val() !=''){
+                if ($("#img_scale:checked").length > 0){
+                    var parentImgObj = parent.document.getElementById('img{!JSENCODE(attachmentId)}');
+                    var originalImage;
+                    if (originalImage == null) {
+                        originalImage = new Image();
+                        originalImage.src = parentImgObj.src;
+                    }
+                    $(originalImage).load(function(){
+                        var originalHeight = originalImage.height;
+                        var originalWidth = originalImage.width;
+                        var newHeight = ($("#img_height").val());
+                        var newWidth = parseInt($("#img_width").val());
+                        if (lastKey == 'height') {
+                            newWidth = parseInt((newHeight / originalHeight) * originalWidth);
+                        }else{
+                            newHeight = parseInt((newWidth / originalWidth) * originalHeight);
+                        }
+                        if(newHeight <= originalHeight && newWidth <= originalWidth)
+                        {
+                            changeWidthLocal(newWidth);
+                            changeHeightLocal(newHeight);
+                            
+                            setImgDimensions(newWidth,newHeight); 
+                        }
+                        else{
+                            alert('{!$Label.timbasurveys__timbasurvey_Resize_Image_Error}(' + originalHeight + 'x' + originalWidth + ').');                           
+                        }
+                    })  
+                }else{
+                    var parentImgObj = parent.document.getElementById('img{!JSENCODE(attachmentId)}');
+                    var originalImage;
+                    if (originalImage == null) {
+                        originalImage = new Image();
+                        originalImage.src = parentImgObj.src;
+                    }
+                    $(originalImage).load(function(){
+                        var originalHeight = originalImage.height;
+                        var originalWidth = originalImage.width;
+                        //hack to resize big images to 1000x1000 piexeles
+                        var width = $('#img_width').val();
+                        var height = $('#img_height').val();
+                        
+                        if(width > PictureMaxWidth) {width = PictureMaxWidth;}
+                        if(height > PictureMaxHeight) {height = PictureMaxHeight;}
+                        if(height <= originalHeight && width <= originalWidth)
+                        {
+                            changeWidthLocal(width);
+                            changeHeightLocal(height);
+                            setImgDimensions(width,height);
+                        }
+                        else{
+                            alert('{!$Label.timbasurveys__timbasurvey_Resize_Image_Error}(' + originalHeight + 'x' + originalWidth + ').');                                       
+                        }
+                    })
+                }
+            }
+        }
+        
+        function changeAltText(value){
+            if (! hasImage()){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            try{
+                parent.changeAlternText(value, '{!JSENCODE(attachmentId)}');
+            } catch (e){
+            
+            }
+        }
+        
+        function parentChangeImgSrc(url){
+            var uploadedImg = document.images['propertyImagePreview'];
+            var parentImgObj = parent.document.getElementById('img{!JSENCODE(attachmentId)}');
+            try{
+                parent.changeImgSrc('{!JSENCODE(attachmentId)}' ,url);
+            } catch (e){
+            
+            }       
+        }
+        
+        function applyDimensions(){
+            var img = $("#img{!JSENCODE(attachmentId)}"); 
+            if (! hasImage()){
+                alert('{!$Label.timbasurveys__timbasurvey_cancelfileUpload_error_no_file}.');
+                return;
+            }
+            recalc($('#img_height').val(),$('#img_width').val());
+            $('#img_height').focus();
+        }
+
+        function overlay(action){
+            try{
+                parent.overlayAction(action);
+            } catch (e){
+            
+            }
+        }
+
+        var mode = '{!isProperty}';
+        var imageSrc = '{!JSENCODE(imageSrc)}';
+        var init_w  = '{!imgWidth}';
+        var init_h  = '{!imgHeight}';
+        var lastModifiedW = false;
+            
+        $(document).ready(function(){
+            overlay('hide');
+            
+            var is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+            var is_IE = navigator.userAgent.toLowerCase().indexOf('msie') > -1;
+
+            if(is_chrome){
+                $('#idForChrome').css('width', '235px');
+                $('#idForChrome input').css('width', '100%');
+                $('#idForChrome input').css('background-color', '#FFFFFF');
+            }
+            
+            if(is_IE){
+                $('#idForChrome input').css('background-color', '#FFFFFF');
+            }
+
+            $("#img_height").keydown (function (e) {
+                enbaleScale(String.fromCharCode(e.which));
+                lastKey = 'height';
+            });
+            
+            $('#img_width').keydown (function (e) {
+                enbaleScale(String.fromCharCode(e.which));
+                lastKey = 'width';
+            });         
+
+            if (imageSrc != ''){
+                //parent.overlayAction('hide');
+                $('#propertyImagePreview').bind("load",function(){
+                
+                        if (init_w != '' && init_w != '0.0'){
+                            scaleFactor = init_w/init_h;
+                            setImgDimensions(init_w,init_h);
+                        }else{
+                            scaleFactor = this.width/this.height;
+                            setImgDimensions(this.width,this.height);
+                            applyDimensions();
+                        }
+                        
+                    var uploadedImg = document.images['propertyImagePreview'];
+                    var parentImgObj = parent.document.getElementById('img{!JSENCODE(attachmentId)}');
+                    if ( parentImgObj !== undefined){
+                        uploadedImg.style.display = 'block';
+                        var parentImgStyle = '';
+                        parentChangeImgSrc(imageSrc)
+                    }
+                }).attr('src',imageSrc);
+            }
+            
+            // on Load 
+            if ('{!JSENCODE(imgAltText)}' != ''){
+                changeAltText('{!JSENCODE(imgAltText)}');
+            }
+            $('#img_alt').keyup(function(event) {
+                if (event.which == '13') {
+                    event.preventDefault();
+                }
+                changeAltText($(this).val());
+            });
+
+            if (viewResize) {
+                // las siguientes 2 lineas estaban comentadas
+                $('#scaleText').hide();
+                $('#img_scale').hide();
+            }else{
+                $('#scaleText').show();
+                $('#img_scale').show();
+            }
+
+            replaceSimpleQuotes();
+        });
+
+        function replaceSimpleQuotes(){
+            var imgAlt = $('#img_alt').val() + "";
+            var intIndexOfMatch = imgAlt.indexOf("&apos;");
+            while (intIndexOfMatch != -1){
+              imgAlt = imgAlt.replace( "&apos;", "'" )
+              intIndexOfMatch = imgAlt.indexOf( "&apos;" );
+            }           
+            $('#img_alt').val(imgAlt);
+        }
+        
+        function enbaleScale(key){
+            if (viewResize == true && (key == 1 || key == 2 || key == 3 || key == 4 || key == 5 || key == 6 || key == 7 || key == 8 || key == 9 || key == 0)){
+                $('#scaleText').show();
+                $('#img_scale').show();
+                viewResize = false;
+            }       
+        }
+        
+        //just for logo
+        function setDeleteLogo(){
+        	var answer = confirm ("Are you sure you want to delete the logo?")
+			if (answer){
+				removeLogo();
+			}
+        }
+        
+        function validateLogo(){ 
+            var inputs = document.getElementsByTagName('input');
+            var errorfound = false;
+            // logic added to allows to submit form when click delete question
+            for(var i = 0; i < inputs.length; i++ ){
+                if(inputs[i].type == 'file'){
+                    if(inputs[i].value == ''){
+                        //No file selected to upload shows error
+                        alert('{!$Label.timbasurveys__timbasurvey_fileUpload_select_file}.');
+                        try {
+                            window.parent.hideThemeOverlay();
+                        } catch (exception) { 
+                        
+                        }                           
+                        return false;
+                    }else{
+                        var val = inputs[i].value.toLowerCase();
+                        if(val.lastIndexOf(".jpg") == -1 &&
+                            val.lastIndexOf(".jpeg") == -1 &&
+                            val.lastIndexOf(".tiff")  == -1 &&
+                            val.lastIndexOf(".png")  == -1 &&
+                            val.lastIndexOf(".bmp")  == -1 &&
+                            val.lastIndexOf(".gif")  == -1){
+                            //The image its not a valid image type file
+                            //If some missing just add code
+                            alert('{!$Label.timbasurveys__timbasurvey_fileUpload_valid_image}.');
+                            try {
+                                window.parent.hideThemeOverlay();
+                            } catch (exception) { 
+                            
+                            }    
+                            return false;
+                        }
+					}
+	            }
+            }
+            if(errorfound){
+                alert('{!$Label.timbasurveys__timbasurvey_fileUpload_select_file}.');
+                try {
+                    window.parent.hideThemeOverlay();
+                } catch (exception) { 
+                
+                }               
+                return false;               
+            } else {
+                try {
+                    window.parent.showThemeOverlay();
+                } catch (exception) { 
+                
+                }               
+                parent.set_refresh_point();
+                return true;
+            }
+        }
+
+		function reloadParent(){
+			try {
+			    window.parent.showThemeOverlay();
+			} catch (exception) { 
+			
+			}               
+			window.parent.location.reload();
+			parent.set_refresh_point();
+		}
+
+        function chkNumber(e){
+            var evt = (e) ? e : window.event;
+            if(evt.shiftKey)return false;
+            var key = (evt.keyCode) ? evt.keyCode : evt.which;
+            if(key != null)
+            {
+                key = parseInt(key, 10);
+                return (key > 47 && key < 58) || isUserFriendlyChar(key);
+            }
+            return true;
+        }
+        
+        function isUserFriendlyChar(val) {
+            // Backspace, Tab, Enter, Insert, and Delete
+            if(val == 8 || val == 9 || val == 13 || val == 45 || val == 46)
+                return true;
+            
+            // Ctrl, Alt, CapsLock, Home, End, and Arrows
+            if((val > 16 && val < 21) || (val > 34 && val < 41))
+                return true;
+            
+            // The rest
+            return false;
+        }
+    </script>
+    <!--  upload for question images -->
+    <apex:outputPanel id="section0" rendered="{!isProperty}">
+        <div  class="imagePropertiesBody">
+            <!-- file upload form  enctype="multipart/form-data" -->
+            <apex:form id="theForm" onsubmit="return validate();" > 
+                <ul>
+                    <li class="suboption">
+                        <span class="fileUploadInput">
+                            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_fileUpload}" /></h2>
+                            <apex:inputFile size="16" value="{!attachedFile.Body}" filename="{!attachedFile.name}" id="image_file_input" contentType="{!attachedFile.contentType}" onchange="callUpload();" />
+                        </span>
+                        <span class="editionPanelButton cancelUpload" >
+                            <a onclick="callDeleteImg();return false;" href="javascript:;" >
+                                <img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/icons/canceliconsmall.png')}" alt="Image" />
+                                <apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_RemoveImage}" id="removeImage" />
+                            </a>
+                        </span>
+                        <apex:outputpanel layout="none" rendered="{!If(isProperty == true , true, false)}">
+                            <br />
+                        </apex:outputpanel>
+                    </li>
+                </ul>
+                <div class="submitHidden" style="display: none;">
+                    <apex:commandButton value=" Upload " action="{!save_file}" />
+                </div>
+            </apex:form>
+            <!-- /file upload form  -->
+            <apex:outputpanel layout="none" rendered="{!If(isProperty == true , true, false)}" style="widht:100%">
+                <!-- image options form  {!imageSrc}-->     
+                <apex:form id="theForm2" onsubmit="return validateErase()" >
+                    <ul class="subSection">
+                        <li class="suboption">
+                          <h2>{!$Label.timbasurveys__timbasurvey_questionImage_Options}</h2>
+                        </li>
+                        <!-- alt options  -->
+                        <li id=" " class="suboption">
+                            <div class="text_label">{!$Label.timbasurveys__timbasurvey_questionImage_Alt_text}:</div> 
+                            <div class="options_container">
+                                <input type="text" value="{!imgAltText}" id="img_alt" maxlength="80" />
+                            </div>      
+                        </li>
+                        <!-- position options  -->
+                        <li id=" " class="suboption">
+                            <div class="text_label"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_Position}: " /></div> 
+                            <div class="options_container">
+                                <select name="updownimage" id="updownimage" onchange="moveImage(this.value);" >
+                                    <option value="up" {!if(isUpSelected,'selected=\"selected\"','')}><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_direction_Up}"/></option>
+                                    <option value="down" {!if(isUpSelected,'','selected=\"selected\"')}><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_direction_Down}"/></option>
+                                </select>
+                            </div>      
+                        </li>
+                        <!-- dimension options-->
+                        <li class="suboption">
+                          <h3><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_Dimensions}"/></h3>
+                        </li>
+                        <li id=" " class="suboption">
+                            <div class="text_label"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_Heigth} :"/></div> 
+                            <div class="options_container">
+                                <input type="text" value="{!imgHeight}" id="img_height" maxlength="4" class="allowNumbersOnly" accept="NumberOnly" onkeydown="return chkNumber(event,this);" />
+                            </div>      
+                        </li>
+                        <li id=" " class="suboption">
+                            <div class="text_label"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_Width} :"/></div> 
+                            <div class="options_container">
+                                <input type="text" value="{!imgWidth}" id="img_width" maxlength="4" class="allowNumbersOnly" accept="NumberOnly" onkeydown="return chkNumber(event,this);" />
+                            </div>
+                        </li>   
+                        <li id=" " class="suboption">
+                            <div class="text_label" style="margin-top: 10px;">
+                                <span id="scaleText"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_Scale}:"/></span>
+                            </div>
+                            <div class="options_container">
+                                <input type="checkbox" id="img_scale" class="scaleOption" /> 
+                                <span style="margin-right: 5px;float: right;" class="editionPanelButton">
+                                    <a onclick="applyDimensions();return false;" href="javascript:;" class="applyChangeOption" >
+                                        <img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/overlay/okicon.png')}" alt="Image" />
+                                        <apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_applyChange}" id="applyChange"/>
+                                     </a>
+                               </span>
+                            </div>                      
+                        </li>               
+                         <!-- alignment options-->
+                        <li class="suboption">
+                          <h3><apex:outputText value="{!$Label.timbasurveys__timbasurvey_questionImage_alignment}"/></h3>
+                        </li>
+                        <li id=" " class="suboption">
+                            <div class="alignmentOptions">
+                                <div class="aligment_label" >
+                                    <div class="leftAlignmentIcon">&nbsp;</div>
+                                    <input type="radio" {!If(alingment == 'left', 'checked', '' )}  value="left" name="img_alignment"   id="img_alignment"  onclick="alignImage(this.value);" />
+                                </div> 
+                                <div class="aligment_label" >
+                                    <div class="middleAlignmentIcon" >&nbsp;</div>
+                                    <input type="radio" {!If(alingment == 'center' , 'checked', '')} value="center" name="img_alignment"    id="img_alignment"  onclick="alignImage(this.value);"  />
+                                </div> 
+                                <div class="aligment_label" >
+                                    <div class="rightAlignmentIcon">&nbsp;</div>
+                                    <input type="radio" {!If(alingment == 'right' , 'checked', '')}     value="right" name="img_alignment"  id="img_alignment"  onclick="alignImage(this.value);" />
+                                </div>
+                            </div>  
+                        </li>            
+                     </ul>      
+                    <div id='hiddeImgButton'><apex:commandButton value="Delete" action="{!delete_file}" /></div>
+                    <!-- /image options form  -->   
+                </apex:form>
+            </apex:outputpanel> 
+        </div>
+        <div id="imgPrevCont">      
+            <img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'img/shared/blank.gif')}" id='propertyImagePreview' />
+        </div> 
+    </apex:outputPanel>
+    <!--  /upload for question images -->   
+
+	<apex:outputPanel id="fileUploadPanel" layout="none" rendered="false" />
+    <!--  start upload for survey logo -->
+    <apex:outputPanel id="section1" rendered="{!!isProperty}">  
+        <apex:form id="theFormLogo" onsubmit="return validateLogo();" style="float:left;">
+            <apex:inputFile id="file" value="{!attachedFile.Body}" filename="{!attachedFile.name}" id="image_file_input" contentType="{!attachedFile.contentType}"/>
+            <apex:commandButton value="Upload" action="{!save_file}" />
+        </apex:form>
+        <apex:form id="removeLogoForm" rendered="{!hasLogo}" style="float:left;">
+        	<apex:commandButton rerender="fileUploadPanel" onclick="setDeleteLogo()" value="{!$Label.timbasurveys__timbasurveys_surveypreview_Remove_logo}" title="{!$Label.timbasurveys__timbasurveys_surveypreview_Remove_logo}" />
+            <apex:actionfunction name="removeLogo" action="{!removeLogo}" onComplete="reloadParent()"/>
+        </apex:form>
+        <apex:outputText value="{!message}" />
+    </apex:outputPanel>
+    <!--  end upload for survey logo -->
+
+</apex:page>

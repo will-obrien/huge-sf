@@ -1,0 +1,39 @@
+<apex:component access="global">
+<apex:attribute access="global" name="IsUpdated" description="Is record updated" type="Boolean" />
+<apex:attribute access="global" name="IsEmailPhone" description="Is email phone" type="Boolean" />
+<apex:attribute access="global" name="IsAddress" description="Is address" type="Boolean" />
+<apex:attribute access="global" name="IsNewRecord" description="Is record new (just created)" type="Boolean" />
+<apex:attribute access="global" name="ValidateOnlyIfInConsoleView" description="Validate only if in Console View" type="Boolean" />
+<apex:attribute access="global" name="SFSessionId" description="Session Id" type="String" />
+<apex:attribute access="global" name="RecordId" description="Record Id" type="String" />
+<apex:attribute access="global" name="SObjectName" description="SObject API Name" type="String" />
+<apex:attribute access="global" name="RNextUrl" description="QAS Address Validation Page URL" type="String" />
+<apex:attribute access="global" name="QASToolsSmallURL" description="The full URL to QASToolsSmall.js" type="String" />
+
+<apex:includeScript value="{!URLFOR($Resource.QAS_NA__QASTools)}"/> 
+<apex:includeScript value="{!URLFOR($Resource.QAS_NA__jquery)}"/> 
+<apex:includeScript value="{!URLFOR($Resource.QAS_NA__Connection)}"/> 
+<apex:includeScript value="/support/console/24.0/integration.js"/>
+<script type="text/javascript" src="{!NULLVALUE(QASToolsSmallURL,'https://online.qas.com/SalesForceV3/Scripts/QASToolsSmallNA.js')}"></script> 
+    
+<script>
+var j$ = jQuery.noConflict(); 
+jQuery(document).ready(function() {
+    if ({!IsUpdated} && (!{!ValidateOnlyIfInConsoleView} || qas_isConsoleView()) ) {
+        sforce.connection.sessionId = '{!JSENCODE(SFSessionId)}';
+        qas_recordId ="{!JSENCODE(RecordId)}";
+        if (qas_recordId && qas_recordId != "") {
+            var sObjectName = '{!JSENCODE(SObjectName)}';
+            var IsNew = {!IsNewRecord};
+            var layoutId = getCurrentPageLayoutId(sObjectName);
+            var proceed = hasSObjectConfigsForBPForLayout(sObjectName, layoutId, IsNew, {!IsEmailPhone}, {!IsAddress});
+            if(proceed === true){
+                var url = "{!JSENCODE(RNextUrl)}" + "&layoutId=" + encodeURIComponent(layoutId);
+                qas_invokeValidation(url);  
+            }
+        }
+    }
+});
+</script>
+
+</apex:component>

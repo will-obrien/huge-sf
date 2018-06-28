@@ -1,0 +1,70 @@
+<apex:page standardController="Case" extensions="SyncParentAccountFromCaseController" 
+showHeader="true"   sidebar="true" cache="false" tabStyle="Case"   standardStylesheets="true">
+
+ <apex:sectionHeader title="" subtitle="Sync info from Case to CA Owner: {!ParentAccount.name}"/>
+    <apex:pageBlock title="Fields To Be Synced" rendered="{!isRequestStatusIncludedOrComplete}">
+         <apex:pageBlockSection columns="2">
+           <apex:outputText label=" " value="Sources"  style="color:red;font-weight:bold" />
+           <apex:outputText label=" " value="Target" style="color:red;font-weight:bold" />
+             
+           <!--  
+           <apex:outputText label="Link to Bugzilla Bug" value="{!CaseDetailsSo.Link_to_Bugzilla_Bug__c}" style="{!IF (CaseDetailsSo.Link_to_Bugzilla_Bug__c != ParentAccount.Approval_Bug__c,'color:blue','')}"/>
+           <apex:outputText label="Approval Bug" value="{!ParentAccount.Approval_Bug__c}" style="{!IF (CaseDetailsSo.Link_to_Bugzilla_Bug__c != ParentAccount.Approval_Bug__c,'color:blue','')}"/>
+           -->
+             
+           <apex:outputText label="CA Email Alias 1" value="{!CaseDetailsSo.CA_Email_Alias_1__c}" style="{!IF (CaseDetailsSo.CA_Email_Alias_1__c != ParentAccount.CA_Email_Alias_1__c,'color:blue','')}"/>
+           <apex:outputText label="CA Email Alias 1" value="{!ParentAccount.CA_Email_Alias_1__c}" style="{!IF (CaseDetailsSo.CA_Email_Alias_1__c != ParentAccount.CA_Email_Alias_1__c,'color:blue','')}"/>
+               
+           <apex:outputText label="CA Email Alias 2" value="{!CaseDetailsSo.CA_Email_Alias_2__c}" style="{!IF (CaseDetailsSo.CA_Email_Alias_2__c != ParentAccount.CA_Email_Alias_2__c,'color:blue','')}"/>
+           <apex:outputText label="CA Email Alias 2" value="{!ParentAccount.CA_Email_Alias_2__c}" style="{!IF (CaseDetailsSo.CA_Email_Alias_2__c != ParentAccount.CA_Email_Alias_2__c,'color:blue','')}"/>            
+                        
+           <apex:outputText label="Website" value="{!CaseDetailsSo.Company_Website__c}" style="{!IF (CaseDetailsSo.Company_Website__c != ParentAccount.Company_Website__c,'color:blue','')}"/>
+           <apex:outputText label="Website" value="{!ParentAccount.Company_Website__c}" style="{!IF (CaseDetailsSo.Company_Website__c != ParentAccount.Company_Website__c,'color:blue','')}"/>
+           
+           <apex:outputText label="Organizational Type" value="{!CaseDetailsSo.Organizational_Type__c}" style="{!IF (CaseDetailsSo.Organizational_Type__c != ParentAccount.Organizational_Type__c,'color:blue','')}"/>
+           <apex:outputText label="Organizational Type" value="{!ParentAccount.Organizational_Type__c}" style="{!IF (CaseDetailsSo.Organizational_Type__c != ParentAccount.Organizational_Type__c,'color:blue','')}"/>
+             
+           <apex:outputText label="Geographic Focus" value="{!CaseDetailsSo.Geographic_Focus__c}" style="{!IF (CaseDetailsSo.Geographic_Focus__c != ParentAccount.Geographic_Focus__c,'color:blue','')}"/>
+           <apex:outputText label="Geographic Focus" value="{!ParentAccount.Geographic_Focus__c}" style="{!IF (CaseDetailsSo.Geographic_Focus__c != ParentAccount.Geographic_Focus__c,'color:blue','')}"/>
+
+           <apex:outputText label="Geographic Focus" value="{!CaseDetailsSo.Primary_Market_Customer_Base__c}" style="{!IF (CaseDetailsSo.Primary_Market_Customer_Base__c != ParentAccount.Primary_Market_Customer_Base__c,'color:blue','')}"/>
+           <apex:outputText label="Geographic Focus" value="{!ParentAccount.Primary_Market_Customer_Base__c}" style="{!IF (CaseDetailsSo.Primary_Market_Customer_Base__c != ParentAccount.Primary_Market_Customer_Base__c,'color:blue','')}"/>            
+             
+        </apex:pageBlockSection>   
+
+     </apex:pageBlock>
+     <style>
+     .btn{ width:50px;}
+     </style>
+
+     <apex:form >
+       <apex:pageBlock title="User Confirmation" rendered="{!AND(!isRecordUpdated, !isUpdateCancelled,isRequestStatusIncludedOrComplete)}">
+            <apex:outputText value="Do you want to continue and update the fields on Parent Account?"/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    
+            <apex:commandButton action="{!SyncAccount}" value="Yes" id="saveButton"    reRender="recordUpdated"/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <apex:commandButton action="{!CancelSyncAccount}" value="No" id="cancelButton" reRender="updateCancelled"/>
+        </apex:pageBlock>
+
+    <apex:outputPanel id="recordUpdated">
+       <apex:pageBlock title="Record Updated Successfully" rendered="{!AND(isRecordUpdated,!isUpdateCancelled,isRequestStatusIncludedOrComplete)}" >
+          <apex:outputText value="Please click on the next button to continue."/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <apex:commandButton action="{!redirectToSyncRootAccount}" value="Next" id="redirectToSyncRootButton"    /> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+       </apex:pageBlock>
+    </apex:outputPanel> 
+    
+     <apex:outputPanel id="updateCancelled">
+       <apex:pageBlock title="No Records Created/Updated" rendered="{!AND(!isRecordUpdated,isUpdateCancelled,isRequestStatusIncludedOrComplete)}">
+          <apex:outputText value="Please click on the 'Next' button to review the Root Cases."/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <apex:commandButton action="{!redirectToSyncRootAccount}" value="Next" id="redirectToCaseButton"    /> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+       </apex:pageBlock>
+     </apex:outputPanel> 
+      
+     <apex:outputPanel id="GoBackToCase">
+       <apex:pageBlock title="Cannot Proceed To Sync" rendered="{!!isRequestStatusIncludedOrComplete}">
+          <apex:outputText value="Case Request Status is not 'Included, Pending EV' or 'Complete'."/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <apex:commandButton action="{!redirectToCase}" value="Back" id="redirectToCaseButton"    /> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+       </apex:pageBlock>
+     </apex:outputPanel> 
+     
+     </apex:form>
+</apex:page>

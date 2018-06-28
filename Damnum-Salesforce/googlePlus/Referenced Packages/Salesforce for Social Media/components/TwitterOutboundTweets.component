@@ -1,0 +1,331 @@
+<apex:component controller="sf4twitter.TwitterOutboundTweetsController" 
+    extensions="sf4twitter.SocialArticlesController,sf4twitter.SocialSolutionController,sf4twitter.SocialTemplateController,sf4twitter.SocialBitlyController,sf4twitter.SocialDispatcherController"
+    allowDML="true">
+    
+    <style type="text/css">
+        .message {
+            margin: 0px;
+        }
+    </style>
+    
+    <script src="{!URLFOR($Resource.jQueryLibrary)}"></script>
+    <apex:includeScript value="/support/console/24.0/integration.js"/>
+    
+    <script type="text/javascript">
+        var $j = jQuery.noConflict();
+
+        function showObjectId(result) {
+            sforce.console.refreshPrimaryTabById( result.id, true );
+        }
+            
+        function closeWindow(){
+            try{
+                if (window.opener){
+                    window.opener.location = '{!JSENCODE(retURL)}';                
+                }
+            }
+            catch(error){}
+            window.close();
+        }
+        
+        function resetHeight() {
+            var holder = document.getElementById('{!$Component.mainPanel}');
+            window.innerHeight = holder.scrollHeight;
+        }
+        
+        var username = '{!JSENCODE(targetObject.twitterUsername)}';
+        var messageMaxSize = {!messageMaxSize};
+        
+        function startFeature(_image) {
+            $j('input, textarea, select, .btn').attr('disabled','true');
+            $j('.btn').addClass('btnDisabled');         
+            if(_image != '') $j(_image).show();
+            countLeft($j('.textareaCommentbody').get()[0]);
+        }
+        
+        function completeFeature(_image) {
+            $j('input, textarea, select, .btn').removeAttr('disabled');
+            $j('.btn').removeClass('btnDisabled');
+            if(_image != '') $j(_image).hide();
+            countLeft($j('.textareaCommentbody').get()[0]);
+        }
+        
+        function completeFeatureConsole(_image) {
+            completeFeature(_image);
+            sforce.console.getEnclosingPrimaryTabId(showObjectId);
+        }
+        
+        function doMention() {
+            if ($j('.selectMessage').length != 0) {
+                var message = $j('.textareaCommentbody').get()[0].value;
+                if ($j('.selectMessage').get()[0].value == 'rp') {
+                    if (username != '' && message.indexOf('@') != 0) {
+                        $j('.textareaCommentbody').get()[0].value = '@' + username + ' ' + message;
+                    }
+                }
+                else {
+                    if (message.indexOf('@') == 0)
+                        message = message.substring(message.indexOf(' ') + 1, message.length);
+                    $j('.textareaCommentbody').get()[0].value = message;
+                }
+            }
+            countLeft($j('.textareaCommentbody').get()[0]);
+        }
+        
+        function countLeft(obj, added){
+            if (added != undefined)obj.value += added;
+            if( obj ){
+                var descriptionLength = messageMaxSize - obj.value.length;            
+                if (descriptionLength >= 0) {
+                    $j('label.countLabel').text('{!$Label.Body} ('+(descriptionLength)+' {!$Label.remaining})');
+                }
+                else {
+                    $j('label.countLabel').html('{!JSENCODE($Label.Body)} (<span style="color:#FF0000;">{!JSENCODE($Label.Limit_exceeded)}</span>)');
+                }            
+            }
+        }
+        
+        function addSolution(obj) {
+            var solutionNote = '';
+            if (obj.selectedIndex > 0) 
+                solutionNote = $j(obj.options[obj.selectedIndex]).val();
+            obj.selectedIndex = 0;
+            var message = $j('.textareaCommentbody').get()[0].value;
+            if (solutionNote.indexOf('@') == 0)
+                solutionNote = solutionNote.substring(solutionNote.indexOf(' ') + 1, solutionNote.length);
+            countLeft($j('.textareaCommentbody').get()[0], (message.length == 0) ? solutionNote : ' ' + solutionNote);            
+        }
+        
+        $j(function () {
+            resetHeight();
+            doMention();                    
+        });
+    </script>
+    
+    <apex:form >
+	        
+		<apex:actionFunction name="doInit" action="{!initTwitterOutboundTweetsController}" rerender="mainPanel" />
+		<script type="text/javascript"> $(document).ready(function(){ doInit(); }); </script>
+      
+	    <apex:outputPanel layout="block" id="mainPanel">
+	    
+	    	<apex:variable var="showErrorBlock" value="{!OR(AND(errorSending, NOT(results.size == 0)), NOT(ISBLANK(errorMessage)))}" />
+	
+	    	<apex:outputPanel layout="none" rendered="{!showErrorBlock}">
+	    
+		        <apex:pageMessage title="{!errorTitle}" severity="{!IF(errorSending,'error','confirm')}" strength="3" rendered="{!NOT(ISBLANK(errorMessage))}">
+		            {!errorMessage}
+		        </apex:pageMessage>
+	        
+		        <apex:pageBlock title="{!$Label.TWITTER_ERROR}" rendered="{!AND(errorSending, NOT(results.size == 0))}">
+		            <apex:pageBlockTable value="{!results}" var="result">
+		                <apex:column >
+		                    <apex:facet name="header">{!$ObjectType.CampaignMember.Label}</apex:facet>
+		                    <apex:outputlink value="/{!result.Id}" target="_blank" rendered="{!NOT(ISBLANK(result.Id))}">
+		                        <apex:outputText value="{!result.name}" />
+		                    </apex:outputlink>
+		                    <apex:outputText value="{!result.name}" rendered="{!ISBLANK(result.Id)}"/>                  
+		                </apex:column>
+		                <apex:column value="{!result.msg}">
+		                    <apex:facet name="header">{!$Label.TWITTER_RESULT}</apex:facet>
+		                </apex:column> 
+		                <apex:column >                    
+		                    <apex:outputText rendered="{!ISBLANK(result.Id)}"                       
+		                         value="{!$Label.TWITTER_USERNAME_NOT_CONTACTLEAD}"/> 
+		                </apex:column>              
+		            </apex:pageBlockTable>
+		        </apex:pageBlock>
+	        
+	    </apex:outputPanel>
+    
+	    <apex:outputPanel layout="none" rendered="{!NOT(showErrorBlock)}">
+	    
+	        <c:SocialConversationDetail />
+
+		    <apex:pageblock title="{!$Label.Send_a_Tweet}" mode="mainDetail">
+		        
+		        <apex:outputPanel layout="block" id="closeWindows"
+		            rendered="{!close}">
+		            <script type="text/javascript">closeWindow();</script>
+		        </apex:outputPanel>
+		
+		        <!-- send/cancel buttons -->
+		        <apex:pageblockbuttons >
+		            <apex:commandButton value="{!$Label.Send}" action="{!doDispatcherSend}" rendered="{!NOT(console)}"
+		                rerender="mainPanel" onclick="startFeature('');"
+		                onComplete="resetHeight(); completeFeature('')" />
+		            <apex:commandButton value="{!$Label.Cancel}" rendered="{!NOT(console)}"
+		                onClick="window.close()" />
+		            <apex:commandButton value="{!$Label.Send}" action="{!doConsoleDispatcherSend}" rendered="{!console}"
+		                rerender="mainPanel" onclick="startFeature('');" onComplete="completeFeatureConsole('')" />
+		        </apex:pageblockbuttons>
+		        
+		        <!-- articles -->
+		
+		        <apex:pageblocksection title="{!$Label.Article_Detail}"
+		            rendered="{!hasCaseArticle}">
+		            <apex:pageblocksectionitem dataStyleClass="msgInputs" >
+		                <apex:outputlabel value="{!$Label.Article_Name}" for="article" />
+		                <apex:outputPanel id="sectionArticleform" >
+		                    <apex:selectList id="article" value="{!selectedArticle}"
+		                        styleClass="articlesList" size="1" multiselect="false">
+		                        <apex:selectOptions value="{!caseArticles}" />
+		                    </apex:selectList>
+		                    <apex:commandButton rerender="commentbody, sectionArticleform"
+		                        value="{!$Label.INSERT}" action="{!genShortenArticleURL}"
+		                        onClick="startFeature('.loadingGIFArticles');"
+		                        oncomplete="completeFeature('.loadingGIFArticles');" />
+		                    <span class="loadingGIFArticles" style="display: none"><img
+		                        src="{!URLFOR($Resource.Loading)}" /></span>                            
+		                    <div class="errorMsg" style="width:200px;">
+		                        <b><apex:outputText rendered="{!NOT(ISBLANK(articleErrorMessage))}" value="{!$Label.TWITTER_ERROR}: " /></b>
+		                        <apex:outputText rendered="{!NOT(ISBLANK(articleErrorMessage))}" value="{!articleErrorMessage}" />
+		                    </div>
+		                </apex:outputPanel>
+		            </apex:pageblocksectionitem>
+		        </apex:pageblocksection>
+		
+		        <!-- solutions -->
+		        <apex:pageblocksection title="{!$Label.Solution_Detail}" columns="1"
+		            rendered="{!hasSolutions}">
+		            <apex:pageblocksectionitem rendered="{!hasSolutions}">
+		                <apex:outputlabel value="{!$Label.Case_Solutions}" for="csol" />
+		                <apex:selectList size="1" multiselect="false" id="csol"
+		                    onchange="addSolution(this);">
+		                    <apex:selectOptions value="{!caseSols}" />
+		                </apex:selectList>
+		            </apex:pageblocksectionitem>
+		        </apex:pageblocksection>
+		
+		        <apex:pageblocksection title="{!$Label.Comment_Detail}" columns="1"
+		            id="textareaHolder">
+		
+		            <!-- sender account name -->
+		            <apex:pageBlockSectionItem rendered="{!origin = 'Twitter'}">
+		                <apex:pageBlockSectionItem >
+		                    <apex:outputlabel value="{!$Label.Send_Tweet_As}"
+		                        for="twitterAccounts" />    
+		                </apex:pageBlockSectionItem>
+		                <apex:pageBlockSectionItem >
+		                    <apex:outputPanel >
+		                        <apex:selectList value="{!contributingto}" size="1"
+		                            multiselect="false" rendered="{!twitterAccounts.size > 1}"
+		                            id="twitterAccounts">
+		                            <apex:selectOptions value="{!twitterAccounts}" />
+		                        </apex:selectList>
+		                        <apex:repeat value="{!twitterAccounts}" var="taccount"
+		                            rendered="{!twitterAccounts.size = 1}">
+		                            <c:SocialOutputLink linkValue="{!taccount.label}" linkURL="/{!taccount.value}"></c:SocialOutputLink>
+		                        </apex:repeat>
+		                    </apex:outputPanel>
+		                    <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/Twitter_Icon.png')}" style="vertical-align:top; padding-left:10px" width="20" height="20"/>
+		                </apex:pageBlockSectionItem>
+		            </apex:pageBlockSectionItem>
+		
+		            <apex:pageBlockSectionItem rendered="{!origin = 'Facebook'}">
+		                <apex:pageBlockSectionItem >
+		                    <apex:outputlabel value="{!$Label.Send_Facebook_As}"
+		                        for="facebookAccounts" />   
+		                </apex:pageBlockSectionItem>
+		                <apex:pageBlockSectionItem >                
+		                    <apex:outputPanel >
+		                        <apex:selectList value="{!fbContributingTo}" size="1"
+		                            multiselect="false" rendered="{!facebookAccounts.size > 1}"
+		                            id="facebookAccounts">
+		                            <apex:selectOptions value="{!facebookAccounts}" />
+		                        </apex:selectList>                  
+		                        <apex:repeat value="{!facebookAccounts}" var="fbaccount"
+		                            rendered="{!facebookAccounts.size = 1}">
+		                            <c:SocialOutputLink linkValue="{!fbaccount.label}" linkURL="/{!fbaccount.value}"></c:SocialOutputLink>
+		                        </apex:repeat>
+		                    </apex:outputPanel>                 
+		                    <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/FaceBook_32x32.png')}" style="vertical-align:top; padding-left:10px" width="20" height="20"/>  
+		                </apex:pageBlockSectionItem>        
+		            </apex:pageBlockSectionItem>            
+		            <!-- end sender account name -->
+		
+		            <!-- message type -->
+		            <apex:pageblocksectionitem rendered="{!AND(NOT(sendPost), Origin != 'Facebook')}">
+		                <apex:outputlabel value="{!$Label.Message_Type}" for="messageType" />
+		                <apex:selectList value="{!typeMessage}" size="1"
+		                    multiselect="false" onchange="doMention();"
+		                    styleClass="selectMessage" id="messageType">
+		                    <apex:selectOptions value="{!optionsMessages}" />
+		                </apex:selectList>              
+		            </apex:pageblocksectionitem>                
+		            <!-- message content -->
+		            <apex:pageblocksectionitem dataStyleClass="msgInputs">
+		                <apex:outputlabel id="countermsg" for="commentbody"
+		                    value="{!$Label.Body} ({!remaining})" styleClass="countLabel" />
+		                <apex:outputPanel >
+		                    <p><apex:inputTextarea id="commentbody"
+		                        styleClass="textareaCommentbody" value="{!MsgTextDescription}"
+		                        cols="60" rows="2" style="height:50px; width:350px;"
+		                        onKeyup="countLeft(this);" /></p>
+		                    <apex:outputText value="{!MsgTextDescriptionError}" id="errorMsg"
+		                        styleClass="errorMsg"></apex:outputText>
+		                </apex:outputPanel>
+		            </apex:pageblocksectionitem>
+		            
+		            <!-- add template -->
+		            <apex:pageblocksectionitem dataStyleClass="msgInputs">
+		                <apex:outputlabel id="tmpltLabel" for="templateList"
+		                    value="{!$Label.TWITTER_INSERT_MSG}" />
+		                <apex:outputPanel id="sectiontmpltLabel">
+		                    <apex:selectList value="{!selectedTemplate}" size="1"
+		                        id="templateList" multiselect="false">
+		                        <apex:selectOptions value="{!TemplatesList}" />
+		                    </apex:selectList>
+		                    <apex:commandButton rerender="commentbody"
+		                        value="{!$Label.INSERT}" action="{!generateTemplate}"
+		                        onClick="startFeature('.loadingGIFTemplate');"
+		                        oncomplete="completeFeature('.loadingGIFTemplate');" />
+		                    <span class="loadingGIFTemplate" style="display: none"><img
+		                        src="{!URLFOR($Resource.Loading)}" /></span>
+		                </apex:outputPanel>
+		            </apex:pageblocksectionitem>
+		
+		            <!-- shorten url -->
+		            <apex:pageblocksectionitem dataStyleClass="msgInputs">
+		                <apex:outputlabel id="bitlyLabel" for="bitlyURL"
+		                    value="Shorten URL" />
+		                <apex:outputPanel id="sectionBitlyform">
+		                    <apex:inputText id="bitlyURL" value="{!BitLyUrl}"
+		                        style="width:200px;" />
+		                    <apex:commandButton rerender="sectionBitlyform, commentbody"
+		                        value="{!$Label.Add_Shortened_Url}" action="{!ShortenUrl}"
+		                        onclick="startFeature('.loadingGIF');"
+		                        oncomplete="completeFeature('.loadingGIF');" />
+		                    <span class="loadingGIF" style="display: none"><img
+		                        src="{!URLFOR($Resource.Loading)}" /></span>
+		                    <div class="errorMsg"><b><apex:outputText value="{!$Label.TWITTER_ERROR}: "
+		                        rendered="{!NOT(ISBLANK(errorWSbitlyMsg))}" /></b> <apex:outputText value="{!errorWSbitlyMsg}"
+		                        rendered="{!NOT(ISBLANK(errorWSbitlyMsg))}" /></div>
+		                </apex:outputPanel>
+		            </apex:pageblocksectionitem>
+		
+		            <!-- post to chatter option -->
+		            <apex:pageblocksectionitem rendered="{!isChatterEnabled}">
+		                <apex:outputlabel for="postToChatter"
+		                    value="{!$Label.POST_TO_CHATTER}" />
+		                <apex:outputPanel >
+		                    <apex:inputCheckbox id="postToChatter" value="{!postToChatter}" />
+		                                        
+		                    <apex:repeat value="{!chatterChannels}" var="ch" rendered="{!chatterChannels.size = 1}">
+		                        <c:SocialOutputLink linkValue="{!ch.label}" linkURL="/{!ch.value}"></c:SocialOutputLink>
+		                    </apex:repeat>
+		                     <apex:selectList value="{!chatterChannel}" size="1" multiselect="false" rendered="{!chatterChannels.size > 1}" styleClass="selectedBox" >
+		                         <apex:selectOptions value="{!chatterChannels}" />
+		                    </apex:selectList> &nbsp;
+		                      
+		                <apex:outputText value="{!IF(Origin == 'Facebook', $Label.FACEBOOK_CHATTER_POST_WARNING, $Label.TWITTER_CHATTER_POST_WARNING)}" />
+		                </apex:outputPanel>
+		                
+		            </apex:pageblocksectionitem>
+		        </apex:pageblocksection>
+		    	</apex:pageblock>
+		    
+    		</apex:outputPanel>
+    	</apex:outputPanel>
+	</apex:form>
+</apex:component>

@@ -1,0 +1,310 @@
+<apex:page controller="SiteQuoteApprovalController"  showHeader="false" sidebar="false" cache="false" standardStylesheets="false">
+
+<title>{!$Organization.Name} Sales Quote: {!opportunity.name}</title>
+<apex:composition template="{!$Site.Template}">
+  <apex:define name="body"  > 
+    <div class="pc_page_content_top"></div>
+    <div class="pc_page_content" id="pc_sitequoteapproval_page">
+    <div class="pc_page_content_inner">
+
+    <apex:form id="quoteApprovalForm" styleClass="pc_quote_review_form" onsubmit="return validateForm();">
+<script language="javascript">
+var enableValidation=false;
+function validateForm() {
+
+    if (!enableValidation) return true; 
+    enableValidation=false;  
+
+    // check required fields
+    <apex:outputPanel layout="none" rendered="{!requireSignatory}">
+    var accept = document.getElementById("{!$Component.quoteApprovalForm.acceptConditions}");
+    if (!accept.checked) {
+        alert("Please confirm that you accept the terms and conditions on this quote.");
+        return false;
+    }
+    var sig = document.getElementById("{!$Component.quoteApprovalForm.signature}");
+    if (sig.value == '') {
+        alert("Please enter your name in the signature box to accept the terms and conditions.");
+        return false;
+    }
+    </apex:outputPanel>
+
+    
+
+    return true;
+}
+</script>
+    <apex:pageMessages />   
+    <apex:outputPanel id="quotebody" rendered="{!NOT(disableForm)}">
+
+<h1>Quote for {!Opportunity.Name}</h1>
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%" id="table1">
+<tr>    <td style="width:45%;"><font face="Arial" >
+        {!$Organization.Name}<br/>
+        {!$Organization.Street}<br/>
+        {!$Organization.City}, {!$Organization.State}&nbsp;{!$Organization.PostalCode}&nbsp;
+        {!$Organization.Country}<br/>
+        </font></td> 
+        <td width="10%">&nbsp;</td>
+   <td style="width:45%;"><font face="Arial">Quote Number: {!Opportunity.Quote_Number__c}-<apex:outputText value="{0,number,integer}"><apex:param value="{!Opportunity.Quote_Version__c}"/></apex:outputText>
+        <br/>
+        Offer Valid Through:&nbsp;<apex:OutputField value="{!Opportunity.pymt__SiteQuote_Expiration__c}"/><br/>    
+        Proposed By: {!Opportunity.Owner.FirstName} {!Opportunity.Owner.LastName}</font>
+     </td>
+</tr>
+</table>
+<br/>
+<h2>Customer Information</h2>
+
+<table border="0" width="100%" id="table2">
+<tr>
+       <td style="width:45%;" colspan="3">
+           <font face="Arial">Account Name: {!Opportunity.Account.Name} <br/><br/></font>
+       </td>
+</tr>
+<tr>
+       <td>          
+           <font face="Arial">Billing Contact:<br/>
+                             {!contact.Name}<br/>
+                             {!contact.MailingStreet}<br/>
+                              {!contact.MailingCity}, {!contact.MailingState}&nbsp;
+                             {!contact.MailingPostalCode}&nbsp;{!contact.MailingCountry} 
+           </font>
+        </td>
+        <td width="10%">&nbsp;</td>
+        <td style="width:45%;" >
+           <font face="Arial">Shipping Address:<br/>
+                              {!shipToStreet}<br/>
+                              {!shipToCity}, {!shipToState}&nbsp;
+                              {!shipToPostalCode}&nbsp;{!shipToCountry}  
+           </font>
+        </td>
+</tr>    
+</table>
+
+<p><apex:commandLink action="{!changeBillingInformation}" value="Change Billing Contact Info" /></p>
+<apex:outputPanel rendered="{!enableBillingInfoEdit}" >
+
+<apex:panelGrid columns="2">
+<apex:outputText value="First Name"/> 
+<apex:inputText value="{!updatedContact.firstname}" />
+
+<apex:outputText value="Last Name"/>
+<apex:inputText value="{!updatedContact.lastname}"/>
+
+<apex:outputText value="Street"/>
+<apex:inputText value="{!updatedContact.mailingstreet}"/>
+
+<apex:outputText value="City"/>
+<apex:inputText value="{!updatedContact.mailingcity}"/>
+
+<apex:outputText value="State"/>
+<apex:inputText value="{!updatedContact.mailingstate}"/>
+
+<apex:outputText value="Postal Code"/>
+<apex:inputText value="{!updatedContact.mailingpostalcode}"/>
+
+<apex:outputText value="Country"/>
+<apex:inputText value="{!updatedContact.mailingcountry}"/>
+
+<apex:outputText value="Email"/>
+<apex:inputText value="{!updatedContact.email}"/>
+
+<apex:outputText value="Phone"/>
+<apex:inputText value="{!updatedContact.phone}"/>
+
+
+
+
+</apex:panelGrid>
+
+</apex:outputPanel>
+
+<apex:outputPanel rendered="{!Opportunity.hasOpportunityLineItem}">
+<h2>Products</h2>
+<table class="pc_opp_line_item_table">
+<tr class="table_headings">
+       <th>Product</th>
+       <th>Description</th>
+       <th>Quantity</th>
+       <th class="currency_column">Unit Price</th>
+       <th class="currency_column">Total Price</th>
+</tr>
+<tr>
+       <apex:repeat value="{!lineItems}" var="line">
+          <tr>
+             <td>{!line.PricebookEntry.Name}</td>
+             <td>{!line.Description}</td>
+             <td>{!line.Quantity}</td>
+             <td class="currency_column"><apex:OutputText value="{!currencyShortFormatExpression}"><apex:param value="{!line.UnitPrice}"/></apex:OutputText></td>
+             <td class="currency_column"><apex:OutputText value="{!currencyShortFormatExpression}"><apex:param value="{!line.TotalPrice}"/></apex:OutputText></td>
+          </tr>
+       </apex:repeat>  
+</tr>
+<tr>
+       <td bgcolor="#C0C0C0" align="right" colspan="5">
+       <font face="Arial">
+    
+       </font>
+       
+       </td>
+</tr>
+</table>
+
+
+  <div class="pc_quote_amount_box" id="pc_quote_amount_box">
+            <apex:panelGrid columns="2" columnClasses="labelCol,currency_column" styleClass="totals_box" >
+                <apex:outputText value="Discount" rendered="{!NOT(OR(ISNULL(discount),discount==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="discountAmount" rendered="{!NOT(OR(ISNULL(discount),discount==0))}">
+                <apex:param value="{!discount}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Tax" rendered="{!NOT(OR(ISNULL(tax),tax==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="taxAmount" rendered="{!NOT(OR(ISNULL(tax),tax==0))}">
+                <apex:param value="{!tax}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Shipping" rendered="{!NOT(OR(ISNULL(shipping),shipping==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="shippingAmount" rendered="{!NOT(OR(ISNULL(shipping),shipping==0))}">
+                <apex:param value="{!shipping}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Total Amount"/>
+                <apex:outputText styleClass="totalAmount" value="{!currencyFormatExpression}"><apex:param value="{!total}" /></apex:outputText>
+                
+            </apex:panelGrid>   
+            
+   </div>
+
+
+</apex:outputPanel>
+<apex:outputPanel rendered="{!NOT(Opportunity.hasOpportunityLineItem)}">
+<h2>Quote Details</h2>
+<apex:outputText value="{!Opportunity.description}"/><br/>
+  <div class="pc_quote_amount_box_no_line_items" id="pc_quote_amount_box_no_line_items">
+            <apex:panelGrid columns="2" columnClasses="labelCol,currency_column" styleClass="totals_box_no_line_items" >
+                <apex:outputText value="Quote Amount" rendered="{!NOT(OR(ISNULL(subtotal),subtotal==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="quoteAmount" rendered="{!NOT(OR(ISNULL(subtotal),subtotal==0))}">
+                <apex:param value="{!subtotal}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Discount" rendered="{!NOT(OR(ISNULL(discount),discount==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="discountAmount" rendered="{!NOT(OR(ISNULL(discount),discount==0))}">
+                <apex:param value="{!discount}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Tax" rendered="{!NOT(OR(ISNULL(tax),tax==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="taxAmount" rendered="{!NOT(OR(ISNULL(tax),tax==0))}">
+                <apex:param value="{!tax}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Shipping" rendered="{!NOT(OR(ISNULL(shipping),shipping==0))}"/>
+                <apex:outputText value="{!currencyFormatExpression}" styleClass="shippingAmount" rendered="{!NOT(OR(ISNULL(shipping),shipping==0))}">
+                <apex:param value="{!shipping}"/>
+                </apex:outputText>
+                
+                <apex:outputText value="Total Amount"/>
+                <apex:outputText styleClass="totalAmount" value="{!currencyFormatExpression}"><apex:param value="{!total}" /></apex:outputText>
+                
+            </apex:panelGrid>   
+   </div>
+
+</apex:outputPanel>   
+   
+   
+<br/>
+<h2>Terms and Conditions</h2>
+<table border="0" width="100%" id="table3">
+<tr>
+        <td style="width:45%;vertical-align:top">      
+              Quote Expiration Date:&nbsp;<apex:OutputField value="{!Opportunity.pymt__SiteQuote_Expiration__c}"/><br/>          
+        </td>
+        <td width="10%">&nbsp;</td>
+        <td style="width:45%;vertical-align:top">
+        
+            <apex:outputPanel rendered="{!hasRecurringAmount}" >               
+               
+               <apex:outputText value="Installment Payments:" rendered="{!recurringSetup = 'Installment'}"/>
+               <apex:outputText value="Additional recurring charges:" rendered="{!recurringSetup = 'RecurringTackedOn'}"/>
+               <apex:outputPanel layout="inline" rendered="{!recurringSetup = 'FirstRecurringIncluded'}"  >     
+                   <apex:outputText value="Total includes initial recurring charge of " />
+                   <apex:outputText value="{!currencyFormatExpression}"><apex:param value="{!opportunity.pymt__Recurring_Amount__c}"/></apex:outputText><br/>
+                   <apex:outputText value="Recurring payment terms:"/>
+               </apex:outputPanel>
+                &nbsp;
+                <apex:outputText value="{!currencyFormatExpression}"><apex:param value="{!opportunity.pymt__Recurring_Amount__c}"/></apex:outputText>
+                &nbsp;every&nbsp;<apex:outputText value="{0,number,0} {1}">
+                	<apex:param value="{!opportunity.pymt__Frequency__c}"/>
+                    <apex:param value="{!opportunity.pymt__Period__c}"/>
+                </apex:outputText>&nbsp;<apex:outputText value="x {0}" rendered="{!NOT(ISNULL(opportunity.pymt__Occurrences__c))}">
+                <apex:param value="{!opportunity.pymt__Occurrences__c}"/>
+                </apex:outputText>
+                
+            </apex:outputPanel>
+                
+                    
+            
+       </td>
+</tr>
+</table>
+
+
+<br/>
+<apex:outputText value="{!Opportunity.Terms_and_Conditions__c}" escape="false" rendered="{!NOT($Setup.QI_Settings__c.SF_Rich_Text_on_Opps__c)}"/>
+<apex:outputField value="{!Opportunity.Terms_and_Conditions_RT__c}" rendered="{!$Setup.QI_Settings__c.SF_Rich_Text_on_Opps__c}"/>
+
+<br/>
+
+    
+<p><apex:inputCheckbox id="acceptConditions" value="{!termsAccepted}" />&nbsp;I accept the terms and conditions above.</p>
+<table class="signatureTable">
+<tr>
+<td>
+Your Name
+</td>
+<td>
+<apex:inputText id="signature" value="{!signature}"/>
+</td>
+</tr>
+</table>            
+    <br/>       
+        <apex:outputPanel id="buttons">
+            <table>
+                <tr>
+                    <td class="labelColumn">&nbsp;</td>
+                    <td><apex:commandButton id="cancel" value="Cancel"
+                        action="{!cancelTransaction}" rendered="false"/>
+                        <apex:commandButton id="processCard" value="Accept and Pay Online" status="formActionStatus"
+                        action="{!processQuote}" disabled="{!disableForm}" rerender="quoteApprovalForm"  onclick="enableValidation=true;">
+                        </apex:commandButton>
+                    <apex:actionStatus id="formActionStatus">
+                        <apex:facet name="start">
+                            <apex:outputPanel >&nbsp;
+                                <apex:image value="{!URLFOR($Resource.pymt__PaymentConnect, 'images/icon-spinner.gif')}"
+                                    style="vertical-align:middle;" alt="" />
+                                    &nbsp;Processing...
+                            </apex:outputPanel>
+                        </apex:facet>
+                        <apex:facet name="stop">
+                            <apex:image value="{!URLFOR('/s.gif')}" alt="" style="height:17px;" /> 
+                        </apex:facet>
+                    </apex:actionStatus>
+                    </td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </table>
+        </apex:outputPanel>
+
+    </apex:outputPanel>
+
+    </apex:form>
+    </div><!--  pc_page_content_inner -->
+    </div><!--  pc_page_content -->
+
+</apex:define>
+</apex:composition> 
+</apex:page>
+
+

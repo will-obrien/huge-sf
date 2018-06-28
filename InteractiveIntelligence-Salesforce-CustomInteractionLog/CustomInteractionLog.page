@@ -1,0 +1,232 @@
+<apex:page docType="html-5.0" controller="CustomInteractionLogController" >
+	<style>
+    	select{
+        	width:85%;
+        }
+        
+        textarea{
+        	width:90%;
+        }
+        
+        input{
+        	width:90%;
+        }
+    </style>
+    <apex:form >
+    <apex:includeScript value="/support/console/31.0/integration.js"/>
+    <script src='https://code.jquery.com/jquery-1.11.3.min.js'></script> 
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet"></link>
+    <script>
+        var currentInteractions= null;
+    	var mostRecentInteraction = null;
+        var taskId = null;
+        
+        var relatedWhats = [];
+        var relatedWhos = [];
+        
+        //use Javascript remoting to get a task for a specific interaction.
+        function getExistingTask(interactionId) {
+            Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.CustomInteractionLogController.getTaskInformation}',
+                interactionId,                                                  
+                function(result, event){
+                    if (event.status) {
+                        console.log("got existingTask");
+                        console.log(result);
+                        
+                        $('.whoSelect').val(result.WhoId);
+                        $('.whatSelect').val(result.WhatId);
+                        $('.subject').val(result.Subject);
+                        $('.callNotes').val(result.Description);
+                        taskId = result.Id;
+                    }
+                },
+                {escape: true});
+        }
+        
+        //use javascript remoting to save the task
+        function saveTask() {
+            Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.CustomInteractionLogController.saveTask}',
+                taskId,           
+                $('.disposition').val(),
+                $('.subject').val(), 
+                $('.callNotes').val(),     
+                $('.whoSelect').val(),
+                 $('.whatSelect').val(),
+                function(result, event){
+                    if (event.status) {
+                        console.log("task Saved");
+                        
+                    }
+                },
+                {escape: true});
+        }
+        
+        function handleGetCallIdsResult(callIdsResult){
+        	currentInteractions = JSON.parse(callIdsResult.ids);
+        }
+        
+        function handleCadCallback(result){
+        	console.log("got cad callback");
+            setElementsFromCad(JSON.parse(result.data));
+        }
+
+        //.pageInfo will send us details on the tab that is currently being viewed 
+        //take that information and populate the related to select lists
+        function handleGetPageInfo(result){
+            
+            var info = JSON.parse(result.pageInfo);
+        	
+            if(!info || !info.objectId){
+            	return;    
+            }
+            
+            function addToSelect(selector, pageInfo){
+                $(selector)
+                  .append($('<option>', { value : info.objectId })
+                  .text(info.object + '-' + info.objectName));
+            }
+            
+            if(info.object == "Contact" || info.object == "Lead" && relatedWhos.indexOf(info.objectId) == -1){
+                addToSelect(".whoSelect", info);
+                relatedWhos.push(info.objectId);
+            }else if(relatedWhats.indexOf(info.objectId) == -1){
+           	    addToSelect(".whatSelect", info); 
+                relatedWhats.push(info.objectId);
+            }
+        }
+        
+        //Pull data from the CAD to display in the call log
+        function setElementsFromCad(cad){
+            console.log(cad);
+        	$('#name').text(cad.name);
+	        $('#number').text(cad.number);
+        	$('#callid').text(cad.id);
+        }
+    
+	    function getCadForInteraction(callId){
+            sforce.console.cti.getCallAttachedData(callId, handleCadCallback);
+        }
+    
+        //after the page is loaded
+        $( document ).ready(function() {
+            //find the existing interaction IDs
+             sforce.console.cti.getCallObjectIds(function(callIdsResult){
+                 handleGetCallIdsResult(callIdsResult);
+                 
+                 if(callIdsResult.ids == 'null'){
+                 	mostRecentInteraction = null;  
+                     return;
+                 }
+                 
+                 var ids= JSON.parse(callIdsResult.ids);
+                 
+                 if(ids.constructor === Array){
+                     mostRecentInteraction = ids.pop();
+                 }else{
+                     mostRecentInteraction = ids;
+                 }
+                 
+                 getCadForInteraction(mostRecentInteraction);
+                 
+                 getExistingTask(mostRecentInteraction);
+            });
+            
+            $('#saveButton').click(saveTask);
+            
+            $('#openTaskLink').click(function(){
+                console.log("opening task " + $('#openTaskLink').data('id'));
+                sforce.console.openPrimaryTab(null, '/' + taskId, true);
+            });
+            
+            //Find the enclosing primary tab so that we can use that info
+            // to populate the related to lists
+            sforce.console.getEnclosingPrimaryTabId(function(primaryTabResult){
+                sforce.console.getPageInfo(primaryTabResult.id , handleGetPageInfo);
+                
+                //Find the sub tabs of this primary tab and get the info on them too
+                sforce.console.getSubtabIds(primaryTabResult.id, function(subtabResult){
+                    if(subtabResult.ids == '"null"'){
+                    	return;    
+                    }
+                    
+                    var ids = subtabResult.ids;
+                    
+                    if(ids.constructor === Array){
+                    	for(var x=0; x<ids.length; x++){
+                            sforce.console.getPageInfo(ids[x], handleGetPageInfo);
+                        }
+                    }else{
+                        sforce.console.getPageInfo(ids, handleGetPageInfo);
+                    }
+                });
+            });
+            
+        });  
+                    
+        //if the sub tab ever changes, grab the page info for that tab too        
+        sforce.console.onFocusedSubtab(function(result){
+        	sforce.console.getPageInfo(result.id, handleGetPageInfo);
+        });
+
+        //Fired when a new call is added to the user's queue
+    	sforce.console.cti.onCallBegin(function(call){
+            console.log("Call Started");
+            console.log(call);
+            
+            sforce.console.cti.getCallObjectIds(handleGetCallIdsResult);
+        });
+    
+        //.onCallEnd is raised after the call has been removed from the agent's queue.
+        // At this point, the CTI will not update the task any more with the exception 
+        // of Dialer dispositions if it hasn't already been dispositioned
+	    sforce.console.cti.onCallEnd(function(call){
+                console.log("Call ended");
+                console.log(call);
+	            sforce.console.cti.getCallObjectIds(handleGetCallIdsResult);
+        });
+    </script>
+   <b>
+       Custom Interaction Log
+        </b>
+    <table style="width:1200px">
+        <tr>
+            <td><label>Name</label></td>
+            <td><div id='name'></div></td>
+            <td><label>Who</label></td>
+            <td>
+                <apex:selectList id="whoSelect" styleClass="whoSelect" ></apex:selectList>
+            </td>
+            <td>
+            <label>Subject</label>
+            </td>
+            <td>
+                <apex:input id="subject" styleClass="subject" />
+            </td>
+            <td>
+                <button class="btn btn-primary" id='saveButton'>Save</button>
+            </td>
+        </tr>
+        <tr>
+            <td><label>Number</label></td>
+            <td><div id='number'></div></td>
+            <td><label>What</label></td>
+            <td><apex:selectList styleClass="whatSelect" id="whatSelect" ></apex:selectList></td>
+            <td><label>Call Notes</label></td>
+            <td  rowspan="3"><apex:inputTextarea id="callNotes" styleClass="callNotes" rows="3" /></td>
+            <td>
+                <a id='openTaskLink' href='#' >Open Task</a>
+                
+			</td>
+        </tr>
+        <tr>
+            <td><label>Call Id</label></td>
+            <td><div id='callid'></div></td>
+            <td><label>Disposition</label></td>
+            <td><apex:selectList id="dispositionSelect" styleClass="disposition" multiselect="false" size="1" >
+               <apex:selectOptions value="{!dispositions}"/>
+
+                </apex:selectList></td>
+        </tr>
+    </table>
+</apex:form>
+</apex:page>

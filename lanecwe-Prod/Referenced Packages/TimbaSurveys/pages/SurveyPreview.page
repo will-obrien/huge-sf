@@ -1,0 +1,1156 @@
+<apex:page standardController="TIMBASURVEYS__Survey__c" extensions="TIMBASURVEYS.SurveyDesignController" sidebar="false" tabstyle="Timba_Surveys__tab">
+    <apex:include pageName="TIMBASURVEYS__entityEncodeJs" />
+
+    <!-- Custom StyleSheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/common.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/surveyDialogs.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/themedesigner.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/tundra/tundra.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Toaster/Toaster.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Standby/Standby.css')}" />
+
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/navigation_survey_analyzer.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/tabsDisplay.css')}" />
+
+	<apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/SurveyDesignerStyles.css')}" />
+	<apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/surveyPreview.css')}" />
+
+    <apex:composition template="TIMBASURVEYS__timbaSurveysTemplate">
+        <!-- customJs Imports & Script Tags -->
+        <apex:define name="customJs">
+            <!-- Your Content -->
+
+            <script type="text/javascript">
+            	// add required dojo widgets
+            	dojo.require("dojox.widget.Toaster");
+            	dojo.require("dijit.ColorPalette");
+            	
+                var responsesCount = '{!surveyObj.CollectedResponses__c}';//integer
+                var collecting = '{!IF(surveyObj.CollectingData__c, true , false)}';//boolean
+
+                var new_theme_number = "";
+                var uploading_theme_logo = false;
+
+                dojo.addOnLoad(init);
+
+                // THEME EDITION variables
+                var selectedThemeId = '{!JSENCODE(surveyObj.SurveyTheme__c)}';//id
+                var theme_changed = false;
+
+                var SurveyThemes = {};
+                var active_theme_id = selectedThemeId;
+                var refresh_done = false;
+
+                // -----------------------
+
+                var surveyId;
+                var SURVEY_ID;
+
+                function init(){
+                    surveyId = '{!JSENCODE(Survey__c.Id)}';
+                    SURVEY_ID = surveyId;
+                    dojo.addClass(dojo.query('body')[0], 'timbaSurveys');
+
+                    // COLOR PICKER
+                    var cp = new dijit.ColorPalette({
+                        palette: "7x10",
+                        onChange: function(color) {
+
+                            dojo.query('.divforecolor').style('background',color);
+
+                            dojo.addClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+
+                            var params = [];
+                            params.type = "theme_creator_fg_color";
+                            params.color = color;
+
+                            set_theme_attribute(params);
+                        },
+                        id: 'colorpickerselectorfore'
+                    },
+                    "colorselectorforeground");
+
+                    dojo.query("#colorpickerselectorfore").style("position", "absolute");
+                    dojo.query("#colorpickerselectorfore").style("zIndex", "20");
+                    dojo.query("#colorpickerselectorfore").style("display", "none");
+
+                    cp = new dijit.ColorPalette({
+                        palette: "7x10",
+                        onChange: function(color) {
+
+                            dojo.query('.divbackcolor').style('background',color);
+
+                            dojo.addClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+
+                            var params = [];
+                            params.type = "theme_creator_bg_color";
+                            params.color = color;
+
+                            set_theme_attribute(params);
+                        },
+                        id: 'colorpickerselectorback'
+                    },
+                    "colorselectorbackground");
+
+                    dojo.query("#colorpickerselectorback").style("position", "absolute");
+                    dojo.query("#colorpickerselectorback").style("zIndex", "20");
+                    dojo.query("#colorpickerselectorback").style("display", "none");
+
+                    cp = new dijit.ColorPalette({
+                        palette: "7x10",
+                        onChange: function(color) {
+
+                            dojo.query('.divfontcolor').style('background',color);
+
+                            dojo.addClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+
+                            var params = [];
+                            params.type = "theme_creator_font_color";
+                            params.color = color;
+
+                            set_theme_attribute(params);
+                        },
+                        id: 'colorpickerselectorfont'
+                    },
+                    "colorselectorfont");
+
+                    dojo.query("#colorpickerselectorfont").style("position", "absolute");
+                    dojo.query("#colorpickerselectorfont").style("zIndex", "20");
+                    dojo.query("#colorpickerselectorfont").style("display", "none");
+
+                    dojo.connect(dojo.byId('btnBackgroundColor'), 'onclick', showColorPickerBack);
+                    dojo.connect(dojo.byId('btnForegroundColor'), 'onclick', showColorPickerFore);
+                    dojo.connect(dojo.byId('btnFontColor'), 'onclick', showColorPickerFont);
+                    // /\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
+                    dojo.connect(dojo.byId('colorPickerOnBlurClose'), 'onclick', closeAllColorPickers);
+                    dojo.addClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+
+                    dojo.connect(dojo.byId('theme_creator_theme_name'),'onfocus',closeAllColorPickers);
+                    dojo.connect(dojo.byId('theme_creator_redirectURL'),'onfocus',closeAllColorPickers);
+                    dojo.connect(dojo.byId('font_family'),'onfocus',closeAllColorPickers);
+                    dojo.connect(dojo.byId('logo_uploader_iframe'),'onfocus',closeAllColorPickers);
+
+                }
+
+                function showColorPickerBack(){
+                    dojo.query("#colorpickerselectorfont").style("display", "none");
+                    dojo.query("#btnFontColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorfore").style("display", "none");
+                    dojo.query("#btnForegroundColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorback").style("display", "inline-block");
+                    dojo.query("#btnBackgroundColor").style("display", "none");
+
+                    dojo.removeClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+                }
+                function showColorPickerFore(){
+                    dojo.query("#colorpickerselectorfont").style("display", "none");
+                    dojo.query("#btnFontColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorback").style("display", "none");
+                    dojo.query("#btnBackgroundColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorfore").style("display", "inline-block");
+                    dojo.query("#btnForegroundColor").style("display", "none");
+
+                    dojo.removeClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+                }
+                function showColorPickerFont(){
+                    dojo.query("#colorpickerselectorfont").style("display", "inline-block");
+                    dojo.query("#btnFontColor").style("display", "none");
+
+                    dojo.query("#colorpickerselectorback").style("display", "none");
+                    dojo.query("#btnBackgroundColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorfore").style("display", "none");
+                    dojo.query("#btnForegroundColor").style("display", "inline-block");
+
+                    dojo.removeClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+                }
+
+                function closeAllColorPickers(){
+                    dojo.query("#colorpickerselectorfont").style("display", "none");
+                    dojo.query("#btnFontColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorfore").style("display", "none");
+                    dojo.query("#btnForegroundColor").style("display", "inline-block");
+
+                    dojo.query("#colorpickerselectorback").style("display", "none");
+                    dojo.query("#btnBackgroundColor").style("display", "inline-block");
+
+                    dojo.addClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+                }
+
+                function filterInvalidChars(e) {
+                    var kc;
+                    if (window.event) {
+                        kc = e.keyCode;
+                    } else {
+                        kc = e.which;
+                    }
+                    if (kc != 222) return true;
+                        return false;
+                }
+
+                function set_theme_attribute(params){
+
+                    var ref = dojo.byId('theme_creator_preview');
+                    var ref_borders = dojo.byId('division_borders');
+                    var theme = SurveyThemes[active_theme_id];
+
+                    switch(params.type){
+                        case 'theme_creator_fg_color':
+                            var item = dojo.byId(params.type);
+                            ref_borders.style.borderColor = params.color;
+                            theme.foreground_color = params.color;
+                            dojo.query("#colorpickerselectorfore").style("display", "none");
+                            dojo.query("#btnForegroundColor").style("display", "inline-block");
+                            theme_changed = true;
+                            break;
+                        case 'theme_creator_bg_color':
+                            var item = dojo.byId(params.type);
+                            ref.style.backgroundColor = params.color;
+                            theme.background_color = params.color;
+                            dojo.query("#colorpickerselectorback").style("display", "none");
+                            dojo.query("#btnBackgroundColor").style("display", "inline-block");
+                            theme_changed = true;
+                            break;
+                        case 'theme_creator_font_color':
+                            var item = dojo.byId(params.type);
+                            ref.style.color = params.color;
+                            theme.font_color = params.color;
+                            dojo.query("#colorpickerselectorfont").style("display", "none");
+                            dojo.query("#btnFontColor").style("display", "inline-block");
+                            theme_changed = true;
+                            break;
+                        case 'theme_fnt_family':
+                            ref.style.fontFamily = params.font_family;
+                            theme.font_family = params.font_family;
+                            theme_changed = true;
+                            break;
+                        case 'theme_fnt_size':
+                            theme.font_size = params.font_size;
+                            theme_changed = true;
+                            break;
+                        case 'theme_h2_size':
+                            theme.header2_size = params.header2_size;
+                            theme_changed = true;
+                            break;
+                        case 'theme_h1_size':
+                            theme.header1_size = params.header1_size;
+                            theme_changed = true;
+                            break;
+                        case 'theme_name':
+                            theme_changed = true;
+                            theme.name = params.theme_name;
+                            break;
+                        case 'redirectURL':
+                            theme_changed = true;
+                            theme.redirectURL = params.redirectURL;
+                            break;
+                        case 'theme_success_msg':
+                            theme_changed = true;
+                            theme.success_msg = params.theme_success_msg;
+                            break;
+                        case 'attached_img':
+                            dojo.byId('theme_img').innerHTML = '<img src="../servlet/servlet.FileDownload?file='+params.img_id+'" />';
+                            theme.attachment_id = params.img_id;
+                            theme_changed = true;
+                            break;
+                    }
+                }
+
+                function theme_proccess(params){
+                    switch(params.action){
+                        case 'backup_theme':
+                            theme_backup =  dojo.clone(SurveyThemes[params.theme_id]);
+                            break;
+                        case 'cancel':
+                            SurveyThemes[active_theme_id] = theme_backup;
+                            closeThemeSelector();
+                            break;
+                        case 'reload_themes':
+                            theme_creator_overlay.show();
+                            reloadThemesOperation('reload_themes', params);
+                            break;
+                        case 'create':
+                            if (theme_changed){
+                                theme_changed = false;
+                                if (confirm('{!$Label.timbasurveys_surveypreview_want_to_save}')){
+                                    params.action = 'apply';
+                                    theme_proccess(params);
+                                    params.action = 'save';
+                                    theme_proccess(params);
+                                }
+                            }
+                            theme_creator_overlay.show();
+                            //Set new number for the theme to create:
+                            var actual_themes = dojo.query('#themes_dropdown option');
+                            var count = 1;
+                            while(count < 9999){
+                                var exists = false;
+                                for(var i = 0; i < actual_themes.length; i++){
+                                    if(actual_themes[i].innerHTML == '{!$Label.timbasurveys_surveypreview_New_Theme} ' + count){
+                                        exists = true;
+                                        break;
+                                    }
+                                }
+                                if(exists == false){
+                                    new_theme_number = count;
+                                    break;
+                                }else{
+                                    count++;
+                                    new_theme_number = count;
+                                }
+                            }
+                            createThemeOperation('create_theme', new_theme_number);
+                            break;
+                        case 'apply':
+                            var themename = dojo.trim( dojo.byId('theme_creator_theme_name').value );
+
+                            if(themename != ''){
+
+                                //Check if theme already exists:
+                                themename = dojo.trim(themename);
+                                var dropDown = dojo.query('#themes_dropdown')[0];
+                                var actual_themes = dojo.query('#themes_dropdown option');
+                                var name_already_exists = false;
+                                var default_theme_updated= false;
+                                for(var i = 0; i < actual_themes.length; i++){
+                                    var st = actual_themes[i].innerHTML;
+                                    st = dojo.trim(st);
+                                    //Check Already Exists
+                                    if(st == themename){
+                                        if(i != dropDown.selectedIndex){
+                                            name_already_exists = true;
+                                            break;
+                                        }
+                                    }
+                                    //Check Default Name
+                                    if(st == 'Default'){
+                                        if(i == dropDown.selectedIndex){
+                                            if(themename!='Default'){
+                                                default_theme_updated=true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                }
+
+                                if(name_already_exists == true){
+                                    alert('{!$Label.timbasurveys_surveypreview_The_Theme_name}');
+                                }else{
+                                    if(default_theme_updated==true){
+                                        alert('{!$Label.timbasurveys_surveypreview_Default_Theme_name}');
+
+                                    }else{
+                                        theme_creator_overlay.show();
+                                        applyThemeOperation('apply_theme', active_theme_id);
+                                    }
+                                }
+                            }else{
+                                alert('{!$Label.timbasurveys_surveypreview_Theme_name_cannot}');
+                            }
+                            break;
+                        case 'silent_apply':
+                            applyThemeOperation('apply_theme',active_theme_id);
+                            break;
+                        case 'load':
+                            var theme = SurveyThemes[params.theme_id];
+
+                            dojo.query('#themes_dropdown option').forEach(function(e){
+                                if(theme.id == e.value){
+                                    e.selected = 'selected';
+                                } else {
+                                    e.selected = '';
+                                }
+                            });
+
+                            dojo.byId('font_family').value = theme.font_family;
+                            dojo.byId('font_size').value = (theme.font_size != 'null')?theme.font_size:'12';
+                            dojo.byId('header2_size').value = (theme.header2_size != 'null')?theme.header2_size:'14';
+                            dojo.byId('header1_size').value = (theme.header1_size != 'null')?theme.header1_size:'26';
+
+
+                            if(theme.success_msg=='null'){
+                                dojo.byId('theme_creator_theme_success_msg').value = '{!$Label.timbasurveys_Survey_Survey_Saved}';
+                            }else{
+                                dojo.byId('theme_creator_theme_success_msg').value = theme.success_msg;
+                            }
+
+                            if(theme.redirectURL != 'null'){
+                                dojo.byId('theme_creator_redirectURL').value = theme.redirectURL;
+                            }
+
+                            dojo.query('#font_family option').forEach(function(e){
+                                if(theme.font_family == e.value){
+                                    e.selected = 'selected';
+                                } else {
+                                    e.selected = '';
+                                }
+                            });
+                            dojo.query('#font_size option').forEach(function(e){
+                                if(theme.font_size == e.value){
+                                    e.selected = 'selected';
+                                } else {
+                                    e.selected = '';
+                                }
+                            });
+                            dojo.query('#header2_size option').forEach(function(e){
+                                if(theme.header2_size == e.value){
+                                    e.selected = 'selected';
+                                } else {
+                                    e.selected = '';
+                                }
+                            });
+                            dojo.query('#header1_size option').forEach(function(e){
+                                if(theme.header1_size == e.value){
+                                    e.selected = 'selected';
+                                } else {
+                                    e.selected = '';
+                                }
+                            });
+
+                            dojo.byId('theme_creator_theme_name').value = entity.decode(theme.name);
+                            dojo.byId('logo_uploader_iframe').src = '{!$Page.file_upload}?parent_id=' + encodeURI(theme.id);
+
+                            if(theme_attachment_refresh_point){
+                                theme_attachment_refresh_point = false;
+                            }
+
+                            theme_proccess({
+                                action:'load_custom_css'
+                            });
+
+                            theme_creator_overlay.hide();
+
+                            break;
+                        case 'preview':
+
+                            theme_creator_overlay.show();
+
+                            var ref = dojo.byId('theme_creator_preview');
+                            var ref_borders = dojo.byId('division_borders');
+                            var theme = SurveyThemes[params.theme_id];
+
+                            active_theme_id = params.theme_id;
+
+                            dojo.byId('theme_creator_theme_name').value = theme.name;
+                            ref.style.color = theme.font_color;
+                            ref_borders.style.borderColor = theme.foreground_color;
+                            ref.style.backgroundColor = theme.background_color;
+                            ref.style.fontColor = theme.font_color;
+                            ref.style.fontFamily = theme.font_family;
+
+                            // - - - -
+                            dojo.query('.divforecolor').style('background',theme.foreground_color);
+                            dojo.query('.divbackcolor').style('background',theme.background_color);
+                            dojo.query('.divfontcolor').style('background',theme.font_color);
+                            dojo.byId('theme_creator_css_editor_div').style.display = 'none';
+                            dojo.byId('theme_creator_div').style.display = '';
+                            // - - - -
+
+                            if(theme.has_img){
+                                dojo.byId('theme_img').innerHTML = '<img src="../servlet/servlet.FileDownload?file='+theme.img_id+'" />';
+                            } else {
+                                dojo.byId('theme_img').innerHTML = '';
+                            }
+
+                            theme_proccess({
+                                action: 'load' ,
+                                theme_id : active_theme_id
+                            });
+
+                            if(params.callback != null){
+                                theme_proccess({
+                                    action: 'silent_apply'
+                                });
+                            }
+
+                            break;
+                        case 'delete':
+                            if( dojo.byId('themes_dropdown').length < 2 ){
+                                alert('{!$Label.timbasurveys_surveypreview_You_need_at}');
+                                break;
+                            }
+                            if(confirm('{!$Label.timbasurveys_branchingJS_are_u_sure}')){
+                                theme_creator_overlay.show();
+                                deleteThemeOperation('delete_theme', active_theme_id);
+                            }
+                            break;
+                        case 'load_custom_css':
+                            getThemeCustomCssOperation('get_theme_custom_css', active_theme_id);
+                            break;
+                        case 'save':
+                        case 'silent_save':
+                            theme_creator_overlay.show();
+
+                            var theme = SurveyThemes[active_theme_id];
+                            dojo.byId('hidden_bg_color').value = theme.background_color;
+                            dojo.byId('hidden_fg_color').value = theme.foreground_color;
+                            dojo.byId('hidden_font_color').value = theme.font_color;
+
+                            // set theme name
+                            theme.name = dojo.trim( dojo.byId('theme_creator_theme_name').value );
+                            dojo.byId('hidden_theme_name').value = entity.encode(theme.name);
+                            dojo.byId('hidden_redirectURL').value = theme.redirectURL;
+                            dojo.byId('hidden_font_family').value = theme.font_family;
+                            dojo.byId('hidden_font_size').value = theme.font_size;
+                            dojo.byId('hidden_header2_size').value = theme.header2_size;
+                            dojo.byId('hidden_header1_size').value = theme.header1_size;
+
+                            var noBrakesMsg=theme.success_msg.replace(/(\r\n|\n|\r)/gm," ");
+                            theme.success_msg=noBrakesMsg;
+
+                            theme.success_msg=dojo.trim(theme.success_msg);
+                            dojo.byId('hidden_success_msg').value = theme.success_msg;
+
+                            // erase all tags ..
+                            var strInputCode = dojo.byId('customCSS_container').value;
+                            strInputCode = strInputCode.replace(/&(lt|gt);/g, function (strMatch, p1){
+                                return (p1 == "lt")? "<" : ">";
+                            });
+                            var strTagStrippedText = strInputCode.replace(/<\/?[^>]+(>|$)/g, "");
+                            strTagStrippedText =  strTagStrippedText.replace(/.powered/gi, "");
+                            dojo.byId('hidden_customCSS_container').value = strTagStrippedText;
+                            var theme = SurveyThemes[active_theme_id];
+                            saveThemeOperation('save_theme',active_theme_id,theme.name,theme.background_color,theme.foreground_color,theme.font_family,theme.font_color,theme.font_size,theme.header2_size,theme.header1_size,strTagStrippedText,theme.success_msg,theme.redirectURL, params.reload);
+                            break;
+                    }
+                }
+
+                function getThemeCustomCssCompleted(data){
+                    dojo.byId('customCSS_container').value = data;
+                }
+
+                function reloadThemesCompleted(outputMessage, params){
+                    active_theme_id = params.theme_id;
+                    uploading_theme_logo = false;
+                    var response = dojo.fromJson(outputMessage);
+                    if(response.success){
+                        delete SurveyThemes;
+                        var SurveyThemesNew = {};
+                        var theme_picklist_content = '<select class="menutheme" onchange="showThemeChooserDialog();" id="themes_dropdown" onclick="closeAllColorPickers()">';
+                        var refreshed_theme_list = response.themes;
+                        for(var i = 0; i < refreshed_theme_list.length; i++ ){
+                            if(refreshed_theme_list[i].id != undefined){
+                                refreshed_theme_list[i].name = refreshed_theme_list[i].name.replace(/&amp;/g,'&');
+                                SurveyThemesNew[refreshed_theme_list[i].id] = refreshed_theme_list[i];
+                                theme_picklist_content += '<option value="'+refreshed_theme_list[i].id+'" >'+refreshed_theme_list[i].name+'</option> ';
+                            }
+                        }
+                        theme_picklist_content += '</select>';
+                        SurveyThemes = SurveyThemesNew;
+
+                        if( active_theme_id == null || active_theme_id == '' ){
+                            for(var st in SurveyThemes){
+                                active_theme_id = st;
+                                break;
+                            }
+                        }
+                        if( selectedThemeId == null || selectedThemeId == '' ){
+                            for(var st in SurveyThemes){
+                                selectedThemeId = st;
+                                break;
+                            }
+                        }
+
+                        // check if actual theme already exists in the list:
+                        var theme_exist = 0;
+                        for (var st in SurveyThemes){
+                            if(st == selectedThemeId){
+                                theme_exist++;
+                            }
+                        }
+                        if(theme_exist == 0){
+                            for (var st in SurveyThemes){
+                                selectedThemeId = st;
+                                break;
+                            }
+                        }
+                        theme_exist = 0;
+                        for (var st in SurveyThemes){
+                            if(st == active_theme_id){
+                                theme_exist++;
+                            }
+                        }
+                        if(theme_exist == 0){
+                            for (var st in SurveyThemes){
+                                active_theme_id = st;
+                                break;
+                            }
+                        }
+                        // ---------
+                        dojo.byId('themes_dropdown_container').innerHTML = theme_picklist_content;
+                        if(theme_attachment_refresh_point){
+                            theme_proccess({
+                                action:'preview',
+                                theme_id: active_theme_id
+                            });
+                        }
+                        dojo.query('#themes_dropdown option').forEach(function(e){
+                            if(active_theme_id == e.value){
+                                e.selected = 'selected';
+                            } else {
+                                e.selected = '';
+                            }
+                        });
+                        theme_creator_overlay.hide();
+                        showThemeChooserDialog();
+                    }else{
+                        theme_creator_overlay.hide();
+                    }
+                }
+
+                function saveThemeCompleted(success, paramsReload){
+                    if (success == 'true'){
+                        if(paramsReload == 'true'){
+                            closeThemeSelector();
+                            //theme_proccess({ action: 'reload_themes'});
+                            if(uploading_theme_logo = true){
+                                theme_proccess({action:'reload_themes', theme_id:active_theme_id});
+                            }else{
+                                theme_proccess({action:'reload_themes', theme_id:selectedThemeId});
+                            }
+                            uploading_theme_logo = false;
+                        }
+                        theme_creator_overlay.hide();
+                        dojo.byId('previewer_iframe').src = dojo.byId('previewer_iframe').src;
+                        if( typeof(overlay) != "undefined" ){
+                            if(overlay != null){
+                                overlay.show();
+                            }
+                        }
+                    }else{
+                        alert(error);
+                        theme_creator_overlay.hide();
+                    }
+                }
+
+                function applyThemeCompleted(success){
+                    if(success == 'true'){
+                        selectedThemeId = active_theme_id;
+                        theme_proccess({
+                            action:'silent_save'
+                        });
+                        theme_creator_overlay.hide();
+                        closeThemeSelector();
+                    }else{
+                        alert(error);
+                        theme_creator_overlay.hide();
+                    }
+                }
+
+                function deleteThemeCompleted(success, defaultTheme){
+                    if(success == 'true'){
+                        theme_proccess({
+                            action: 'reload_themes',
+                            theme_id: selectedThemeId
+                        });
+                        dojo.byId('previewer_iframe').src = dojo.byId('previewer_iframe').src;
+                     }else if(defaultTheme == 'true'){
+                        alert('{!$Label.timbasurveys_surveypreview_Default_Theme_Deleted}');
+                        theme_creator_overlay.hide();
+                     }else{
+                        alert(error);
+                        theme_creator_overlay.hide();
+                     }
+            }
+                var theme_attachment_refresh_point = false;
+
+                function set_refresh_point(){
+                    theme_attachment_refresh_point = true;
+                }
+
+                function check_refresh_point(){
+                    if(theme_attachment_refresh_point){
+                        theme_proccess({action:'silent_save', reload: true});
+
+                        //closeThemeSelector();
+                    }
+                }
+
+                function add_custom_css(){
+                    closeAllColorPickers();
+                    if(confirm('{!$Label.timbasurveys_surveypreview_WARNING}')){
+                        if(SurveyThemes[active_theme_id].CustomCSS != null){
+                            dojo.byId('customCSS_container').innerHTML = SurveyThemes[active_theme_id].CustomCSS;
+                        }
+                        dojo.byId('theme_creator_css_editor_div').style.display = ''; //dojo.byId('theme_creator_css_editor').style.display = '';
+                        dojo.byId('theme_creator_div').style.display = 'none'; //dojo.byId('theme_creator').style.display = 'none';
+                    }
+                }
+
+                function save_custom_CSS(){
+                    SurveyThemes[active_theme_id].CustomCSS = dojo.byId('customCSS_container').innerHTML;
+                    dojo.byId('theme_creator_css_editor_div').style.display = 'none'; //dojo.byId('theme_creator_css_editor').style.display = 'none';
+                    dojo.byId('theme_creator_div').style.display = ''; //dojo.byId('theme_creator').style.display = '';
+                }
+
+                function cancel_custom_CSS(){
+                    dojo.byId('theme_creator_css_editor_div').style.display = 'none'; //dojo.byId('theme_creator_css_editor').style.display = 'none';
+                    dojo.byId('theme_creator_div').style.display = ''; //dojo.byId('theme_creator').style.display = '';
+                }
+
+                function showThemeChooserDialog(setDefault) {
+                    dojo.query("#colorpickerselectorfore").style("display", "none");
+                    dojo.query("#btnForegroundColor").style("display", "inline-block");
+                    dojo.query("#colorpickerselectorback").style("display", "none");
+                    dojo.query("#btnBackgroundColor").style("display", "inline-block");
+                    dojo.query("#colorpickerselectorfont").style("display", "none");
+                    dojo.query("#btnFontColor").style("display", "inline-block");
+
+                    dojo.addClass(dojo.byId('colorPickerOnBlurClose'), 'displaynone');
+
+                    if(setDefault == true){
+                        theme_proccess({action:'backup_theme', theme_id : active_theme_id });
+                        theme_proccess({action:'preview', theme_id : active_theme_id });
+                    }else{
+                        theme_proccess({action:'backup_theme', theme_id : dojo.byId('themes_dropdown').value });
+                        theme_proccess({action:'preview', theme_id : dojo.byId('themes_dropdown').value });
+                    }
+
+                    dijit.byId('selectThemeDialog').show();
+
+                    if( typeof(overlay) != "undefined" ){
+                        if( overlay != null ){
+                            overlay.hide();
+                        }
+                    }
+                }
+
+                function closeThemeSelector(){
+                    dijit.byId('selectThemeDialog').hide();
+                }
+
+                function previewer_iframe_finished_loading(){
+                    if( typeof(overlay) != "undefined" ){
+                        if( overlay != null ){
+                            overlay.hide();
+                        }
+                    }
+                }
+
+                function showThemeOverlay(){
+                    theme_creator_overlay.show();
+                }
+
+                function hideThemeOverlay(){
+                    theme_creator_overlay.hide();
+                }
+
+                function goToEditSurvey(){
+                    if( responsesCount > 0 ){
+                        alert('{!$Label.timbasurveys_surveypreview_can_not_edit}');
+                    }else if( collecting == 'true' ){
+                        alert('{!$Label.timbasurveys_surveypreview_can_not_edit_there_are}.');
+                    }else{
+                        window.location='{!$Page.DesignSurvey}?id={!TIMBASURVEYS__Survey__c.Id}';
+                    }
+                }
+
+                function showOverlay() {
+                    if(typeof(overlay) != 'undefined') {
+                        overlay.show();
+                        theme_proccess({action:'reload_themes', theme_id:selectedThemeId});
+                    } else {
+                        var id = setTimeout("showOverlay()",1000);
+                    }
+                }
+
+                // Fires an event on a determined DOM node.
+                function fireEventOnAnyBrowser(domNode, eventNameFirefox, eventNameIE) {
+                    // Firefox etc.
+                    if (document.createEvent) {
+                        event = document.createEvent("HTMLEvents");
+                        event.initEvent(eventNameFirefox, false, true);
+                        domNode.dispatchEvent(event);
+                    } else { // IE
+                        domNode.fireEvent(eventNameIE);
+                    }
+                }
+
+                function overlayAction(type){
+
+                    if (overlay != undefined){
+
+                        if (type=='show'){
+                            overlay.show();
+                        }else{
+                            overlay.hide();
+                        }
+                    }
+
+                }
+
+                function createThemeCompleted(success, new_theme_id){
+                       if(success == 'true'){
+                           theme_attachment_refresh_point = true;
+                           active_theme_id = new_theme_id;
+                           theme_proccess({
+                               action: 'reload_themes',
+                               theme_id: active_theme_id
+                           });
+                           theme_creator_overlay.hide();
+                       }else{
+                        alert(error);
+                        theme_creator_overlay.hide();
+                    }
+                }
+
+                function clickElement(domNode) {
+                    fireEventOnAnyBrowser(domNode, "click", "onclick");
+                }
+
+                function closeThemeEditor() {
+                    var cancelX = dojo.query("#selectThemeDialog .dijitDialogCloseIcon")[0];
+                    clickElement(cancelX);
+                }
+            </script>
+        </apex:define>
+        <!-- BreadCrumb -->
+        <apex:define name="breadCrumb">
+        <c:timbaSurveysBreadCrumb steps="{!$Label.timbasurveys__timbasurveys_Survey_List}:::{!$Page.TIMBASURVEYS__SurveyList},,,{!TIMBASURVEYS__Survey__c.name}"/>
+    </apex:define>
+        <!-- Body Section -->
+        <apex:define name="body">
+            <div data-dojo-type="dijit.layout.ContentPane" title="{!$Label.timbasurvey_Analyze_Analyze_Items}" id="analyze">
+                <apex:outputPanel styleClass="tabSet" layout="block">
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyOverview}" styleClass="tabElem">
+                        <apex:param name="id" value="{!TIMBASURVEYS__Survey__c.Id}" />
+                        <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_overview}" />
+                    </apex:outputLink>
+                    <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.updateable}">
+                       <a href="javascript:;" onclick="return false;" class="tabElem imIn">
+                        	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyCollect_Design}" />
+                        </a>
+                    </apex:outputpanel>
+                    <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.updateable && SurveyQuestions.size > 0}">
+                       <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyCollect}" styleClass="tabElem">
+                            <apex:param name="id" value="{!TIMBASURVEYS__Survey__c.Id}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Collect}" />
+                        </apex:outputLink>
+                    </apex:outputpanel>
+                    <apex:outputpanel layout="none" rendered="{!If(TIMBASURVEYS__Survey__c.TIMBASURVEYS__CollectedResponses__c == 0 , false, true)}">
+                        <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="tabElem">
+                            <apex:param name="id" value="{!TIMBASURVEYS__Survey__c.Id}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_analize}" />
+                        </apex:outputLink>
+                    </apex:outputpanel>
+                    <div class="marginInf"></div>
+                </apex:outputPanel>
+
+                <div class="banner" style="text-align: right;">
+                    <button class="surveyButton" style="outline: none;" onclick="showOverlay();"><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/palette_brush.png')}" />{!$Label.timbasurveys_tabs_customize_theme}</button>
+                    <button class="surveyButton" style="outline: none;display:{!IF(surveyObj.CollectedResponses__c > 0 || surveyObj.CollectingData__c,'none','')};" onclick="goToEditSurvey()"><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/edit.png')}" />{!$Label.timbasurveys_tabs_Edit_Survey}</button>
+                </div>
+
+
+                <div class="masterContainer" style="overflow-x: hidden;" id="masterContainer_previewer">
+                    <iframe onload="previewer_iframe_finished_loading()" src="{!$Page.Survey}?id={!TIMBASURVEYS__Survey__c.Id}&prev=true" style="margin: 0; padding: 0; border: 1px solid #6A97A7; overflow-x: hidden; overflow-y: scroll; outline: none; width: 100%; height: 600px;" id="previewer_iframe" width="100%" frameborder="0" >
+                    </iframe>
+                </div>
+            </div>
+
+
+
+            <!--
+                Select Theme dialog
+            -->
+            <div id="selectThemeDialog" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurveys_surveypreview_Theme_Selector}" closable="false" style="display:none">
+
+                <div id="colorPickerOnBlurClose"></div>
+                <div class="marginout" id="theme_creator_div">
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_Color_Scheme}:</div>
+                        <div class="floatleft">
+                            <div id="themes_dropdown_container" class="floatleft" >
+                                <select id="themes_dropdown" class="menutheme" onchange="showThemeChooserDialog(true);" onclick="closeAllColorPickers()">
+                                    <apex:repeat value="{!ThemeList}" var="theme">
+                                        <option value="{!theme.id}" >{!theme.Name}</option>
+                                    </apex:repeat>
+                                </select>
+                            </div>
+                            <button type="button"  class="surveyButton themePanelBtn" style="outline: none;width: 110px;" onclick="theme_proccess({action:'create'});" ><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/new.png')}" />{!$Label.timbasurveys_surveypreview_New_Theme}</button>
+                            <button type="button"  class="surveyButton themePanelBtn" style="outline: none;" onclick="theme_proccess({action:'delete'});"><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/trashcan.png')}" />{!$Label.timbasurveys_surveypreview_Delete}</button>
+                            <!--  <button type="button"  class="surveyButton themePanelBtn" style="outline: none;" onclick="theme_proccess({action:'reload_themes', theme_id:selectedThemeId});" ><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/restore.png')}" />{!$Label.timbasurveys_surveypreview_Restore}</button> -->
+
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurvey_surveylist_Preview}:</div>
+
+                        <div class="floatleft">
+                            <div class="theme_previewer" id="theme_creator_preview">
+                                <div class="title">{!$Label.timbasurveys_surveypreview_Customer_Evaluation_survey}</div> <div class="theme_attached_img" id="theme_img"></div>
+                                <div class="desc_division" id="division_borders">Lorem ipsum dolor sit amet valhalla ropsum dile actem</div>
+                                <p class="question">{!$Label.timbasurveys_surveypreview_Your_question}</p>
+                                <p class="option">{!$Label.timbasurveys_surveypreview_Option}</p>
+                                <p class="option">{!$Label.timbasurveys_surveypreview_Option}</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="container">
+                        <!-- THEME NAME -->
+                        <div class="labels">{!$Label.timbasurvey_surveylist_Name}:</div>
+                        <div class="floatleft">
+                            <input type="text" name="theme_name" onkeydown="return filterInvalidChars(event)" onkeyup="set_theme_attribute({ theme_name : this.value, type: 'theme_name' });"  id="theme_creator_theme_name"  maxlength="20"/>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <!-- THEME SUCCESSFUL MSG -->
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_Success_Save_Msg}:</div>
+                        <div class="floatleft">
+                            <textarea name="theme_success_msg" onkeydown="return filterInvalidChars(event)" onkeyup="set_theme_attribute({ theme_success_msg : this.value, type: 'theme_success_msg' });"
+                              id="theme_creator_theme_success_msg" ></textarea>
+                        </div>
+                    </div>
+
+                    <div class="container" style="overflow: visible;">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_Foreground}:</div>
+                        <div class="floatleft">
+
+                            <div class="divforecolor"></div>
+
+                            <div class="divColorPickerContainer">
+                                <div id="colorselectorforeground"></div>
+                            </div>
+
+                            <button type="button" class="surveyButton vertmid" style="outline: none;" id="btnForegroundColor" ><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/palette.png')}" /></button>
+                        </div>
+                    </div>
+
+                    <div class="container" style="overflow: visible;">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_Background}:</div>
+                        <div class="floatleft">
+
+                            <div class="divbackcolor"></div>
+
+                            <div class="divColorPickerContainer">
+                                <div id="colorselectorbackground"></div>
+                            </div>
+
+                            <button type="button" class="surveyButton vertmid" style="outline: none;" id="btnBackgroundColor" ><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/palette.png')}" /></button>
+                        </div>
+                    </div>
+
+                    <div class="container" style="overflow: visible;">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_FontColor}:</div>
+                        <div class="floatleft">
+
+                            <div class="divfontcolor"></div>
+
+                            <div class="divColorPickerContainer">
+                                <div id="colorselectorfont"></div>
+                            </div>
+
+                            <button type="button" class="surveyButton vertmid" style="outline: none;" id="btnFontColor" ><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/palette.png')}" /></button>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_Font_family}:</div>
+                        <div class="floatleft">
+                            <select onchange="set_theme_attribute({ font_family : this.value, type: 'theme_fnt_family' } );" class="menutheme" id="font_family" >
+                                <option value="Arial, Helvetica, sans-serif">Arial, Helvetica, sans-serif </option>
+                                <option value="Times New Roman, Times, serif">Times New Roman, Times, serif</option>
+                                <option value="Bookman Old Style, serif">Bookman Old Style, serif</option>
+                                <option value="Courier New, Courier, monospace">Courier New, Courier, monospace </option>
+                                <option value="Trebuchet MS, Helvetica, sans-serif">Trebuchet MS, Helvetica, sans-serif</option>
+                                <option value="Verdana, Geneva, sans-serif">Verdana, Geneva, sans-serif</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_FontSize}:</div>
+                        <div class="floatleft">
+                            <select onchange="set_theme_attribute({ font_size : this.value, type: 'theme_fnt_size' } );" class="menutheme" id="font_size" >
+                                <option value="10">10</option>
+                                <option value="12">12</option>
+                                <option value="14">14</option>
+                                <option value="16">16</option>
+                                <option value="18">18</option>
+                                <option value="20">20</option>
+                                <option value="22">22</option>
+                                <option value="24">24</option>
+                                <option value="26">26</option>
+                                <option value="28">28</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_QuestionSize}:</div>
+                        <div class="floatleft">
+                            <select onchange="set_theme_attribute({ header2_size : this.value, type: 'theme_h2_size' } );" class="menutheme" id="header2_size" >
+                                <option value="10">10</option>
+                                <option value="12">12</option>
+                                <option value="14">14</option>
+                                <option value="16">16</option>
+                                <option value="18">18</option>
+                                <option value="20">20</option>
+                                <option value="22">22</option>
+                                <option value="24">24</option>
+                                <option value="26">26</option>
+                                <option value="28">28</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_TitleSize}:</div>
+                        <div class="floatleft">
+                            <select onchange="set_theme_attribute({ header1_size : this.value, type: 'theme_h1_size' } );" class="menutheme" id="header1_size" >
+                                <option value="10">10</option>
+                                <option value="12">12</option>
+                                <option value="14">14</option>
+                                <option value="16">16</option>
+                                <option value="18">18</option>
+                                <option value="20">20</option>
+                                <option value="22">22</option>
+                                <option value="24">24</option>
+                                <option value="26">26</option>
+                                <option value="28">28</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <!-- THEME REDIRECT URL -->
+                        <div class="labels">{!$Label.timbasurvey_surveylist_RedirectURL}:</div>
+                        <div class="floatleft">
+                            <input type="text" name="redirectURL" onkeydown="return filterInvalidChars(event)" onkeyup="set_theme_attribute({ redirectURL : this.value, type: 'redirectURL' });"  id="theme_creator_redirectURL"  maxlength="255"/>
+                        </div>
+                    </div>
+
+                    <div class="container">
+                        <apex:outputPanel styleClass="labels">
+                        	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveypreview_Upload_logo}:" />
+                        </apex:outputPanel>
+                        <div class="floatleft" style="padding-left: -30px !important;">
+                            <!-- <input type="file" value="Upload" /><br /> -->
+                            <iframe src="" scrolling="no" style="margin-left: 0px; margin-top: 0px; border:none !important; overflow: hidden; outline: none;" id="logo_uploader_iframe" onload="uploading_theme_logo = true; check_refresh_point();" width="500px" height="30px" frameborder="0" /><br />
+                            <span class="fontcomment" style="float:none;">{!$Label.timbasurveys_surveypreview_Recommended_size}.</span> <br />
+                            <span class="fontcomment" style="float:none;">{!$Label.timbasurveys_surveypreview_If_the_size}.</span>
+                        </div>
+
+                    </div>
+
+                    <div class="container">
+                        <div class="labels">{!$Label.timbasurveys_surveypreview_StyleSheet}:</div>
+                        <div class="floatleft">
+
+                            <button type="button" class="surveyButton themePanelBtn" onclick="add_custom_css();"><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2, 'img/icons/css_file.png')}" />{!$Label.timbasurveys_surveypreview_EditCSS}</button><br /><br />
+                            <span class="fontcomment" style="float:none;">{!$Label.timbasurveys_surveypreview_Only_for_advanced}.</span>
+
+                        </div>
+                    </div>
+
+                    <div class="container" style="margin-bottom: 0px;">
+                        <button id="cancelTheme" type="button" onclick="closeThemeEditor();" class="surveyButton themePanelBtn confirmTheme">
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_cancel}" />
+                        </button>
+                        <button id="saveTheme" type="button" onclick="theme_proccess({action:'apply'});" class="surveyButton themePanelBtn confirmTheme">
+                            <img src="{!URLFOR($Resource.SurveyResources2, 'img/icons/save.png')}" class="vertmid confirmButton" />
+                            {!$Label.timbasurveys_surveypreview_Save}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="marginout" style="display:none;" id="theme_creator_css_editor_div" >
+                    <div class="theme_custom_css" id="theme_creator_css_editor">
+                        <textarea rows="25" cols="80" id="customCSS_container" style="width: 100%;"></textarea>
+                        <br /><br />
+                        <span class="fontcomment">{!$Label.timbasurveys_surveypreview_Any_HTML_tags} <a href="http://sites.google.com/a/timbasoftware.com/timba-surveys/how-to/design-a-survey/survey-css-reference" target="_blank">{!$Label.timbasurveys_surveypreview_here}</a>.</span><br /><br />
+                        <button type="button" class="surveyButton" onclick="save_custom_CSS();">{!$Label.timbasurveys_surveypreview_Done_Edition}</button><br />
+                    </div>
+                </div>
+
+                <div class="hidden_theme_form" style="display:none;">
+                    <form id="theme_data" action="" name="theme_data">
+                        <input type="hidden" name="bg_color" id="hidden_bg_color" />
+                        <input type="hidden" name="fg_color" id="hidden_fg_color" />
+                        <input type="hidden" name="font_color" id="hidden_font_color" />
+                        <input type="hidden" name="font_family"  id="hidden_font_family" />
+                        <input type="hidden" name="font_size"  id="hidden_font_size" />
+                        <input type="hidden" name="header2_size"  id="hidden_header2_size" />
+                        <input type="hidden" name="header1_size"  id="hidden_header1_size" />
+                        <input type="hidden" name="success_msg"  id="hidden_success_msg" />
+                        <input type="hidden" name="theme_name"  id="hidden_theme_name" />
+                        <input type="hidden" name="redirectURL"  id="hidden_redirectURL" />
+                        <textarea rows="30" columns="10" id="hidden_customCSS_container" name="customCSS"></textarea>
+                    </form>
+                </div>
+            </div>
+        <!-- END Select Theme dialog -->
+            <div data-dojo-id="overlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'analyze', color: 'white'"></div>
+            <div data-dojo-id="overlay_previewer_iframe" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'masterContainer_previewer', color: 'white'"></div>
+            <div data-dojo-id="theme_creator_overlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'theme_creator_div', color: 'white'"></div>
+            <div data-dojo-type="dojox.widget.Toaster" id="toast" data-dojo-props="positionDirection: 'br-up', duration: 0" style="display:hide"></div>
+        </apex:define>
+    </apex:composition>
+    <apex:outputPanel id="myStateSurveyPreview" rendered="false" />
+    <apex:form id="SurveyPreviewActions">
+        <apex:actionFunction name="createThemeOperation" action="{!doOperation}" rerender="myStateSurveyPreview" oncomplete="createThemeCompleted('{!success}','{!TSthemeNumber}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSthemeNumber" value="" assignTo="{!TSthemeNumber}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="deleteThemeOperation" action="{!doOperation}" rerender="myStateSurveyPreview" oncomplete="deleteThemeCompleted('{!success}','{!defaultTheme}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSthemeId" value="" assignTo="{!TSthemeId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="applyThemeOperation" action="{!doOperation}" rerender="myStateSurveyPreview" oncomplete="applyThemeCompleted('{!success}','{!defaultTheme}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSthemeId" value="" assignTo="{!TSthemeId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="saveThemeOperation" action="{!doOperation}" rerender="myStateSurveyPreview" oncomplete="saveThemeCompleted('{!success}','{!TSreloadTheme}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSthemeId" value="" assignTo="{!TSthemeId}" />
+            <apex:param name="TSthemeName" value="" assignTo="{!TSthemeName}" />
+            <apex:param name="TSbgColor" value="" assignTo="{!TSbgColor}" />
+            <apex:param name="TSfgColor" value="" assignTo="{!TSfgColor}" />
+            <apex:param name="TSfontFamily" value="" assignTo="{!TSfontFamily}" />
+            <apex:param name="TSfontColor" value="" assignTo="{!TSfontColor}" />
+            <apex:param name="TSfontSize" value="" assignTo="{!TSfontSize}" />
+            <apex:param name="TSheader2Size" value="" assignTo="{!TSheader2Size}" />
+            <apex:param name="TSheader1Size" value="" assignTo="{!TSheader1Size}" />
+            <apex:param name="TScustomCSS" value="" assignTo="{!TScustomCSS}" />
+            <apex:param name="TSsuccessMsg" value="" assignTo="{!TSsuccessMsg}" />
+            <apex:param name="TSredirectURL" value="" assignTo="{!TSredirectURL}" />
+            <apex:param name="TSreloadTheme" value="" assignTo="{!TSreloadTheme}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="reloadThemesOperation" oncomplete="reloadThemesCompleted('{!outputMessage}','{!TSparams}')" action="{!doOperation}" rerender="myStateSurveyPreview" >
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSparams" value="" assignTo="{!TSparams}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="getThemeCustomCssOperation" oncomplete="getThemeCustomCssCompleted('{!outputMessage}')" action="{!doOperation}" rerender="myStateSurveyPreview" >
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSthemeId" value="" assignTo="{!TSthemeId}" />
+        </apex:actionFunction>
+    </apex:form>
+     <apex:outputPanel id="additionalSurveyData" rendered="false">
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.SurveyTheme__r.TIMBASURVEYS__RedirectURL__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.Name}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__Description__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__Description2__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__CollectedResponses__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__AllowAnonymousRecipients__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__AllowMultiFill__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__RequireLeads__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__CreateLeads__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.SurveyTheme__r}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__NumberOfPages__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__CollectingData__c}" />
+     </apex:outputPanel>
+</apex:page>

@@ -1,0 +1,132 @@
+<apex:page tabStyle="sf4twitter__Fcbk_User__c" controller="sf4twitter.FcbkUserFanPagesController" title="{!$Label.FACEBOOK_FAN_PAGE_TITLE}" >
+
+    <script src="{!URLFOR($Resource.jQueryLibrary)}"></script>
+    
+    <apex:outputPanel rendered="{!DoLoadCriteria}">
+        <style type="text/css">
+            body {
+                display:none;
+            }
+        </style>
+        <apex:form >
+            <apex:actionFunction name="loadCriteria" action="{!loadCriteria}" />
+        </apex:form>
+        <script>
+                $(document).ready(function(){
+                     loadCriteria();
+                });
+        </script>
+    </apex:outputPanel>
+    <style type="text/css">
+    
+        .innerblock h2 {
+            margin: 0 0 15px 0;
+            display: block;
+            padding: 0 0 3px 0;
+            border-bottom: 2px solid #CCCCCC;
+        }
+        
+        .innerblock h2 .titleText {
+            line-height: 32px;
+            display: block;
+            padding: 0 0 0 42px;  
+            width: 250px;
+        }
+        
+        .innerblock h2 img {
+            float: left;
+        }
+    
+        ul.selectList {
+            display: block;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        
+        ul.selectList li {
+            padding: 3px;
+            margin: 0 0 0 0;
+            list-style: none;
+            border-bottom: 1px solid #E3DEB8;
+        }
+        
+        ul.selectList li.selected {
+            background: #CCCCFF;
+            cursor: pointer;
+        }
+        
+        ul.selectList li.highlighted {
+            background: #FFFFFF;
+            cursor: pointer;
+        }
+        
+        ul.selectList li input {
+            margin: 4px 10px 0 0;
+            float: left;
+        }
+        
+        ul.selectList li .spanText {
+            line-height: 20px;
+            font-size: 12px;
+        }
+    </style>
+
+    <apex:sectionHeader title="{!$Label.FACEBOOK_FAN_PAGE_TITLE}" rendered="{!OR(fcbkPagesAlreadyExistList.SIZE > 0, fcbkPagesFromFacebookList.SIZE > 0)}" />
+    
+    <c:TwitterErrorMessage msgTitle="{!msgTitle}" msg="{!msg}" retUrl="{!retUrl}" rendered="{!NOT(ISBLANK(msg))}"/>
+ 
+    <apex:form >
+        <apex:outputPanel id="mainPanel">
+        <apex:pageBlock title="{!$Label.FACEBOOK_FAN_PAGE_TITLE_EXIST}" rendered="{!fcbkPagesAlreadyExistList.SIZE > 0}">
+            <div class="innerblock">
+                <apex:pageBlockTable value="{!fcbkPagesAlreadyExistList}" var="fp" id="fcbkPagesAlreadyExistList">
+                    <apex:column width="3%" >
+                        <apex:facet name="header">{!$Label.Active}</apex:facet>
+                        <apex:inputCheckbox selected="{!fp.selected}" disabled="true" /> 
+                    </apex:column>
+                    <apex:column >
+                        <apex:outputLink value="/{!fp.IdFcbkPages}" id="header" target="_blank">{!fp.Name}</apex:outputLink>                         
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">{!$Label.Facebook_Id}</apex:facet>
+                        <apex:outputText value="{!fp.FCBK_ID}" />
+                    </apex:column>
+                </apex:pageBlockTable>
+            </div>
+        </apex:pageBlock>
+        <apex:pageBlock title="{!$Label.FACEBOOK_FAN_PAGE_TITLE_NEW}" rendered="{!fcbkPagesFromFacebookList.SIZE > 0}">
+        
+            <div class="innerblock">        
+                <script type="text/javascript" language="Javascript" charset="utf-8">
+                    $(document).ready(function(){
+                        <apex:repeat value="{!fcbkPagesFromFacebookList}" var="obj">
+                            $(".{!obj.FCBK_ID}").val( decodeURIComponent( '{!obj.Name}' ) );
+                        </apex:repeat>
+                    });
+                </script> 
+                <apex:pageBlockTable value="{!fcbkPagesFromFacebookList}" var="fp" id="fcbkPagesFromFacebookList">
+                    <apex:column width="3%">
+                        <apex:facet name="header">{!$Label.Active}</apex:facet>
+                        <apex:inputCheckbox selected="{!fp.selected}"/>
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">{!$Label.Name}</apex:facet>
+                        <apex:inputText value="{!fp.Name}" styleClass="{!fp.FCBK_ID}" style="width: 400px; border: 0px;"/> 
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">{!$Label.Facebook_Id}</apex:facet>
+                        <apex:outputText value="{!fp.FCBK_ID}" />
+                    </apex:column>
+                </apex:pageBlockTable>
+            </div>
+            <div class="innerblock">
+                <apex:commandButton value="{!$Label.FACEBOOK_FAN_PAGE_BUTTON}" action="{!goValidate}" rendered="{!fcbkPagesFromFacebookList.SIZE != 0}" disabled="{!fcbkPagesFromFacebookList.SIZE == 0}"/>             
+            </div>
+        </apex:pageBlock>
+        <apex:commandButton value="{!$Label.FACEBOOK_FAN_PAGE_BUTTON_CONTINUE}" action="/{!accId}" rendered="{!fcbkPagesFromFacebookList.SIZE == 0}" />
+    </apex:outputPanel>
+    </apex:form>
+    
+    
+</apex:page>

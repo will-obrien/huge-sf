@@ -1,0 +1,178 @@
+<apex:page sidebar="false"
+           controller="ePrize_Zemzu.ContestListingController"
+           tabStyle="Contests__tab">
+
+  <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>
+  <apex:includeScript value="{!URLFOR($Resource.ePrize_Zemzu__compete, 'javascripts/compete-min.js')}"/>
+  <apex:stylesheet value="{!URLFOR($Resource.ePrize_Zemzu__compete, '/stylesheets/style.css')}"/>
+  <c:popups />
+  <head>
+    <script type="text/javascript">
+      (function($) {
+        function loadDataTable(id){
+          $(id).dataTable({
+            bPaginate: true,
+            bLengthChange: false,
+            bFilter: true,
+            bSort: false,
+            bSortClasses: false,
+            bAutoWidth: false,
+            bInfo: true,
+            sPaginationType: 'full_numbers',
+            bProcessing: true,
+            oLanguage: {
+                sEmptyTable: "There are no contests available for you to see at this time."
+              }
+          });
+        }
+        $(document).ready(function() {
+          loadDataTable('#current_contests');
+          loadDataTable('#past_contests');
+        });
+      }(jQuery));
+
+    </script>
+  </head>
+
+  <body>
+    <div class="l11-main container l11-admin-page">
+      <div class="row-fluid l11">
+        <div class="span12">
+          <div class="l11-grey-header">
+            <h1>My Contests</h1>
+          </div>
+          <div class="l11-content">
+            <div class="row">
+              <div class="l11-sidebar-325">
+                <c:ContestUserPanel ></c:ContestUserPanel>
+              </div>
+              <div class="l11-fixed-fluid-325">
+                <div class="row-fluid">
+                  <div class="l11-panel">
+                    <div class="inner">
+                      <h2>Current Contests</h2>
+                      <div class="">
+                        <div class="divider"></div>
+                      </div>
+                      <div class="row-fluid">
+                        <div class="span12">
+                          <div class="table-wrapper">
+                            <table class="l11-table" id="current_contests">
+                              <thead>
+                                <th class="first">NAME</th>
+                                <th>REMAINING</th>
+                                <th>PRIZES</th>
+                                <th class="last">BEHAVIORS</th>
+                              </thead>
+                              <tbody>
+                                <apex:repeat value="{!CurrentContests}" var="contest">
+                                  <tr>
+                                    <td>
+                                      <span class="inner">
+                                        <a href="/apex/Leaderboard?contestId={!contest.id}">{!contest.ePrize_Zemzu__ContestName__c}<apex:outputText value="- Unnamed Competition -" rendered="{!contest.ePrize_Zemzu__ContestName__c == null}"></apex:outputText><apex:outputText value=" [DRAFT] " rendered="{!contest.ePrize_Zemzu__isDraft__c}" style="color:red;"></apex:outputText> <apex:outputText value=" [HIDDEN] " rendered="{!contest.ePrize_Zemzu__HideContest__c}" style="color:orange;"></apex:outputText></a>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText value=""><c:TimeRemainingComponent date_time_value="{!contest.ePrize_Zemzu__EndDate__c}"></c:TimeRemainingComponent></apex:outputText>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:repeat value="{!contest.AwardingMethods__r}" var="prize">
+                                        {!prize.ePrize_Zemzu__PrizeName__c} <br/>
+                                        </apex:repeat>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:repeat value="{!contest.PipelineBehaviors__r}" var="behavior">
+                                        {!behavior.Name} <br/>
+                                        </apex:repeat>
+                                        <apex:repeat value="{!contest.ChildContests__r}" var="childContest">
+                                          <a href="/apex/Leaderboard?contestId={!childContest.id}">{!childContest.ePrize_Zemzu__ContestName__c}</a><br/>
+                                        </apex:repeat>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                </apex:repeat>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row-fluid">
+                  <div class="l11-panel">
+                    <div class="inner">
+                      <h2>Past Contests</h2>
+                      <div class="">
+                        <div class="divider"></div>
+                      </div>
+                      <div class="row-fluid">
+                        <div class="span12">
+                          <div class="table-wrapper">
+                            <table class="l11-table" id="past_contests">
+                              <thead>
+                                <th class="first">NAME</th>
+                                <th>ENDED</th>
+                                <th>BEHAVIORS</th>
+                                <th>POSITION</th>
+                                <th class="first">STATUS</th>
+                              </thead>
+                              <tbody>
+                                <apex:repeat value="{!PriorContests}" var="contest">
+                                  <tr>
+                                    <td>
+                                      <span class="inner">
+                                        <a href="/apex/Leaderboard?contestId={!contest.id}">{!contest.ePrize_Zemzu__ContestName__c}</a>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+                                          <apex:param value="{!contest.ePrize_Zemzu__EndDate__c}"/>
+                                        </apex:outputText>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:repeat value="{!contest.PipelineBehaviors__r}" var="behavior">
+                                        {!behavior.Name} <br/>
+                                        </apex:repeat>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <c:ContestUserRanking contest_value="{!contest}"></c:ContestUserRanking>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText rendered="{!IF(contest.ePrize_Zemzu__StartDate__c > NOW(), true, false)}" value="Not started" />
+                                        <apex:outputText rendered="{!IF(contest.ePrize_Zemzu__StartDate__c <= NOW() && contest.ePrize_Zemzu__EndDate__c > NOW(), true, false)}" value="Running" />
+                                        <apex:outputText rendered="{!IF(contest.ePrize_Zemzu__EndDate__c <= NOW() && contest.ePrize_Zemzu__Status__c != null && contest.ePrize_Zemzu__Status__c != '' && contest.ePrize_Zemzu__Status__c != 'Ended', true, false)}" value="Winners Pending" />
+                                        <apex:outputText rendered="{!IF(contest.ePrize_Zemzu__EndDate__c <= NOW() && (contest.ePrize_Zemzu__Status__c == null || contest.ePrize_Zemzu__Status__c == '' || contest.ePrize_Zemzu__Status__c == 'Ended'), true, false)}" value="Ended" />
+                                      </span>
+                                    </td>
+                                  </tr>
+                                </apex:repeat>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <c:GA />
+</apex:page>

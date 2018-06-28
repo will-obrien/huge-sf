@@ -1,0 +1,710 @@
+<apex:page Controller="EventRegistrationController" showHeader="FALSE" sidebar="FALSE" standardStylesheets="FALSE" docType="html-5.0" cache="FALSE" title="Join our event" applyHTMLTag="FALSE">
+<html>
+<head>
+    <!-- 
+     * This is an event details Page
+     * It is referred to with the url /events/details?formcampaignid=
+     * for instance https://sierra.secure.force.com/events/details?formcampaignid=70131000001Do3RAAS&preview=true
+    -->
+    <c:globals_head />
+    
+    <!-- Render head tags based on branding value -->
+    <c:event_branding_headtags Autoresponder_Type="{!Campaign.Autoresponder_Type__c}"  />
+    
+    <c:globals_sharing_head SharingTwitterText="{!Campaign.kwac__Twitter_Share_Text__c}"
+        ContentTitle="{!IF(Campaign.RSVP_Page_Title__c=='',Campaign.Event_Name__c,Campaign.RSVP_Page_Title__c)}"
+        SharingTitle="{!Campaign.Sharing_Title__c}"
+        SharingURL="{!Campaign.URL_to_Share__c}"
+        SharingDescription="{!Campaign.Sharing_Description__c}"
+        SharingThumb="{!Campaign.Sharing_Image__c}"
+        SharingPromoId="70131000001Lp1FAAS"        
+    />
+    
+    <c:font_awesome_form_field_icon_styles />
+    <c:events_styles />    
+
+    <!--
+    Do not display event when
+        event has no campaign in URL (working)
+        event URL has an incorrect campaign # (working)
+        event is wrong type of campaign
+        event is in the past, or not active
+
+    Do not display RSVP when
+        registration saved - display thank you language instead
+        registration closed - display message about registration closed
+        event is not an RSVP Event - put description in the right column (working)
+    -->
+    <apex:variable var="isPreview" value="{!$CurrentPage.parameters.preview == 'true' || $CurrentPage.parameters.mode == 'preview' }" />
+    <apex:variable var="isAddAttendee" value="{!$CurrentPage.parameters.addattendee == 'true' || $CurrentPage.parameters.mode == 'addattendee'}" />
+
+    <apex:variable var="isEvent" value="{!(Campaign.ID != '' && isEventCampaign)}" />
+    <apex:variable var="isStarted" value="{!(hasEventStarted )}" />
+    <apex:variable var="isEnded" value="{!(hasEventEnded )}" />
+    <apex:variable var="isTesting" value="{!($CurrentPage.parameters.test=='TESTING' || $CurrentPage.parameters.mode == 'test')}" />
+    <apex:variable var="isTestingThanks" value="{!($CurrentPage.parameters.testthanks=='TESTING' || $CurrentPage.parameters.mode == 'testthanks')}" />
+    <apex:variable var="displayEvent" value="{! (isPreview) || (Campaign.Status__c == 'Active' && isAddAttendee) || (!isEnded && isPublished && (Campaign.Status__c != 'In Development' || isTesting)) }" />
+    <apex:variable var="canRSVP" value="{!Campaign.Registrations_Accepted__c}" />
+    <apex:variable var="isCancelled" value="{!Campaign.Status__c == 'Cancelled'}" />
+    <apex:variable var="isAtCapacity" value="{!Campaign.Status__c == 'At Capacity' }" />
+
+    <apex:variable var="displayRSVP" value="{!((!isRegistered && !isEnded && !isRsvpEnded && !isTestingThanks && !isCancelled && !isAtCapacity) && isPublished) || ((isPreview) || (Campaign.Status__c == 'Active' && isAddAttendee && !isRegistered) )}" />
+
+    <apex:variable var="daisyChain" value="{!$CurrentPage.parameters.next == 'true'}" />
+   
+    <!-- AddEvent -->
+    <script type="text/javascript" src="//addevent.com/libs/atc/1.6.1/atc.min.js" async="async" defer="defer"></script>
+    
+</head>
+<body>
+    <c:globals_top />
+    <div id="main-wrapper" class="takeaction container-fluid">
+    
+        <c:event_branding_header Autoresponder_Type="{!Campaign.Autoresponder_Type__c}"  />
+        
+        <div id="content_section" class="container">
+            <div id="content_section_inner">
+
+    <apex:outputPanel html-class="daisy-chain" rendered="{!daisyChain && !(isRegistered || isTestingThanks)}" layout="block">
+        <div style="background: #f5551e; color: white; font-size: 24px; text-align:center; font-weight: bold; padding: 8px 20px; margin: 0 -15px 0; "><strong>Thank you for taking action! Can you join us for this event?</strong></div>
+    </apex:outputPanel>   
+            
+<apex:outputPanel layout="none" rendered="{!!isEvent}">
+<div class="row">
+  <div class="col-md-12">
+    <h2>No event was found.</h2>
+  </div>
+</div>
+</apex:outputPanel>
+
+<apex:outputPanel layout="none" rendered="{!isTesting}">
+            started: {!isStarted}
+            <br />status: {!Campaign.Status__c}
+            <br />ended: {!isEnded}
+            <br />isPublished: {!isPublished}
+            <br />is Add Attendee mode: {!isAddAttendee }
+            <br />isEvent: {!isEvent}
+            <br />isTesting: {!isTesting}
+            <br />isPreview: {!isPreview}
+            <br />isRSVPEnded: {!isRsvpEnded}
+            <br />daisyChain: {!daisyChain}
+            <br />displayEvent: {!displayEvent}
+            <br />Registrations_Accepted__c: {!Campaign.Registrations_Accepted__c}
+            <br />displayRSVP: {!displayRSVP}
+            <br />status: {!Campaign.Status__c}
+</apex:outputPanel>
+
+
+<apex:outputPanel layout="none" rendered="{!isEvent}">
+
+<apex:outputPanel layout="none" rendered="{!isPreview}">
+  <div class="row">
+    <div class="col-md-12">
+       <div class="alert alert-warning">Preview mode</div>
+    </div>
+  </div>
+</apex:outputPanel>
+<apex:outputPanel layout="none" rendered="{!isAddAttendee}">
+  <div class="row">
+    <div class="col-md-12">
+       <div class="alert alert-warning">Add Attendee mode</div>
+    </div>
+  </div>
+</apex:outputPanel>
+<apex:outputPanel layout="none" rendered="{!isTesting}">
+  <div class="row">
+    <div class="col-md-12">
+       <div class="alert alert-warning">Testing mode</div>
+    </div>
+  </div>
+</apex:outputPanel>
+<apex:outputPanel layout="none" rendered="{!isTestingThanks}">
+  <div class="row">
+    <div class="col-md-12">
+       <div class="alert alert-warning">Testing thanks mode</div>
+    </div>
+  </div>
+</apex:outputPanel>
+
+<apex:outputPanel layout="none" rendered="{!!displayEvent}">
+    <div class="row">
+        <div class="col-md-12">
+        
+            <apex:outputPanel layout="none" rendered="{!!isPublished && !isEnded}">
+                <h2>Event is not published or not active.</h2>
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="none" rendered="{!!isEvent}">
+                <h2>No event found at this URL.</h2>
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="none" rendered="{!Campaign.Status__c == 'In Development' && !isAddAttendee }">
+                <h2>The event is not yet active, or cannot be displayed.</h2>
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="none" rendered="{!Campaign.Status__c == 'In Development' && isAddAttendee }">
+                <h2>The event has to be active before attendees can be added.</h2>
+            </apex:outputPanel>
+            
+            
+            <apex:outputPanel layout="none" rendered="{!isEnded && (Campaign.Status__c == 'Active' || isAtCapacity || !isPreview || !isAddAttendee )}">
+
+                <apex:outputPanel layout="none" rendered="{!(Campaign.Post_Event_Page_Content__c)==''}">
+                    <h2>The event is ended</h2>
+                
+                    <p>For more events near you, go to <a href="http://www.sierraclub.org">sierraclub.org</a></p>
+                </apex:outputPanel>
+
+                <apex:outputPanel layout="none" rendered="{!(Campaign.Post_Event_Page_Content__c)!=''}">
+
+                    <h2><apex:outputText value="{!IF(Campaign.RSVP_Page_Title__c=='',Campaign.Event_Name__c,Campaign.RSVP_Page_Title__c)}"/></h2>
+                
+                    <apex:outputField value="{!Campaign.Post_Event_Page_Content__c}" />
+                
+                </apex:outputPanel>
+
+            </apex:outputPanel>
+
+        </div>
+    </div>
+</apex:outputPanel>
+
+
+
+<apex:outputPanel layout="none" rendered="{!(isEvent && displayEvent)}" >
+<div class="row">
+    <div class="{!IF((canRSVP),'col-md-6','')}">
+
+        <div class="{!IF((!canRSVP),'col-md-6','')}">
+
+        <h1><apex:outputText value="{!IF(Campaign.RSVP_Page_Title__c=='',Campaign.Event_Name__c,Campaign.RSVP_Page_Title__c)}"/> 
+        <apex:outputPanel layout="none" rendered="{!canRSVP}" >
+        <a href="#register" class="visible-xs visible-sm btn-primary btn register-link">Register</a>
+        </apex:outputPanel>
+        </h1>
+
+        <apex:outputPanel id="video_iframe" rendered="{!Campaign.Video_URL__c != ''}" layout="none">
+            <div class="video_iframe embed-responsive embed-responsive-16by9" style="margin-bottom: 15px;">
+                <iframe class="embed-responsive-item" src="{!Campaign.Video_URL__c}" frameborder="0" border="0" width="800" height="600" >{!Campaign.Video_URL__c}</iframe>
+            </div>
+        </apex:outputPanel>
+
+        <p>
+        <strong>Date and Time:</strong><br/>
+        <apex:outputText value="{0,date,EEE, MMM d, YYYY}">
+            <apex:param value="{!Campaign.Start_Date__c}" />
+        </apex:outputText> &nbsp; 
+        <apex:outputField value="{!Campaign.Start_Time__c}"/>&nbsp;
+        <apex:outputPanel layout="none" rendered="{!(Campaign.End_Date__c == null || Campaign.End_Date__c==Campaign.Start_Date__c) && Campaign.End_Time__c != ''}" >
+            -&nbsp;<apex:outputField value="{!Campaign.End_Time__c}"/>&nbsp;
+        </apex:outputPanel>
+        <apex:outputPanel layout="none" rendered="{!Campaign.Time_Zone__c != ''}" >
+            <span class="timezone">(<apex:outputField value="{!Campaign.Time_Zone__c}"/>)</span>
+        </apex:outputPanel>
+
+        <apex:outputPanel layout="none" rendered="{!Campaign.End_Date__c != null && Campaign.End_Date__c!=Campaign.Start_Date__c}" >
+            <span style="white-space: nowrap;">-&nbsp; <apex:outputText value="{0,date,EEE, MMM d, YYYY}">
+                <apex:param value="{!Campaign.End_Date__c}" />
+            </apex:outputText>
+            <apex:outputPanel layout="none" rendered="{!Campaign.End_Time__c != ''}" >
+                &nbsp; <apex:outputField value="{!Campaign.End_Time__c}"/>&nbsp;
+                <apex:outputPanel layout="none" rendered="{!Campaign.Time_Zone__c != ''}" >
+                    <span class="timezone">(<apex:outputField value="{!Campaign.Time_Zone__c}"/>)</span>
+                </apex:outputPanel>
+            </apex:outputPanel>
+            </span>
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!Campaign.Date_Tentative__c && Campaign.Time_Tentative__c}">
+            <br />Date &amp; time are tentative.
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!!Campaign.Date_Tentative__c && Campaign.Time_Tentative__c}">
+            <br />Time is tentative.
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!Campaign.Date_Tentative__c && !Campaign.Time_Tentative__c}">
+            <br />Date is tentative.
+        </apex:outputPanel>
+        </p>
+        
+        <p>
+          <!-- AddEvent to calendar button -->
+          <div title="Add to Calendar" class="addeventatc btn btn-lg">
+            Add to Calendar
+            <div style="display:none">
+            <span class="start">
+              <apex:outputText value="{0,date,MM/dd/yyyy}">
+                <apex:param value="{!Campaign.Start_Date__c}" />
+              </apex:outputText> {!Campaign.Start_Time__c}
+            </span>
+            <apex:outputPanel rendered="{! ! ISNULL(Campaign.End_Date__c)}">
+            <span class="end">
+              <apex:outputText value="{0,date,MM/dd/yyyy}">
+                <apex:param value="{!Campaign.End_Date__c}" />
+              </apex:outputText> {!Campaign.End_Time__c}
+            </span>
+            </apex:outputPanel>
+            <span class="timezone"></span>
+            <span class="title"><apex:outputText value="{!IF(Campaign.RSVP_Page_Title__c=='',Campaign.Event_Name__c,Campaign.RSVP_Page_Title__c)}"/></span>
+            <span class="description">
+              {!Campaign.Summary_Description__c}
+            </span>
+            <span class="location">
+              <apex:outputPanel layout="none" rendered="{!(Campaign.Geocode__Latitude__s != null && Campaign.Geocode__Longitude__s != null)}">
+                {!Campaign.Geocode__Latitude__s},{!Campaign.Geocode__Longitude__s}
+              </apex:outputPanel>
+            </span>
+            <span class="organizer">{!eventLeader.Leader_Name__c}</span>
+            <span class="organizer_email">
+              <apex:outputPanel layout="none" rendered="{!eventLeader.Email__c != ''}" >{!eventLeader.Email__c}</apex:outputPanel>
+            </span>
+            <span class="date_format">MM/DD/YYYY</span>
+            <span class="client">amOUuwqNAzpGSXwtHmnd12740</span>
+            </div>
+          </div>
+        </p>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Sponsor_Description__c != '' && isClubEvent}">
+          <p><strong>Organized By:</strong> {!Campaign.Sponsor_Description__c}</p>
+        </apex:outputPanel>
+
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Location_Description__c !='') || (NOT(ISNULL(Campaign.Geocode__Latitude__s)) && NOT(ISNULL(Campaign.Geocode__Longitude__s)))}">
+            <p>
+            <strong>Location:</strong>&nbsp;
+            <apex:outputPanel layout="none" rendered="{!(Campaign.Location_Description__c !='')}">
+                <apex:outputField value="{!Campaign.Location_Description__c}"/><br />
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!(Campaign.Geocode__Latitude__s != null && Campaign.Geocode__Longitude__s != null)}">
+                <a href="#" id="static_map_control" onclick="jQuery('#static_map').toggle()">Map</a> | <a target="_blank" href="https://maps.google.com?saddr=Current+Location&daddr={!Campaign.Geocode__Latitude__s},{!Campaign.Geocode__Longitude__s}">Directions</a>                
+                <div id="static_map"><a href="https://maps.google.com?saddr=Current+Location&daddr={!Campaign.Geocode__Latitude__s},{!Campaign.Geocode__Longitude__s}" target="_blank" ><img src="https://maps.googleapis.com/maps/api/staticmap?center={!Campaign.Geocode__Latitude__s},{!Campaign.Geocode__Longitude__s}&zoom=13&size=600x300&maptype=roadmap&markers=color:red%7Clabel:C%7C{!Campaign.Geocode__Latitude__s},{!Campaign.Geocode__Longitude__s}" style="width: 100%; height: auto;" /></a></div>
+            </apex:outputPanel>
+            </p>
+        </apex:outputPanel>
+
+        <p><strong>Event Organizer:</strong><br/>
+        {!eventLeader.Leader_Name__c}<br/>
+            <apex:outputPanel layout="none" rendered="{!eventLeader.Email__c != ''}" >
+            {!eventLeader.Email__c}<br/>
+            </apex:outputPanel>
+            <apex:outputPanel layout="none" rendered="{!eventLeader.Phone_or_Other_Contact_Information__c != ''}" >
+            {!eventLeader.Phone_or_Other_Contact_Information__c}
+            </apex:outputPanel>
+        </p>
+
+        </div>
+        
+        <apex:outputPanel layout="none" rendered="{!!(canRSVP && isRegistered || canRSVP && isTestingThanks)}">
+        <div class="{!IF((!canRSVP),'col-md-6','')}">
+            <apex:outputField value="{!Campaign.Full_Description__c}" />
+            <apex:outputField rendered="{!( ! hasFullDescription)}" 
+                              value="{!Campaign.Summary_Description__c}"
+            />
+
+        <apex:outputPanel layout="none" rendered="{!hasLevel}">
+          <p><strong>Level:</strong> {!levelDescription}</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Cost_Description__c != ''}">
+          <p><strong>Cost:</strong> {!Campaign.Cost_Description__c}</p>
+        </apex:outputPanel>
+
+        <apex:outputPanel layout="none" rendered="{!Campaign.Signup_Instructions__c != ''}">
+          <p><strong>Signup Instructions:</strong> {!Campaign.Signup_Instructions__c}</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Bring__c != ''}">
+          <p><strong>Bring:</strong> {!Campaign.Bring__c}</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Signup_Restrictions__c != ''}">
+          <p><strong>Signup Restrictions:</strong> {!Campaign.Signup_Restrictions__c}</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Additional_Directions__c != ''}">
+          <p><strong>Additional Directions:</strong> {!Campaign.Additional_Directions__c}</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Carpool__c != ''}">
+          <p><strong>Carpool:</strong> {!Campaign.Carpool__c}</p>
+          <p><small>Note: Carpool transportation is at the sole risk of the participants.</small></p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!cancellationPolicy != ''}">
+          <p><strong>Cancellation Policy:</strong> {!cancellationPolicy}</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!Campaign.Additional_Info_URL__c != ''}">
+            <p>
+            <a href="{!Campaign.Additional_Info_URL__c}" class="btn btn-default" target="_blank" >
+                {! IF(ISBLANK(Campaign.URL_Description__c), 'More info', Campaign.URL_Description__c)}
+            </a>
+            </p>
+        </apex:outputPanel>
+
+        </div>
+        </apex:outputPanel>
+        
+
+    </div>
+
+    <apex:outputPanel layout="none" rendered="{!canRSVP}">
+    <a name="register"></a>
+    <div class="col-md-6 rsvp-col">
+        <apex:outputPanel layout="none" rendered="{!!displayRSVP}">
+            <apex:outputPanel layout="none" rendered="{!isCancelled}">
+
+                <h2>The event is no longer available</h2>
+                
+                <p>The event has been cancelled.</p>
+
+            </apex:outputPanel>
+            
+            
+            <apex:outputPanel layout="none" rendered="{!isRsvpEnded && !isStarted && !isEnded && !isCancelled}">
+
+                <h2>RSVP is closed</h2>
+                
+                <p>We are no longer accepting RSVPs for this event.</p>
+
+            </apex:outputPanel>
+            
+            <!-- formerly isStarted && !isEnded && !isCancelled -->
+            <apex:outputPanel layout="none" rendered="{!isRsvpEnded && !isEnded && !isCancelled}">
+
+                <h2>The event has already started</h2>
+                
+                <p>RSVP is no longer available.</p>
+
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="none" rendered="{!isAtCapacity && !isCancelled && !isRsvpEnded && !isStarted && !isEnded}">
+
+                <h2>RSVP no longer available</h2>
+                
+                <p>The event RSVP list is at capacity.</p>
+
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="none" rendered="{!isRegistered || isTestingThanks}">
+
+                <h2>Thanks for registering!</h2>
+                
+                <apex:outputPanel rendered="{!digitalWaiverCompleted}">
+                    You will receive a copy of the waiver by email.
+                </apex:outputPanel>
+                
+                <div id="thankyou_page_text"><apex:outputField value="{!Campaign.kwac__Thank_You_Page_Text__c}"/></div>
+
+                <div id="sharingDiv"><a class="addthis_button_facebook"><img src="http://action.sierraclub.org/images/content/pagebuilder/47189.jpg" alt="Share this page on Facebook" width="48" height="48" border="0" /></a><a class="addthis_button_twitter"><img src="http://action.sierraclub.org/images/content/pagebuilder/47191.jpg" alt="Share this page on Twitter" width="48" height="48" border="0" /></a><a class="addthis_button_email"><img src="http://action.sierraclub.org/images/content/pagebuilder/47185.jpg" alt="Share this page with email" width="48" height="48" border="0" /></a></div>
+        
+                <div>
+                <h4>Your information:</h4>
+                <apex:outputText value="{!Registration.First_Name__c}" id="First_Name__c"/> &nbsp; <apex:outputText value="{!Registration.Last_Name__c}" id="Last_Name__c"/><br />
+                <apex:outputText value="{!Registration.Email__c}" id="Email__c"/><br />
+                
+                <apex:outputPanel layout="none" rendered="{!Registration.Phone__c!= ''}">                
+                <apex:outputText value="{!Registration.Phone__c}" id="Phone__c"/><br />
+                </apex:outputPanel>
+                
+                
+                <apex:outputPanel layout="none" rendered="{!Registration.Street__c!= ''}">
+                <apex:outputText value="{!Registration.Street__c}" id="Street__c"/><br />
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.City__c != ''}">
+                    <apex:outputText value="{!Registration.City__c}" id="City__c"/><apex:outputPanel layout="none" rendered="{!Registration.State__c!= ''}">,&nbsp;</apex:outputPanel>                
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.State__c!= ''}">                
+                    <apex:outputText value="{!Registration.State__c}" id="State__c"/>
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.City__c != '' && Registration.State__c != ''}">
+                    &nbsp;
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.PostalCode__c != ''}">
+                    <apex:outputText value="{!Registration.PostalCode__c}" id="PostalCode__c"/><br />
+                </apex:outputPanel>
+                </div>
+
+                <apex:outputPanel layout="none" rendered="{!Registration.Additional_Attendees__c != null && Registration.Additional_Attendees__c > 0 }">
+                    Bringing&nbsp;<apex:outputText value="{!Registration.Additional_Attendees__c}" id="Additional_Attendees__c"/> people.<br />
+                </apex:outputPanel>
+
+                <apex:outputPanel layout="none" rendered="{!Registration.Custom_Field_1_Response__c != '' || Registration.Custom_Field_2_Response__c != '' || Registration.Custom_Field_3_Response__c != '' || Registration.Custom_Field_4_Response__c != '' || Registration.Custom_Field_5_Response__c != '' }">
+                <h4>Your answers:</h4>
+                </apex:outputPanel>
+
+                <ul id="question_answers">
+                <apex:outputPanel layout="none" rendered="{!Registration.Custom_Field_1_Response__c != ''}">
+                    <li><apex:outputText value="{!Campaign.Custom_Field_1_Label__c}" /><br/>
+                    <apex:outputText value="{!Registration.Custom_Field_1_Response__c}" id="Custom_Field_1_Response__c"/></li>
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.Custom_Field_2_Response__c != ''}">
+                <li><apex:outputText value="{!Campaign.Custom_Field_2_Label__c}" /><br/>
+                    <apex:outputText value="{!Registration.Custom_Field_2_Response__c}" id="Custom_Field_2_Response__c"/></li>
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.Custom_Field_3_Response__c != ''}">
+                <li><apex:outputText value="{!Campaign.Custom_Field_3_Label__c}" /><br/>
+                    <apex:outputText value="{!Registration.Custom_Field_3_Response__c}" id="Custom_Field_3_Response__c"/></li>
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.Custom_Field_4_Response__c != ''}">
+                <li><apex:outputText value="{!Campaign.Custom_Field_4_Label__c}" /><br/>
+                    <apex:outputText value="{!Registration.Custom_Field_4_Response__c}" id="Custom_Field_4_Response__c"/></li>
+                </apex:outputPanel>
+                <apex:outputPanel layout="none" rendered="{!Registration.Custom_Field_5_Response__c != ''}">
+                <li><apex:outputText value="{!Campaign.Custom_Field_5_Label__c}" /><br/>
+                    <apex:outputText value="{!Registration.Custom_Field_5_Response__c}" id="Custom_Field_5_Response__c"/></li>
+                </apex:outputPanel>
+                </ul>
+
+<apex:outputPanel layout="none" rendered="{!isAddAttendee}">
+  <div class="row">
+    <div class="col-md-12">
+       <div><a href="{!Campaign.URL_to_Share__c}&mode=addattendee" class="btn btn-danger btn-lg btn-block">Add another!</a></div>
+    </div>
+  </div>
+</apex:outputPanel>
+
+                
+            </apex:outputPanel>
+
+        </apex:outputPanel>
+        <apex:outputPanel layout="none" rendered="{!displayRSVP}">
+        <apex:form >
+        <fieldset class="control-group">
+        <h2>RSVP Below</h2>
+        
+            <apex:pageBlock >
+            <apex:pageMessages />
+            </apex:pageBlock>  
+        <div class="row">       
+            <div class="col-sm-6">
+                <apex:outputLabel for="First_Name__c">First Name</apex:outputLabel> <apex:outputText value=" *" /><br/>
+                <apex:inputField type="text" value="{!Registration.First_Name__c}" id="First_Name__c"  styleclass="form-control fname" required="true" html-maxlength="40" html-placeholder="First Name" html-autocomplete="given-name" />
+                <span class="form-control-icon fa-user"></span>
+            </div>
+            <div class="col-sm-6">
+                <apex:outputLabel for="Last_Name__c">Last Name</apex:outputLabel> <apex:outputText value=" *" /><br/>
+                <apex:inputField type="text" value="{!Registration.Last_Name__c}" id="Last_Name__c"  styleclass="form-control lname" required="true" html-maxlength="80" html-placeholder="Last Name" html-autocomplete="family-name" />
+                <span class="form-control-icon fa-user"></span>                
+            </div>
+        </div>
+        <div class="row">       
+            <div class="col-md-8">
+                <apex:outputLabel for="Email__c">Email</apex:outputLabel> <apex:outputText value=" *" /><br/>
+                <apex:inputField type="email" value="{!Registration.Email__c}" id="Email__c"  styleclass="form-control emailaddress" required="true" html-maxlength="40" html-placeholder="Email" html-autocomplete="email" />
+                <span class="form-control-icon fa-envelope"></span>
+            </div>
+        </div>
+
+        <apex:outputPanel layout="none" rendered="{!Campaign.Ask_for_Phone_Number__c}">
+        <div class="row">
+        <div class="col-md-5">
+                <apex:outputLabel for="Phone__c">Phone</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_Phone_Number__c}" /><br/>
+            <apex:inputField type="tel" value="{!Registration.Phone__c}" id="Phone__c" styleclass="form-control phone" required="{!Campaign.Require_Phone_Number__c}" html-maxlength="40" html-placeholder="Phone Number" html-autocomplete="tel-national" />
+            <span class="form-control-icon fa-phone"></span>
+        </div>
+        </div>            
+        </apex:outputPanel>
+       
+        <apex:outputPanel layout="none" rendered="{!Campaign.Ask_for_Street_Address__c}">
+        <div class="row">
+        <div class="col-md-10">
+            <apex:outputLabel for="Street__c">Street</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_Street_Address__c}" /><br/>
+            <apex:inputField type="text" value="{!Registration.Street__c}" id="Street__c" styleclass="form-control street1" required="{!Campaign.Require_Street_Address__c}" html-maxlength="40" html-placeholder="Street" html-autocomplete="street-address" />
+            <span class="form-control-icon fa-building-o"></span>
+        </div>
+        </div>
+        <div class="row">
+        <div class="col-md-8">
+            <apex:outputLabel for="City__c">City</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_Street_Address__c}" /><br/>
+            <apex:inputField type="text" value="{!Registration.City__c}" id="City__c" styleclass="form-control city" required="{!Campaign.Require_Street_Address__c}" html-maxlength="40" html-placeholder="City" html-autocomplete="address-level2" />
+            <span class="form-control-icon fa-building"></span>
+        </div>
+        <div class="col-md-2">
+            <apex:outputLabel for="State__c">State</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_Street_Address__c}" /><br/>
+            <apex:inputField type="text" value="{!Registration.State__c}" id="State__c" styleclass="form-control state" required="{!Campaign.Require_Street_Address__c}" html-maxlength="2" html-placeholder="State" html-autocomplete="address-level1" />
+            <span class="form-control-icon fa-flag-checkered"></span>
+        </div>
+        </div>
+        </apex:outputPanel>
+
+        <apex:outputPanel layout="none" rendered="{!Campaign.Ask_for_ZIP_Code__c || Campaign.Ask_for_Street_Address__c}">
+        <div class="row">
+        <div class="col-md-4">
+            <apex:outputLabel for="PostalCode__c">Zip</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_ZIP_Code__c || Campaign.Require_Street_Address__c}" /><br/>
+            <apex:inputField type="text" value="{!Registration.PostalCode__c}" id="PostalCode__c" required="{!Campaign.Require_ZIP_Code__c || Campaign.Require_Street_Address__c}" styleclass="form-control zipcode" html-maxlength="5" html-placeholder="Zip Code" html-autocomplete="postal-code" />
+            <span class="form-control-icon fa-location-arrow"></span>
+        </div>
+        </div>
+        </apex:outputPanel>
+
+
+
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Ask_for_Additional_Attendees__c || Campaign.Require_Additional_Attendees__c)}">
+        <div class="row">
+        <div class="col-md-12">
+            <apex:outputLabel for="Additional_Attendees__c">How many people will you bring with you?</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_Additional_Attendees__c}" /><br/>
+            <apex:inputField type="number" value="{!Registration.Additional_Attendees__c}" id="Additional_Attendees__c" required="{!Campaign.Require_Additional_Attendees__c}" styleclass="form-control" style="width: 120px;" html-min="0" html-max="999" html-autocomplete="off"   />
+            <span class="form-control-icon non-fa-number"></span>
+        </div>
+        </div>
+        </apex:outputPanel>
+        
+        <c:questions_script />
+
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Display_Field_1__c || Campaign.Require_Field_1__c)}">
+            <c:events_extra_fields QuestionType="{!Campaign.Question_Type_1__c}" QuestionPossibleValues="{!Campaign.Possible_Answers_1__c}" QuestionValue="{!Registration.Custom_Field_1_Response__c}" isDisplayed="{!Campaign.Display_Field_1__c}" isRequired="{!Campaign.Require_Field_1__c}" QuestionName="Custom_Field_1_Response__c" QuestionLabel="{!Campaign.Custom_Field_1_Label__c}" rendered="{!(Campaign.Display_Field_1__c || Campaign.Require_Field_1__c)}" />
+            <apex:inputHidden id="Custom_Field_1_Response__c" html-data-id="Custom_Field_1_Response__c" value="{!Registration.Custom_Field_1_Response__c}" />
+        </apex:outputPanel>         
+                    
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Display_Field_2__c || Campaign.Require_Field_2__c)}">
+            <c:events_extra_fields QuestionType="{!Campaign.Question_Type_2__c}" QuestionPossibleValues="{!Campaign.Possible_Answers_2__c}" QuestionValue="{!Registration.Custom_Field_2_Response__c}" isDisplayed="{!Campaign.Display_Field_2__c}" isRequired="{!Campaign.Require_Field_2__c}" QuestionName="Custom_Field_2_Response__c" QuestionLabel="{!Campaign.Custom_Field_2_Label__c}" rendered="{!(Campaign.Display_Field_2__c || Campaign.Require_Field_2__c)}" />
+            <apex:inputHidden id="Custom_Field_2_Response__c" html-data-id="Custom_Field_2_Response__c" value="{!Registration.Custom_Field_2_Response__c}" />
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Display_Field_3__c || Campaign.Require_Field_3__c)}">
+            <c:events_extra_fields QuestionType="{!Campaign.Question_Type_3__c}" QuestionPossibleValues="{!Campaign.Possible_Answers_3__c}" QuestionValue="{!Registration.Custom_Field_3_Response__c}" isDisplayed="{!Campaign.Display_Field_3__c}" isRequired="{!Campaign.Require_Field_3__c}" QuestionName="Custom_Field_3_Response__c" QuestionLabel="{!Campaign.Custom_Field_3_Label__c}" rendered="{!(Campaign.Display_Field_3__c || Campaign.Require_Field_3__c)}" />
+            <apex:inputHidden id="Custom_Field_3_Response__c" html-data-id="Custom_Field_3_Response__c" value="{!Registration.Custom_Field_3_Response__c}" />
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Display_Field_4__c || Campaign.Require_Field_4__c)}">
+            <c:events_extra_fields QuestionType="{!Campaign.Question_Type_4__c}" QuestionPossibleValues="{!Campaign.Possible_Answers_4__c}" QuestionValue="{!Registration.Custom_Field_4_Response__c}" isDisplayed="{!Campaign.Display_Field_4__c}" isRequired="{!Campaign.Require_Field_4__c}" QuestionName="Custom_Field_4_Response__c" QuestionLabel="{!Campaign.Custom_Field_4_Label__c}" rendered="{!(Campaign.Display_Field_4__c || Campaign.Require_Field_4__c)}" />
+            <apex:inputHidden id="Custom_Field_4_Response__c" html-data-id="Custom_Field_4_Response__c" value="{!Registration.Custom_Field_5_Response__c}" />
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Display_Field_5__c || Campaign.Require_Field_5__c)}">
+            <c:events_extra_fields QuestionType="{!Campaign.Question_Type_5__c}" QuestionPossibleValues="{!Campaign.Possible_Answers_5__c}" QuestionValue="{!Registration.Custom_Field_5_Response__c}" isDisplayed="{!Campaign.Display_Field_5__c}" isRequired="{!Campaign.Require_Field_5__c}" QuestionName="Custom_Field_5_Response__c" QuestionLabel="{!Campaign.Custom_Field_5_Label__c}" rendered="{!(Campaign.Display_Field_5__c || Campaign.Require_Field_5__c)}" />
+            <apex:inputHidden id="Custom_Field_5_Response__c" html-data-id="Custom_Field_5_Response__c" value="{!Registration.Custom_Field_5_Response__c}" />
+        </apex:outputPanel>
+                
+        
+        <apex:outputPanel layout="none" rendered="{!(Campaign.Ask_for_Mobile_Phone__c || Campaign.Require_Mobile_Phone__c)}">
+          <div class="row">
+            <div class="col-md-5">
+                <apex:outputLabel for="Mobile_Phone__c">Mobile Phone</apex:outputLabel> <apex:outputText value=" *" rendered="{!Campaign.Require_Mobile_Phone__c}" /><br/>
+                <apex:inputField type="text" value="{!Registration.Mobile_Phone__c}" id="Mobile_Phone__c" styleclass="form-control mphone" html-placeholder="Mobile Phone Number"  html-autocomplete="tel-national" />
+                <span class="form-control-icon fa-phone"></span>
+            </div>    
+            <div class="col-md-7" style="font-size: small;">
+            <apex:outputPanel layout="none" rendered="{!!isMobileSubscriber}">
+                <br /><apex:inputCheckbox value="{!Registration.Mobile_Subscriber_Opt_In__c}" id="Mobile_Subscriber_Opt_In__c" onclick="jQuery('.mobile-opt-in-text').toggle();" /> Check to join Sierra Club&rsquo;s Mobile Action Network! Receive timely actions on your phone a few times a month.
+            </apex:outputPanel>    
+            </div>    
+            <div class="col-md-12 mobile-opt-in-text" style="font-size: x-small; display:none;">
+                <a href="http://mobilecommons.com/terms" target="_blank">Msg &amp; Data Rates May Apply.</a> Text <b>STOP</b> to opt out. No purchase necessary. You&rsquo;ll receive Sierra Club mobile action alerts (expect 4 msgs/mo). <a href="http://www.mobilecommons.com/terms-and-conditions/privacy-policy/" target="blank">Terms and Conditions</a>
+            </div>
+          </div>
+        </apex:outputPanel>
+        
+          <p style="font-size: small;">You&apos;ll receive email updates from Sierra Club. You can unsubscribe at any time.</p>
+          <apex:commandButton value="{!RSVPButtonText}" action="{!save}" styleclass="btn btn-danger btn-lg btn-block" disabled="{!isPreview}" />
+         
+        </fieldset>
+        </apex:form>
+         
+        </apex:outputPanel>
+    
+    </div>
+    </apex:outputPanel>
+
+    
+</div>
+
+
+</apex:outputPanel>
+
+ 
+
+</apex:outputPanel>
+
+<apex:outputPanel rendered="{!Campaign.Image_Attribution__c != '' && isEvent && displayEvent }" layout="none">
+    <div id="image_attribution" class="photocredits imageattribution" style="font-style:italic; padding: 10px 0; margin: 15px 0; border-top: 1px solid grey; border-bottom: 1px solid grey;">
+        <apex:outputText escape="FALSE" value="{!Campaign.Image_Attribution__c}" />
+    </div>
+</apex:outputPanel>
+
+    <apex:outputPanel rendered="{!Campaign.Political_Disclaimer__c != ''}" layout="none">
+    <div id="PoliticalDisclaimer" class="container" style="clear:both; padding-top: 20px;">
+        <div style="border:1px solid black; clear: both;"><p style="margin: 6px; font-family: 12pt; text-align: center;">
+            <apex:outputPanel rendered="{!Campaign.Political_Disclaimer__c == 'SCPC - Independent'}" layout="none">
+            Paid for by the Sierra Club Political Committee (www.sierraclub.org) and not authorized by any candidate or candidate's committee.
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!Campaign.Political_Disclaimer__c == 'SCPC - Coordinated'}" layout="none">
+            Paid for by the Sierra Club Political Committee (www.sierraclub.org) and authorized by {!Campaign.Candidate_Committee__c}.
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!Campaign.Political_Disclaimer__c == 'SCIA'}" layout="none">
+            Paid for by Sierra Club Independent Action (www.sierraclub.org) and not authorized by any candidate or candidate’s committee.
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!Campaign.Political_Disclaimer__c == 'SCVEF'}" layout="none">
+            Paid for by the Sierra Club Voter Education Fund, which seeks to raise key environmental issues in the discussions around elections, and encourage the public to find out more about candidates' positions on key environmental issues.
+            </apex:outputPanel>
+        </p></div>
+    </div>
+    </apex:outputPanel> 
+    
+                </div>  
+        </div>
+
+<c:event_branding_footer Autoresponder_Type="{!Campaign.Autoresponder_Type__c}"   />
+        
+    </div>
+    <c:globals_bottom />
+    
+    <script>
+    (function($, window, document, undefined) {
+        $(document).ready( function() { 
+            if('{!$CurrentPage.parameters.data}' != '') {           
+                if ($(".fname").val().toLowerCase() == 'supporter') {
+                    $(".fname").val('');
+                }
+                if ($(".lname").val().toLowerCase() == 'unknown') {
+                    $(".lname").val('');
+                }
+                if ($(".phone").length > 0 && $(".phone").val() != '') {
+                    formatPhone($(".phone")[0]);
+                }                
+                if ($(".mphone").length > 0 && $(".mphone").val() != '') {
+                    formatPhone($(".mphone")[0]);
+                }                
+            } else {
+                var email = "{!$CurrentPage.parameters.email}";
+                var zip = "{!$CurrentPage.parameters.zip}";
+                var fname = "{!$CurrentPage.parameters.fname}";
+                var lname = "{!$CurrentPage.parameters.lname}";
+                var street1 = "{!$CurrentPage.parameters.street1}";
+                var state = "{!$CurrentPage.parameters.state}";
+                var city = "{!$CurrentPage.parameters.city}"
+                var phone = "{!$CurrentPage.parameters.phone}"
+                var mphone = "{!$CurrentPage.parameters.mphone}"
+                    
+                if (email != "") $(".emailaddress").val(email);
+                if (zip != "") $(".zipcode").val(zip);
+                if (fname != "") $(".fname").val(fname);
+                if (lname != "") $(".lname").val(lname);
+                if (street1 != "") $(".street1").val(street1);
+                if (state != "") $(".state").val(state);
+                if (city != "") $(".city").val(city);
+                if (phone != "") { $(".phone").val(phone); formatPhone($(".phone")[0]); }
+                if (mphone != "") { $(".mphone").val(phone); formatPhone($(".mphone")[0]); }
+            }
+            
+            /* on the thank you page display
+               thank you language in the URL.
+            */
+            if ({!(isRegistered || isTestingThanks)} == true && typeof window.history != 'undefined' &&  typeof window.history.replaceState != 'undefined' ) {
+               if (document.location.search == '') {
+                   window.history.replaceState('', document.title, document.location.href + '?formcampaignid={!Campaign.id}&page=registered' );
+               } else {
+                   window.history.replaceState('', document.title, document.location.href + '&formcampaignid={!Campaign.id}&page=registered' );
+               }
+            }             
+            
+        });
+    })(jQuery, window, document);    
+    
+    var oars = (oars) || {}
+    oars.campaign_id = '{!Campaign.id}';
+    </script>
+    
+    
+    
+</body>
+</html>
+</apex:page>

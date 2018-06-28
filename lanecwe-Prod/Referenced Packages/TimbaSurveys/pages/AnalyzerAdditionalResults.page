@@ -1,0 +1,143 @@
+<apex:page controller="TIMBASURVEYS.AnalyzerAdditionalResultsController" tabstyle="Timba_Surveys__tab" sidebar="false" showHeader="false">
+
+    <!-- DOJO Framework -->
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad: true"></script>
+
+    <!-- DOJO Stylesheets -->
+        <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+        <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />
+        <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+
+        <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/analyzer_questions_section.css')}" />
+        <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/list.css')}" />
+        <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/common.css')}" />
+
+    <script type="text/javascript">
+        dojo.addOnLoad(function(){
+            dojo.query('body').addClass('soria');
+            refreshList();
+        });
+
+        var summary_id = {};
+
+        function open_summary(rid){
+            window.open('../' + encodeURIComponent(summary_id[rid]) + '?nb=true&js_back=true&sid={!URLENCODE(surveyId)}&qid={!URLENCODE(questionId)}&paar={!responses_controller.PageNumber}');
+        }
+
+        function overRow(row, isin){
+            if (isin) {
+                row.bgColor = '#e7f5fb';
+            }else{
+                row.bgColor = '#ffffff';
+            }
+        }
+
+
+        function refreshList(){
+            dojo.query('.selectList li').onclick(function(e){
+                        paginationSetPage(parseInt(this.innerHTML,10));
+                    });
+            dojo.query('.listnavigator .selectContainer').onclick(function(e){
+                      dojo.toggleClass(dojo.query('.selectList',this)[0],'displayBlock');
+                    });
+
+            dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+            dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+        }
+    </script>
+
+    <style type="text/css">
+    .listnavigator {
+        padding-top:7px;
+    }
+    </style>
+
+    <!--
+        Application Styles
+     -->
+
+    <!-- Common Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/common.css')}" />
+    <!-- Survey Anlayze Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/SurveyAnalyze.css')}" />
+    <apex:include pageName="TIMBASURVEYS__TimbaSurveyStyles" />
+    <apex:outPutPanel id="MyContainer" layout="block">
+            <div class="questionDetail">
+                <div class="questionDetailHeader">
+                    <div class="toLeft">
+                        <span class="questionDetailName">
+                            <apex:outputText value="{!current_question.TIMBASURVEYS__Question2__c}" />
+                        </span>
+                    </div>
+                </div>
+
+                <div class="questionDetailTextArea" style="display: block;">
+                    <div class="detailHeader">
+                        <div class="colRecipient"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_recipient}" /></div>
+                        <apex:outputText styleClass="colResponse" value="{!$Label.timbasurveys__timbasurveys_analyzer_responses}" />
+                    </div>
+                    <div class="detailData">
+                        <table border="0" cellspacing="0">
+                            <apex:repeat value="{!response_list}" var="sr" >
+                                <tr onmouseover="overRow(this, true);" onmouseout="overRow(this, false);">
+                                    <td class="colRecipientCont">
+                                        <a href="javascript:open_summary('{!URLENCODE(sr.Recipient__r.Id)}');" title="{!$Label.timbasurvey_Analyze_View_Summary}">
+                                            <apex:outputText value="{!IF(AND(ISNULL(sr.Recipient__r.RelatedContact__c) == false, !sr.Recipient__r.IsAnonymous__c ), sr.Recipient__r.RelatedContact__r.Name,
+                                             IF(AND(ISNULL(sr.Recipient__r.RelatedUser__c) == false, !sr.Recipient__r.IsAnonymous__c ), sr.Recipient__r.RelatedUser__r.Name,
+                                             IF(AND(ISNULL(sr.Recipient__r.EmailAddress__c) == false, !sr.Recipient__r.IsAnonymous__c ), sr.Recipient__r.EmailAddress__c,
+                                             IF(ISBLANK(sr.Recipient__r.FirstName__c) == true, $Label.timbasurvey_Analyze_Anonymous,sr.Recipient__r.FirstName__c))))}" />
+                                            </a>
+                                        </td>
+                                    <td class="colResponseCont">
+                                        <apex:outputText value="{!sr.TIMBASURVEYS__StringResponse__c}" rendered="{!IF(ISNULL(sr.TIMBASURVEYS__StringResponse__c) == false,true,false)}" />
+                                        <apex:outputText value="{0,date,MM/dd/yyyy}" rendered="{!IF(ISNULL(sr.TIMBASURVEYS__DateTimeResponse__c) == false,true,false)}">
+                                            <apex:param value="{!sr.TIMBASURVEYS__DateTimeResponse__c}" />
+                                        </apex:outputText>
+                                    </td>
+                                </tr>
+                            </apex:repeat>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="listnavigator">
+                    <div class="begin {!IF(responsesControllerNew.renderPrevious,'','disabled')}" onclick="paginationFirst()"></div>
+                    <div class="prev {!IF(responsesControllerNew.renderPrevious,'','disabled')}" onclick="paginationPrevious()"></div>
+                    <div class="selectContainer">
+                        <ul class="selectList">
+                            <apex:repeat value="{!responsesControllerNew.NumericPaginationSet}" var="Page">
+                                <li class="listSelectList"><apex:outputText value="{!Page}" /></li>
+                            </apex:repeat>
+                        </ul>
+                        <div class="count">
+                            <apex:outputText value="{!responsesControllerNew.Page}/{!responsesControllerNew.TotalPages}" />
+                        </div>
+                    </div>
+                    <div class="next {!IF(responsesControllerNew.renderNext,'','disabled')}" onclick="paginationNext()"></div>
+                    <div class="end {!IF(responsesControllerNew.renderNext,'','disabled')}" onclick="paginationLast()"></div>
+                </div>
+            </div>
+            <script type="text/javascript">
+                 <apex:repeat value="{!srecips}" var="recip" id="id_repeater">
+                	summary_id['{!JSENCODE(recip.rid)}'] = '{!JSENCODE(recip.sid)}';
+                </apex:repeat>
+            </script>
+    </apex:outPutPanel>
+
+    <!-- Pagination Functions -->
+    <apex:form >
+        <apex:actionFunction name="paginationNext" action="{!responsesControllerNew.GoNext}" rerender="MyContainer" onComplete="refreshList();"/>
+        <apex:actionFunction name="paginationLast" action="{!responsesControllerNew.GoLast}" rerender="MyContainer" onComplete="refreshList();"/>
+        <apex:actionFunction name="paginationPrevious" action="{!responsesControllerNew.GoPrevious}"  rerender="MyContainer" onComplete="refreshList();"/>
+        <apex:actionFunction name="paginationFirst" action="{!responsesControllerNew.GoFirst}" rerender="MyContainer" onComplete="refreshList();"/>
+        <!-- In Case You Have a Numerical Paginator -->
+        <apex:actionFunction name="paginationSetPage" action="{!responsesControllerNew.setPage}" rerender="MyContainer" onComplete="refreshList();">
+            <apex:param name="Page" value="0" />
+        </apex:actionFunction>
+    </apex:form>
+
+</apex:page>

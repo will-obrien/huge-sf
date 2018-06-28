@@ -1,0 +1,65 @@
+sforce.connection.defaultNamespace = "zqu";
+
+var sendable = true;
+
+var sql="Select Id,ProductRatePlanCharge__r.Id from QuoteCharge__c where Quote__c = '" +'{!Quote__c.Id}' + "'" ;
+
+var quotecharges = sforce.connection.query(sql).getArray('records');
+
+for( var i = 0; i < quotecharges.length; i ++){
+	 var rateplanchargeid = null;
+	 if(quotecharges[i]['ProductRatePlanCharge__r'] != null)
+     	rateplanchargeid =  quotecharges[i]['ProductRatePlanCharge__r']['Id'];
+     if(rateplanchargeid == null){
+         sendable = false;
+         break;
+     }
+}
+
+if(sendable){
+var ztype = '{!Opportunity.Id}'=='' ? 'Quote__c' : 'Opportunity';
+if('{!Opportunity.ZuoraConfig__c}'=='' && '{!Quote__c.ZuoraConfig__c}'==''){
+	this.value = 'preparing to send...';
+	this.disabled = true;
+	sforce.connection.query("Select z.Name, z.Id, z.Active__c From ZuoraConfig__c z where z.Active__c=true",{
+		onSuccess:function(result){
+			var records = result.getArray("records");
+			if(records.length!=1) {
+				alert('there is no or more than 1 active zuora config');
+			}
+			else {
+				var opp = new sforce.SObject(ztype);
+				if(ztype=='Opportunity') opp.id = '{!Opportunity.Id}';
+				else opp.id = "{!Quote__c.Id}";
+				opp.ZuoraConfig__c = records[0].Id;
+				sforce.connection.update([opp],{
+					onSuccess:function(result){
+						if(!result[0].getBoolean("success")){
+							alert("error:"+result[0]);
+						}
+						else {
+							if(ztype=='Opportunity') window.location.href="/apex/zqu__OpportunityCreateZuoraAccount?id={!Opportunity.Id}";
+							else  {
+								if("{!Quote__c.Status__c}"=="Sent to Z-Billing") alert("this quote has been sent to z-billing");
+								else window.location.href="/apex/zqu__ZuoraQuoteSubmit?id={!Quote__c.Id}";
+							}
+						}
+					},
+					onFailure:function(e){
+						alert(e);
+					}			
+				});
+			}
+		
+		},
+		onFailure:function(e){alert(e)}
+	});
+}
+else {
+	if(ztype=='Opportunity') window.location.href="/apex/zqu__OpportunityCreateZuoraAccount?id={!Opportunity.Id}";
+	else  window.location.href="/apex/zqu__ZuoraQuoteSubmit?id={!Quote__c.Id}";
+}
+}
+else{
+      alert("Could not find Rate Plan Charge in Product Catalog. Send to Z-Billing is disabled. Please ask your Zuora Admin to re-sync your product catalog.");
+}

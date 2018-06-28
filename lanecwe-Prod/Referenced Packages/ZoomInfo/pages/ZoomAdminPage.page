@@ -1,0 +1,395 @@
+<apex:page language="en" 
+			showHeader="true" 
+			standardStylesheets="true" 
+			sidebar="true" 
+			controller="zisf.ZoomAdminController"
+			action="{!adminInit}">
+
+	<c:coreCSS />
+	<style>
+		body {
+			overflow: auto !important;
+		}
+		.sfFormItemData {
+			vertical-align: middle !important;
+		}
+		.sfFormItemLabel {
+			vertical-align: middle !important;
+		}
+		.sfFormSectionButton {
+			text-align: center !important;
+		}
+		.filterButton {
+			text-transform: capitalize;
+		}
+		
+		label,
+		.label {
+			text-transform: capitalize;
+		}
+		label.inlineLabel,
+		.label.inlineLabel {
+			margin-right: 4px;
+		}
+		
+		
+		.passwordNotDisplayed {
+			font-style: italic;
+			font-size: 10px;
+			white-space: nowrap;
+			color: #777;
+			text-transform: lowercase;
+		}
+
+		#saveMessageText .saveMessage {
+			font-style: italic;
+			color: blue;
+			text-align: left;
+			
+			-webkit-transition: all 500ms ease;  /* Safari 3.2+, Chrome */
+		    -moz-transition: all 500ms ease;  /* Firefox 4-15 */
+		    -o-transition: all 500ms ease;  /* Opera 10.5–12.00 */
+		    transition: all 500ms ease;  /* Firefox 16+, Opera 12.50+ */
+		    
+		    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)"; /* IE 8 */
+			filter: alpha(opacity=100); /* IE 5-7 */
+			-moz-opacity: 1.0; /* Netscape */
+			-khtml-opacity: 1.0; /* Safari 1.x */
+			opacity: 1.0; /* Good browsers */
+		}
+		#saveMessageText.fadeOut .saveMessage {
+		  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)"; /* IE 8 */
+		  filter: alpha(opacity=0); /* IE 5-7 */
+		  -moz-opacity: 0; /* Netscape */
+		  -khtml-opacity: 0; /* Safari 1.x */
+		  opacity: 0; /* Good browsers */
+		}
+
+		[id*=leadCompleteTriggerExcludeList],
+		[id*=leadCompleteTriggerIncludeList] {
+			width: 120px;
+		}
+		[id*=leadCompleteSourceFilter] option {
+			text-overflow: ellipsis;
+			overflow: hidden;
+			white-space: nowrap;
+			width: 100px;
+		}
+		[id*=leadCompleteSourceFilter] .filterButton {
+			 width: 80px;
+		}
+		input[type='text'],
+		input[type='password'] {
+			border-radius: 5px;
+			border: 1px solid #BBB;
+			padding: 4px 2px;
+		}
+		.errorMsg {
+			color: red;
+			font-weight: 800;
+			display: none;
+		}
+		.errorMsg.visible {
+			display: inline;
+		}
+		.errorMarked {
+			border: 2px solid red !important;
+			background-color: #FFFFB5;
+		}
+		
+		.message {
+			margin: 50px 100px;
+		}
+	</style>
+	<apex:sectionHeader title="{!$Label.adminPanelLabel}" />
+
+	<apex:variable var="isAdminPanelDisabled"
+		value="{!NOT(FALSE)}" />
+
+
+	<apex:pageMessage summary="{!$Label.adminTabHiddenMessage2}" 
+					  severity="info" strength="3" 
+					  rendered="{!isAdminPanelDisabled}"/>
+ 	<apex:pageMessages />
+ 	
+	<apex:tabPanel switchType="client" 
+			rendered="{!NOT(isAdminPanelDisabled)}" 
+			selectedTab="leadCompleteTab" 
+			id="theTabPanel"
+			contentClass="zoom_tab_content" 
+			styleClass="zoom_tab_panel" 
+			tabClass="zoom_t" 
+			activeTabClass="zoom_active_tab" 
+			inactiveTabClass="zoom_inactive_tab">
+        <apex:tab label="{!$Label.leadCompleteLabel}" name="leadCompleteTab" id="leadCompleteTab">
+        	<apex:form id="adminLeadCompleteForm">
+				<apex:pageBlock >
+					
+					<apex:actionFunction name="onLeadCompleteEnabledClick" 
+										 rerender="lc_trigger, leadCompleteErrors">
+						<apex:param name="setLC_IsTriggerMode" value="{!NOT(LC_IsTriggerMode)}" />
+					</apex:actionFunction>
+					
+					<apex:pageBlockSection id="lc_trigger" title="{!$Label.titleLCTriggerMode}" collapsible="false" columns="1">
+						<apex:variable var="leadCompleteFilterDisabled" value="{!NOT(LC_IsTriggerMode)}" />
+						<apex:pageBlockSectionItem dataStyleClass="sfFormItemData" labelStyleClass="sfFormItemLabel">
+							<apex:outputLabel value="{!$Label.inputEnabled}" for="triggerModeCheckbox"/>
+							<apex:inputCheckbox id="triggerModeCheckbox" 
+												value="{!LC_IsTriggerMode}" 
+												onclick="onLeadCompleteEnabledClick();"/>
+						</apex:pageBlockSectionItem>
+						
+						<!-- Designated ZI PRO account -->
+						<apex:pageBlockSectionItem dataStyleClass="sfFormItemData" labelStyleClass="">
+							<apex:outputLabel value="{!$Label.adminZoomCredentials} ({!$Label.required})"/>
+							<apex:outputPanel id="leadCompleteZoomCredentials">
+								<div style="display: inline-block;">
+									<apex:outputLabel value="{!$Label.inputFieldEmail}:" for="lcZoomCredentialsUser"/><br/>
+									<apex:inputText value="{!zoomCredentialsUser}" id="lcZoomCredentialsUser" disabled="{!leadCompleteFilterDisabled}" size="32"/>
+								</div><br/>
+								<div style="display: inline-block;">
+									<apex:outputLabel value="{!$Label.inputFieldPassword}:" for="lcZoomCredentialsPass"/><br/>
+									<div>
+										<apex:inputSecret value="{!zoomCredentialsPass}" id="lcZoomCredentialsPass" disabled="{!leadCompleteFilterDisabled}" size="32"/>
+										<apex:outputLabel value="({!$Label.adminPasswordNotDisplayed})" styleClass="passwordNotDisplayed"/>
+									</div>
+								</div>
+							</apex:outputPanel>
+						</apex:pageBlockSectionItem>
+						
+						<apex:pageBlockSectionItem dataStyleClass="sfFormItemData" labelStyleClass="">
+							<apex:outputLabel value="{!$Label.adminLCLeadSource}"/>
+							<apex:outputPanel id="leadCompleteSourceFilter">
+								<apex:panelGrid columns="3">
+									<apex:outputPanel >
+										<apex:selectList id="leadCompleteTriggerIncludeList" 
+														 size="10" 
+														 multiselect="true"
+														 disabled="{!leadCompleteFilterDisabled}">
+								            <apex:selectOptions value="{!TriggerIncludeOptions}"/>
+								        </apex:selectList>
+								    </apex:outputPanel>
+							        <apex:outputPanel >
+						        		<apex:commandButton styleClass="filterButton" 
+						        							value="{!$Label.exclude} >>" 
+						        							onclick="leadComplete.excludeSourcesClick();return false;"
+						        							disabled="{!leadCompleteFilterDisabled}"/><br/>
+							        	<apex:commandButton styleClass="filterButton" 
+							        						value="<< {!$Label.include}" 
+							        						onclick="leadComplete.includeSourcesClick();return false;"
+							        						disabled="{!leadCompleteFilterDisabled}"/>
+								    </apex:outputPanel>
+								    <apex:outputPanel >
+								    	<apex:selectList id="leadCompleteTriggerExcludeList" 
+								        				 size="10" 
+								        				 multiselect="true"
+								        				 disabled="{!leadCompleteFilterDisabled}">
+								            <apex:selectOptions value="{!TriggerExcludeOptions}"/>
+								        </apex:selectList>
+								        <apex:inputText id="leadCompleteTriggerExcludeSetting" value="{!leadCompleteTriggerExcludeSetting}" style="display: none"/>
+							        </apex:outputPanel>
+							    </apex:panelGrid>
+								<script type="text/javascript">
+								    var leadComplete = (function() {
+								   		var filterIncludeSelectElem = document.getElementById("{!$Component.leadCompleteTriggerIncludeList}");
+								   		var filterExcludeSelectElem = document.getElementById("{!$Component.leadCompleteTriggerExcludeList}");
+								   										   		
+								   		return {
+								   			generateExcludeSetting: function() {
+								   				var list = filterExcludeSelectElem.getElementsByTagName("option");
+								   				var outputString = '';
+								   				for(var i = 0, len = list.length; i < len; i++) {
+								   					var option = list[i];
+								   					outputString += ',' + option.label;
+								   				}
+								   				if (outputString === '') {
+								   					document.getElementById("{!$Component.leadCompleteTriggerExcludeSetting}").value = outputString;
+								   				} else {
+								   					document.getElementById("{!$Component.leadCompleteTriggerExcludeSetting}").value = outputString.substring(1);
+								   				}
+								   			},
+								   			/**
+								   			 * moves all selected options from the exclude list into the include list
+								   			 */ 
+								   			includeSourcesClick: function() {
+								   				var list = filterExcludeSelectElem.getElementsByTagName("option");
+								   				var toKeep = new Array();
+								   				var toRemove = new Array();
+								   				for(var i = 0, len = list.length; i < len; i++) {
+								   					var option = list[i];
+								   					if(option.selected) {
+								   						option.selected = false;
+								   						toRemove.push(option);
+								   					} else {
+								   						toKeep.push(option);
+								   					} 
+									   			}
+									   			filterExcludeSelectElem.options.length = 0;
+									   			for (var i = 0, len = toKeep.length; i < len; i++) {
+									   				var option = toKeep[i];
+									   				filterExcludeSelectElem.add(option);
+									   			}
+									   			for (var i = 0, len = toRemove.length; i < len; i++) {
+									   				var option = toRemove[i];
+									   				filterIncludeSelectElem.add(option);
+									   			}
+									   			leadComplete.generateExcludeSetting();									   			
+								   			},
+								   			/**
+								   			 * moves all selected options from the include list into the exclude list
+								   			 */
+								   			excludeSourcesClick: function() {
+								   				var list = filterIncludeSelectElem.getElementsByTagName("option");
+								   				var toKeep = new Array();
+								   				var toRemove = new Array();
+								   				for(var i = 0, len = list.length; i < len; i++) {
+								   					var option = list[i];
+								   					if(option.selected) {
+								   						option.selected = false;
+								   						toRemove.push(option);
+								   					} else {
+								   						toKeep.push(option);
+								   					} 
+									   			}
+									   			filterIncludeSelectElem.options.length = 0;
+									   			for (var i = 0, len = toKeep.length; i < len; i++) {
+									   				var option = toKeep[i];
+									   				filterIncludeSelectElem.add(option);
+									   			}
+									   			for (var i = 0, len = toRemove.length; i < len; i++) {
+									   				var option = toRemove[i];
+									   				filterExcludeSelectElem.add(option);
+									   			}
+									   			leadComplete.generateExcludeSetting();		
+								   			}
+								   		};
+								   	})();
+								</script>
+							</apex:outputPanel>
+						</apex:pageBlockSectionItem>
+						
+						<!-- Error notifications -->
+						<apex:pageBlockSectionItem dataStyleClass="sfFormItemData" labelStyleClass="">
+							<apex:outputLabel value="{!$Label.adminSendAllErrorsTo}"/>
+							<apex:outputPanel id="leadCompleteErrors">
+								<apex:actionFunction name="onLeadCompleteTriggerNotifyClick" 
+										 rerender="leadCompleteErrors">
+								</apex:actionFunction>
+								<apex:variable var="isLCNotifyEmailOther" value="{!AND(NOT(ISNULL(errorNotifyEmail)), errorNotifyEmail != '')}" />
+								<input 	type="radio" id="leadCompleteErrorsAdminRadio"
+										name="group1" /> {!$Label.roleSystemAdmin}<br/>
+								<input 	type="radio" id="leadCompleteErrorsOtherRadio"
+										name="group1" /> <label class="inlineLabel">{!$Label.other}:</label>
+								 	<apex:inputText value="{!errorNotifyEmail}" id="leadCompleteErrorNotifyEmail" disabled="{!leadCompleteFilterDisabled}" size="32"/>
+									<div id="errorNotValidLCErrorsEmail" class="errorMsg">This is not a valid email address</div>
+								
+								<apex:variable var="leadCompleteErrorsJS" value="" rendered="{!leadCompleteFilterDisabled}">
+									<script type="text/javascript">
+										if((adminRadio = document.getElementById("leadCompleteErrorsAdminRadio"))) {
+											adminRadio.disabled = true;
+										}
+										if((otherRadio = document.getElementById("leadCompleteErrorsOtherRadio"))) {
+											otherRadio.disabled = true;
+										}
+									</script>
+								</apex:variable>
+								<apex:variable var="leadCompleteErrorsJS" value="" rendered="{!NOT(leadCompleteFilterDisabled)}">
+									<script type="text/javascript">
+										(function() {
+											// attach click event to the radio box so that we can disable the otherone
+											if((adminRadio = document.getElementById("leadCompleteErrorsAdminRadio"))) {
+												adminRadio.onclick = function(e) {
+													if((otherRadioInput = document.getElementById("{!$Component.leadCompleteErrorNotifyEmail}"))) {
+														otherRadioInput.disabled = true;
+														otherRadioInput.readOnly = true;
+														otherRadioInput.value = "";
+													}
+												};
+											}
+											if((otherRadio = document.getElementById("leadCompleteErrorsOtherRadio"))) {
+												otherRadio.onclick = function(e) {
+													if((otherRadioInput = document.getElementById("{!$Component.leadCompleteErrorNotifyEmail}"))) {
+														otherRadioInput.disabled = false;
+														otherRadioInput.readOnly = false;
+														otherRadioInput.value = otherRadioInput._value || "";
+														otherRadioInput.setAttribute("value", otherRadioInput.value);
+													}
+												};
+											}
+										
+											if(emailElem = document.getElementById("{!$Component.leadCompleteErrorNotifyEmail}")) {
+											    emailElem._emailValidationRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+											    emailElem._value = emailElem.value;
+											    emailElem.onblur = function(e) {
+											    	if(this.value && !this._emailValidationRegex.test(this.value)) {
+											    		// remember current classname
+											    		this._className = this.className || " ";
+											    		// mark the container with an error mark
+											    		this.className += (this.className ? " " : "") + "errorMarked";
+											    		// make the error message visible
+											    		document.getElementById("errorNotValidLCErrorsEmail").className = "errorMsg visible";
+											    	} else if(this.value) {
+											    		emailElem._value = emailElem.value;
+											    	}
+											    };
+											    emailElem.onfocus = function(e) {
+											    	// restore original classname
+											    	if(this._className) this.className = this._className;
+											    	// hide the error message
+											    	document.getElementById("errorNotValidLCErrorsEmail").className = "errorMsg";
+											    };
+											}
+											
+											// select the correct radio button
+											if((!{!isLCNotifyEmailOther}) && (adminRadio = document.getElementById("leadCompleteErrorsAdminRadio"))) {
+												adminRadio.click();
+											} else if((otherRadio = document.getElementById("leadCompleteErrorsOtherRadio"))) {
+												otherRadio.click();
+											}
+										})();
+									</script>
+								</apex:variable>
+							</apex:outputPanel>
+						</apex:pageBlockSectionItem>
+						
+						<apex:pageBlockSectionItem dataStyleClass="sfFormItemData" labelStyleClass="">
+							<apex:outputLabel value="ZISFLog:"/>
+							<apex:outputPanel >
+								<apex:repeat value="{!zisfLog}" var="logEvent">
+									<div style="width: 100%; white-space: nowrap;">
+										{!logEvent}
+									</div>
+								</apex:repeat>
+							</apex:outputPanel>
+						</apex:pageBlockSectionItem>
+						
+						<apex:pageBlockSectionItem >
+							<apex:commandButton value="{!$Label.buttonSave}"
+												action="{!saveLeadCompleteSettings}" 
+												oncomplete="reloadParentFrame()" />
+							<apex:outputPanel id="saveMessage" styleClass="saveMessage">
+								<script type="text/javascript">
+									window.reloadParentFrame = function() {
+										window.top.location = window.top.location;
+									};
+								</script>
+								<apex:variable var="saveMessageSection" value="" rendered="{!changesSaved}">
+									<div id="saveMessageText">
+										<apex:outputLabel value="{!$Label.adminSaveMessage}"
+														  styleClass="saveMessage" />
+									</div>
+									<script type="text/javascript">
+										setTimeout(function() {
+											document.getElementById("saveMessageText").className = "fadeOut"; // cannot use "hidden" because its reserved in SF
+										}, 5000);
+									</script>
+								</apex:variable>
+							</apex:outputPanel>
+						</apex:pageBlockSectionItem>
+					</apex:pageBlockSection>
+					
+				</apex:pageBlock>
+			</apex:form>
+		</apex:tab>
+    </apex:tabPanel>
+</apex:page>

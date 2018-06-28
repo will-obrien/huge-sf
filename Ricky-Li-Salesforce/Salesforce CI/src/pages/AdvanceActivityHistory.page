@@ -1,0 +1,337 @@
+<apex:page standardController="Account"
+    extensions="AdvanceActivityHistoryController">
+    
+    <STYLE type="text/css">
+        .textbox{
+            margin-left: 10px;
+        }
+        #searchActivityType{
+            width: 78px;
+        }
+        #activityButtons{
+            width: 200px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;         
+        }
+        #dataTable{
+            font-size: 0.9em;
+        }
+        #dataTable td div{
+            max-height: 39px;
+            overflow: hidden;
+        }
+        .headerRow th {
+            background: none repeat scroll 0 0 #F2F3F3;
+            border-color: #E0E3E5;
+            color: #000000;
+        }
+        .editSection {
+            display: inline;
+            margin-right: 2px;
+            text-decoration:none;
+        }
+        
+        
+    </STYLE>
+
+    <apex:includeScript value="/support/console/28.0/integration.js" />
+
+    <script type="text/javascript">
+        function openTab(taskUrl, tabName) {
+            if (sforce.console.isInConsole()) {
+                sforce.console.getEnclosingPrimaryTabId(function(result) {
+                    sforce.console.openSubtab(result.id, taskUrl, true,
+                            tabName, null);
+                });
+
+            } else {
+                window.top.location.replace(taskUrl);
+            }
+        }
+
+        function confirmDelete() {
+            return confirm('Are you sure you want to delete?');
+        }
+        
+        function dateValidate(st){
+            var validDate = 0;
+            try{
+                if(st.length == 10){
+                    var dateString = st.replace(/(\d{2})\/(\d{2})\/(\d{4})/,'$3-$2-$1');
+                    var dt = new Date(dateString);
+                    if(isNaN(dt.getTime())){
+                        validDate = 0;
+                    }else{
+                        validDate = 1;
+                    }
+                }           
+            }catch(err){
+                validDate = 0;                      
+            }finally{
+                if(validDate == 0){
+                    alert('Please Follow The Right Date Format: DD/MM/YYYY');   
+                }
+            }           
+            return validDate;
+        }
+
+        function doSearch() {
+            //validate date before search           
+            var lastModifiedDate = document.getElementById("searchLastModifiedDate").value;
+            var lastModifiedDateTo = document.getElementById("searchLastModifiedDateTo").value;
+            var validDate = 1;
+            var validDateTo = 1;
+            if(lastModifiedDate != ""){
+                validDate = dateValidate(lastModifiedDate);
+            }
+            if(lastModifiedDateTo != ""){
+                validDateTo = dateValidate(lastModifiedDateTo);
+            }
+            
+            if(validDate == 1 && validDateTo == 1) {
+            searchServer(document.getElementById("searchActivityType").value,
+                    document.getElementById("searchRelatedTo").value, 
+                    document.getElementById("searchCreatedBy").value, 
+                    document.getElementById("searchAssignedTo").value, 
+                    lastModifiedDate,
+                    lastModifiedDateTo);
+            }
+        }
+
+        function clearSearch() {
+            searchServer('All','','','','','');
+        }
+        
+        function showList() {
+            document.getElementById("searchActivityType").innerHTML =
+            "<option value=\"All\">All</option>"+
+            "<option value=\"Email\">Email</option>"+
+            "<option value=\"Cold Call\">Cold Call</option>"+
+            "<option value=\"Call\">Call</option>"+
+            "<option value=\"Meeting\">Meeting</option>"+
+            "<option value=\"Site Visit\">Site Visit</option>"+
+            "<option value=\"Quote\">Quote</option>"+
+            "<option value=\"Other\">Other</option>";
+        }
+
+        function clickFilter() {
+            if (document.getElementById) {
+                obj = document.getElementById("filterParam");
+                if (obj.style.display == "none") {
+                    obj.style.display = "";
+                    document.getElementById("filterlink").innerHTML = "Hide Filter";
+                } else {
+                    obj.style.display = "none";
+                    document.getElementById("filterlink").innerHTML = "Show Filter";
+                }
+            }
+        }
+
+        function pickDate(inputId) {
+
+            var startYear = 1930;
+            var endYear = 2050;
+            var optionsString = '';
+            for (i = startYear; i < endYear + 1; i++) {
+                optionsString += "<option value=\""+i+"\">" + i + "</option>";
+            }
+
+            document.getElementById("calYearPicker").innerHTML = optionsString;
+
+            DatePicker.pickDate(false, inputId, false);
+            document.getElementById("datePicker").style.top = "88px";
+        }
+    
+        function addActivityHistoryLink() {
+            //alert("self: " + self);
+            //window.top.location.href = "https://cs15.salesforce.com/ui/support/servicedesk/ServiceDeskPage?tsid=02ue0000000ClnT";
+            //var elements = window.top.document.getElementsByClassName("listHoverLinks");
+            
+            //alert("elements: " + elements.length);
+            
+        }
+        
+        
+    var previousOnload = window.onload;        
+    window.onload = function() { 
+        if (previousOnload) { 
+            previousOnload();
+        }  
+    //alert('console...: ' + sforce.console.isInConsole());
+    //alert('parent url: ' + window.top.location.href);    
+    addActivityHistoryLink();
+
+    }   
+
+    </script>
+
+    <apex:form id="ahForm">
+            <apex:pageblock mode="maindetail" id="results">
+            <div id="buttonSection">
+                <div id="activityButtons">
+                    <apex:commandButton style="margin-right:5px;" value="Log A Call"
+                            oncomplete="openTab('/setup/ui/recordtypeselect.jsp?ent=Task&retURL=%2F{!Id}&save_new_url=%2F00T%2Fe%3Ftitle%3DCall%26what_id%3D{!Account.Id}%26followup%3D1%26tsk5%3DCall%26retURL%3D%252F{!Account.Id}','Log a Call');">
+                    </apex:commandButton>
+                    <apex:commandButton value="Send an Email"
+                            oncomplete="openTab('/_ui/core/email/author/EmailAuthor?p3_lkid={!Account.Id}&retURL=%2F{!Id}','Send an Email');">
+                    </apex:commandButton>
+                </div>
+                </div>
+
+                
+                <div id="criteria">
+                
+                    <apex:actionFunction name="searchServer" action="{!runSearch}"
+                        rerender="results">
+                        <apex:param name="searchActivityType" value="" />
+                        <apex:param name="searchRelatedTo" value="" />
+                        <apex:param name="searchCreatedBy" value="" />
+                        <apex:param name="searchAssignedTo" value="" />
+                        <apex:param name="searchLastModifiedDate" value="" />
+                        <apex:param name="searchLastModifiedDateTo" value="" />
+                    </apex:actionFunction>
+                &nbsp;<a id="filterlink" onclick="clickFilter();"
+                        href="javascript:void(0);">{!filterLink}</a>
+                    <table id="filterParam" cellpadding="2" cellspacing="2" style="{!showFilter}">
+                        <tr>
+                            <td>Activity Type <select id="searchActivityType" onfocus="showList()">
+                                    <option value="{!activityType}" selected="selected">{!activityType}</option>                                    
+                            </select>
+                            </td>
+
+                            <td>Related To<input class="textbox" type="text"
+                                id="searchRelatedTo" value="{!relatedTo}" /></td>
+                            <td>Created By<input class="textbox" type="text"
+                                id="searchCreatedBy" value="{!createdBy}" /></td>
+                            <td>Assign To<input class="textbox" type="text"
+                                id="searchAssignedTo" value="{!assignedTo}" /></td>
+                        </tr>
+                        <tr>
+                            <td>Last Modified Date</td>
+                            <td>From: <input class="textbox" type="text"
+                                value="{!lastModifiedDate}" id="searchLastModifiedDate"
+                                onfocus="pickDate('searchLastModifiedDate');" /></td>
+                            <td>To: <input class="textbox" type="text"
+                                value="{!lastModifiedDateTo}" id="searchLastModifiedDateTo"
+                                onfocus="pickDate('searchLastModifiedDateTo');" /></td>
+                        </tr>
+                        <tr>
+                            <td><input type="button" name="button" onClick="doSearch();"
+                                value="Apply Filter" /></td>
+                            <td><input type="button" name="button"
+                                onClick="clearSearch();" value="Clear Filter" /></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="pbBody">
+                <table id="dataTable" width="100%" class="list" border="0" cellspacing="0" cellpadding="0">
+                    <tr class="headerRow">
+                        <th name="header" class="actionColumn" scope="col" style="width: 53px;"> Action </th>
+                        <th name="header" class=" zen-deemphasize" scope="col">
+                                <apex:commandLink value="Activity Type" action="{!toggleSort}"
+                                    rerender="results">
+                                    <apex:param name="sortField" value="DB_Activity_Type__c"
+                                        assignTo="{!sortField}" />
+                                </apex:commandLink>
+                            </th>
+                            <th name="header">
+                        Comment
+                    </th>
+                    <th name="header" class=" zen-deemphasize" scope="col">
+                            <apex:commandLink value="Related To" action="{!toggleSort}"
+                                rerender="results">
+                                <apex:param name="sortField" value="WhatId"
+                                    assignTo="{!sortField}" />
+                            </apex:commandLink>
+                        </th>
+                        <th name="header" class=" zen-deemphasize" scope="col">
+                            <apex:commandLink value="Created By" action="{!toggleSort}"
+                                rerender="results">
+                                <apex:param name="sortField" value="CreatedById"
+                                    assignTo="{!sortField}" />
+                            </apex:commandLink>
+                        </th>
+                        <th name="header" class=" zen-deemphasize" scope="col">
+                            <apex:commandLink value="Assigned To" action="{!toggleSort}"
+                                rerender="results">
+                                <apex:param name="sortField" value="OwnerId"
+                                    assignTo="{!sortField}" />
+                            </apex:commandLink>
+                        </th>
+                        <th name="header" class=" zen-deemphasize" scope="col">
+                            <apex:commandLink value="Last Modified Date"
+                                action="{!toggleSort}" rerender="results">
+                                <apex:param name="sortField" value="LastModifiedDate"
+                                    assignTo="{!sortField}" />
+                            </apex:commandLink>
+
+                        </th>
+                    </tr>
+                <apex:repeat value="{!results}" var="tsk">
+                    <tr class="dataRow even first" onmouseover="if (window.hiOn){hiOn(this);}" onmouseout="if (window.hiOff){hiOff(this);}" onfocus="if (window.hiOn){hiOn(this);}" onblur="if (window.hiOff){hiOff(this);}">
+                    <td>
+                    <div>
+                        <apex:commandlink styleClass="editSection" value="Edit" rerender="results" style="color: #015BA7;"
+                            onclick="openTab('/{!tsk.Id}/e?retURL=%2F{!Id}','{!tsk.DB_Activity_Type__c}');"></apex:commandlink>
+                        <div class="editSection">|</div>
+                    <apex:commandlink styleClass="editSection" style="color: #015BA7;" action="{!deleteActivity}"
+                                onClick="if(!confirmDelete()) return false;" value="Del" rerender="results">
+                                <apex:param name="taskId" value="{!tsk.Id}" assignTo="{!taskId}" />
+                                <apex:param name="isTask" value="{!tsk.IsTask}"
+                                    assignTo="{!isTask}" />
+                            </apex:commandlink>
+                    </div>  
+                    </td>
+
+                    <td >
+                    <div>
+                        <apex:outputlink target="_top" value="javascript:void(0);"
+                            onclick="openTab('/{!tsk.Id}','{!tsk.DB_Activity_Type__c}');">{!tsk.DB_Activity_Type__c}</apex:outputLink>
+                            </div>
+                    </td>
+
+                    <td id="commentfield" width="35%">
+                        <div>
+                        <apex:outputField value="{!tsk.Description}">
+                        </apex:outputField>
+                        </div>                      
+                    </td>
+                
+
+                <td >
+                    <div>
+                        <apex:outputLink target="_top" value="javascript:void(0);"
+                            onclick="openTab('/{!Id}','{!tsk.What.Name}');">{!tsk.What.Name}</apex:outputLink>
+                        </div>
+                    </td>
+
+                    <td >
+                    <div>
+                        <apex:outputLink target="_top" value="javascript:void(0);"
+                            onclick="openTab('/{!tsk.CreatedById}','{!tsk.CreatedBy.Name}');">{!tsk.CreatedBy.Name}</apex:outputLink>
+                        </div>
+                    </td>
+
+                    <td >
+                    <div>
+                        <apex:outputLink target="_top" value="javascript:void(0);"
+                            onclick="openTab('/{!tsk.OwnerId}','{!tsk.Owner.Name}');">{!tsk.Owner.Name}</apex:outputLink>
+                    </div>  
+                    </td>
+
+                    <td>
+                        <div>
+                        <apex:outputField value="{!tsk.LastModifiedDate}">
+                        </apex:outputField>
+                        </div>
+                    </td>
+
+                </tr>
+                </apex:repeat>
+                </table>
+                </div>
+                </apex:pageBlock>
+    </apex:form>
+
+</apex:page>

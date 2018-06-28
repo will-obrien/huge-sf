@@ -1,0 +1,89 @@
+<apex:page showHeader="true" sidebar="false" controller="AccountContactJSR">
+    <script>
+        var msgBox;
+        window.onload = function()
+        {
+          msgBox = document.getElementById("result");
+          msgBox.innerHTML += '<br/><br/><br/> Loading content..';
+          var accountId = window.location.search.substring(1).split('=')[1];
+          msgBox.innerHTML += '<br/> Loading contact with Id '+accountId+'..';
+          loadAccount(accountId);
+        };
+
+        function hideTable()
+        {
+          msgBox.style.display = 'none';
+        }
+        
+        function loadAccount(accountId)
+        {
+          Visualforce.remoting.Manager.invokeAction
+          (
+            '{!$RemoteAction.AccountContactJSR.getAccountData}',
+            accountId,
+            function(result, event)
+            {
+              if(event.status)
+              {
+                var accName = document.getElementById("accName");
+                var accConFirstName = document.getElementById("accConFirstName");
+                var accConLastName = document.getElementById("accConLastName");
+                var accConPhoneName = document.getElementById("accConPhoneName");
+                accName.innerHTML = result.Name;
+                accConFirstName.innerHTML = result.Contacts[0].FirstName;
+                accConLastName.innerHTML = result.Contacts[0].LastName;
+                accConPhoneName.innerHTML = result.Contacts[0].Phone;
+                msgBox.innerHTML += '<br/> Account info populated.';
+              }
+              else if (event.type === 'exception')
+              {
+                msgBox.innerHTML += '<br/>'+event.message + "<br/>\n<pre>" + event.where + "</pre>";
+              }
+              else
+              {
+                msgBox.innerHTML += '<br/>'+event.message;
+              }
+            }
+          );
+        }
+        
+    </script>
+    <style>
+      #result
+      {
+        width: 400px;
+        border:1px solid black;
+        font-size: 18px;
+        padding:20px;
+        float:left;
+      }
+      #contactInfo
+      {
+        width: 400px;
+        border:1px solid black;
+        font-size: 18px;
+        padding:20px;
+        margin-left: 20px;
+        float:left;
+      }
+    </style>
+    <div id='result'>
+      <input type="button" onClick="hideTable();" value="Hide Loading Table"/>
+    </div>
+    <div id='contactInfo'>
+      <h1>Contact Info</h1>
+      <br/>
+      <p>Contact Name: <span id='accConFirstName'></span></p>
+
+      <p>Contact Last Name: <span id='accConLastName'></span></p>
+
+      <p>Contact Phone: <span id='accConPhoneName'></span></p>
+      <br/>
+        
+      <h1>Account Info</h1>
+      <br/>
+      <p>Account Name: <span id='accName'></span></p>
+
+      <br/>
+    </div>
+</apex:page>

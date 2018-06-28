@@ -1,0 +1,2080 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="ClubEventController" applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>{!pageTitle}</title>
+      <script src="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.js')}" type="text/javascript"></script>
+      <script src="{!$Resource.LaterJs}" type="text/javascript"></script>
+      <script src="{!$Resource.jqueryDateFormat}" type="text/javascript"></script>
+      <apex:stylesheet value="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.css')}"/>
+
+      <style type="text/css">
+        .requiredInput .requiredBlock {
+          background-color: #c00;
+          position: absolute;
+          left: 12px;
+          width: 3px;
+          top: 1px;
+          bottom: 1px;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        td label {
+          font-weight: inherit;
+        }
+        .center {
+            text-align: center;
+        }
+        #addDateError {
+        	color: red;
+        }
+      </style>
+    </apex:define>
+
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+      <apex:form id="theForm" html-novalidate="novalidate">
+        <!-- Save & Cancel buttons -->
+        <div class="row">
+          <div class="col-md-2 form-group">
+            <apex:commandButton value="Save Event" action="{!save}" onClick="saveOccurrences()" styleClass="btn btn-primary btn-block"/>
+          </div>
+          <div class="col-md-3 form-group">
+            <apex:commandButton value="Save and Return to List" action="{!saveAndReturn}" onClick="saveOccurrences()" styleClass="btn btn-block btn-success"/>
+          </div>
+          <div class="col-md-3 form-group">
+            <apex:commandButton value="Cancel and Return to List" action="{!cancel}" styleClass="btn btn-block btn-warning"
+                    immediate="true" />
+          </div>
+        </div>
+
+        <div>
+          <!-- Nav tabs -->
+          <ul class="nav nav-tabs" role="tablist">
+            <li role="presentation" class="active"><a href="#event-details" aria-controls="event-details" role="tab" data-toggle="tab">Event Details</a></li>
+            <li role="presentation"><a href="#full-description" aria-controls="full-description" role="tab" data-toggle="tab">Full Description</a></li>
+            <li role="presentation" id="registrationOptionsTab" class="{!IF(clubEvent.Registrations_Accepted__c, '', 'disabled')}"><a href="#registration-options" aria-controls="registration-options" role="tab" data-toggle="tab">Registration Options</a></li>
+            <li role="presentation">
+              <apex:outputLink value="{! IF(clubEvent.Display_Method__c == 'Salesforce Events Page', clubEvent.URL_to_Share__c + '&preview=true', clubEvent.External_URL__c)}"
+                               rendered="{!clubEvent.Id != null}"
+                               target="_blank"
+              >
+                Preview
+              </apex:outputLink>
+            </li>
+          </ul>
+
+          <!-- Tab panes -->
+          <div class="tab-content">
+
+            <!-- Event Details Tab -->
+
+            <!-- Event Information Panel -->
+            <div role="tabpanel" class="tab-pane fade in active" id="event-details">
+              <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingOne">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        <i class="fa fa-caret-down"></i> Event Information
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseOne" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingOne">
+                    <div class="panel-body">
+                      <apex:actionRegion id="entityRegion">
+                        <div class="row">
+                          <div class="col-md-12">
+                            <apex:actionStatus for="entityRegion">
+                              <apex:facet name="start">
+                                <c:Waiting />
+                              </apex:facet>
+                            </apex:actionStatus>
+                          </div>
+                        </div>
+                        <div class="row form-group">
+                          <div class="col-md-12">
+                            <div class="form-group">
+                              <div class="requiredInput">
+                                <div class="requiredBlock"></div>
+                                <div class="help-block col-md-11">Indicates Required Field</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Club Entity" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:outputPanel >
+                              <div class="requiredInput">
+                                <div class="requiredBlock"></div>
+                                <apex:selectList value="{!clubEntity}" size="1" styleClass="form-control">
+                                  <apex:selectOptions value="{!entities}"/>
+                                  <apex:actionSupport event="onchange"
+                                                      reRender="level-section, sponsor-description, grassrootsCampaign"
+                                  />
+                                </apex:selectList>
+                              </div>
+                            </apex:outputPanel>
+                          </div>
+                          <div class="col-md-2">
+                            <apex:outputPanel >
+                              <apex:outputLabel value="Sponsor Description" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top" title="This field will auto populate when you select a Club Entity"></i>
+                            </apex:outputPanel>
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:outputPanel >
+                              <apex:inputText id="sponsor-description"
+                                              value="{!sponsorDescription}"
+                                              styleClass="form-control"
+                                              maxlength="255"
+                              />
+                            </apex:outputPanel>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Event Name" for="activity-name" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <div class="requiredInput">
+                              <div class="requiredBlock"></div>
+                                <apex:inputText id="activity-name"
+                                                value="{!clubEvent.Event_Title__c}"
+                                                styleClass="form-control"
+                                                maxlength="80"
+                                />
+                            </div>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputPanel >
+                              <apex:outputLabel value="Begins" for="date-begin" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top" title="These fields now incorporate both date and time"></i>
+                            </apex:outputPanel>
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:outputPanel >
+                              <div class="requiredInput">
+                                <div class="requiredBlock"></div>
+                                <apex:inputText id="date-begin"
+                                                styleClass="dateTimeInput form-control"
+                                                value="{!dtBegin}"
+                                />
+                              </div>
+                            </apex:outputPanel>
+                          </div>
+                          <div class="col-md-2 col-sm-4">
+                            <apex:outputLabel value="Time Tentative" for="time-tentative" />
+                          </div>
+                          <div class="col-md-1 col-sm-2 form-group">
+                            <apex:inputCheckbox id="time-tentative"
+                                                value="{!clubEvent.Time_Tentative__c}"
+                            />
+                          </div>
+                          <div class="col-md-2  col-sm-4">
+                            <apex:outputLabel value="Date Tentative" for="date-tentative" />
+                          </div>
+                          <div class="col-md-1 col-sm-2 form-group">
+                            <apex:inputCheckbox id="date-tentative"
+                                                value="{!clubEvent.Date_Tentative__c}"
+                            />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Ends (Optional)" for="date-end" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputText id="date-end" styleClass="dateTimeInput form-control"
+                                            value="{!dtEnd}"
+                            />
+                          </div>
+                        </div>
+                      </apex:actionRegion>
+                      <apex:actionRegion id="levelRegion">
+                        <div class="row form-group">
+                          <div class="col-md-12">
+                            <apex:actionStatus for="levelRegion">
+                              <apex:facet name="start">
+                                <c:Waiting />
+                              </apex:facet>
+                            </apex:actionStatus>
+                          </div>
+                        </div>
+                        <apex:outputPanel id="level-section">
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Event Category"/>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:outputPanel >
+                                <div class="requiredInput">
+                                  <div class="requiredBlock"></div>
+                                  <apex:selectList id="category" value="{!clubEvent.Event_Category__c}" size="1" styleClass="form-control" >
+                                    <apex:selectOptions value="{!categoryOptions}"/>
+                                    <apex:actionSupport event="onchange"
+                                        action="{!categoryChanged}"
+                                        reRender="level-section, status-section"
+                                    />
+                                  </apex:selectList>
+                                </div>
+                              </apex:outputPanel>
+                            </div>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Event Type" for="activity-type" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:outputPanel >
+                                <div class="requiredInput">
+                                  <div class="requiredBlock"></div>
+                                  <apex:selectList id="activity-type" value="{!clubEvent.Event_Type__c}" size="1" styleClass="form-control">
+                                    <apex:selectOptions value="{!typeOptions}"/>
+                                  </apex:selectList>
+                                </div>
+                              </apex:outputPanel>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <apex:outputPanel rendered="{!clubEvent.Event_Category__c == 'Outing'}">
+                              <div class="col-md-2">
+                                <apex:outputLabel value="Level" for="activity-level" />
+                              </div>
+                              <div class="col-md-4 form-group">
+                                <apex:inputField value="{!clubEvent.Level__c}" styleClass="form-control" />
+                              </div>
+                            </apex:outputPanel>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Entity Specific Level"
+                                                rendered="{!clubEvent.Event_Category__c == 'Outing'}" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.Entity_Specific_Level__c}"
+                                               rendered="{!clubEvent.Event_Category__c == 'Outing'}"
+                                               styleClass="form-control"
+                              />
+                            </div>
+                          </div>
+                        <div class="row">
+                          <div class="col-md-2 col-sm-4">
+                            <apex:outputLabel value="Is Club Activity?"  />
+                            <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top" title="Uncheck only if creating an event for a partner organization or similar"></i>
+                          </div>
+                          <div class="col-md-4 col-sm-2 form-group">
+                            <apex:inputField value="{!clubEvent.Is_Club_Activity__c}"  />
+                          </div>
+
+                          <div class="col-md-2 col-sm-4">
+                            <apex:outputLabel value="Waiver Required?"  />
+                          </div>
+                          <div class="col-md-4 col-sm-2 form-group">
+                            <apex:inputCheckbox disabled="{!clubEvent.Event_Category__c == 'Outing'}"
+                                value="{!clubEvent.Waiver_Required__c}"
+                            />
+                          </div>
+                        </div>
+                        </apex:outputPanel>
+
+                      <div class="row">
+                        <div class="col-md-2">
+                          <label>Registrations Accepted</label>
+                        </div>
+                        <div class="col-md-2 form-group">
+                          <apex:inputCheckbox id="registrationsAcceptedCheckbox"
+                            value="{!clubEvent.Registrations_Accepted__c}"
+                            disabled="{!(regListSize > 0)}"
+                          />
+                        </div>
+                      </div>
+
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Short Description" for="short-description" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:outputPanel >
+                              <div class="requiredInput">
+                                <div class="requiredBlock"></div>
+                                <apex:inputField id="short-description"
+                                                 value="{!clubEvent.Short_Description__c}"
+                                                 styleClass="form-control"
+                                />
+                              </div>
+                            </apex:outputPanel>
+                          </div>
+                        </div>
+                      </apex:actionRegion>
+                      <apex:actionRegion id="addl-info-region">
+                        <div class="row form-group">
+                          <div class="col-md-12">
+                            <apex:actionStatus for="addl-info-region">
+                              <apex:facet name="start">
+                                <c:Waiting />
+                              </apex:facet>
+                            </apex:actionStatus>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Additional Info URL" for="addl-info-url" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="addl-info-url"
+                                             value="{!clubEvent.Additional_Info_URL__c}"
+                                             styleClass="form-control" >
+                              <apex:actionSupport event="onchange" reRender="addl-info-section" onComplete=""/>
+                            </apex:inputField>
+                          </div>
+                          <apex:outputPanel id="addl-info-section">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="URL Description" for="url-description"
+                                                rendered="{!clubEvent.Additional_Info_URL__c != ''}" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField id="url-description"
+                                               value="{!clubEvent.URL_Description__c}"
+                                               rendered="{!clubEvent.Additional_Info_URL__c != ''}"
+                                               styleClass="form-control" />
+                            </div>
+                          </apex:outputPanel>
+                        </div>
+                        <div class="row">
+                          <apex:outputPanel id="status-section">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Status" for="activity-status" />
+                            <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top" title="Event will not be published until Status is set to Active"></i>
+                          </div>
+                          <div class="col-md-4 form-group">
+                              <div class="requiredInput">
+                                <div class="requiredBlock"></div>
+                                <apex:selectList id="activity-status" value="{!clubEvent.Status__c}" size="1" styleClass="form-control" >
+                                  <apex:selectOptions value="{!statusOptions}"/>
+                                  <apex:actionSupport event="onchange" reRender="status-section" onComplete="" />
+                                </apex:selectList>
+                              </div>
+                          </div>
+
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Cancellation Reason"
+                                rendered="{! (clubEvent.Status__c == 'Cancelled') }"
+                            />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField value="{!clubEvent.Cancel_Reason__c}"
+                                styleClass="form-control"
+                                rendered="{! (clubEvent.Status__c == 'Cancelled') }"
+                            />
+                            <apex:outputText value="Registered Participants will be notified of cancellation via email"
+                                rendered="{! isNewlyCancelled }"
+                                style="font-size:small"
+                            />
+                          </div>
+                          </apex:outputPanel>
+
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Marketing Interest" />
+                            <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top" title="This field is used by AddUp to show your event alongside related content"></i>
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField value="{!clubEvent.Marketing_Interest_Area_Global__c}"
+                                             styleClass="form-control" />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Cost" for="cost" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="cost" value="{!clubEvent.Cost_Description__c}" styleClass="form-control" />
+                          </div>
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Signup Restrictions" for="signup-restrictions" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="signup-restrictions" value="{!clubEvent.Signup_Restrictions__c}" styleClass="form-control" />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Signup Instructions" for="signup-instructions" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="signup-instructions" value="{!clubEvent.Signup_Instructions__c}" styleClass="form-control" />
+                          </div>
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Bring" for="bring" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="bring" value="{!clubEvent.Bring__c}" styleClass="form-control" />
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Additional Directions" for="additional-directions" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="additional-directions" value="{!clubEvent.Additional_Directions__c}" styleClass="form-control" />
+                          </div>
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Carpool" for="carpool" />
+                            <p>
+                              <small>Using carpools? <a href="http://clubhouse.sierraclub.org/conservation/program-safety/pre-event/transportation.aspx" target="_blank">Know your leader responsibilities.</a></small>
+                            </p>
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="carpool" value="{!clubEvent.Carpool__c}" styleClass="form-control" />
+                          </div>
+                        </div>
+                      </apex:actionRegion>
+                      <apex:actionRegion id="cancellationRegion">
+                        <div class="row form-group">
+                          <div class="col-md-12">
+                            <apex:actionStatus for="cancellationRegion">
+                              <apex:facet name="start">
+                                <c:Waiting />
+                              </apex:facet>
+                            </apex:actionStatus>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <apex:outputPanel id="cancellation-section">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Cancellation Policy" for="cancellation-option" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField id="cancellation-option" value="{!clubEvent.Cancellation_Option__c}" styleClass="form-control" >
+                                <apex:actionSupport event="onchange" reRender="cancellation-section" />
+                              </apex:inputField>
+                            </div>
+                            <apex:outputPanel id="cancellation-policy-input" rendered="{!clubEvent.Cancellation_Option__c == 'Other'}" >
+                              <div class="col-md-2">
+                                <apex:outputLabel value="Cancellation Policy Description" for="cancellation-policy-description" />
+                              </div>
+                              <div class="col-md-4 form-group">
+                                <apex:inputField id="cancellation-policy-description" value="{!clubEvent.Cancellation_Policy_Description__c}" styleClass="form-control"  />
+                              </div>
+                            </apex:outputPanel>
+                          </apex:outputPanel>
+                        </div>
+                        <div class="row">
+                          <div class="col-md-2">
+                            <apex:outputLabel value="Unpublished Notes" for="unpublished-notes" />
+                          </div>
+                          <div class="col-md-4 form-group">
+                            <apex:inputField id="unpublished-notes" value="{!clubEvent.Unpublished_Notes__c}" styleClass="form-control" />
+                          </div>
+                        </div>
+                      </apex:actionRegion>
+                    </div>
+                  </div>
+                </div>
+
+
+                <!-- Recurring Attributes Panel -->
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingZero">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseZero" aria-expanded="true" aria-controls="collapseZero">
+                        <i class="fa fa-caret-down"></i> Repeats
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseZero" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingZero">
+                    <div class="panel-body">
+                      <div class="dateOptions">
+                          <div class="row">
+                            <div class="col-md-12">
+                              <div id="noBeginDate" class="alert alert-danger" role="alert">
+                                <i class="fa fa-exclamation-triangle fa-2x pull-left" aria-hidden="true"></i>  You must supply a begin date
+                              </div>
+                            </div>
+                          </div>
+                        <div class="repeatTable">
+                          <div class="row">
+                            <div class="col-md-12 help-block">
+                              Generate Date Sequence
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2">
+                              <label for="repeatStartsOn">Starts on</label>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <span id="repeatStartsOn"></span>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2">
+                                <label for="repeatFrequency">Repeats</label>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <select id="repeatFrequency" class="form-control">
+                                <option value="Monthly">Monthly</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Daily">Daily</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div class="row" id="repeatsBy">
+                            <div class="col-md-2">
+                              <label>Repeat by</label>
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <label class="radio-inline" for="day-of-week">
+                                <input type="radio" name="repeatby" value="Day of Week" id="day-of-week" checked="checked"/>
+                                Day of Week
+                              </label>
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <label class="radio-inline" for="day-of-month">
+                                <input type="radio" name="repeatby" value="Day of Month" id="day-of-month" />
+                                Day of Month
+                              </label>
+                            </div>
+                          </div>
+                          <div class="row" id="repeatsOn">
+                            <div class="col-md-2">
+                              <label>Repeat on</label>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <label class="checkbox-inline" for="SU"><input type="checkbox" id="SU" />S</label>
+                              <label class="checkbox-inline" for="MO"><input type="checkbox" id="MO" />M</label>
+                              <label class="checkbox-inline" for="TU"><input type="checkbox" id="TU" />T</label>
+                              <label class="checkbox-inline" for="WE"><input type="checkbox" id="WE" />W</label>
+                              <label class="checkbox-inline" for="TH"><input type="checkbox" id="TH" />T</label>
+                              <label class="checkbox-inline" for="FR"><input type="checkbox" id="FR" />F</label>
+                              <label class="checkbox-inline" for="SA"><input type="checkbox" id="SA" />S</label>
+                            </div>
+                          </div>
+                          <div class="row" id="repeatsEnd">
+                            <div class="col-md-2">
+                              <label>Ends</label>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <label for="endsAfter-rb" class="radio-inline">
+                                <input name="endsType" type="radio" value="endsAfter" checked="checked"
+                                       id="endsAfter-rb" />
+                                After
+                                <input id="endsAfterCount" size="5" disabled="disabled" value="12"
+                                       class="form-group"
+                                       onkeypress="return CheckNumeric(event)"
+                                />
+                                Occurances (25 max)
+                              </label>
+                              <br />
+                              <label for="endsOn-rb" class="radio-inline">
+                                <input name="endsType" type="radio" value="endsOn"
+                                       id="endsOn-rb" />
+                                On &nbsp;
+                                <input id="endsOnDate" size="8" disabled="disabled"
+                                       class="dateInput"/>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-6 form-group">
+                              <input id="generateDatesButton" type="button" value="Generate Dates"
+                                     class="btn btn-info btn-block" />
+                            </div>
+                          </div>
+                        </div>
+                          <div class="row displayOccurrences">
+                            <div class="col-sm-2 col-md-2">
+                              <label>Dates</label>
+                            </div>
+                            <div class="col-sm-10 col-md-4 form-group">
+                                <table class="table table-striped table-bordered table-condensed">
+                                  <tbody id="occurrencesDisplay">
+                                  </tbody>
+                                </table>
+                            </div>
+                            <div class="dateOptions" id="singleDate">
+                              <div class="col-md-2">
+                                <label><apex:outputLabel value="Add a single date" for="single-date" /></label>
+                              </div>
+                              <div class="col-md-2 form-group">
+                                <apex:inputText id="single-date" styleClass="dateInput form-control" />
+                                <div id="addDateError"></div>
+                              </div>
+                              <div class="col-md-2">
+                                <input id="addDateButton" type="button" value="Add Date"
+                                       class="btn btn-primary btn-block"/>
+                              </div>
+                            </div>
+                          </div>
+                      </div>
+                    </div>
+                  </div>
+                 </div>
+
+
+                <!-- Reporting Attributes Panel -->
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingOneA">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseOneA" aria-expanded="true" aria-controls="collapseOneA">
+                        <i class="fa fa-caret-down"></i> Reporting Attributes
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseOneA" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOneA">
+                    <div class="panel-body">
+                        <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Tactic Owner Category" for="tacticOwnerCategory" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.Tactic_Owner_Category_Global__c}" id="tacticOwnerCategory" styleClass="form-control"/>
+                            </div>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Tactic Owner" for="tacticOwner" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.Tactic_Owner_Global__c}" id="tacticOwner" styleClass="form-control"/>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="National Campaign" for="nationalCampaign" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.National_Campaign_Global__c}" id="nationalCampaign" styleClass="form-control"/>
+                            </div>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="National Campaign Strategy" for="campaignStrategy" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.Campaign_Strategy_Global__c}" id="campaignStrategy" styleClass="form-control"/>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="National Sub-Campaign" for="localCampaign" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.Local_Campaign_Global__c}" id="localCampaign" styleClass="form-control"/>
+                            </div>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="State" for="state" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField value="{!clubEvent.State_Global__c}" id="state"/>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Local/Grassroots Campaign" for="grassrootsCampaign" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <apex:selectList id="grassrootsCampaign"
+                                    value="{!clubEvent.Local_Grassroots_Campaign__c}" size="1" styleClass="form-control">
+                                        <apex:selectOptions value="{!localCampaignOptions}"/>
+                                </apex:selectList>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Marketing Tags" for="marketingTags" />
+                            </div>
+                            <div class="col-md-6 form-group">
+                              <apex:inputField value="{!clubEvent.Marketing_Tags_Global__c}" id="marketingTags"/>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+
+
+
+                <!-- Location Panel -->
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingTwo">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+                        <i class="fa fa-caret-down"></i> Location
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseTwo" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingTwo">
+                    <div class="panel-body">
+                      <apex:actionRegion id="mapRegion">
+                        <div class="row form-group">
+                          <div class="col-md-12">
+                            <apex:actionStatus for="mapRegion">
+                              <apex:facet name="start">
+                                <c:Waiting />
+                              </apex:facet>
+                            </apex:actionStatus>
+                          </div>
+                        </div>
+                        <apex:outputPanel id="map-panel">
+                          <div class="row">
+                            <div class="col-md-2 col-sm-4 form-group">
+                              <apex:outputLabel value="Show on map?" for="show-on-map" />
+                            </div>
+                            <div class="col-md-1 col-sm-2">
+                              <apex:inputField value="{!clubEvent.Show_on_Map__c}" id="show-on-map">
+                                <apex:actionSupport event="onchange" reRender="map-panel" />
+                              </apex:inputField>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-12 form-group">
+                              <apex:outputPanel rendered="{!clubEvent.Show_on_Map__c == true}">
+                                Use&nbsp;
+                                <apex:commandButton immediate="true" value="Map it"
+                                                    onclick="openLocationFinder();return false"
+                                                    styleClass="btn btn-info" />
+                                to find a location&apos;s Latitude and Longitude
+                                <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top"
+                                   title="Location description, latitude and longitude fields are populated when you click 'Save Location' within the 'Map It' window"></i>
+                              </apex:outputPanel>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Location Description" for="locationDescription" rendered="{!clubEvent.Show_on_Map__c == true}" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputText id="locationDescription"
+                                              value="{!clubEvent.Location_Description__c}"
+                                              rendered="{!clubEvent.Show_on_Map__c == true}"
+                                              styleClass="form-control"
+                                              maxlength="255"
+                              />
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Latitude" for="locationLat" rendered="{!clubEvent.Show_on_Map__c == true}" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField id="locationLat"
+                                               value="{!clubEvent.Event_Location__Latitude__s}"
+                                               rendered="{!clubEvent.Show_on_Map__c == true}"
+                                               styleClass="form-control" />
+                            </div>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Longitude" for="locationLng" rendered="{!clubEvent.Show_on_Map__c == true}" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField id="locationLng"
+                                               value="{!clubEvent.Event_Location__Longitude__s}"
+                                               rendered="{!clubEvent.Show_on_Map__c == true}"
+                                               styleClass="form-control" />
+                            </div>
+                          </div>
+                        </apex:outputPanel>
+                      </apex:actionRegion>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Publication Panel -->
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingThree">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseThree" aria-expanded="true" aria-controls="collapseThree">
+                        <i class="fa fa-caret-down"></i> Publication
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseThree" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingThree">
+                    <div class="panel-body">
+                      <apex:actionRegion id="publicationRegion">
+                        <apex:outputPanel id="publication-info" >
+                          <div class="row form-group">
+                            <div class="col-md-12">
+                              <apex:actionStatus for="publicationRegion">
+                                <apex:facet name="start">
+                                  <c:Waiting />
+                                </apex:facet>
+                              </apex:actionStatus>
+                            </div>
+                          </div>
+
+                          <apex:outputPanel rendered="{! (ISNULL(clubEvent.Id) || clubEvent.Status__c == 'In Development' || clubEvent.Do_not_show_on_website_calendars__c == true) }"
+                          >
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Do not show on website calendars" for="noshow-websites" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="bottom" title="Check to prevent the event from being seen on ALL calendars.  For Invite Only events."></i>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField id="noshow-websites" value="{!clubEvent.Do_not_show_on_website_calendars__c}"/>
+                            </div>
+                          </div>
+                          </apex:outputPanel>
+
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Begin Publication" for="begin-publication" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="bottom" title="Defaults to the current date when the status is changed to Active"></i>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputText id="begin-publication" value="{!beginPublication}" styleClass="dateInput form-control" />
+                            </div>
+                            <div class="col-md-4">
+                              <apex:outputLabel value="Limit Publication to Sponsoring Entity" for="limit-publication" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="bottom" title="Check to hide your event from other calendars that appear throughout Sierra Club websites and AddUp"></i>
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <apex:inputField id="limit-publication" value="{!clubEvent.Limit_Publication__c}" />
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="Display Method" for="display-method" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="bottom" title="Using External URL will forward people to a different website.  Other information entered on event will display on calendar."></i>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:selectRadio id="display-method"
+                                                value="{!clubEvent.Display_Method__c}"
+                                                layout="pageDirection">
+                                <apex:selectOption itemValue="Salesforce Events Page"
+                                                   itemLabel="Construct Page from Entered Information on Tabs" />
+                                <apex:selectOption itemValue="External URL"
+                                                   itemLabel="Use External URL" />
+                                <apex:actionSupport event="onchange" reRender="publication-info" />
+                              </apex:selectRadio>
+                            </div>
+                            <div class="col-md-2">
+                              <apex:outputLabel value="External URL" for="external-url" rendered="{!clubEvent.Display_Method__c == 'External URL'}" />
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:inputField id="external-url" value="{!clubEvent.External_URL__c}" styleClass="form-control" rendered="{!clubEvent.Display_Method__c == 'External URL'}" />
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2">
+                              <apex:outputLabel value="URL to Share" />
+                              <i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="top" title="This field will populate automatically when the Event is saved. While editing, use the Preview tab."></i>
+                            </div>
+                            <div class="col-md-4 form-group">
+                              <apex:outputText value="{!clubEvent.URL_to_Share__c}"
+                                               rendered="{!clubEvent.Id != null}" />
+                            </div>
+                          </div>
+                        </apex:outputPanel>
+                      </apex:actionRegion>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Leaders Panel -->
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingFour">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseFour" aria-expanded="true" aria-controls="collapseFour">
+                        <i class="fa fa-caret-down"></i> Leaders
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseFour" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingFour">
+                    <div class="panel-body">
+                      <div class="row form-group">
+                        <div class="col-md-12">
+                          <apex:actionStatus for="leaderRegion">
+                            <apex:facet name="start">
+                              <c:Waiting />
+                            </apex:facet>
+                          </apex:actionStatus>
+                        </div>
+                      </div>
+                      <apex:actionRegion id="leaderRegion">
+                        <apex:outputPanel id="addLeaderPanel" layout="none" >
+                          <div class="row">
+                            <div class="col-sm-6 col-md-3 form-group">
+                              <div data-toggle="modal" data-target="#leaderModal">
+                                <apex:commandButton value="Find Existing Leader"
+                                     reRender="foundContactsPanel"
+                                     styleClass="btn btn-info btn-block"
+                                >
+                                  <apex:param name="ldrAddOption" value="Existing" assignTo="{!ldrAddOption}"/>
+                                </apex:commandButton>
+                              </div>
+                            </div>
+                            <div class="col-sm-6 col-md-2 form-group">
+                              <apex:commandButton value="Add Leader"
+                                                  action="{!addLeader}"
+                                                  reRender="leaderPanel"
+                                                  styleClass="btn btn-default btn-block"
+                              >
+                                <apex:param name="ldrAddOption" value="New" assignTo="{!ldrAddOption}"/>
+                              </apex:commandButton>
+                            </div>
+                          </div>
+                        </apex:outputPanel>
+                        <div class="row">
+                          <div class="col-md-12">
+                            <apex:pageBlock >
+                              <apex:outputPanel id="leaderPanel" layout="none">
+                                <div class="table-responsive">
+                                  <apex:pageBlockTable value="{!leaderList}" var="ldr" styleClass="table table-bordered">
+                                    <apex:column >
+                                      <apex:commandButton value="Delete"
+                                                          action="{!deleteLeader}"
+                                                          reRender="leaderPanel"
+                                                          styleClass="btn btn-danger"
+                                                          rendered="{! ( ! ldr.leader.Is_Primary_Leader__c)}"
+                                      >
+                                        <apex:param name="selectedRow" value="{!ldr.row}" assignTo="{!selectedRow}"/>
+                                      </apex:commandButton>
+                                    </apex:column>
+                                    <apex:column style="text-align:center" >
+                                      <apex:facet name="header">Primary Leader</apex:facet>
+                                      <apex:inputCheckbox value="{!ldr.leader.Is_Primary_Leader__c}">
+                                        <apex:actionSupport event="onchange" action="{!adjustPrimaryLeader}" reRender="leaderPanel">
+                                          <apex:param name="selectedRow" value="{!ldr.row}" assignTo="{!selectedRow}"/>
+                                        </apex:actionSupport>
+                                      </apex:inputCheckbox>
+                                    </apex:column>
+                                    <apex:column >
+                                      <apex:facet name="header">Contact</apex:facet>
+                                      <apex:outputText value="{!ldr.displayName}"/>
+                                      <!-- Wrapper triggers Leader modal -->
+                                      <span data-toggle="modal" data-target="#leaderModal">
+                                        <apex:commandLink reRender="foundContactsPanel">
+                                          <apex:param name="selectedRow" value="{!ldr.row}" assignTo="{!selectedRow}"/>
+                                          <apex:param name="ldrAddOption" value="New" assignTo="{!ldrAddOption}"/>
+                                          <i class="fa fa-search"></i>
+                                        </apex:commandLink>
+                                      </span>
+                                    </apex:column>
+                                    <apex:column >
+                                      <apex:facet name="header">Name</apex:facet>
+                                      <apex:inputText value="{!ldr.leader.Leader_Name__c}" maxlength="60" styleClass="form-control" />
+                                    </apex:column>
+                                    <apex:column >
+                                      <apex:facet name="header">Contact Phone and/or other freeform text</apex:facet>
+                                      <apex:inputText value="{!ldr.leader.Phone_or_Other_Contact_Information__c}" styleClass="form-control" maxlength="255"/>
+                                    </apex:column>
+                                    <apex:column >
+                                      <apex:facet name="header">Email Address</apex:facet>
+                                      <apex:inputText value="{!ldr.leader.Email__c}" styleClass="form-control" />
+                                    </apex:column>
+                                  </apex:pageBlockTable>
+                                </div>
+                              </apex:outputPanel>
+                            </apex:pageBlock>
+                          </div>
+                        </div>
+                      </apex:actionRegion>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Participants Panel -->
+                <div class="panel panel-default">
+                  <div class="panel-heading" role="tab" id="headingFive">
+                    <h4 class="panel-title">
+                      <a role="button" data-toggle="collapse" href="#collapseFive" aria-expanded="true" aria-controls="collapseFive">
+                        <i class="fa fa-caret-down"></i> Registered Participants
+                      </a>
+                    </h4>
+                  </div>
+                  <div id="collapseFive" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingFive">
+                    <div class="panel-body">
+                      <apex:outputPanel rendered="{!clubEvent.Show_Participants__c}">
+                        <apex:actionRegion id="registrationRegion">
+                          <div class="row">
+                            <div class="col-md-12 form-group">
+                              <apex:actionStatus for="registrationRegion">
+                                <apex:facet name="start">
+                                  <c:Waiting />
+                                </apex:facet>
+                              </apex:actionStatus>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-2 form-group">
+                              <apex:commandButton value="Add Participant"
+                                                  onclick="window.open('{!clubEvent.URL_to_Share__c}&addattendee=true','_blank');"
+                                                  styleClass="btn btn-info btn-block"
+                              />
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <apex:commandButton value="Refresh List"
+                                                  action="{!resetRegistrationList}"
+                                                  reRender="registrationPanel, registrationsAcceptedCheckbox, sendEmailPanel"
+                                                  styleClass="btn btn-warning btn-block"
+                              />
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <apex:commandButton value="Download"
+                                                  action="{!exportRegistrants}"
+                                                  styleClass="btn btn-default btn-block"
+                              />
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <apex:outputPanel id="sendEmailPanel">
+                              <apex:commandLink value="Send Email"
+                                                  action="{!sendEmail}"
+                                                  styleClass="btn btn-default btn-block"
+                                                  target="_blank"
+                                                  rendered="{!registrationList.size > 0}"
+                              />
+                              </apex:outputPanel>
+                            </div>
+                            <div class="col-md-2 form-group">
+                              <apex:outputPanel id="signinSheetPanel">
+                              <apex:outputLink rendered="{!clubEvent.Waiver_Required__c == true}"
+                              					  value="SigninSheet?id={!clubEvent.Id}"
+                                                  styleClass="btn btn-default btn-block"
+                                                  target="_blank"
+                              >
+                                Signin Sheet
+                              </apex:outputLink>
+                              <apex:outputLink rendered="{!clubEvent.Waiver_Required__c == false}"
+                              					  value="SigninSheetNoWaiver?id={!clubEvent.Id}"
+                                                  styleClass="btn btn-default btn-block"
+                                                  target="_blank"
+                              >
+                                Signin Sheet
+                              </apex:outputLink>
+                              </apex:outputPanel>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-12">
+                              <apex:outputPanel id="registrationPanel">
+                                <div class="table-responsive">
+                                  <apex:pageBlock >
+                                    <apex:pageBlockTable value="{!registrationList}" var="reg" styleClass="table table-bordered tabled-striped">
+                                      <apex:column >
+                                        <apex:facet name="header">Status</apex:facet>
+                                        <apex:selectList value="{!reg.registration.Status__c}" size="1" styleClass="form-control" >
+                                          <apex:selectOptions value="{!registrationStatusOptions}"/>
+                                          <apex:actionSupport event="onchange"
+                                                              action="{!registrationStatusChanged}"
+                                                              reRender="registrationPanel"
+                                          >
+                                            <apex:param name="selectedRegistrationRow" value="{!reg.row}" assignTo="{!selectedRegistrationRow}"/>
+                                          </apex:actionSupport>
+                                        </apex:selectList>
+                                      </apex:column>
+                                      <apex:column styleClass="center">
+                                        <apex:facet name="header">Waiver</apex:facet>
+                                        <apex:inputCheckbox value="{!reg.registration.Waiver_Submitted__c}" disabled="true"/>
+                                      </apex:column>
+                                      <apex:column >
+                                        <apex:facet name="header">Registration Date</apex:facet>
+                                        <apex:outputText value="{0,date,MM/dd/yyyy}">
+                                          <apex:param value="{!reg.registration.CreatedDate}"/>
+                                        </apex:outputText>
+                                      </apex:column>
+                                      <apex:column >
+                                        <apex:facet name="header">Name</apex:facet>
+                                        <!-- Wrapper triggers Registration modal -->
+                                        <div data-toggle="modal" data-target="#registrationModal">
+                                          <apex:commandLink reRender="editRegistrationPanel">
+                                            <apex:param name="selectedRegistrationRow" value="{!reg.row}" assignTo="{!selectedRegistrationRow}"/>
+                                            <apex:outputText value="{!reg.registration.Full_Name__c}" />
+                                          </apex:commandLink>
+                                        </div>
+                                      </apex:column>
+                                      <apex:column >
+                                        <apex:facet name="header">Phone</apex:facet>
+                                        <apex:outputText value="{!reg.registration.Phone__c}"/>
+                                      </apex:column>
+                                      <apex:column >
+                                        <apex:facet name="header">Email Address</apex:facet>
+                                        <apex:outputLink value="mailto:{!reg.registration.Email__c}?Subject={!clubEvent.Event_Title__c}">
+                                          {!reg.registration.Email__c}
+                                        </apex:outputLink>
+                                      </apex:column>
+                                    </apex:pageBlockTable>
+                                  </apex:pageBlock>
+                                </div>
+                              </apex:outputPanel>
+                            </div>
+                          </div>
+                        </apex:actionRegion>
+                      </apex:outputPanel>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Full Description Tab -->
+            <div role="tabpanel" class="tab-pane fade" id="full-description">
+              <div class="panel panel-default">
+                <div class="panel-body">
+                  <div class="row">
+                    <div class="col-md-12 form-group">
+                      <p class="help-block">
+                        Add images to your event RSVP page in the Full Description field below. Just choose where you want the image to appear, then click the <i class="fa fa-picture-o"></i> button. See instructions for details.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-2 form-group">
+                      <label>Full Description</label>
+                    </div>
+                    <div class="col-md-10 form-group">
+                      <div class="table-responsive form-group">
+                        <apex:inputField value="{!clubEvent.Full_Description__c}" styleClass="table" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Registration Options Tab -->
+            <div role="tabpanel" class="tab-pane fade" id="registration-options">
+              <div class="panel panel-default">
+                <div class="panel-body">
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Registration Cutoff</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputText value="{!registrationCutoff}" styleClass="dateInput form-control"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Send RSVP notifications to Leader</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputField value="{!clubEvent.Send_RSVP_to_Leader__c}" />
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Ask for Phone Number</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Ask_for_Phone_Number__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Require Phone Number</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputField value="{!clubEvent.Require_Phone_Number__c}" />
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Ask for ZIP Code</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Ask_for_ZIP_Code__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Require for ZIP Code</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputField value="{!clubEvent.Require_ZIP_Code__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Ask for Street Address</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Ask_for_Street_Address__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Require for Street Address</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputField value="{!clubEvent.Require_Street_Address__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Ask for Mobile Phone</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Ask_for_Mobile_Phone__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Require Mobile Phone</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputField value="{!clubEvent.Require_Mobile_Phone__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Ask for Additional Attendees</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Ask_for_Additional_Attendees__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Require Additional Attendees</label>
+                    </div>
+                    <div class="col-md-3 form-group">
+                      <apex:inputField value="{!clubEvent.Require_Additional_Attendees__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Custom Field 1</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Custom_Field_1_Label__c}" styleClass="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                      <label>Display Field 1</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Display_Field_1__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-2 col-md-offset-6 form-group">
+                      <label>Require Field 1</label>
+                    </div>
+                    <div class="col-md-4 form-group">
+                      <apex:inputField value="{!clubEvent.Require_Field_1__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Custom Field 2</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Custom_Field_2_Label__c}" styleClass="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                      <label>Display Field 2</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Display_Field_2__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-2 col-md-offset-6 form-group">
+                      <label>Require Field 2</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Require_Field_2__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Custom Field 3</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Custom_Field_3_Label__c}" styleClass="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                      <label>Display Field 3</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Display_Field_3__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-2 col-md-offset-6 form-group">
+                      <label>Require Field 3</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Require_Field_3__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Custom Field 4</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Custom_Field_4_Label__c}" styleClass="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                      <label>Display Field 4</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Display_Field_4__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-2 col-md-offset-6 form-group">
+                      <label>Require Field 4</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Require_Field_4__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-3">
+                      <label>Custom Field 5</label>
+                    </div>
+                    <div class="col-md-3">
+                      <apex:inputField value="{!clubEvent.Custom_Field_5_Label__c}" styleClass="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                      <label>Display Field 5</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Display_Field_5__c}"/>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-2 col-md-offset-6 form-group">
+                      <label>Require Field 5</label>
+                    </div>
+                    <div class="col-md-4">
+                      <apex:inputField value="{!clubEvent.Require_Field_5__c}"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save and Cancel buttons -->
+        <div class="row">
+          <div class="col-md-2 form-group">
+            <apex:commandButton value="Save Event" action="{!save}" onClick="saveOccurrences()" styleClass="btn btn-primary btn-block"/>
+          </div>
+          <div class="col-md-3 form-group">
+            <apex:commandButton value="Save and Return to List" action="{!saveAndReturn}" onClick="saveOccurrences()" styleClass="btn btn-block btn-success"/>
+          </div>
+          <div class="col-md-3 form-group">
+            <apex:commandButton value="Cancel and Return to List" action="{!cancel}" styleClass="btn btn-block btn-warning"
+                    immediate="true" />
+          </div>
+        </div>
+
+        <!-- Modals -->
+
+        <!-- Leader Modal -->
+        <div class="modal fade" id="leaderModal" tabindex="-1" role="dialog" aria-labelledby="myLeaderModalLabel">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="myLeaderModalLabel">Find A Leader<!--<i class="fa fa-question-circle text-info" data-toggle="tooltip" data-placement="right" title="Too many results? Try using quotes around full names, adding a city or state (spelled out)."></i>--></h4>
+              </div>
+              <div class="modal-body">
+                <div class="row">
+                  <div class="col-md-12">
+                    <apex:actionStatus for="contactSearchRegion">
+                      <apex:facet name="start">
+                        <c:Waiting />
+                      </apex:facet>
+                    </apex:actionStatus>
+                  </div>
+                </div>
+                <div id="contactSearch">
+                  <apex:actionRegion id="contactSearchRegion">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <apex:inputText id="contactSearchValue"
+                                        value="{!contactSearchValue}"
+                                        onkeypress="return noenter(event);"
+                                        styleClass="form-control form-group"
+                        />
+                      </div>
+                      <div class="col-md-2 form-group">
+                        <apex:commandButton value="Search"
+                                            id="contactSearchButton"
+                                            action="{!searchContacts}"
+                                            rerender="foundContactsPanel"
+                                            styleClass="btn btn-info btn-block"
+                                            onclick="checkSearchValue()"
+                        />
+                      </div>
+                      <div class="col-md-2 form-group">
+                        <apex:commandButton value="Cancel"
+                                            oncomplete="closeDialog()"
+                                            reRender="leaderPanel, foundContactsPanel, contactSearchValue"
+                                            styleClass="btn btn-default btn-block"
+                         />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-md-12">
+                        <p class="help-block">Too many results? Try using quotes around full names, adding a city or state (spelled out).</p>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-md-12">
+                        <apex:outputPanel id="foundContactsPanel">
+                          <apex:outputText styleClass="text-info" value="Contacts found:" rendered="{! (searchResultSize != null && searchResultSize < maxSearchResults) }"/>
+                          <apex:outputText styleClass="text-info" value="{!searchResultSize}" rendered="{! (searchResultSize != null && searchResultSize < maxSearchResults) }"/>
+                          <apex:outputPanel rendered="{! (searchResultSize != null && searchResultSize >= maxSearchResults) }">
+                            First {!maxSearchResults} results shown below. Supply additional search criteria to narrow your search
+                          </apex:outputPanel>
+                          <apex:outputPanel rendered="{! (hasSearchResults) }">
+                            <div class="table-responsive">
+                              <apex:dataTable value="{!foundContacts}" var="ct" styleClass="table table-striped" >
+                                <apex:column >
+                                  <apex:facet name="header">Name</apex:facet>
+                                    <apex:commandLink value="{!ct.Name}"
+                                                      action="{!setSelectedLeader}"
+                                                      oncomplete="closeDialog()"
+                                                      reRender="leaderPanel, contactSearchValue"
+                                                      styleClass="{!IF(ct.AttnFlag__c, 'bold','')}"
+                                    >
+                                    <apex:param name="selectedId" value="{!ct.Id}" assignTo="{!selectedId}"/>
+                                  </apex:commandLink>
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">Member?</apex:facet>
+                                    <apex:inputCheckbox value="{!ct.AttnFlag__c}" disabled="true"/>
+                                </apex:column>
+                                <apex:column >
+                                  <apex:facet name="header">Street</apex:facet>
+                                  <apex:outputText value="{!ct.MailingStreet}"/>
+                                </apex:column>
+                                <apex:column >
+                                  <apex:facet name="header">City</apex:facet>
+                                  <apex:outputText value="{!ct.MailingCity}"/>
+                                </apex:column>
+                                <apex:column >
+                                  <apex:facet name="header">State</apex:facet>
+                                  <apex:outputText value="{!ct.MailingState}"/>
+                                </apex:column>
+                                <apex:column >
+                                  <apex:facet name="header">Postal Code</apex:facet>
+                                  <apex:outputText value="{!ct.MailingPostalCode}"/>
+                                </apex:column>
+                                <apex:column >
+                                  <apex:facet name="header">Email</apex:facet>
+                                  <apex:outputText value="{!ct.Email}"/>
+                                </apex:column>
+                                <apex:column >
+                                  <apex:facet name="header">Phone</apex:facet>
+                                  <apex:outputText value="{!ct.Phone}"/>
+                                </apex:column>
+                              </apex:dataTable>
+                            </div>
+                          </apex:outputPanel>
+                        </apex:outputPanel>
+                      </div>
+                    </div>
+                  </apex:actionRegion>
+                </div>
+              </div>
+              <div class="modal-footer">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registration Modal -->
+        <div class="modal fade" id="registrationModal" tabindex="-1" role="dialog" aria-labelledby="myRegistrationLabel">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="registrationModalLabel">Event Registration</h4>
+              </div>
+              <div class="modal-body">
+                <div id="showRegistration">
+                  <apex:actionRegion id="showRegistrationRegion">
+                    <div class="row">
+                      <div class="col-md-12">
+                        <apex:actionStatus for="showRegistrationRegion">
+                          <apex:facet name="start">
+                            <c:Waiting />
+                          </apex:facet>
+                        </apex:actionStatus>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-md-3 form-group">
+                        <apex:commandButton value="Save Changes"
+                                            id="saveRegistrationButton"
+                                            action="{!saveSelectedRegistration}"
+                                            reRender="registrationPanel"
+                                            oncomplete="closeRegistration()"
+                                            styleClass="btn btn-primary"
+                        />
+                      </div>
+                      <div class="col-md-2 form-group">
+                        <apex:commandButton value="Cancel"
+                                            oncomplete="closeRegistration()"
+                                            styleClass="btn btn-default"
+                        />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-md-12">
+                        <apex:outputPanel id="editRegistrationPanel">
+                          <div class="table-responsive">
+                            <table class="table table-bordered">
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="First Name" for="firstName"/>
+                                </td>
+                                <td>
+                                  <apex:outputText id="firstName" value="{!selectedRegistration.First_Name__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="Last Name" for="lastName"/>
+                                </td>
+                                <td>
+                                  <apex:outputText id="lastName" value="{!selectedRegistration.Last_Name__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="Status" for="status"/>
+                                </td>
+                                <td>
+                                  <apex:selectList value="{!selectedRegistration.Status__c}" size="1" styleClass="form-control">
+                                    <apex:selectOptions value="{!registrationStatusOptions}"/>
+                                  </apex:selectList>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="Email Address" for="email"/>
+                                </td>
+                                <td>
+                                  <apex:outputField id="email" value="{!selectedRegistration.Email__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="Phone Number" for="phone"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="phone" value="{!selectedRegistration.Phone__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="ZIP Code" for="zip"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="zip" value="{!selectedRegistration.PostalCode__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="Street Address" for="addr"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="addr" value="{!selectedRegistration.Street__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="Additional Attendees" for="attendees"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="attendees" value="{!selectedRegistration.Additional_Attendees__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="{!clubEvent.Custom_Field_1_Label__c}" for="field1" rendered="{!clubEvent.Display_Field_1__c}"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="field1" value="{!selectedRegistration.Custom_Field_1_Response__c}" rendered="{!clubEvent.Display_Field_1__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="{!clubEvent.Custom_Field_2_Label__c}" for="field2" rendered="{!clubEvent.Display_Field_2__c}"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="field2" value="{!selectedRegistration.Custom_Field_2_Response__c}" rendered="{!clubEvent.Display_Field_2__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="{!clubEvent.Custom_Field_3_Label__c}" for="field3" rendered="{!clubEvent.Display_Field_3__c}"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="field3" value="{!selectedRegistration.Custom_Field_3_Response__c}" rendered="{!clubEvent.Display_Field_3__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="{!clubEvent.Custom_Field_4_Label__c}" for="field4" rendered="{!clubEvent.Display_Field_4__c}"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="field4" value="{!selectedRegistration.Custom_Field_4_Response__c}" rendered="{!clubEvent.Display_Field_4__c}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td class="bold">
+                                  <apex:outputLabel value="{!clubEvent.Custom_Field_5_Label__c}" for="field5" rendered="{!clubEvent.Display_Field_5__c}"/>
+                                </td>
+                                <td>
+                                  <apex:inputField id="field5" value="{!selectedRegistration.Custom_Field_5_Response__c}" rendered="{!clubEvent.Display_Field_5__c}"/>
+                                </td>
+                              </tr>
+                            </table>
+                          </div>
+                        </apex:outputPanel>
+                      </div>
+                    </div>
+                  </apex:actionRegion>
+                </div>
+              </div>
+              <div class="modal-footer">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <apex:inputHidden id="recurringDates" value="{!clubEvent.Recurring_Dates__c}" />
+        <apex:inputHidden id="recurringEvent" value="{!clubEvent.RecurringEvent__c}" />
+
+        <apex:actionFunction action="{!cancelSearchContacts}"
+                             name="searchCancelled"
+                             rerender="leaderPanel, foundContactsPanel, contactSearchValue"
+        />
+
+      </apex:form>
+
+    </apex:define>
+
+    <apex:define name="footer">
+      <script type="text/javascript" async="async">
+        var locationWindow;
+        var occurrences = new Array();
+        var recurringEvent;
+        var beginDate;
+
+        function openLocationFinder() {
+          // set new window size relative to current window width
+          // constrain max width of 1200 as content never wider than that anyway
+          // constrain max height so within boundary remains in frame and input field and 'Find Address' button above fold
+          var winWidth =  ( (window.outerWidth) < 1200 ) ? (window.outerWidth) : 1200;
+          var winHeight = ( (window.outerHeight * .9) < 1077 ) ? (window.outerHeight * .9)  : 1077;
+
+          var specs = "width=" + winWidth + ",height=" + winHeight
+                      + ",resizable=1,scrollbars=1";
+          var url = "LocationFinder";
+
+          var lat = $('[id$=locationLat]').val();
+          var lng = $('[id$=locationLng]').val();
+
+          if (lat.length > 0 && lng.length > 0) {
+            url += "?location=" + lat + "," + lng;
+          }
+          locationWindow = window.open(url, 'locationWindow', specs);
+        }
+
+        function setLocation(lat, lng, location) {
+          $('[id$=locationLat]').val(lat);
+          $('[id$=locationLng]').val(lng);
+          $('[id$=locationDescription]').val(location);
+        }
+
+        function closeDialog() {
+          $('#leaderModal').modal('toggle');
+        }
+
+        function closeRegistration() {
+          $('#registrationModal').modal('toggle');
+        }
+
+        function noenter(ev)  {
+          if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+            $('[id$=contactSearchButton]').click();
+            return false;
+           } else {
+              return true;
+           }
+         }
+
+         function checkSearchValue() {
+            var searchValue = $('[id$=contactSearchValue]').val();
+            if(searchValue.length < 2) {
+                alert('You must enter at least 2 characters to search');
+                return false;
+            }
+            return true;
+         }
+
+        function CheckNumeric(e) {
+            var key
+            if (window.event)
+                key = event.keyCode
+            else
+                key = e.which
+
+            // Was key that was pressed a numeric character (0-9) or backspace (8) or enter (13) or ctl-v (118)?
+            if ( key > 47 && key < 58 || key == 8 || key == 0 || key == 13 || key == 118)
+                return; // if so, do nothing
+            else // otherwise, discard character
+                if (window.event) //IE
+                    window.event.returnValue = null;
+                else //Firefox
+                   e.preventDefault();
+        }
+
+        function saveOccurrences() {
+            $("[id$=recurringDates]").val(JSON.stringify(occurrences));
+        }
+
+        function calculateOccurrences() {
+            var beginFullDate = $("[id$=date-begin]").val();
+            var beginDate = new Date(new Date(beginFullDate).setHours(0,0,0,0));
+            var dayOfWeek = beginDate.getDay() + 1;
+            var dayOfMonth = beginDate.getDate();
+            var weekOfMonth = Math.ceil(dayOfMonth / 7);
+            var repeatFrequency = $("#repeatFrequency").val();
+            var endsType = $("input:radio[name='endsType']:checked").val();
+            var endsAfterCount = $("#endsAfterCount").val();
+            if(endsAfterCount > 25) {
+                endsAfterCount = 25;
+            }
+            var endsOnDate = new Date($("#endsOnDate").val());
+            var repeatsBy = $("input:radio[name='repeatby']:checked").val();
+
+            var days = new Array();
+            if($("#SU").is(":checked")) {
+                days.push(1);
+            }
+            if($("#MO").is(":checked")) {
+                days.push(2);
+            }
+            if($("#TU").is(":checked")) {
+                days.push(3);
+            }
+            if($("#WE").is(":checked")) {
+                days.push(4);
+            }
+            if($("#TH").is(":checked")) {
+                days.push(5);
+            }
+            if($("#FR").is(":checked")) {
+                days.push(6);
+            }
+            if($("#SA").is(":checked")) {
+                days.push(7);
+            }
+
+            later.date.localTime();
+            var sched;
+            if(repeatFrequency == "Monthly") {
+                if(repeatsBy == "Day of Week") {
+                    if(dayOfMonth >= 28) {
+                        sched = later.parse.recur().on(dayOfWeek).dayOfWeek().last().dayOfWeekCount();
+                    }
+                    else {
+                        sched = later.parse.recur().on(dayOfWeek).dayOfWeek().on(weekOfMonth).dayOfWeekCount();
+                    }
+                }
+                else {
+                    if(dayOfMonth >= 28) {
+                       sched = later.parse.recur().on(dayOfMonth).last().dayOfMonth();
+                    }
+                    else {
+                       sched = later.parse.recur().on(dayOfMonth).dayOfMonth();
+                    }
+                }
+            }
+            else if(repeatFrequency == "Weekly") {
+                sched = later.parse.recur().on(days).dayOfWeek();
+            }
+            else if(repeatFrequency == "Daily") {
+                sched = later.parse.recur().on(0).hour();
+            }
+            if(endsType == "endsAfter") {
+                occurrences = later.schedule(sched).next(endsAfterCount, beginDate);
+            }
+            else {
+                endsAfterCount = 25;
+                occurrences = later.schedule(sched).next(endsAfterCount, beginDate, endsOnDate);
+            }
+            addOccurrence(beginDate);
+            if(occurrences.length > endsAfterCount) {
+                occurrences = occurrences.slice(0, endsAfterCount);
+            }
+        }
+
+        function showOccurrences() {
+            var recurringEvent = $("[id$=recurringEvent]").val();
+            var tbody = $("#occurrencesDisplay");
+            tbody.empty();
+            if(beginDate != null) {
+                addOccurrence(beginDate);
+            }
+            for(var i = 0; i < occurrences.length; i++) {
+                var tr = $('<tr/>').appendTo(tbody);
+                var deleteLink = "";
+                if(recurringEvent.length == 0 && occurrences[i].getTime() != beginDate.getTime()) {
+                    deleteLink = "<a onclick='deleteOccurrence(" + i + ")' class='label label-danger'>Delete</a> ";
+                }
+                tr.append("<td>" + deleteLink + $.format.date(occurrences[i], "ddd MMMM d, yyyy") + "</td>");
+            }
+        }
+        function deleteOccurrence(idx) {
+            occurrences.splice(idx, 1);
+            showOccurrences();
+        }
+        function addOccurrence(theDate) {
+            var theDate = new Date(new Date(theDate).setHours(0,0,0,0));
+            var dateFound = false;
+            for(var i=0; i < occurrences.length; i++) {
+                if(occurrences[i].getTime() == theDate.getTime()) {
+                    dateFound = true;
+                    break;
+                }
+            }
+            if( ! dateFound ) {
+            	if(theDate.getTime() < beginDate.getTime()) {
+            		return false;
+            	}
+            	else {
+	                occurrences.push(theDate);
+	                occurrences.sort(function(a,b){return a.getTime() - b.getTime()});
+            	}
+            }
+            return true;
+        }
+        function showDay() {
+            if(beginDate != null) {
+                $("#SU").prop("checked", false);
+                $("#MO").prop("checked", false);
+                $("#TU").prop("checked", false);
+                $("#WE").prop("checked", false);
+                $("#TH").prop("checked", false);
+                $("#FR").prop("checked", false);
+                $("#SA").prop("checked", false);
+                switch(beginDate.getDay()) {
+                    case 0: $("#SU").prop("checked", true); break;
+                    case 1: $("#MO").prop("checked", true); break;
+                    case 2: $("#TU").prop("checked", true); break;
+                    case 3: $("#WE").prop("checked", true); break;
+                    case 4: $("#TH").prop("checked", true); break;
+                    case 5: $("#FR").prop("checked", true); break;
+                    case 6: $("#SA").prop("checked", true); break;
+                }
+            }
+        }
+
+        $('#leaderModal').on('hidden.bs.modal', function (e) {
+          searchCancelled();
+        });
+        $('#leaderModal').on('shown.bs.modal', function () {
+            $('[id$=contactSearchValue]').focus();
+        })
+
+        $(document).ready(function(){
+
+          var dateBeginString = $("[id$=date-begin]").val();
+          if(dateBeginString.length > 0) {
+              var dateBegin = new Date(dateBeginString);
+              var ms = Date.parse(dateBegin);
+              beginDate = new Date(new Date(ms).setHours(0,0,0,0));
+          }
+
+          $('[id$=date-begin]').datetimepicker({
+            formatTime:'g:i A',
+            format: 'm/d/Y h:i A',
+            step: 30,
+            defaultTime: '8:00 AM',
+            onSelectTime:function(dp,$input){
+              $input.datetimepicker('hide');
+            },
+            onSelectDate:function(db,$input){
+                $('[id$=date-end]').datetimepicker({
+                    defaultDate: $('[id$=date-begin]').val()?$('[id$=date-begin]').val().split(' ')[0]:false, formatDate:'m/d/Y'
+                });
+            }
+          });
+          $('[id$=date-end]').datetimepicker({
+            formatTime:'g:i A',
+            format: 'm/d/Y h:i A',
+            step: 30,
+            defaultTime: '6:00 PM',
+            onShow:function( ct ) {
+                this.setOptions({
+                    minDate: $('[id$=date-begin]').val() ? $('[id$=date-begin]').val().split(' ')[0] : false, formatDate:'m/d/Y'
+                });
+            },
+            onSelectTime:function(dp,$input){
+              $input.datetimepicker('hide');
+            }
+          });
+          $('.dateInput').datetimepicker({
+            timepicker: false,
+            format: 'm/d/Y',
+            scrollInput: false,
+            onSelectDate:function(dp,$input){
+              $input.datetimepicker('hide');
+            }
+
+          });
+          var dateBegin = new Date($("[id$=date-begin]").val());
+          var dayOfWeek = dateBegin.getDay();
+
+          recurringEvent = $("[id$=recurringEvent]").val();
+
+          if(recurringEvent.length > 0) {
+            $(".repeatTable").hide();
+            $("#singleDate").hide();
+            $("#noBeginDate").hide();
+          }
+          else if(dateBegin == 'Invalid Date') {
+            $(".repeatTable").hide();
+            $("#singleDate").hide();
+            $("#noBeginDate").show();
+          } else {
+            $("#repeatStartsOn").text($.format.date(dateBegin, "M/d/yyyy"));
+            $(".repeatTable").show();
+            $("#singleDate").show();
+            $("#noBeginDate").hide();
+          }
+
+            showDay();
+
+            $("#generateDatesButton").click(function() {
+                calculateOccurrences();
+                showOccurrences();
+            });
+          // renders a success message on a successful save event, then fade it out
+          if({!saveSuccessful}) {
+            var saveSuccessMessage = '<div id="saveSuccess" class="alert alert-success" role="alert"><i class="fa fa-check-circle"></i>&nbsp;&nbsp;&nbsp;Save Successful!</div>';
+            $('#renderMessages').hide().append(saveSuccessMessage).fadeIn();
+            setTimeout(function(){
+              $('#renderMessages').fadeOut();
+            }, 2500);
+          }
+
+          // initialize tooltips
+          $(function () {
+            $('[data-toggle="tooltip"]').tooltip();
+          })
+
+          $("[id$=registrationsAcceptedCheckbox]").click(function() {
+                if($("[id$=registrationsAcceptedCheckbox]").is(":checked")) {
+                    $("#registrationOptionsTab").removeClass("disabled");
+                }
+                else {
+                    $("#registrationOptionsTab").addClass("disabled");
+                }
+          });
+          $("#registrationOptionsTab a[data-toggle='tab']").on("show.bs.tab", function(e) {
+            if($(this).parent().hasClass("disabled")) {
+                e.preventDefault();
+                return false;
+            }
+          });
+
+          $("#addDateButton").click(function () {
+            var dateString = $("[id$=single-date]").val();
+            if(dateString.length > 0) {
+                var ms = Date.parse(dateString);
+                if(addOccurrence(new Date(ms))) {
+                	$("[id$=single-date]").val("");
+                	$("#addDateError").html("");
+                	showOccurrences();
+                }
+                else {
+                	$("#addDateError").html("You may not add dates prior to the start date");
+                }
+            }
+          });
+
+            $("#repeatsBy").show();
+            $("#repeatsOn").hide();
+            $("#endsAfterCount").prop('disabled', false);
+
+          $("#repeatFrequency").on('change', function() {
+            var selectedValue = $("#repeatFrequency option:selected").text();
+            if(selectedValue == "Monthly") {
+                $("#repeatsBy").show();
+            }
+            else {
+                $("#repeatsBy").hide();
+            }
+            if(selectedValue == "Weekly") {
+                $("#repeatsOn").show();
+            }
+            else {
+                $("#repeatsOn").hide()
+            }
+          });
+
+          $("[id$=date-begin]").on("change" ,function() {
+              var dateBegin = new Date($("[id$=date-begin]").val());
+              $("#repeatStartsOn").text($.format.date(dateBegin, "M/d/yyyy"));
+              $("#noBeginDate").hide();
+              $(".repeatTable").show();
+              $("#singleDate").show();
+                var ms = Date.parse(dateBegin);
+                var newBeginDate = new Date(new Date(ms).setHours(0,0,0,0));
+                if(beginDate != null) {
+					if(newBeginDate.getTime() != beginDate.getTime()) {
+	                	occurrences = new Array();
+	                }
+                }                
+               	beginDate = newBeginDate;
+                showDay();
+                showOccurrences();
+          });
+
+          $("[name='endsType']").on('change', function() {
+            var selectedValue = $("input:radio[name='endsType']:checked").val();
+            if(selectedValue == "endsOn") {
+                $("#endsAfterCount").val("");
+                $("#endsAfterCount").prop('disabled', true);
+                $("#endsOnDate").prop('disabled', false);
+            }
+            else {
+                $("#endsOnDate").val("");
+                $("#endsAfterCount").prop('disabled', false);
+                $("#endsOnDate").prop('disabled', true);
+            }
+          });
+
+          $("#endsAfterCount").on("change", function() {
+            var selectedValue = $("#endsAfterCount").val();
+            if(selectedValue > '0') {
+                $("#endOnDate").val("");
+            }
+          });
+          $("#endsOnDate").on("change", function() {
+            var selectedValue = $("#endsOnDate").val();
+            if(selectedValue > "") {
+                $("#endsAfterCount").val("");
+            }
+          });
+
+          var recurringDatesJson = $("[id$=recurringDates]").val();
+          if(recurringDatesJson.length > 0) {
+            var stringOccurrences = JSON.parse(recurringDatesJson);
+            for(var i=0; i < stringOccurrences.length; i++) {
+                var theDate = new Date(stringOccurrences[i]);
+                occurrences.push(theDate);
+            }
+            showOccurrences();
+          }
+
+        });
+
+      </script>
+    </apex:define>
+
+  </apex:composition>
+</apex:page>

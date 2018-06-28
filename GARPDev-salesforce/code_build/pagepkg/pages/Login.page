@@ -1,0 +1,253 @@
+<apex:page controller="LoginController" showHeader="false" sidebar="false" showChat="false" standardStylesheets="false" action="{!init}">
+    <meta name="viewport" content="user-scalable=yes, target-densityDpi=device-dpi, initial-scale=1.2" />
+    <apex:variable var="envPath" value="{!URLFOR($Resource.sfdcApp4)}" />
+    <style>
+    body {
+        background: #CCCCCC url({!envPath}/img/light_noise_diagonal.png) repeat;
+        padding: 30px 0 !important;
+    }
+    </style>
+    <link href="{!envPath}/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="{!envPath}/css/global_variables.css" rel="stylesheet" />
+    <link href="{!envPath}/css/sfdcApp.css" rel="stylesheet" />
+    <link href="{!envPath}/css/login.css" rel="stylesheet" />
+    <script>
+    //force https
+    if (window.location.href.substring(0, 5) != 'https') {
+        window.location.href = 'https' + window.location.href.substring(4);
+    }
+    
+    function gotoRegistration() {
+        var hostName = window.location.hostname;
+
+        if(hostName.indexOf("build") > -1) {
+            window.location.href = 'https://build-garpbuild.cs16.force.com/sfdcApp#!/public_registration/individual';            
+        }
+        if(hostName.indexOf("uat") > -1) {
+            window.location.href = 'https://uat-garp.cs15.force.com/sfdcApp#!/public_registration/individual';            
+        }
+    }
+    
+    function gotoWebsite(route) {
+        var hostName = window.location.hostname;
+
+        if(hostName.indexOf("build") > -1) {
+            window.location.href = 'http://ec2-54-186-51-192.us-west-2.compute.amazonaws.com/#!/' + route;
+        }
+        if(hostName.indexOf("uat") > -1) {
+            window.location.href = 'http://uat.garp.org/#!/' + route;            
+        }
+    
+    }
+    </script>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <a href="javascript:gotoWebsite('home')">
+                    <apex:image url="{!envPath}/img/logo.png" alt="logo" styleClass="logo" />
+                </a>
+                <div class="subheading">
+                    <h2>Sign in or create an account</h2>
+                </div>
+                <apex:form forceSSL="true">
+                    <apex:actionFunction name="login" action="{!login}" reRender="messagesLogin" oncomplete="stopSpinner();" />
+                    <apex:actionFunction name="register" action="{!register}" reRender="messagesRegister" oncomplete="stopSpinner();" />
+                    <apex:actionFunction name="resetPassword" action="{!resetPassword}" reRender="messagesLogin, forgotPasswordModalBody" oncomplete="stopSpinner();" />
+                    <apex:actionFunction name="resetPasswordResetSuccessful" action="{!resetPasswordResetSuccessful}" reRender="forgotPasswordModalBody" oncomplete="stopSpinner();" />
+                    <div class="login-box panel">
+                        <div class="form-group">
+                            <h5>What's your email address?</h5>
+                            <span class="in-input">Your Email address</span>
+                            <apex:inputText id="username" value="{!username}" tabindex="1" styleClass="form-control" />
+                            <div class="error-message"></div>
+                        </div>
+                        <div class="form-group">
+                            <h5>Do you have a password?</h5>
+                            <apex:selectRadio value="{!newUser}" layout="pageDirection" styleClass="radio radio-fix" tabindex="2">
+                                <apex:selectOption itemValue="false" itemLabel="Yes I have a password" />
+                                <apex:selectOption itemValue="true" itemLabel="No I am new to GARP" />
+                                <apex:actionSupport event="onchange" reRender="enterPasswordOrSignUp" onsubmit="startSpinner();" oncomplete="stopSpinner();"/>
+                            </apex:selectRadio>
+                        </div>
+                        <apex:outputPanel id="enterPasswordOrSignUp">
+                            <apex:outputPanel rendered="{!!newUser}">
+                                <div class="form-group">
+                                    <span class="in-input">Your Password</span>
+                                    <apex:inputSecret id="password" value="{!password}" tabindex="3" styleClass="form-control" />
+                                    <div class="error-message"></div>
+                                </div>
+                                <apex:commandButton id="loginButton" value="Sign in" styleClass="garp-btn-blue btn-lg btn-block" onclick="validateAndLogin(); return false;" tabindex="4" />
+                                <apex:outputPanel id="messagesLogin">
+                                    <div class="{!IF(hasErrors,'alert alert-danger alert-dismissible','')}" role="alert">
+                                        <apex:pageMessages />
+                                    </div>
+                                </apex:outputPanel>
+                                <a href="#" data-toggle="modal" data-target="#forgotPasswordModal" onclick="resetPasswordResetSuccessful(); return false;">Forgot Password?</a>
+                            </apex:outputPanel>
+                            <apex:outputPanel rendered="{!newUser}">
+                                <h5>New to GARP? Create an account below.</h5>
+                                <div>
+                                    <p>
+                                        Creating an account will get you limited access to GARP content, daily and weekly industry updates, free membership in your local GARP Chapter, basic access to our GARP Career Center, and access to select webcasts and white papers. Affiliate members are welcome to upgrade to <a href='javascript:gotoRegistration()'>Individual Member</a> at any time.
+                                    </p>
+                                </div>
+                                <div class="form-group">
+                                    <span class="in-input">Your First Name</span>
+                                    <apex:inputText id="firstname" value="{!firstname}" tabindex="3" styleClass="form-control" />
+                                    <div class="error-message"></div>
+                                </div>
+                                <div class="form-group">
+                                    <span class="in-input">Your Last Name</span>
+                                    <apex:inputText id="lastname" value="{!lastname}" tabindex="4" styleClass="form-control" />
+                                    <div class="error-message"></div>
+                                </div>
+                                <div class="form-group">
+                                    <span class="in-input">Your Country</span>
+                                    <apex:selectList id="country" value="{!country}" tabindex="5" multiselect="false" size="1" styleClass="form-control">
+                                        <apex:selectOptions value="{!countryList}" />
+                                    </apex:selectList>
+                                    <div class="error-message"></div>
+                                </div>
+                                <div class="form-group">
+                                    <span class="in-input">Your Company</span>
+                                    <apex:inputText id="company" value="{!company}" tabindex="6" styleClass="form-control" />
+                                    <div class="error-message"></div>
+                                </div>
+                                <div class="form-group">
+                                    <span class="in-input">Your Industry</span>
+                                    <apex:selectList id="industry" value="{!industry}" tabindex="7" multiselect="false" size="1" styleClass="form-control">
+                                        <apex:selectOptions value="{!industryList}" />
+                                    </apex:selectList>
+                                    <div class="error-message"></div>
+                                </div>
+                                <div class="form-group">
+                                    <span class="in-input">Your Job Function</span>
+                                    <apex:selectList id="jobFunction" value="{!jobFunction}" tabindex="8" multiselect="false" size="1" styleClass="form-control">
+                                        <apex:selectOptions value="{!jobFunctionList}" />
+                                    </apex:selectList>
+                                    <div class="error-message"></div>
+                                </div>
+                                <div>
+                                    <p>By clicking ‘Create an account’ you agree to the <a href="javascript:gotoWebsite('code_of_conduct')">Code of Conduct</a>, <a href="javascript:gotoWebsite('privacy_policy')">Privacy Policy</a>, <a href="#">Terms of Service.</a> and receiving emails from GARP that may be of interest to you.</p>
+                                </div>
+
+                                <apex:commandButton id="registerButton" value="Create an account" styleClass="garp-btn-blue btn-lg btn-block" onclick="validateAndRegister(); return false;" tabindex="9" />
+                                <apex:outputPanel id="messagesRegister">
+                                    <div class="{!IF(hasErrors,'alert alert-danger alert-dismissible','')}" role="alert">
+                                        <apex:pageMessages />
+                                    </div>
+                                </apex:outputPanel>
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </div>
+                    <div class="modal fade" id="forgotPasswordModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span>
+                                    </button>
+                                    <h4 class="medium-grey">Forgot my password</h4>
+                                </div>
+                                <div class="modal-body">
+                                    <apex:outputPanel id="forgotPasswordModalBody">
+                                        <apex:outputPanel rendered="{!!passwordResetSuccessful && !passwordResetEmailNotFound}">
+                                            <div class="modal-box">
+                                                <div class="form-group">
+                                                    <h5 class="medium-grey">Enter your email and we will send you a link to reset your password.</h5>
+                                                    <span class="in-input">Your Email Address</span>
+                                                    <apex:inputText id="emailForPasswordReset" value="{!emailForPasswordReset}" tabindex="7" styleClass="form-control" />
+                                                    <div class="error-message"></div>
+                                                </div>
+                                                <apex:commandButton id="resetPasswordButton" value="Reset Password" styleClass="garp-btn-blue btn-lg btn-block" onclick="validateAndResetPassword(); return false;" tabindex="8" />
+                                            </div>
+                                        </apex:outputPanel>
+                                        <apex:outputPanel rendered="{!passwordResetSuccessful}">
+                                            <h4 class="medium-grey">Password Reset Successful</h4>
+                                            <div>An email has been sent to {!emailForPasswordReset} with instructions for logging in.</div>
+                                        </apex:outputPanel>
+                                        <apex:outputPanel rendered="{!passwordResetEmailNotFound}">
+                                            <div class="alert alert-danger alert-dismissible" role="alert">
+                                                No GARP Account was found with this email address.&nbsp;<apex:commandLink value="Please try again" onclick="startSpinner();" oncomplete="stopSpinner();" action="{!resetPasswordResetSuccessful}" reRender="forgotPasswordModalBody"/> using a different email, or contact <a href="mailto:MemberServices@garp.com">MemberServices@garp.com</a> for assistance.
+                                            </div>
+                                        </apex:outputPanel>
+                                    </apex:outputPanel>
+                                </div>
+                            </div>
+                            <!-- /.modal-content -->
+                        </div>
+                        <!-- /.modal-dialog -->
+                    </div>
+                    <!-- /.modal -->
+                </apex:form>
+            </div>
+
+        </div>
+    </div>
+    <div class="footer">
+        <ul>
+            <li><a href="javascript:gotoWebsite('about')">About GARP</a>
+            </li>
+            <li><a href="javascript:gotoWebsite('code_of_conduct')">Code of Conduct</a>
+            </li>
+            <li><a href="javascript:gotoWebsite('privacy_policy')">Privacy Policy</a>
+            </li>
+        </ul>
+    </div>
+    <apex:outputPanel id="jspanel">
+        <script type="text/javascript">
+        debugger;
+
+        function validateAndRegister() {
+            debugger;
+            var isValid = true;
+            isValid = validateRequired($('[id$=username]'), 'You must provide an email address') && isValid;
+            isValid = validateRequired($('[id$=firstname]'), 'You must provide a first name') && isValid;
+            isValid = validateRequired($('[id$=lastname]'), 'You must provide a last name') && isValid;
+            isValid = validateRequired($('[id$=country]'), 'You must provide a country') && isValid;
+            isValid = validateRequired($('[id$=company]'), 'You must provide a company') && isValid;
+            isValid = validateRequired($('[id$=industry]'), 'You must provide an industry') && isValid;
+            isValid = validateRequired($('[id$=jobFunction]'), 'You must provide a job function') && isValid;
+            if (isValid) {
+                startSpinner();
+                register();
+            }
+        }
+
+        function validateAndLogin() {
+            var isValid = true;
+            isValid = validateRequired($('[id$=username]'), 'You must provide an email address') && isValid;
+            isValid = validateRequired($('[id$=password]'), 'You must provide a password') && isValid;
+            if (isValid) {
+                startSpinner();
+                login();
+            }
+        }
+
+        function validateAndResetPassword() {
+            if (validateRequired($('[id$=emailForPasswordReset]'), 'You must provide an email address')) {
+                startSpinner();
+                resetPassword();
+            }
+        }
+
+        function validateRequired(elem, message) {
+            var isValid = true;
+            if (elem.val() == null || elem.val() == '') {
+                elem.parent().addClass("has-error");
+                elem.next(".error-message").text(message);
+                isValid = false;
+            } else {
+                elem.parent().removeClass("has-error");
+                elem.next(".error-message").text('');
+                isValid = true;
+            }
+            return isValid;
+        }
+        </script>
+    </apex:outputPanel>
+    <apex:include pageName="Spinner"/>
+    <script src="{!envPath}/lib/jquery/jquery-1.10.2.min.js"></script>
+    <script src="{!envPath}/lib/bootstrap/js/bootstrap.min.js"></script>
+    <script src="{!envPath}/lib/spinjs/spin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/respond.js/1.4.2/respond.min.js"></script>
+</apex:page>

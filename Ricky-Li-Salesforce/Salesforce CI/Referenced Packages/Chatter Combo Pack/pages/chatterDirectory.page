@@ -1,0 +1,178 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com - 2/23/2010 -->
+<apex:page id="directoryPage" controller="ComboPack.chatterDirectory" tabstyle="Chatter_Directory__tab" showheader="{!!isSidebarSearch}" action="{!doRefresh}">
+    <apex:sectionheader title="Chatter Directory" rendered="{!!isSidebarSearch}" />
+    
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterDashboard, 'jquery.min.js' )}" />
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'scripts.js' )}" />
+    <apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'styles.css' )}" />
+    
+    <script>jQuery.noConflict(); function setFocusOnLoad() {}</script>
+    
+    <apex:form id="sidebarform" rendered="{!isSidebarSearch}">
+    	<style type="text/css">
+    		body { 
+    			margin: 0;
+    			background-color: #CFEEF8;
+    		}
+    	</style>
+    	
+    	<apex:inputtext id="searchstr" value="{!searchstr}" styleclass="searchstr" style="width:100px; float:left; margin-right: 5px;" />
+    	<apex:commandbutton value="Search" style="float:left" onclick="doSearch();" />
+    </apex:form>
+
+    <apex:form id="theform" rendered="{!!isSidebarSearch}">
+    	<apex:actionFunction name="doRefreshAF" action="{!doRefresh}" rerender="recordsection" />
+
+		<script type="text/javascript">
+			function noenter(ev)  {
+		   	if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+		   		doRefreshAF();
+		       	return false;
+		     	}else{
+		          return true;
+		     }
+		   }
+		</script>
+    <apex:pageblock id="filtersection">
+        <apex:pageblockbuttons >
+            <apex:commandbutton value="Search" action="{!doRefresh}" rerender="recordsection" />
+            <apex:commandbutton value="Reset" action="{!doReset}" rerender="filtersection,recordsection" />
+        </apex:pageblockbuttons>
+        <p>The Chatter Directory displays all Users but only those Accounts, Cases, and Opportunities with at least one follower.</p><br/>
+        <apex:pageblocksection title="Filters" columns="2">
+        	<apex:pageblocksectionitem >
+                <apex:outputlabel for="str" value="Search" />
+                <apex:inputtext id="str" value="{!searchstr}" style="font-size: 16px; width: 200px" onkeypress="return noenter(event);" />
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem />
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="showuser" value="Show Users" />
+                <apex:inputcheckbox id="showuser" value="{!showUsers}" >
+                    <apex:actionSupport event="onchange" action="{!doFilter}" rerender="recordsection" />
+                </apex:inputcheckbox>
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem rendered="{!enableAccts}">
+                <apex:outputlabel for="showacct" value="Show Accounts" />
+                <apex:inputcheckbox id="showacct" value="{!showAccts}" >
+                    <apex:actionSupport event="onchange" action="{!doFilter}" rerender="recordsection" />
+                </apex:inputcheckbox>
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem rendered="{!!enableAccts}" />
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="nofollowers" value="Show Users with no Followers" />
+                <apex:inputcheckbox id="nofollowers" value="{!showNoFollowers}" >
+                    <apex:actionSupport event="onchange" action="{!doFilter}" rerender="recordsection" />
+                </apex:inputcheckbox>
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem rendered="{!enableCases}">
+                <apex:outputlabel for="showcase" value="Show Cases" />
+                <apex:inputcheckbox id="showcase" value="{!showCases}" >
+                    <apex:actionSupport event="onchange" action="{!doFilter}" rerender="recordsection" />
+                </apex:inputcheckbox>
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem rendered="{!!enableCases}" />
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="nofollowing" value="Show Users not Following Anything" />
+                <apex:inputcheckbox id="nofollowing" value="{!showNoFollowing}" >
+                    <apex:actionSupport event="onchange" action="{!doFilter}" rerender="recordsection" />
+                </apex:inputcheckbox>
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem rendered="{!enableOppties}">
+                <apex:outputlabel for="showoppty" value="Show Opportunities" />
+                <apex:inputcheckbox id="showoppty" value="{!showOppties}" >
+                    <apex:actionSupport event="onchange" action="{!doFilter}" rerender="recordsection" />
+                </apex:inputcheckbox>
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem rendered="{!!enableOppties}" />
+        </apex:pageblocksection>
+   </apex:pageblock>
+   </apex:form>
+   
+   <apex:form id="resultform" rendered="{!!isSidebarSearch}">
+   <apex:pageblock id="recordsection">
+   		<div style="margin-left: 45%">
+	   		<apex:outputtext value="No records to display." rendered="{!ufFilter.size = 0}" />
+	        <apex:outputpanel layout="none" rendered="{!ufFilter.size > 0}">
+		        <apex:commandbutton value="{!prevLink}" style="float:left" action="{!prevUpdates}" rerender="recordsection" rendered="{!first > 0}" />
+		        <p class="stats" style="float:left; margin: 0 10px 0 10px;">Viewing records <span class="bigFont">{!first + 1}-{!if( first + ROWS_PER_PAGE > ufFilter.size, ufFilter.size, first + ROWS_PER_PAGE)}</span> of <span class="bigFont">{!ufFilter.size}</span>.</p>
+		        <apex:commandbutton value="{!nextLink}" 
+		             style="float:left" action="{!nextUpdates}" rerender="recordsection" rendered="{!first + ROWS_PER_PAGE < ufFilter.size}" />
+		    </apex:outputpanel>
+		</div>
+		
+		<div style="clear:both"></div>
+		
+        <apex:pageblocksection showheader="false" columns="1" >	
+            <apex:pageblocktable value="{!ufFilter}" var="u" rendered="{!ufFilter.size > 0}" first="{!first}" rows="{!ROWS_PER_PAGE}">
+                <apex:column style="width: 35px">
+                    <apex:outputpanel layout="none" rendered="{!u.obtype == 'Case'}" >
+                        <div class="caseSmall"></div>
+                    </apex:outputpanel>
+                    <apex:outputpanel layout="none" rendered="{!u.obtype == 'Opportunity'}" >
+                        <div class="opptySmall"></div>
+                    </apex:outputpanel>
+                    <apex:outputpanel layout="none" rendered="{!u.obtype == 'Account'}" >
+                        <div class="acctSmall"></div>
+                    </apex:outputpanel>
+                    <apex:outputpanel layout="none" rendered="{!u.obtype == 'User'}" >
+                        <c:userPhoto uid="{!u.oid}" v="1" height="32" width="32" linked="true" />
+                    </apex:outputpanel>
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">
+                        <apex:commandLink value="Name" action="{!doSort}" rerender="recordsection">
+                            <apex:param name="sortField" value="name" assignTo="{!sortField}"/>
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'downsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'name', order == 'desc')}" />
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'upsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'name', order == 'asc')}" />
+                        </apex:commandLink>
+                    </apex:facet>
+                    <apex:outputlink value="/{!u.oid}">{!u.name}</apex:outputlink>
+                </apex:column>
+                <apex:column value="{!u.lastupdate}" rendered="{!showUsers}">
+                    <apex:facet name="header">
+                        <apex:commandLink value="Last Status Update" action="{!doSort}" rerender="recordsection">
+                            <apex:param name="sortField" value="lastupdate" assignTo="{!sortField}"/>
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'downsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'lastupdate', order == 'desc')}" />
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'upsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'lastupdate', order == 'asc')}" />
+                        </apex:commandLink>
+                    </apex:facet>
+                </apex:column>
+                <apex:column value="{!u.followers}" >
+                    <apex:facet name="header">
+                        <apex:commandLink value="Followers" action="{!doSort}" rerender="recordsection">
+                            <apex:param name="sortField" value="followers" assignTo="{!sortField}"/>
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'downsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'followers', order == 'desc')}" />
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'upsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'followers', order == 'asc')}" />
+                        </apex:commandLink>
+                    </apex:facet>
+                </apex:column>
+                <apex:column value="{!u.following}" >
+                    <apex:facet name="header">
+                        <apex:commandLink value="Following" action="{!doSort}" rerender="recordsection">
+                            <apex:param name="sortField" value="following" assignTo="{!sortField}"/>
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'downsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'following', order == 'desc')}" />
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'upsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'following', order == 'asc')}" />
+                        </apex:commandLink>
+                    </apex:facet>
+                </apex:column>
+                <apex:column rendered="{!showUsers}">
+                    <apex:facet name="header">
+                    	<apex:commandLink value="Following Me?" action="{!doSort}" rerender="recordsection">
+                            <apex:param name="sortField" value="followingme" assignTo="{!sortField}"/>
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'downsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'followingme', order == 'desc')}" />
+                            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'upsort.png' )}" styleclass="sortArrow" rendered="{!AND( sortfield == 'followingme', order == 'asc')}" />
+                    	</apex:commandLink>
+                    </apex:facet>
+                    <apex:image value="{!URLFOR( $Resource.ComboPack__chatterDirectory, 'greencheck.gif' )}" rendered="{!u.followsme}" />
+                </apex:column>
+                <apex:column >
+                   <apex:outputpanel rendered="{!u.oid != $User.Id}" id="followBtn">
+                        <c:followObject oid="{!u.oid}" />
+                   </apex:outputpanel>
+                </apex:column>
+            </apex:pageblocktable>
+        
+        </apex:pageblocksection>
+    </apex:pageblock>
+    </apex:form>
+</apex:page>

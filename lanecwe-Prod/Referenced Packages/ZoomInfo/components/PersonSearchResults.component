@@ -1,0 +1,155 @@
+<apex:component id="personSearchResults" controller="zisf.comp_PersonSearchResults">
+	<apex:attribute name="basePageAttr"
+			        type="zisf.page_ListLoadSearch"
+			        assignTo="{!basePage}"
+			        required="true"
+			        description="The controller for the page." />
+	<apex:form id="searchResultsForm">
+		<apex:outputPanel layout="block" id="search_results_table" styleClass="resultsPanel">
+			<apex:outputPanel id="search_results_table_wrap" 
+							  layout="block" 
+							  rendered="{!searchResults.size > 0}">
+				<apex:outputPanel id="pagePanel">
+					<apex:outputPanel id="importButtonPanel" styleClass="importButtonPanel">
+						<apex:inputText value="{!importObjectTypeAsString}" style="display:none;"/>
+						<apex:commandButton action="{!import}" value="Import to Salesforce" id="import"  style="padding"  
+											disabled="{!disableImport}" reRender="tabPanelContainer, importWizardContainer, messagePanelPeople"/>	
+					</apex:outputPanel>
+					<apex:outputPanel id="pageNumberPanel" styleClass="pageNumberPanel">
+						<apex:outputText value="{!basePage.totalSearchResultsSize} Profile{!IF(basePage.totalSearchResultsSize > 1, 's', '')} Available | "/>
+						<apex:outputText id="selectedCountPerson" value="{!basePage.personSelectedCount} Selected "/>
+						<apex:commandLink value="Deselect All" action="{!basePage.clearSelectedPersons}" onclick="uncheckAll();"
+										  reRender="selectedCountPerson, messagePanelPeople"/>
+						<apex:outputText value=" | "/>
+						<apex:outputPanel rendered="{!AND(FALSE,NOT(isLeftEdge))}">
+							<apex:outputText value="First" styleClass="otherPages"/>
+							<apex:actionSupport id="firstPageAction" event="onclick" action="{!search}" 
+												reRender="searchResultsForm, messagePanelPeople" status="workingStatus">
+								<apex:param id="firstPageNumber" name="pageNumber" assignTo="{!newPage}" value="1"/>
+							</apex:actionSupport>
+							&nbsp;						
+						</apex:outputPanel>					
+						<apex:outputPanel rendered="{!basePage.personPanel.options.page != 1}">
+							<apex:outputText value="Prev" styleClass="otherPages"/>
+							<apex:actionSupport id="prevPageAction" event="onclick" action="{!search}" 
+												reRender="searchResultsForm, messagePanelPeople" status="workingStatus">
+								<apex:param id="prevPageNumber" name="pageNumber" assignTo="{!newPage}" value="{!basePage.personPanel.options.page - 1}"/>
+							</apex:actionSupport>
+							&nbsp;						
+						</apex:outputPanel>					
+						<apex:repeat value="{!pageNumbers}" var="i">
+							<apex:outputLabel id="pageNonCommand" value="{!i}" rendered="{!i == basePage.personPanel.options.page}" styleClass="currentPage"/>
+							<apex:outputPanel >
+								<apex:outputText value="{!i}" rendered="{!i != basePage.personPanel.options.page}" styleClass="otherPages"/>
+								<apex:actionSupport id="newPageAction" event="onclick" action="{!search}" 
+													reRender="searchResultsForm, messagePanelPeople" status="workingStatus">
+									<apex:param id="pageNumber" name="pageNumber" assignTo="{!newPage}" value="{!i}"/>
+								</apex:actionSupport>
+							</apex:outputPanel>
+							&nbsp;
+						</apex:repeat>
+						<apex:outputPanel rendered="{!basePage.personPanel.options.page != maxPage}">
+							<apex:outputText value="Next" styleClass="otherPages"/>
+							<apex:actionSupport id="nextPageAction" event="onclick" action="{!search}" 
+												reRender="searchResultsForm, messagePanelPeople" status="workingStatus">
+								<apex:param id="nextPageNumber" name="pageNumber" assignTo="{!newPage}" value="{!basePage.personPanel.options.page + 1}"/>
+							</apex:actionSupport>
+							&nbsp;						
+						</apex:outputPanel>					
+						<apex:outputPanel rendered="{!AND(FALSE,NOT(isRightEdge))}">
+							<apex:outputText value="Last" styleClass="otherPages"/>
+							<apex:actionSupport id="lastPageAction" event="onclick" action="{!search}" 
+												reRender="searchResultsForm, messagePanelPeople" status="workingStatus">
+								<apex:param id="lastPageNumber" name="pageNumber" assignTo="{!newPage}" value="{!maxPage}"/>
+							</apex:actionSupport>
+						</apex:outputPanel>		
+					</apex:outputPanel>
+				</apex:outputPanel>
+
+				<div id="search_results_table" style="height: {!33.5*searchResults.size + 28}px};">
+					<div class="head zoom_gradient_gray">
+						<span class="checkboxColumn">
+							<apex:outputPanel id="toggleAllPanel" title="Toggle All Rows" layout="block">
+								<apex:inputCheckBox id="checkAllBox" value="{!setAll}" onclick="checkAll(this);setCheckAllBoxPerson()"/>
+							</apex:outputPanel>
+						</span>
+						<span class="nameColumn">
+							Name
+						</span>
+						<span class="companyColumn">
+							Company
+						</span>
+						<span class="titleColumn">
+							Title
+						</span>
+						<span class="infoColumn">
+							Info
+						</span>
+						<span class="updateColumn">
+							Last Update
+						</span>
+					</div>
+					<apex:repeat value="{!searchResults}" var="p">
+						<div class="row">
+							<span class="cell checkboxColumn">
+								<apex:inputCheckbox value="{!p.Selected}" onclick="setCheckAllBoxPerson();" title="Select" id="checkedone">
+								</apex:inputCheckbox>
+							</span>
+							<span class="cell nameColumn">
+								<apex:outputLink styleClass="icon" value="http://www.linkedin.com/pub/dir/?first={!p.FirstName}&last={!p.LastName}"  target="_blank" title="Find {!p.FirstName} {!p.LastName} on LinkedIn">
+			        				<apex:image styleClass="linkedInIcon" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/linkedin.png')}"/>
+			        			</apex:outputLink>
+								<apex:outputLink styleClass="icon" value="{!p.ZoomPersonUrl}"  target="_blank" title="Find {!p.FirstName} {!p.LastName} on ZoomInfo">
+				        				<apex:image styleClass="PinWheelIcon" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/wheel.png')}"/>
+			        			</apex:outputLink>
+			        			
+								<div class="content">
+									<apex:outputLink target="_blank" value="{!p.ZoomPersonUrl}" title="{!p.FullName}">{!p.FullName}</apex:outputLink>
+				        		</div>
+							</span>
+							<span class="cell companyColumn">
+								<apex:outputPanel styleClass="content" layout="block" title="{!p.JobTitle}">
+									<apex:outputLink target="_blank" value="{!p.ZoomCompanyUrl}" title="{!p.companyName}">{!p.companyName}</apex:outputLink>
+								</apex:outputPanel>
+							</span>
+							<span class="cell titleColumn">
+								<apex:outputPanel styleClass="content" layout="block" title="{!p.JobTitle}">
+									{!p.JobTitle}
+								</apex:outputPanel>
+							</span>
+							<span class="cell infoColumn">
+								<apex:image url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/email_2.png')}" title="Email is available" rendered="{!AND(NOT(ISNULL(p.Email)), p.Email!='')}" />
+								<apex:image url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/phone_2.png')}" title="Phone is available" rendered="{!AND(NOT(ISNULL(p.Phone)), p.Phone!='')}" />
+							</span>
+							<span class="cell updateColumn">
+								<apex:outputText value="{!p.LastUpdatedDateFormatted}" title="Last Update"/>
+							</span>
+						</div>
+						<apex:outputText id="dummy" value="" style="visibility:hidden;"/>
+					</apex:repeat>
+					<script type="text/JavaScript">
+						function setCheckAllBoxPerson() {
+							var checkAllBox = document.getElementById('{!$component.searchResultsForm.checkAllBox}');
+							var selectedCountPerson = document.getElementById('{!$component.searchResultsForm.selectedCountPerson}');
+							var checkedCount = 0;
+							var checked = true;
+							if(inputElem = document.getElementsByTagName("input")) {
+								for(var i=0, len = inputElem.length; i < len; i++) {
+									if ((checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1)) {
+										if (checkbox.checked) {
+											checkedCount++;
+										} else {
+											checked = false;
+										}
+									}
+								}
+							}
+							checkAllBox.checked = checked;
+							selectedCountPerson.innerHTML = ({!selectedCountMinusCurrentPage} + checkedCount) + ' Selected';
+						}
+					</script>	
+				</div>
+			</apex:outputPanel>
+		</apex:outputPanel>
+	</apex:form>
+</apex:component>

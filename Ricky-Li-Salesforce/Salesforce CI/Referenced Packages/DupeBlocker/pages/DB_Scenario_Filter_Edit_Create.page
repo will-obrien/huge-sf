@@ -1,0 +1,172 @@
+<apex:page standardController="CRMfusionDBR101__Scenario_Filter__c" extensions="CRMfusionDBR101.DB_Scenario_Filter_Controller"
+	showHeader="true" tabStyle="CRMfusionDBR101__Scenario__c" standardStylesheets="true">
+	<apex:sectionHeader title="DupeBlocker Scenario Filter Edit" subTitle="{!CRMfusionDBR101__Scenario_Filter__c.Name}" />
+	<apex:outputText value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Scenario__c}" rendered="false"/>
+	<apex:outputText value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Object__c}" rendered="false"/>
+	<apex:outputText value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Field_Name__c}" rendered="false"/>
+	<apex:outputText value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Operator__c}" rendered="false"/>
+	<apex:outputText value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Data_Type__c}" rendered="false"/>
+    <apex:form id="mainForm" >
+	   	<apex:outputPanel style="display:none" rendered="{!AND(LOWER(CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Data_Type__c) != 'date', LOWER(CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Data_Type__c) != 'datetime')}" >
+		<apex:inputField id="inputDate" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Date_Criteria__c}" />
+		<apex:inputField id="inputDatetime" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Datetime_Criteria__c}" />
+		</apex:outputPanel>
+		<apex:actionStatus layout="block" startStyle="font-weight: bold; color: red;"
+			id="mainStatus" stopText="">
+			<apex:facet name="start">
+				Updating available options...
+				<BR/>
+				<BR/>
+			</apex:facet>
+		</apex:actionStatus>
+        <apex:pageBlock id="mainBlock" title="DupeBlocker Scenario Filter Edit" mode="edit"
+        	tabStyle="Scenario__c">
+            <apex:pageBlockButtons >
+                <apex:commandButton value="Save" action="{!Save}"/>
+                <apex:commandButton value="Cancel" action="{!Cancel}"/>
+            </apex:pageBlockButtons>
+		    <apex:pageMessages />
+            <apex:pageBlockSection columns="2" collapsible="false" title="Information" showHeader="true">
+                <apex:pageBlockSectionItem helpText="Select the object you'd like to filter.">
+                    <apex:outputLabel for="filteredObject" value="Filtered Object"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">  
+                    <apex:outputPanel styleClass="requiredBlock" layout="block"/> 
+                        <apex:selectList id="filteredObject" size="1" required="true" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Object__c}"
+                            multiselect="false" >
+                            <apex:selectOptions value="{!availableObjects}"/>
+		                    <apex:actionSupport event="onchange" action="{!processFilteredObjectChange}" rerender="mainForm,searchForm,selectedForm" status="mainStatus" />
+                        </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem helpText="Select the type of comparison you'd like for this filter.  See the documentation for full descriptions.">
+                    <apex:outputLabel for="operator" value="Operator"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">  
+                    <apex:outputPanel styleClass="requiredBlock" layout="block"/> 
+                        <apex:selectList id="operator" size="1" required="true" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Operator__c}"
+                            multiselect="false" >
+                            <apex:selectOptions value="{!operators}"/>
+		                    <apex:actionSupport event="onchange" rerender="mainForm,searchForm,selectedForm" status="mainStatus"  />
+                        </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem helpText="Select the field you'd like to filter.">
+                    <apex:outputLabel for="filteredField" value="Filtered Field"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">  
+                    <apex:outputPanel styleClass="requiredBlock" layout="block"/> 
+                        <apex:selectList id="filteredField" size="1" required="true" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Field_Name__c}"
+                            multiselect="false" >
+                            <apex:selectOptions value="{!fields}"/>
+		                    <apex:actionSupport event="onchange" action="{!processFieldChange}" rerender="mainForm,searchForm,selectedForm" status="mainStatus" />
+                        </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:inputField id="inputValues" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Values__c}"
+                	rendered="{!isTextCriteria}"/>
+                <apex:inputField id="inputDate" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Date_Criteria__c}"
+                	rendered="{!isDateCriteria}"/>
+                <apex:inputField id="inputDatetime" value="{!CRMfusionDBR101__Scenario_Filter__c.CRMfusionDBR101__Datetime_Criteria__c}"
+                	rendered="{!isDatetimeCriteria}"/>
+                <apex:pageBlockSectionItem helpText="Select one more record types you'd like to filter by."
+                	rendered="{!isRecordTypeCriteria}">
+                    <apex:outputLabel for="recordType" value="Record Type Filter"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">  
+                    <apex:outputPanel styleClass="requiredBlock" layout="block"/> 
+                        <apex:selectCheckboxes id="recordType" value="{!selectedRecordTypes}" layout="pageDirection" >
+                            <apex:selectOptions value="{!availableRecordTypes}"/>
+                        </apex:selectCheckboxes>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem helpText="Select one more user profiles you'd like to filter by."
+                	rendered="{!isProfileCriteria}">
+                    <apex:outputLabel for="userProfile" value="User Profile Filter"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">  
+                    <apex:outputPanel styleClass="requiredBlock" layout="block"/> 
+                        <apex:selectCheckboxes id="userProfile" value="{!selectedProfiles}" layout="pageDirection" >
+                            <apex:selectOptions value="{!availableProfiles}"/>
+                        </apex:selectCheckboxes>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem helpText="Select one more user roles you'd like to filter by."
+                	rendered="{!isRoleCriteria}">
+                    <apex:outputLabel for="userRole" value="User Role Filter"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">  
+                    <apex:outputPanel styleClass="requiredBlock" layout="block"/> 
+                        <apex:selectCheckboxes id="userRole" value="{!selectedRoles}" layout="pageDirection" >
+                            <apex:selectOptions value="{!availableRoles}"/>
+                        </apex:selectCheckboxes>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+	</apex:form>
+	<apex:form id="searchForm">
+        <apex:pageBlock id="searchBlock" title="Search for {!refObjectLabelPlural}" rendered="{!isRecordIdCriteria}">
+        	<apex:outputPanel >
+        		<message for="searchButton" />
+        		Search: <apex:inputText value="{!searchText}" /><apex:commandButton id="searchButton" action="{!search}" status="searchStatus" value="Go!" />
+        		<apex:actionStatus layout="block" startStyle="font-weight: bold; color: red;"
+					id="searchStatus" stopText="" startText="Searching..." />
+        		<apex:actionStatus layout="block" startStyle="font-weight: bold; color: red;"
+					id="addingStatus" stopText="" startText="Adding selected item to the filter list..." />
+        	</apex:outputPanel>
+        	<apex:outputPanel id="searchResults" rendered="{!haveFoundObjects}">
+				<table width="100%">
+					<tr>
+						<th></th>
+						<apex:repeat value="{!listHeaders}" var="h">
+							<th>{!h}</th>
+						</apex:repeat>
+					</tr>
+					<apex:repeat value="{!foundObjects}" var="fo">
+						<tr style="height:20px">
+							<apex:repeat rows="1" value="{!fo}" var="fotd">
+								<td>
+									<apex:commandLink status="addingStatus" action="{!addSelection}" rerender="selectedForm">Add
+										<apex:param name="addId" value="{!fotd}"/>
+									</apex:commandLink>
+								</td>
+							</apex:repeat>
+							<apex:repeat value="{!fo}" var="fotd">
+								<td><apex:outputText escape="false" value="{!fotd}" /></td>
+							</apex:repeat>
+						</tr>
+					</apex:repeat>
+				</table>
+        	</apex:outputPanel>
+        	<apex:outputPanel rendered="{!searchResultsTooLarge}">
+        		More than 200 records matched your search.  Please refine your search and try again.
+        	</apex:outputPanel>
+        </apex:pageBlock>
+    </apex:form>
+   	<apex:form id="selectedForm">
+        <apex:pageBlock id="selectedBlock" title="Selected Items" rendered="{!isRecordIdCriteria}">
+       		<apex:actionStatus layout="block" startStyle="font-weight: bold; color: red;"
+				id="removingStatus" stopText="" startText="Removing selected item from the filter list..." />
+        	<apex:outputText rendered="{!NOT(haveSelectedObjects)}" value="No records have yet been selected." />
+			<apex:outputPanel id="selectedPanel" rendered="{!haveSelectedObjects}">
+				<table width="100%">
+					<tr>
+						<th></th>
+						<apex:repeat value="{!listHeaders}" var="h">
+							<th>{!h}</th>
+						</apex:repeat>
+					</tr>
+					<apex:repeat value="{!selectedObjects}" var="so">
+						<tr style="height:20px">
+							<apex:repeat rows="1" value="{!so}" var="sotd">
+								<td>
+									<apex:commandLink status="removingStatus" action="{!removeSelection}" rerender="selectedForm">Remove
+										<apex:param name="removeId" value="{!sotd}"/>
+									</apex:commandLink>
+								</td>
+							</apex:repeat>
+							<apex:repeat value="{!so}" var="sotd">
+								<td><apex:outputText escape="false" value="{!sotd}" /></td>
+							</apex:repeat>
+						</tr>
+					</apex:repeat>
+				</table>
+			</apex:outputPanel>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

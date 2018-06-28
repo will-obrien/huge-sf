@@ -1,0 +1,108 @@
+<!--
+	The MIT License (MIT)
+	
+	Copyright (c) 2014 @DouglasCAyers
+	
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+	
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+ -->
+<apex:page controller="BMCRFQueueMemberAssignmentController" title="Queue Members">
+
+    <apex:form id="mainForm">
+
+        <apex:pageBlock id="mainPageBlock" title="Queue Members">
+
+            <apex:pageMessages />
+
+            <apex:pageBlockButtons >
+            
+                <apex:commandButton value="Export Details"
+                                    onclick="window.open('{!URLFOR($Page.BMCRF_Queue_Member_Excel_Page, null, [ selectedGroupId = selectedGroupId ])}');"
+                                    rendered="{!(selectedGroupId != null)}"/>
+                
+            </apex:pageBlockButtons>
+            
+            <apex:pageBlockSection columns="2">
+
+                <!-- Top Row -->
+
+                <apex:pageBlockSectionItem >
+                    <b>Queue:</b>
+                    <apex:selectList value="{!selectedGroupId}" size="1">
+                        <apex:selectOptions value="{!groupOptions}"/>
+                        <apex:actionSupport event="onchange" action="{!refresh}" reRender="mainForm"/>
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    1. Choose a queue to view, add, or remove members
+                </apex:pageBlockSectionItem>
+
+                <!-- Next Row -->
+
+                <apex:pageBlockSectionItem rendered="{!(selectedGroupId != null)}">
+                    <b>User:</b>
+                    <apex:inputField value="{!memberToAdd.userOrGroupId}" required="false"/>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem rendered="{!(selectedGroupId != null)}">
+                    2. To add a user, enter their name in input field then click Add button
+                </apex:pageBlockSectionItem>
+
+                <!-- Next Row -->
+
+                <apex:pageBlockSectionItem rendered="{!(selectedGroupId != null)}">
+                    <b><!-- empty tag so button will show in right column --></b>
+                    <apex:commandButton action="{!addUserToGroup}" value="Add User"/>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem rendered="{!(selectedGroupId != null)}">
+                    3. To remove a user, click the Remove link next to the user's name in the table below
+                </apex:pageBlockSectionItem>
+
+            </apex:pageBlockSection>
+
+            <apex:pageBlockTable value="{!groupUsers}" var="user" rendered="{!(selectedGroupId != null)}">
+                <apex:column headerValue="Action">
+                    <apex:commandLink action="{!removeUserFromGroup}"
+                                      value="Remove"
+                                      onclick="return confirm('Are you sure?');">
+                        <!-- bugfix, specify 'name' property -->
+                        <!-- http://blog.jeffdouglas.com/2010/03/04/passing-parameters-with-a-commandbutton/ -->
+                        <!-- https://developer.salesforce.com/forums/ForumsMain?id=906F000000095GLIAY -->
+                        <apex:param name="bugfix" assignTo="{!userIdToRemove}" value="{!user.id}"/>
+                    </apex:commandLink>
+                </apex:column>
+                <apex:column headerValue="Name">
+                    <apex:outputLink value="/{!user.id}">
+                        <apex:outputText value="{0} {1}">
+                            <apex:param value="{!user.firstName}"/>
+                            <apex:param value="{!user.lastName}"/>
+                        </apex:outputText>
+                    </apex:outputLink>
+                </apex:column>
+                <apex:column value="{!user.email}"/>
+                <apex:column value="{!user.username}"/>
+                <apex:column value="{!user.isActive}"/>
+            </apex:pageBlockTable>
+
+        </apex:pageBlock>
+
+    </apex:form>
+
+</apex:page>

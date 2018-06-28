@@ -1,0 +1,222 @@
+<apex:page showHeader="true"
+            controller="zqu.TCVRollupConfigController"
+            sidebar="false"
+            title="Quote TCV Rollup Settings"
+            tabStyle="Z_Quote_Config__tab"
+            action="{!loadQuoteTCVStatus}">
+  
+  <c:StatusModal />
+    
+    <!-- Notification -->
+  <apex:outputPanel id="notificationPanel" >
+
+    <apex:form >
+
+      <c:Notification options="{!popupOptions}" />
+    
+    </apex:form>
+
+  </apex:outputPanel>
+
+  <c:HelpComponent cid="COM-0015" rightAlign="true" />
+  
+  <c:PageTitle title="{!$Label.CONFIG_TCV_ROLLUP_TITLE}"
+               subtitle="{!$Label.CONFIG_TCV_ROLLUP_SUBTITLE}"/>
+  
+  <apex:outputText value="{!$Label.TCV_ROLLUP_NOTE}" />
+
+  <apex:form >
+
+    <apex:actionFunction name="goBack" 
+                         action="{!refresh}"/>
+
+    <apex:actionFunction name="deleteStatus" 
+                         action="{!deleteTCVStatus}" 
+                         rerender="notificationPanel, displayTable"/>
+  
+  <apex:pageBlock id="ConfigBlock">
+  <!-- buttons --> 
+    <apex:pageBlockButtons location="top">
+
+      <apex:actionStatus startText="" 
+                         stopText="" 
+                         id="buttonStatus" 
+                         onstart="javascript:displayStatusModal();" 
+                         onstop="javascript:closeStatusModal();">
+
+        <apex:facet name="start">
+
+          <apex:outputPanel >
+
+            <apex:commandButton value="Edit"
+                                disabled="true"
+                                rendered="{!!editMode}"/>
+
+            <apex:commandButton value="Save" 
+                                disabled="true"
+                                rendered="{!editMode}"/>
+
+            <apex:commandButton value="Cancel"
+                                disabled="true"
+                                rendered="{!editMode}"/>
+
+            <apex:commandButton value="{!$Label.TCV_ROLLUP_APPLY_SETTINGS}"
+                                 disabled="true"
+                                 rendered="{!!editMode}"/>
+
+            <apex:commandButton value="{!$Label.BUTTON_BACK_SETTINGS}" 
+                                disabled="true"
+                                rendered="{!!editMode}"/>
+
+          </apex:outputPanel>
+        
+        </apex:facet>
+        
+        <apex:facet name="stop">
+
+          <apex:outputPanel >
+
+            <apex:commandButton value="Edit" 
+                                action="{!flipEditMode}" 
+                                disabled="false" 
+                                status="buttonStatus"
+                                rendered="{!!editMode}" 
+                                rerender="ConfigBlock"/>
+
+            <apex:commandButton value="Save" 
+                                action="{!save}" 
+                                disabled="false"
+                                status="buttonStatus" 
+                                rendered="{!editMode}" 
+                                rerender="ConfigBlock, notificationPanel"/>
+
+            <apex:actionRegion >
+              <apex:commandButton value="Cancel"
+                                  disabled="false"
+                                  action="{!doCancel}"
+                                  reRender="ConfigBlock"
+                                  rendered="{!editMode}"/>
+            </apex:actionRegion>
+
+            <apex:commandButton value="{!$Label.TCV_ROLLUP_APPLY_SETTINGS}"
+                                disabled="false" 
+                                status="buttonStatus"
+                                rendered="{!!editMode}"
+                                action="{!runBatchProcess}"/>
+
+            <apex:commandButton value="{!$Label.BUTTON_BACK_SETTINGS}" 
+                                action="{!onBack}"
+                                disabled="false" 
+                                status="buttonStatus"
+                                rendered="{!!editMode}"/>
+
+          </apex:outputPanel>
+
+        </apex:facet>
+
+      </apex:actionStatus>
+
+    </apex:pageBlockButtons>
+    <!-- fields --> 
+      <apex:pageBlockSection columns="1" 
+                             collapsible="false" >
+
+        <apex:pageBlockSectionItem rendered="{!editMode}">
+
+            <apex:outputLabel value="TCV Rollup Method: "/>
+
+            <apex:selectList value="{!zqconfig.zqu__TCV_Rollup_Method__c}" 
+                             size="1" 
+                             multiselect="false" 
+                             rendered="{!editMode}">
+
+              <apex:actionSupport event="onchange" 
+                                  action="{!checkTCVConfig}"
+                                  rerender="ConfigBlock" 
+                                  status="buttonStatus"/>   
+
+              <apex:selectOptions value="{!tcvRollupMethod}"/>
+
+            </apex:selectList>
+
+        </apex:pageBlockSectionItem>
+
+        <apex:pageBlockSectionItem rendered="{!!editMode}">
+
+            <apex:outputLabel value="TCV Rollup Method: "/>
+
+            <apex:outputField value="{!zqconfig.zqu__TCV_Rollup_Method__c}" />
+        
+        </apex:pageBlockSectionItem>
+
+      </apex:pageBlockSection>
+
+      <apex:outputPanel rendered="{!editPercentages}">
+
+        <hr/>
+
+        <apex:pageBlockSection columns="1"
+                               collapsible="false">
+
+          <apex:pageBlockSectionItem >
+
+            <apex:outputLabel value="{!$Label.TCV_ROLLUP_PERCENTAGE_DEFINITION}"
+                              title="{!$Label.TCV_ROLLUP_PERCENTAGE_DEFINITION_TITLE}"/>
+
+            <apex:outputPanel >
+
+              <apex:pageBlockTable id="displayTable"
+                                   value="{!dqsList}" 
+                                   var="dqs" 
+                                   width="60%">
+
+                <apex:column id="action" 
+                             headerValue="Action" 
+                             width="5%">
+
+                  <apex:commandLink action="{!popupComponent}"
+                                    rendered="{!dqs.action == 'Delete'}"
+                                    value="Delete"
+                                    rerender="displayTable, notificationPanel"
+                                    title="{!$Label.TCV_ROLLUP_DELETE_TITLE}">
+                    
+                    <apex:param name="selectedId"
+                                value="{!dqs.id}" 
+                                assignTo="{!selectedQuoteStatusId}"/>
+                  
+                  </apex:commandLink>
+
+                </apex:column>
+
+                <apex:column id="quote_status" 
+                             headerValue="Quote Status" 
+                             value="{!dqs.quoteTCVStatus.zqu__Status__c}" 
+                             width="33%"/>
+
+                <apex:column id="tcv_include" 
+                             headerValue="% of TCV to Include"  
+                             width="33%">
+                             
+                  <apex:outputText value="{!dqs.quoteTCVStatus.zqu__TCV_to_Include__c}" 
+                                   rendered="{!!editMode}"/>
+
+                  <apex:inputText value="{!dqs.quoteTCVStatus.zqu__TCV_to_Include__c}" 
+                                  rendered="{!editMode}"/>
+
+                </apex:column>
+
+              </apex:pageBlockTable>
+
+            </apex:outputPanel>
+
+          </apex:pageBlockSectionItem>
+
+        </apex:pageBlockSection>
+
+      </apex:outputPanel>
+
+    </apex:pageBlock>
+  
+  </apex:form>
+
+</apex:page>

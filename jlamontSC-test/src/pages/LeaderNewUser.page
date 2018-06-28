@@ -1,0 +1,148 @@
+<apex:page id="thePage" controller="LeaderNewUserController" showHeader="FALSE" sidebar="FALSE" standardStylesheets="FALSE" docType="html-5.0" cache="FALSE" title="Test" applyHTMLTag="FALSE">
+
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>Leader New User Sierra Club</title>
+      <script type='text/javascript'>
+        function enterOnLookMeUp(ev)  {
+            if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+                LookMeUp();
+                return false;
+             } else {
+                return true;
+             }
+         }
+      </script>
+    </apex:define>
+    
+    <body>
+
+      <apex:define name="body">
+      
+        <div class="container" id="main-content-wrapper">
+          <div class="row">
+            <div class="col-md-6 well" >
+              <apex:form >
+                <form>  
+                  <apex:pageBlock >
+                    <apex:actionRegion id="region1">
+                      <apex:actionFunction name="LookMeUp" action="{!getContactsWithEmail}" reRender="chosenContact, userAlreadyCreated, standardUserAlreadyCreated, emailList" />
+                      <div class="form-group">
+                        <apex:outputLabel for="email" value="Email Address:" />
+                        <apex:input id="email" 
+                                    type="email"
+                                    value="{!emailAddr}"
+                                    styleClass="form-control"
+                                    onkeypress="return enterOnLookMeUp(event);"
+                        />
+                      </div>
+                     <div class="form-group">      
+                       <apex:commandButton value="Look me up" 
+                                           styleClass="btn btn-primary btn-block"
+                                           action="{!getContactsWithEmail}"
+                                           reRender="chosenContact, userAlreadyCreated, standardUserAlreadyCreated, emailList, pageMessages"
+                       />
+                     </div>
+                     <div class="form-group">
+                       <apex:actionStatus for="region1">
+                         <apex:facet name="start">
+                           <c:Waiting />
+                         </apex:facet>
+                       </apex:actionStatus>
+                     </div>
+                   </apex:actionRegion>
+                 </apex:pageBlock>
+                 <apex:actionRegion id="region2">
+                   <apex:actionStatus for="region2">
+                     <apex:facet name="start">
+                       <c:Waiting />
+                     </apex:facet>
+                   </apex:actionStatus>
+                   <apex:outputPanel >
+                     <apex:outputPanel id="chosenContact">
+                       <apex:outputPanel rendered="{! (chosenContactId != null) }">
+                         <apex:pageBlock >
+                           <apex:outputPanel >
+                               <apex:commandButton value="Create New User for {!chosenConstituent.firstName} {!chosenConstituent.postalCode}"
+                                                   action="{!createNewLeaderUser}"
+                                                   styleClass="btn btn-default btn-sm"
+                                                   
+                               />
+                           </apex:outputPanel>
+                         </apex:pageBlock>
+                       </apex:outputPanel>
+                     </apex:outputPanel>
+                   </apex:outputPanel>
+                 </apex:actionRegion>
+                 <apex:pageBlock >
+                   <apex:actionRegion id="region3">
+                     <apex:actionStatus for="region3">
+                       <apex:facet name="start">
+                         <c:Waiting />
+                       </apex:facet>
+                     </apex:actionStatus>
+                     <apex:outputPanel id="standardUserAlreadyCreated">
+                       <apex:outputPanel rendered="{! (standardUserAlreadyCreated) }">
+                         <div class="alert alert-danger" role="alert"> 
+                           <i class="fa fa-exclamation-triangle fa-3x pull-left"></i> There already is a standard User with the Email Address you entered.<br /> Log into Salesforce and click on the Campfire link on your home page. 
+                         </div>
+                       </apex:outputPanel>
+                     </apex:outputPanel>
+                     <apex:outputPanel id="userAlreadyCreated">
+                       <apex:outputPanel rendered="{! (userAlreadyCreated) }">
+                         <div class="alert alert-danger" role="alert"> 
+                           <i class="fa fa-exclamation-triangle fa-3x pull-left"></i> There already is a User with the Email Address you entered.<br /> <a href="ConstituentLoginPage">Log in</a> or request a <a href="ConstituentForgotPassword">password reset</a> for that account.
+                         </div>
+                       </apex:outputPanel>
+                     </apex:outputPanel>
+                     <apex:outputPanel id="emailList">
+                       <apex:outputPanel rendered="{! (constituentListSize > 1) }">
+                         <div class="alert alert-warning" role="alert">
+                           <div class="form-group">
+                             <i class="fa fa-question-circle fa-5x pull-left"></i>
+                             We found multiple individuals in our records listed under this email address. Please confirm your name from the list below. 
+                             If you are not sure which option to select, or if your details are not listed here, please <a href="mailto:online.activities@sierraclub.org">contact us</a>. 
+                           </div>
+                           <div class="table-responsive form-group">
+                             <apex:pageBlockTable value="{!constituentList}" var="con" styleClass="table table-bordered table-hover white-background">
+                               <apex:column >
+                                 <apex:commandButton action="{!chooseContact}" value="Choose" reRender="chosenContact" styleClass="btn btn-default btn-sm center-block">
+                                   <apex:param name="chosenContactId" value="{!con.Id}" assignTo="{!chosenContactId}" />
+                                 </apex:commandButton>
+                               </apex:column>
+                               <apex:column >
+                                 <apex:facet name="header">First Name</apex:facet>
+                                 <apex:outputText value="{!con.firstName}"/>
+                               </apex:column>
+                               <apex:column >
+                                 <apex:facet name="header">Postal Code</apex:facet>
+                                 <apex:outputText value="{!con.postalCode}"/>
+                               </apex:column>
+                             </apex:pageBlockTable>
+                           </div>
+                         </div>
+                       </apex:outputPanel>
+                       <apex:outputPanel rendered="{! (constituentList != null && constituentListSize == 0) }">
+                         <div class="alert alert-danger" role="alert">
+                           <i class="fa fa-exclamation-triangle fa-2x pull-left"></i> Email Address Not Found
+                         </div>
+                       </apex:outputPanel>
+                     </apex:outputPanel>
+                   </apex:actionRegion>
+                 </apex:pageBlock>
+               </form>
+             </apex:form>
+          </div>
+          <div class="col-md-6">
+            <c:CampfireDescription ></c:CampfireDescription>
+          </div>
+        </div>
+      </div><!--/ container-->
+      <!-- End Page Content -->
+
+    </apex:define>
+    
+    </body>
+
+  </apex:composition>
+</apex:page>

@@ -1,0 +1,394 @@
+<apex:page controller="PaymentTermsController" action="{!init}" docType="html-5.0">
+
+    <style>
+        .sections {
+            margin: 25px 25px;
+            background: #cafffe;
+            
+        }
+        
+        .sectiontitle {
+            color: black;
+            font-weight: bold;
+            font-size: 125%;
+        }
+        
+        .fielderror {
+            color: red;
+            font-style: italic;
+            font-weight: bold;
+        }
+        
+        .container {
+            margin: 5px 5px;
+            height: 100px;
+            background: #cafffe;
+        }
+        
+        .buttonIndent {
+            margin-left: 175px; 
+        }
+    </style>
+    
+    <apex:form id="theForm">
+        
+        
+
+        <apex:outputPanel id="directions" layout="block" styleClass="sections">
+            <apex:pageBlock title="Overview">
+                <apex:outputLabel style="font-size: medium; line-height: 140%;">
+                    This page allows you to create a set of scheduled payments, either downpayments or regular payments, related to a payment terms record.  The Payment Terms record
+                    will be relate to account, opportunity, and billing record.  Enter the number of months, the frequency of the payments, the total amount of payments, and how the 
+                    payments should be calculated.  For frequency, the options are Weekly, Bi-Weekly, Monthly, and Custom.  By selecting custom, you can select the scheduled due 
+                    dates for each payment manually.  Otherwise, the dates will be calculated automatically.  For the calculation method, the options are Auto or Manual.  By 
+                    selecting auto the amounts will be divided equally among the scheduled payments with any remainded added to the first payment.  Selecting Manual allows you to set 
+                    the Amount Due values.  Once the payments have been completed, click the Create button at the bottom of the page to create the Payment Terms record and the 
+                    Planned Payments record(s).  The Payment Terms record will be created as the Active Payment Terms record for the Billing and Opportunity and the existing Payment
+                    Terms record will be marked inactive (if one exists).
+                </apex:outputLabel>
+            </apex:pageBlock>
+        </apex:outputPanel>
+        
+        <apex:outputPanel id="productInfo" layout="block" styleClass="sections">
+            
+            <apex:pageBlock title="Product " id="selected">
+                       
+                <apex:pageblockTable value="{!oppProducts}" var="s">
+                                                        
+                    <apex:column headerValue="{!$ObjectType.Product2.LabelPlural}" value="{!s.PriceBookEntry.Product2.Name}"/>
+                    
+                    <apex:column headerValue="{!$ObjectType.OpportunityLineItem.Fields.Quantity.Label}">
+                        <apex:outputField value="{!s.Quantity}" style="width:70px"  />
+                    </apex:column>
+                                
+                    <apex:column headerValue="{!$ObjectType.OpportunityLineItem.Fields.listPrice.Label}">
+                        <apex:outputField value="{!s.listPrice}" style="width:70px"  />
+                    </apex:column>
+                    
+                    <apex:column headerValue="{!$ObjectType.OpportunityLineItem.Fields.UnitPrice.Label}">
+                        <apex:outputField value="{!s.UnitPrice}" style="width:70px"  />
+                    </apex:column>
+                    
+                    <apex:column headerValue="{!$ObjectType.OpportunityLineItem.Fields.TotalPrice.Label}">
+                        <apex:outputField value="{!s.TotalPrice}" style="width:70px"  />
+                    </apex:column>
+                  <!--  
+                    <apex:column headerValue="{!$ObjectType.OpportunityLineItem.Fields.Description.Label}">
+                        <apex:outputField value="{!s.Description}" />
+                    </apex:column>
+                  -->
+                    
+                </apex:pageblockTable>
+                
+                <apex:pageblockTable value="{!opp}" var="o">
+                    
+                 
+
+                    <apex:column headerValue="{!$ObjectType.Opportunity.Fields.Remaining_Balance__c.Label}">
+                        <apex:outputField value="{!o.Remaining_Balance__c}" />
+                    </apex:column>
+                    
+                </apex:pageblockTable>
+            </apex:pageBlock>
+        </apex:outputPanel>
+        
+        <apex:outputPanel id="details" layout="block" styleClass="sections">
+            <apex:pageBlock title="Terms Setup" mode="edit">
+                <apex:outputlink value="/{!opp[0].id}">Return to Opportunity</apex:outputlink>
+                <apex:pageBlockSection columns="1" title="Term Info">
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Terms Type" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:inputField value="{!newTerms.Payment_Terms_Type__c}" />
+                            </apex:outputPanel>
+                            
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                
+                <apex:pageBlockSection columns="2" title="Down Payment Terms">
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Number of Down Payments: (max 4)" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:inputText value="{!numOfDownPayments}" />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="dpCountError" rendered="{!showDPCountError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter a number between 1 and 4." />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="dpMaxError" rendered="{!showDPMaxError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter a number between 1 and 4." />
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="First Payment Date:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:input type="date" value="{!dpStartDate}" />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="dpDateError" rendered="{!showDPDateError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter a date." />
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputPanel layout="block" style="margin-top: 10px;">
+                            <apex:outputLabel value="Frequency:" />
+                        </apex:outputPanel>
+                        <apex:selectRadio value="{!dpFrequency}">
+                            <apex:selectOptions value="{!dpfrequencies}"/>
+                        </apex:selectRadio> 
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Total Amount of Down Payments:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:inputText id="totalDP" onChange="totalChange();" value="{!totalOfDownpayments}" />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="dpTotalError" rendered="{!showDPTotalError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter value greater than 0." />
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputPanel layout="block" style="margin-top: 10px;">
+                            <apex:outputLabel value="Calculation Type:" />
+                        </apex:outputPanel>
+                        <apex:selectRadio value="{!dpCalcType}">
+                            <apex:selectOptions value="{!calcTypes}"/>
+                        </apex:selectRadio> 
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputPanel layout="block" styleClass="buttonIndent" >
+                            <apex:commandButton id="dpBtn" value="Add Down Payments" action="{!createDPWrappers}" rerender="theForm" disabled="{!disableDP}"/>
+                            <apex:commandButton id="dpResetBtn" value="Reset Down Payments" action="{!resetDPWrappers}" reRender="theForm" rendered="{!disableDP}"/>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                
+                <apex:pageBlockSection columns="1" rendered="{!downpaymentsExist}" showHeader="false"> 
+                    <apex:pageBlockTable value="{!downPaymentWraps}" var="dpWrap" id="dpTable" rules="rows" cellpadding="4px" width="100%">
+                        <apex:column width="10%">
+                            <apex:facet name="header">Payment Number</apex:facet>
+                            <apex:outputText value="{!dpWrap.paymentNumber}" />
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">Payment Amount</apex:facet>
+                            <apex:inputField value="{!dpWrap.payment.Amount_Due__c}" />
+                            <apex:facet name="footer">
+                                <apex:outputText value="Total: ${!totalOfPlannedDownPayments}" />
+                            </apex:facet>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">Scheduled Date</apex:facet>
+                            <apex:inputField value="{!dpWrap.payment.Due_Date__c}" />
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">Status</apex:facet>
+                            <apex:inputField value="{!dpWrap.payment.Status__c}" />
+                        </apex:column>
+                         
+                        <apex:column >
+                            <apex:facet name="header">PP Type</apex:facet>
+                            <apex:inputField value="{!dpWrap.payment.PP_Type__c}" />
+                        </apex:column>
+                        
+                        <apex:column >
+                            <apex:facet name="header">PP Description</apex:facet>
+                            <apex:inputField value="{!dpWrap.payment.PP_Description__c}" />
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+                    
+                <apex:pageBlockSection columns="2" title="Reg Payment Terms">
+                <!--     
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Point of Sale Price:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:outPutText value="{!opp[0].amount}" />
+                            </apex:outputPanel>
+                            
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                    </apex:pageBlockSectionItem>
+                   
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Active Balance:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:outPutText value="{!opp[0].Remaining_Balance__c}" />
+                            </apex:outputPanel>
+                            
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Discount:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:inputText value="{!discount}" />
+                            </apex:outputPanel>
+                            
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                    </apex:pageBlockSectionItem>
+                -->   
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Number of Regular Payments:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:inputText value="{!numOfRegPayments}" />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="regCountError" rendered="{!showRegCountError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter a number greater than 0." />
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="First Payment Date:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:input type="date" value="{!regStartDate}" />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="regDateError" rendered="{!showRegDateError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter a date." />
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputPanel layout="block" style="margin-top: 10px;">
+                            <apex:outputLabel value="Frequency:" />
+                        </apex:outputPanel>
+                        <apex:selectRadio value="{!regFrequency}">
+                            <apex:selectOptions value="{!regfrequencies}"/>
+                        </apex:selectRadio> 
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Total Amount of Regular Payments:" />
+                        <apex:outputPanel layout="block">
+                            <apex:outputPanel layout="block">
+                                <apex:inputText id="totalRP" value="{!totalOfRegPayments}" />
+                            </apex:outputPanel>
+                            <apex:outputPanel id="regTotalError" rendered="{!showRegTotalError}">
+                                <apex:outputText styleClass="fielderror" value="Please enter value greater than 0." />
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputPanel layout="block" style="margin-top: 10px;">
+                            <apex:outputLabel value="Calculation Type:" />
+                        </apex:outputPanel>
+                        <apex:selectRadio value="{!regCalcType}">
+                            <apex:selectOptions value="{!calcTypes}"/>
+                        </apex:selectRadio> 
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem >
+                        <apex:outputPanel layout="block" styleClass="buttonIndent" >
+                            <apex:commandButton id="regBtn" value="Add RegularPayments" action="{!createRegWrappers}" rerender="theForm" disabled="{!disableReg}"/>
+                            <apex:commandButton id="regResetBtn" value="Reset Regular Payments" action="{!resetRegWrappers}" reRender="theForm" rendered="{!disableReg}"/>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                
+                <apex:pageBlockSection columns="1" rendered="{!regularPaymentsExist}" showHeader="false">
+                    <apex:pageBlockTable value="{!regPaymentWraps}" var="regWrap" id="regTable" rules="rows" cellpadding="4px" width="100%" >
+                        <apex:column width="10%">
+                            <apex:facet name="header">Payment Number</apex:facet>
+                            <apex:outputText value="{!regWrap.paymentNumber}" />
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">Payment Amount</apex:facet>
+                            <apex:inputField value="{!regWrap.payment.Amount_Due__c}" />
+                            <apex:facet name="footer">
+                                <apex:outputText value="Total: ${!totalOfPlannedRegPayments}" />
+                            </apex:facet>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">Scheduled Date</apex:facet>
+                            <apex:inputField value="{!regWrap.payment.Due_Date__c}" />
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">Status</apex:facet>
+                            <apex:inputField value="{!regWrap.payment.Status__c}" />
+                        </apex:column>
+                         <apex:column >
+                            <apex:facet name="header">PP Type</apex:facet>
+                            <apex:inputField value="{!regWrap.payment.PP_Type__c}" />
+                        </apex:column>  
+                        <apex:column >
+                            <apex:facet name="header">PP Description</apex:facet>
+                            <apex:inputField value="{!regWrap.payment.PP_Description__c}" />
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </apex:outputPanel>
+        
+        <apex:panelGrid columns="2" cellspacing="10px" rendered="{!showButtons}">
+            <apex:outputPanel style="margin-left: 15px;">
+                <apex:commandButton id="create_button_btm" action="{!createTermsAndPlannedPayments}" value="Create" />
+            </apex:outputPanel>
+            <apex:commandButton id="cxl_button_btm" action="{!cancelPayments}" value="Cancel" rerender="theForm" />
+        </apex:panelGrid>
+            
+        <apex:repeat value="{!opp}" var="o">
+            <div id="RB" style="display:none">{!o.Remaining_Balance__c}</div>
+            <div id="amount" style="display:none">{!o.Amount}</div>
+        </apex:repeat>
+    </apex:form>
+    
+    <apex:includeScript value="{!$Resource.jquery}"/>
+
+    <script>
+        function totalChange(){
+            
+            var DP = $("input[id$=totalDP]").val();
+            var RP = $("input[id$=totalRP]").val();
+            var RB = $("#RB").text();
+            var amount = $("#amount").text();
+            var newTotal;
+            
+            console.log("rb " + RB + "& amount = " + amount);
+            
+            if (RP != 0 || 0.00 || RP < 0.01 ){
+                RP = amount;
+                $("input[id$=totalRP]").text(amount);
+                console.log("RP was 0 , now is " + RP);
+            }
+            
+            newTotal = RP - DP;
+            
+            $('input[id$=RP]').val(parseFloat(newTotal).toFixed(2));
+        }
+                
+        $( document ).ready(function() {
+          totalChange();
+        });
+    </script>
+</apex:page>

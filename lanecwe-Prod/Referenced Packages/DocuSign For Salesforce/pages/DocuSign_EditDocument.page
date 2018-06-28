@@ -1,0 +1,134 @@
+<apex:page standardController="dsfs__DocuSign_Envelope_Document__c"
+	Extensions="dsfs.DocuSignEnvelopeDocumentController" action="{!DSCreate}"
+	tabStyle="dsfs__DocuSign_Status__c" id="DocuSignEditDocumentPage">
+	<apex:sectionHeader title="Send with DocuSign | Update DocuSign Documents "
+		subtitle="{!mySource}" id="PageTitleHeader" />
+	<apex:form id="theForm" rendered="{!NoVarErrors}">
+		<apex:actionRegion >
+			<apex:pageBlock title="Update Documents" id="theOuterPageBlock"
+				mode="Edit">
+				<apex:pageMessages />
+				<apex:pageBlockButtons >
+					<apex:commandButton value="Cancel" action="{!DSCancel}" />
+					<apex:commandButton value="Save" action="{!DSsave}" />
+				</apex:pageBlockButtons>
+				<apex:pageBlockSection columns="1">
+					<apex:panelGrid columns="3">
+						<apex:outputLabel id="SFDocTypeLabel" value="Source"
+							for="SFDocumentTypeID" style="font-weight: bold" />
+						<apex:selectList id="SFDocumentTypeID" value="{!SFDocumentType}"
+							multiselect="false" size="0">
+							<apex:selectOptions value="{!SFDocumentTypeSelectList}" />
+							<apex:actionSupport event="onchange" rerender="theOuterPageBlock"
+								action="{!OnDocumentTypeSelected}" />
+						</apex:selectList>
+						<apex:commandButton value="Upload Attachment"
+							action="{!DSAttachmentNew}"
+							rendered="{!SFDocumentType = 'Attachment'}" />
+						<apex:panelGroup rendered="{!SFDocumentType = 'Document'}">
+							<input type="button" value="Add a new Document to a folder"
+								onClick="window.open('/p/doc/DocumentUploadUi','_blank','width=900,height=700,scrollbars=1,resizable=1')" />
+						</apex:panelGroup>
+						<apex:outputLabel value="Folder" for="FolderSelected"
+							rendered="{!SFDocumentType = 'Document'}"
+							style="font-weight: bold" />
+						<apex:selectList id="FolderSelected" value="{!SelectedFolder}"
+							multiselect="false" size="0"
+							rendered="{!SFDocumentType = 'Document'}">
+							<apex:selectOptions value="{!DocumentFolderList}" />
+							<apex:actionSupport event="onchange"
+								rerender="DocumentsAvailable" action="{!RefreshDocumentList}"
+								status="statusRetrievePlan" />
+						</apex:selectList>
+
+						<apex:outputText rendered="{!SFDocumentType = 'Content'}" />
+						<apex:outputLabel value="Workspace" for="WorkspaceSelected"
+							rendered="{!SFDocumentType = 'Content'}"
+							style="font-weight: bold" />
+						<apex:selectList id="WorkspaceSelected"
+							value="{!SelectedWorkspace}" multiselect="false" size="0"
+							rendered="{!SFDocumentType = 'Content'}">
+							<apex:selectOptions value="{!ContentWorkspaceList}" />
+							<apex:actionSupport event="onchange"
+								rerender="DocumentsAvailable" action="{!RefreshDocumentList}"
+								status="statusRetrievePlan" />
+						</apex:selectList>
+
+					</apex:panelGrid>
+					<apex:actionFunction name="UpdateButtons"
+						rerender="theOuterPageBlock" />
+					<apex:outputPanel id="EditDocument" layout="block"
+						style="width:250px">
+						<apex:actionFunction name="UpdateDocumentFolder"
+							rerender="DocumentSelected" />
+						<br />
+						<apex:panelGrid columns="4">
+							<apex:panelGrid columns="1" style="text-align: center">
+								<apex:outputText value="Available Documents"
+									style="font-weight: bold" />
+								<apex:selectList id="DocumentsAvailable"
+									value="{!SelectedInDocsAvailable}" size="15" multiselect="true"
+									style="width:250px">
+									<apex:selectOptions value="{!DocsAvailableListItems}" />
+								</apex:selectList>
+							</apex:panelGrid>
+							<apex:panelGrid columns="1">
+								<br />
+								<br />
+								<br />
+								<apex:commandButton value="Add&nbsp;&nbsp;>>"
+									action="{!OnCopyDocsToSelected}" />
+							</apex:panelGrid>
+							<apex:panelGrid columns="1" style="text-align: center">
+								<apex:outputText value="Selected Documents"
+									style="font-weight: bold" />
+								<apex:selectList id="DocumentsSelected"
+									value="{!SelectedInDocsSelected}" size="15" multiselect="true"
+									style="width:250px">
+									<apex:selectOptions value="{!DocsSelectedListItems}" />
+								</apex:selectList>
+							</apex:panelGrid>
+							<apex:panelGrid columns="1" style="text-align: center">
+								<br />
+								<br />
+								<apex:outputText style="font-weight: bold"
+									value="Document Order" />
+								<apex:commandButton value="Move Up" action="{!OnOrderMoveUp}"
+									style="width:100px" />
+								<apex:commandButton value="Move Down"
+									action="{!OnOrderMoveDown}" style="width:100px" />
+								<br />
+								<br />
+								<br />
+								<br />
+								<apex:commandButton value="Remove" action="{!OnRemoveSelected}"
+									style="width:100px" />
+							</apex:panelGrid>
+						</apex:panelGrid>
+					</apex:outputPanel>
+				</apex:pageBlockSection>
+			</apex:pageBlock>
+		</apex:actionRegion>
+
+	</apex:form>
+	<apex:form id="BadVars" rendered="{!NoVarErrors==false}">
+		<apex:pageBlock title="Error - Incorrect URL Variables "
+			id="thePageBlock" tabStyle="DocuSign_Status__c">
+			<apex:pageMessages />
+			<apex:actionRegion >
+				<apex:pageBlockSection title="Proper Link Information" columns="1">
+					<h1>Please edit your Send with DocuSign link button to look
+						like the below</h1>
+					<br />
+					<br />
+          /apex/DocuSign_CreateEnvelope?DSEID=0&amp;SourceID=&#123;!Lead.Id&#125;&amp;DSEDMAX=3  
+          <br />
+					<br />
+					<H3>You should not call Edit Document directly, it should be
+						called from the Edit Envelope Page</H3>
+				</apex:pageBlockSection>
+			</apex:actionRegion>
+		</apex:pageBlock>
+
+	</apex:form>
+</apex:page>

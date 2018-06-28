@@ -1,0 +1,326 @@
+<apex:page standardController="lmscons__Training_Content__c" title="{!IF(lmscons__Training_Content__c.lmscons__Title__c=='',lmscons__Training_Content__c.Name, lmscons__Training_Content__c.lmscons__Title__c)}" extensions="lmscons.TrainingContentDetailExt" action="{!initPage}" cache="false">
+	<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+	<apex:includeScript value="{!URLFOR($Resource.lmscons__lmslightbox, 'js/jquery.js')}"/>
+	<apex:includeScript value="{!URLFOR($Resource.lmscons__lmslightbox, 'js/init.js')}"/>
+	<apex:stylesheet value="{!URLFOR($Resource.lmscons__lmslightbox, 'css/lms-lightbox.css')}"/>
+<script>
+jQuery.noConflict();
+
+		var i = 0;
+
+		var idisSet = false;
+
+		function testT(){
+			i++;
+
+			var ua = jQuery.browser;
+
+			if ( ua.mozilla || ua.msie) {
+				if( i > 2) {
+					//alert(1);
+					redirectWindow();
+					if(getValueBool == true) {
+						if(setStatus == true) {
+							redirectWindow()
+						}
+					}
+				}
+			} else {
+				if( i > 2) {
+					//alert(2);
+					redirectWindow();
+					if(getValueBool == true) {
+						if(setStatus == true) {
+							redirectWindow()
+						}
+					}
+				}
+			}
+
+		}
+
+
+
+</script>
+
+<style type="text/css">
+	/*.actionColumn  {display:none}*/
+</style>
+<apex:sectionHeader title="{!$ObjectType.lmscons__Training_Content__c.label}" subtitle="{!IF(lmscons__Training_Content__c.lmscons__Title__c=='',lmscons__Training_Content__c.Name, lmscons__Training_Content__c.lmscons__Title__c)}"/>
+<br />
+
+	<!-- Enhanced Action Status -->
+	<apex:actionStatus id="loadStatus">
+	<apex:facet name="start">
+		<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+						borderSize="1" height="50px" width="120px" ImageUrl="/img/loading.gif"
+						Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+	</apex:facet>
+	</apex:actionStatus>
+
+	<!-- END : Enhanced Action Status -->
+<apex:form >
+
+		<apex:actionFunction name="getUploadUrl" action="{!getUploadUrl}" rerender="upload_frame, upload_id" onComplete="setUploadId_Complete();" />
+
+		<!-- light box -->
+
+		<div class="b-overlay"></div>
+		<div class="b-lightbox">
+			<div class="b-title-bar">
+				<div class="b-title" id='TitleUp'>{!$ObjectType.Content_Upload__c.label}</div>
+				<div class="b-close-btn"><a href="#" onclick="changeForm()">Close</a></div>
+			</div>
+			<div class="b-content">
+				<div class="b-scroller" id="publikUrl" style="overflow-x: auto;">
+				</div>
+				<div class="b-scroller" id="uploadForm">
+
+					<b>{!$Label.Upload_Note}</b> {!$Label.Upload_Note_continue}
+					<apex:outputPanel id="upload_frame" rendered="true" ><br />
+						<input type="checkbox" name="customResetData" id="customResetData" style="display:none"/>
+						<iframe id="iframeCyberu" onload="testT()" src="{!iframeUrl}" width="100%" height="250" scrolling="yes" frameborder="0">{!$Label.Upload_msg}</iframe>
+					</apex:outputPanel>
+					<apex:outputPanel id="upload_id" rendered="true" >
+						<apex:inputHidden value="{!UploadId}" id="UploadId" />
+					</apex:outputPanel>
+
+				</div>
+			</div>
+		</div>
+		<!-- Light box -->
+
+
+		<apex:actionPoller action="{!Director}" rerender="pagemessage, actionReleas" enabled="{!enablePoller}" interval="5" id="actionPoller"/>
+		<apex:actionFunction name="Release" action="{!buyLicense}" rerender="pagemessage, actionReleas" />
+		<apex:actionFunction name="Director" action="{!Director}" rerender="pagemessage, actionPoller, actionPublish, actionReleas" />
+		<apex:actionFunction name="myResetData" action="{!myResetData}" rerender="pagemessage, contentDetail">
+			<apex:param name="ResetData" assignTo="{!ResetData}" value="" />
+		</apex:actionFunction>
+
+	<apex:actionFunction name="addToMyTraining" action="{!addToMyTraining}" rerender="pagemessage, tlr"  status="loadStatus">
+		<apex:param name="courseid" assignTo="{!courseid}" value="{!lmscons__Training_Content__c.id}" />
+	</apex:actionFunction>
+
+	<apex:actionFunction name="saveContentCatalog" action="{!saveContentCatalog}" rerender="pagemessage, tlr"  status="loadStatus">
+		<apex:param name="selcat" assignTo="{!selcat}" value="" />
+		<apex:param name="selcatmulti" assignTo="{!selcatmulti}" value="" />
+
+		<apex:param name="courseid" assignTo="{!courseid}" value="{!lmscons__Training_Content__c.id}" />
+	</apex:actionFunction>
+
+	<apex:selectList id="CourseCatalog" value="{!CourseCatalog}" size="1" multiselect="false" style="display:none">
+		<apex:selectOptions value="{!CourseCatalogs}"></apex:selectOptions>
+	</apex:selectList>
+	<div id="ResetDataDiv" style="display:none" onclick="myResetData(getValueBool)">&nbsp;--------------------</div>
+
+	<apex:actionFunction name="openPublicLink"  status="loadStatus" rerender="pLink" action="{!getPublicLink}" oncomplete="completeGetPublicLink()"  rendered="{!showPublicLink}"/>
+	<apex:inputHidden value="{!pLink}" rendered="{!showPublicLink}" id="pLink"/>
+</apex:form>
+	<apex:pageMessages id="pagemessage"/>
+	<!-- <apex:outputPanel id="pageMessages">
+		<apex:pageMessages />
+	</apex:outputPanel>-->
+
+	<apex:detail relatedList="{!IF(IsPortal==true, false, sfuser.lmscons__Cornerstone_Group_Admin__c)}" title="false" id="contentDetail"/>
+<script>
+
+
+jQuery.noConflict();
+/*
+function copyToClipboard()
+{
+	text = jQuery('[id$="pLink"]').val()
+	alert(text);
+	jQuery.copy(text);
+}*/
+
+var shll = {!showPublicLink};
+
+if(shll != true) {
+	jQuery('[name$="public_link"]').attr('style', 'display:none');
+} else {
+
+}
+function changeForm() {
+	jQuery('#publikUrl').hide();
+	jQuery('#uploadForm').show('slow');
+	jQuery('#TitleUp').text('{!$ObjectType.Content_Upload__c.label}');
+}
+
+function completeGetPublicLink() {
+	jQuery('#publikUrl').show();
+	jQuery('#uploadForm').hide();
+	jQuery('#TitleUp').text('Public Link');
+
+	var PublicLink = jQuery('[id$="pLink"]').val();
+	//jQuery('#publikUrl').text(jQuery('[id$="pLink"]').val());
+
+
+	jQuery('#publikUrl').empty();
+
+	jQuery('#publikUrl').append('<textarea cols="105" rows="4" readonly="true">'+PublicLink+'</textarea>');
+
+	Lightbox();
+	//alert(jQuery('[id$="pLink"]').val());
+}
+
+
+/*if({!enableRelease}==true){
+	window.onload = Release;
+} else {
+	window.onload = Director;
+}*/
+
+window.onload = mmyOnload;
+
+function mmyOnload() {
+	if({!enableRelease}==true){
+		Release();
+	} else {
+		Director();
+	}
+	getUploadUrl();
+}
+
+var UploadId = '';
+//var ResetData = '';
+var getValueBool = false;
+var newwindow;
+function open_popup_update_module(id){
+	newwindow=window.open('/apex/UpdateContentPopup?CyberUId='+id+'&id={!lmscons__Training_Content__c.id}','name','height=500,width=1000');
+	if (window.focus) {newwindow.focus()}
+}
+
+var setStatus = false;
+function setUploadId_Complete() {
+	setStatus = true;
+}
+
+function redirectWindow(){
+	//window.location.href = '/'+UploadId+'?ResetData='+ResetData;
+	//getValueBool = jQuery('#iframeCyberu).contents().find(input[name$="courseTitle"]').attr('checked') == 'checked'?'true':'false';
+	//getValueBool = false;
+
+	//alert(document.getElementById('iframeCyberu').contentWindow.document.body.innerHTML);
+
+	//alert(getValueBool);
+
+	//alert(getValueBool);
+	if (getValueBool == true && setStatus == true) {
+		jQuery('#ResetDataDiv').click();
+	}
+
+	//myResetData(ResetData);
+
+	overlay = jQuery('.b-overlay');
+	lightbox = jQuery('.b-lightbox');
+	/*closelightbox = jQuery('.b-lightbox .b-close-btn');
+
+	/*closelightbox.click( function() {*/
+		lightbox.fadeOut('fast');
+		overlay.fadeOut('fast');
+	//});
+
+}
+
+
+if({!Module.verified__c}!=1){
+	jQuery('input[name$=publish]').attr('class', 'btnDisabled').attr('disabled', 'disabled');
+}
+
+if({!Module.Used__c}!=1){
+	jQuery('input[name$=assign_training_content]').attr('class', 'btnDisabled').attr('disabled', 'disabled');
+	jQuery('input[name$=add_to_my_training]').attr('class', 'btnDisabled').attr('disabled', 'disabled');
+}
+
+var o = document.getElementById('{!$Component.tlr}');
+
+jQuery(o).find('.actionColumn').attr('style', 'display:table-cell');
+
+jQuery(document).ready(function(){
+
+			overlay = jQuery('.b-overlay');
+			lightbox = jQuery('.b-lightbox');
+			closelightbox = jQuery('.b-lightbox .b-close-btn');
+
+			closelightbox.click( function() {
+				lightbox.fadeOut('fast');
+				overlay.fadeOut('fast');
+			});
+
+
+	if({!Module.Used__c}!=1){
+		jQuery("[title$='{!$ObjectType.Catalog_Course__c.label}']").attr('class', 'btnDisabled').attr('disabled', 'disabled');
+	}
+	jQuery("[title$='{!$ObjectType.Catalog_Course__c.label}']").val('Add to Catalog');
+	jQuery("H3:contains('{!$ObjectType.Catalog_Course__c.LabelPlural}')").text('Associated Catalogs');
+	if({!Module.Used__c}!=1){
+		jQuery("[title$='{!$ObjectType.Training_Path_Item__c.label}']").attr('class', 'btnDisabled').attr('disabled', 'disabled');;
+	}
+	jQuery("[title$='{!$ObjectType.Training_Path_Item__c.label}']").val('Add to Course');
+	jQuery("H3:contains('{!$ObjectType.Training_Path_Item__c.label}')").text('Associated Courses');
+
+	if({!Module.Used__c}!=1){
+		jQuery("[title$='{!$ObjectType.Curriculum_Item__c.label}']").attr('class', 'btnDisabled').attr('disabled', 'disabled');
+	}
+	jQuery("[title$='{!$ObjectType.Curriculum_Item__c.label}']").val('Add to Curriculum');
+	jQuery("H3:contains('{!$ObjectType.Curriculum_Item__c.LabelPlural}')").text('Associated Curriculums');
+
+	if({!Module.Used__c}!=1){
+		jQuery("[title$='{!$ObjectType.Learning_Path_Item__c.label}']").attr('class', 'btnDisabled').attr('disabled', 'disabled');
+	}
+	jQuery("[title$='{!$ObjectType.Learning_Path_Item__c.label}']").val('Add to Learning Path');
+	jQuery("H3:contains('{!$ObjectType.Learning_Path_Item__c.LabelPlural}')").text('Associated Learning Paths');
+});
+
+var isCanAssignModule = {!IsPortalCanAssignModule};
+if(isCanAssignModule==false){
+	jQuery('[value$="Assign Module"]').attr('style', 'display:none');
+} else {
+}
+
+
+//jQuery('#topButtonRow').prepend('<input type="button" name="SaveMy" title="Save" class="btn" value="Save"> ');
+//jQuery('#bottomButtonRow').prepend('<input type="button" name="SaveMy" title="Save" class="btn" value="Save"> ');
+
+function getValueSelCat(){
+	//var multipleValues = $("select[name$=CourseCatalog]").val() || [];
+	//var finalmultipleValues = multipleValues.join("; ");
+// 	alert(finalmultipleValues);
+	return jQuery("select[name$=CourseCatalog]").val();
+}
+
+function getValueSelCat2(){
+	/*var idcat = '';
+	if(jQuery("input[id$=catcur_lkold]").val() == 'null'){
+		idcat = '';
+	} else {
+		idcat = jQuery("input[id$=catcur_lkid]").val();
+	}
+
+	if(jQuery.trim(jQuery("input[id$=catcur]").val()) == ''){
+		idcat = '';
+	}*/
+
+	//return idcat;
+	return '';
+}
+
+
+var selectList = jQuery('select[name$=CourseCatalog]');
+//var catcur = jQuery('input[id$=catcur]').parent();
+jQuery('select[name$=CourseCatalog]').remove();
+//jQuery('input[id$=catcur]').parent().remove();
+//alert(catcur.html());
+
+//alert(selectList.attr('style'));
+
+//var fullSelectList2 = '<select id="'+selectList2.attr('id')+'" '+'size="3" '+' multiple="multiple" ' + ' name="'+selectList2.attr('name')+'">'+selectList2.html()+'</select>';
+var fullSelectList = '<select id="'+selectList.attr('id')+'" '+''+'  ' + ' name="'+selectList.attr('name')+'">'+selectList.html()+'</select>';
+
+//--For Save button jQuery('.pbSubsection').find('tr').find('td:contains("Training Type")').next().html(fullSelectList);
+//window.onload = getUploadUrl;
+
+</script>
+</apex:page>

@@ -1,0 +1,95 @@
+<apex:page controller="ContactsOnMap" applyBodyTag="true" standardStylesheets="false" showHeader="true" applyHtmlTag="true" sidebar="false">
+    <apex:form >
+        <head>
+            <apex:stylesheet value="{!URLFOR($Resource.slds, 'assets/styles/salesforce-lightning-design-system-vf.css')}" />            
+        </head>
+        <body>
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+            <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>  
+            <script>
+            
+            var locations= new Array();         
+            <apex:repeat value="{!conlist}" var="con">
+                var arr= new Array();
+            arr.push('{!con.MailingCity}');                    
+            locations.push(arr);           
+            </apex:repeat>        
+           // alert(locations);
+                       
+            var geocoder;
+            var map;
+            var bounds = new google.maps.LatLngBounds();
+            
+            function initialize() {
+                map = new google.maps.Map(
+                    document.getElementById("map_canvas"), {
+                        center: new google.maps.LatLng(37.4419, -122.1419),
+                        zoom: 13,
+                        mapTypeId: google.maps.MapTypeId.ROADMAP
+                    });
+                geocoder = new google.maps.Geocoder();
+                
+                for (i = 0; i < locations.length; i++) {
+                    geocodeAddress(locations, i);
+                }
+            }
+            google.maps.event.addDomListener(window, "load", initialize);
+            
+            function geocodeAddress(locations, i) {                
+                var address = locations[i][0];                
+                geocoder.geocode({
+                    'address': locations[i][0]
+                },
+                                 function (results, status) {
+                                     if (status == google.maps.GeocoderStatus.OK) {
+                                         var marker = new google.maps.Marker({
+                                             icon: 'http://maps.google.com/mapfiles/ms/icons/red.png',
+                                             map: map,
+                                             position: results[0].geometry.location,               
+                                             animation: google.maps.Animation.DROP,
+                                             address: address                                             
+                                         })
+                                         infoWindow(marker, map,  address );
+                                         bounds.extend(marker.getPosition());
+                                         map.fitBounds(bounds);
+                                     } else {
+                                         alert("geocode of " + address + " failed:" + status);
+                                     }
+                                 });
+            }
+            
+            function infoWindow(marker, map,  address) {
+                google.maps.event.addListener(marker, 'click', function () {
+                    var html = "<div><p>" + address + "<br></div></p></div>";
+                    iw = new google.maps.InfoWindow({
+                        content: html,
+                        maxWidth: 350
+                    });
+                    iw.open(map, marker);
+                });
+            }
+            
+            function createMarker(results) {
+                var marker = new google.maps.Marker({
+                    icon: 'http://maps.google.com/mapfiles/ms/icons/red.png',
+                    map: map,
+                    position: results[0].geometry.location,                    
+                    animation: google.maps.Animation.DROP,
+                    address: address                    
+                })
+                bounds.extend(marker.getPosition());
+                map.fitBounds(bounds);
+                infoWindow(marker, map,address);
+                return marker;
+            }    
+            </script> 
+            <div class="slds">
+              <div class="slds-grid"> 
+                 <div class="slds-col" style="padding-left:10%;padding-right:10%;">
+                     <div id="map_canvas" style="width:100%; height:450px; border: 0px solid #3872ac;"></div>
+                </div>               
+                </div>             
+            </div>
+        </body>
+    </apex:form>
+</apex:page>

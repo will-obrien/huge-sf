@@ -1,0 +1,155 @@
+<apex:page controller="lmscons.DebugLogController" readonly="true">
+
+<style type="text/css">
+
+.odd { background-color: #ffffff; }
+.even { background-color: #f0f0f0; }
+.err { background-color: #ffA0A0; }
+
+</style>
+
+
+	<apex:form id="formdraw">
+		<apex:sectionHeader title="Debug Log"></apex:sectionHeader>
+
+		<apex:actionStatus id="loadStatus">
+			<apex:facet name="start">
+				<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+			</apex:facet>
+		</apex:actionStatus>
+
+
+		<apex:panelGrid columns="9" border="0" cellpadding="3" cellspacing="3" >
+			<apex:outputLabel >Start Time</apex:outputLabel>
+			<apex:outputLabel >End Time</apex:outputLabel>
+			<apex:outputLabel >Type</apex:outputLabel>
+			<apex:outputLabel >Domain</apex:outputLabel>
+			<apex:outputLabel >Records per page</apex:outputLabel>
+			<apex:outputLabel >User</apex:outputLabel>
+			<apex:outputLabel >Note</apex:outputLabel>
+			<apex:outputLabel />
+			<apex:outputLabel />
+
+			<apex:InputField value="{!db1.lmscons__ActivityTime__c}" />
+			<apex:InputField value="{!db2.lmscons__ActivityTime__c}" />
+
+			<apex:selectList value="{!Status}" multiselect="true">
+				<apex:selectOptions value="{!Statuses}"/>
+			</apex:selectList>
+
+			<apex:selectList value="{!Domain}" multiselect="true">
+				<apex:selectOptions value="{!Domains}"/>
+			</apex:selectList>
+
+			<apex:selectList size="1" style="width: 60px;" value="{!PageLimit}" >
+				<apex:selectOptions value="{!PageLimits}"/>
+			</apex:selectList>
+
+
+			<apex:InputText value="{!UserFilter}" />
+			<apex:InputText value="{!NoteFilter}" />
+
+			<apex:commandButton value="Filter" action="{!ApplyFilter}" status="loadStatus" rerender="formdraw"/>
+			<!--   <apex:commandButton value="Dotnet" action="{!ShowDotnetLog}" status="loadStatus" rerender="formdraw"/> -->
+			<apex:commandLink value="Export to Excel" action="{!ExportToExcel}" rendered="{!MessageList.size > 0}" />
+
+		</apex:panelGrid>
+
+		<apex:outputPanel rendered="{!MessageList.size > 0}">
+
+			<!--  <apex:outputText rendered="{!RecordsTotal > 0}" >Total records were selected: {!RecordsTotal}</apex:outputText> -->
+			<br/><br/>
+			<b>Page:</b> &nbsp;&nbsp;&nbsp;&nbsp;
+			<apex:repeat value="{!Pages}" var="p">
+				<apex:commandLink value="{!p}" action="{!Showpage}" title="{!p}" rendered="{!CurrentPage != p}" rerender="formdraw" status="loadStatus">
+					<apex:param value="{!p}" assignTo="{!CurrentPage}" name="var1"/>
+				</apex:commandLink>
+				<apex:outputText value="{!p}" rendered="{!CurrentPage = p}" />
+				&nbsp;&nbsp;
+			</apex:repeat>
+			<br/><br/>
+		</apex:outputPanel>
+
+		<apex:pageBlock title="Search Window" id="search_window" rendered="{!MessageList.size > 0}" >
+			<apex:DataTable value="{!MessageList}" var="a" rowClasses="odd,even" cellpadding="5" cellspacing="0">
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header">Time</apex:facet>
+						<apex:outputText value="{0,date, MM/dd/yyyy HH:mm:ss}"><apex:param value="{!a.ActivityTime}" /> </apex:outputText>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header">Time</apex:facet>
+						<apex:outputText value="{0,date, MM/dd/yyyy HH:mm:ss}"><apex:param value="{!a.ActivityTime}" /> </apex:outputText>
+				</apex:column>
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header" >Type</apex:facet>
+					<apex:outputLabel >{!a.Level}</apex:outputLabel>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header" >Type</apex:facet>
+					<apex:outputLabel >{!a.Level}</apex:outputLabel>
+				</apex:column>
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header">Domain</apex:facet>
+					<apex:outputLabel >{!a.Domain}</apex:outputLabel>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header">Domain</apex:facet>
+					<apex:outputLabel >{!a.Domain}</apex:outputLabel>
+				</apex:column>
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header">Id</apex:facet>
+					<apex:outputLabel >{!a.Name}</apex:outputLabel>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header">Id</apex:facet>
+					<apex:outputLabel >{!a.Name}</apex:outputLabel>
+				</apex:column>
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header">User</apex:facet>
+					<apex:outputLabel >{!a.UserName}</apex:outputLabel>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header">User</apex:facet>
+					<apex:outputLabel >{!a.UserName}</apex:outputLabel>
+				</apex:column>
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header">Action</apex:facet>
+					<apex:outputLabel >{!a.Action}</apex:outputLabel>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header">Action</apex:facet>
+					<apex:outputLabel >{!a.Action}</apex:outputLabel>
+				</apex:column>
+
+				<apex:column styleclass="err" rendered="{!a.Level = 'Error'}">
+					<apex:facet name="header">Note</apex:facet>
+					<apex:outputLabel >{!a.Note}</apex:outputLabel>
+				</apex:column>
+				<apex:column rendered="{!a.Level != 'Error'}">
+					<apex:facet name="header">Note</apex:facet>
+					<apex:outputLabel >{!a.Note}</apex:outputLabel>
+				</apex:column>
+
+			</apex:DataTable>
+		</apex:pageBlock>
+
+		<apex:outputPanel rendered="{!MessageList.size > 0}">
+			<b>Page:</b> &nbsp;&nbsp;&nbsp;&nbsp;
+			<apex:repeat value="{!Pages}" var="p">
+				<apex:commandLink value="{!p}" action="{!Showpage}" title="{!p}" rendered="{!CurrentPage != p}" rerender="formdraw" status="loadStatus">
+					<apex:param value="{!p}" assignTo="{!CurrentPage}" name="var1"/>
+				</apex:commandLink>
+				<apex:outputText value="{!p}" rendered="{!CurrentPage = p}" />
+				&nbsp;&nbsp;
+			</apex:repeat>
+			<br/>
+		</apex:outputPanel>
+	<!--  <apex:commandButton value="Clear Log" action="{!ClearDebugLog}" status="loadStatus" rerender="formdraw"/> -->
+	</apex:form>
+</apex:page>

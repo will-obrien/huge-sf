@@ -1,0 +1,66 @@
+<apex:page standardcontroller="Postion__c">
+This map shows the locations of candidates who have applied for the {!Postion__c.Name} Postion.
+    <apex:includeScript value="http://api.maps.yahoo.com/ajaxymap?v=3.0&appid=salesforce.com"/>
+    <script type="text/javascript">
+        var map;
+        var geoPoints = [];
+        var counter = 0;
+        var pointCounter = 0;
+        
+        function geoCodeEnd(r) {
+            if (r.success == 1) {
+                if (r.GeoPoint.Lat != 0) {
+                    geoPoints[geoPoints.length] = r.GeoPoint;
+                    pointCounter++;
+                }
+            } else {
+                pointCounter++;
+            }
+            if (pointCounter >= counter) {
+                var bestZoomLevel = map.getZoomLevel(geoPoints);
+                if (bestZoomLevel < 5) bestZoomLevel = 5;
+                var geoCenter = map.getCenterGeoPoint(geoPoints);
+                map.drawZoomAndCenter(geoCenter, bestZoomLevel);
+                map.panToLatLon(geoCenter);
+            }
+        }
+        
+        function loadMap(domId) {
+            // Create a map object
+            map = new YMap(document.getElementById(domId));
+            // Display the map centered on given address
+            YEvent.Capture(map, EventsList.onEndGeoCode, geoCodeEnd);
+            map.addZoomLong();
+            plotMarkers();
+        }
+        
+        function plotMarkers() {
+            <apex:repeat var="ja" value="{!Postion__c.job_applications__r}">
+                counter++;
+                var marker        = new YMarker("{!ja.candidate__r.Street__c}, {!ja.candidate__r.City__c}, {!ja.candidate__r.State_Province__c}");
+                marker.personName = "{!SUBSTITUTE(LINKTO(ja.candidate__r.First_Name__c + ' ' + ja.candidate__r.Last_Name__c, $Action.Candidate__c.View, ja.Candidate__c),'"','')}";
+                marker.addLabel(counter);
+                
+                YEvent.Capture(marker, EventsList.MouseClick,
+                    function() {this.openSmartWindow
+                        ("<div>This is where " +
+                        this.personName +
+                        " lives!<BR> </div>") });
+                        map.addOverlay(marker);
+         
+            
+            </apex:repeat>
+            
+            if(counter == 0) {
+             // Display map of US if no Candidates found
+                var myPoint = new YGeoPoint(40,-95);
+                map.drawZoomAndCenter(myPoint, 14);
+                alert("There are no candidates for this Postion to map.");
+            }
+        }
+    </script>
+        <apex:outputPanel layout="block" id="mapContainer" style="height: 400px">Loading map...</apex:outputPanel>
+    <script>
+    loadMap('{!$Component.mapContainer}');
+    </script>
+</apex:page>

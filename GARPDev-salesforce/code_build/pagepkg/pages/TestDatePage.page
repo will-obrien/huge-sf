@@ -1,0 +1,83 @@
+<apex:page controller="TestDateController">
+  
+    <apex:variable var="envPath" value="{!URLFOR($Resource.sfdcApp2)}" />
+    
+    <apex:includeScript value="{!envPath}/lib/moment.min.js"/>
+    <apex:includeScript value="{!envPath}/lib/moment-timezone-with-data-2010-2020.min.js"/>
+     
+    <h1>Hello World </h1>
+  
+    <script type="text/javascript">
+    function getRemoteAccount() {
+        
+
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.TestDateController.getTestDates}',
+            function(result, event){
+                if (event.status) {
+                    // Get DOM IDs for HTML and Visualforce elements like this
+                    document.getElementById('remoteAcctId').innerHTML = result.examDate;
+                    var wrappedExamDate = moment(result.examDate); 
+                    document.getElementById('formattedED').innerHTML = wrappedExamDate.format('MMMM Do YYYY, h:mm:ss a');
+                    
+                    var gmtdate = moment.tz(result.examDate, "GMT");
+                    document.getElementById('gmtED').innerHTML = gmtdate.format('MMMM Do YYYY, h:mm:ss a');
+                                       
+                    document.getElementById(
+                        "{!$Component.block.blockSection2.secondItem.acctNumEmployees}"
+                        ).innerHTML = result.examDateTime;
+                    var fedt = moment(result.examDateTime);
+                    document.getElementById(
+                        "{!$Component.block.blockSection2.thirdItem.fedt}"
+                        ).innerHTML = fedt.format('MMMM Do YYYY, h:mm:ss a');
+                        
+                    var gmtedt = moment.tz(result.examDateTime, "GMT");
+                    document.getElementById(
+                        "{!$Component.block.blockSection2.fourthItem.gmtedt}"
+                        ).innerHTML = gmtedt.format('MMMM Do YYYY, h:mm:ss a');    
+                        
+                        
+                } else if (event.type === 'exception') {
+                    document.getElementById("responseErrors").innerHTML = 
+                        event.message + "<br/>\n<pre>" + event.where + "</pre>";
+                } else {
+                    document.getElementById("responseErrors").innerHTML = event.message;
+                }
+            }, 
+            {escape: true}
+        );
+    }
+    </script>
+  
+    <button onclick="getRemoteAccount()">Refresh Dates</button>
+    <div id="responseErrors"></div>
+  
+  
+    <apex:pageBlock id="block">
+        <apex:pageBlockSection id="blockSection" columns="3">
+            <apex:pageBlockSectionItem id="firstItem">
+                Exam Date (Epoch): <span id="remoteAcctId"/>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem id="firstItem1">
+                Exam Date (Formatted): <span id="formattedED"/>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem id="firstItem2">
+                Exam Date (GMT Formatted): <span id="gmtED"/>
+            </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockSection id="blockSection2" columns="3">
+            <apex:pageBlockSectionItem id="secondItem">
+                Exam DateTime: (Epoch) <apex:outputText id="acctNumEmployees"/>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem id="thirdItem">
+                Exam DateTime: (Formatted) <apex:outputText id="fedt"/>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem id="fourthItem">
+                Exam DateTime: (GMT Formatted) <apex:outputText id="gmtedt"/>
+            </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        
+    </apex:pageBlock>
+    
+</apex:page>

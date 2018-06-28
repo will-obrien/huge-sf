@@ -1,0 +1,128 @@
+<apex:page sidebar="false" controller="ContactDirectoryController" action="{!initAction}">
+<head>
+    <style>
+        .rich-tabpanel-content{
+        font-size:inherit;
+        }
+        .rich-tab-header{
+            font-size:14px;
+        }
+        body .pbBody table.list tr.headerRow td, body .pbBody table.list tr.headerRow th{
+            padding-right:15px !important;
+        }
+        .message{
+            border-style:none !important;
+            background-color:inherit !important;
+            border-width:0px !important;
+        }
+    </style>
+    <apex:includeScript value="{!URLFOR($Resource.PROResources, 'js/jquery.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.PROResources, 'js/tablesorter.js')}"/>
+ 
+    <apex:stylesheet value="{!URLFOR($Resource.PROResources, 'css/Tablestyle.css')}" />
+
+<script type="text/javascript">
+        $j = jQuery.noConflict(); 
+        
+        $j(document).ready(function () {
+            $j("[id$=theaddrs]").tablesorter();
+            $j("[id$=theaddrs1]").tablesorter();
+        });    
+        
+        function CompleteRender(){
+            
+            $j("[id$=theaddrs1]").tablesorter();
+        }
+        function CompleteRender1(){
+            $j("[id$=theaddrs]").tablesorter();
+        }
+ </script>
+       
+</head>
+<body>
+    <apex:form >
+        <apex:tabPanel switchType="client" selectedTab="ContactDirectory" id="theTabPanel" rendered="{!isAuthenticated}">
+            
+            <apex:tab label="Dimagi Contact Directory" name="ContactDirectory" id="ContactDirectoryTab">
+                <apex:pageMessages ></apex:pageMessages>
+                <apex:pageBlock title="Dimagi Contact Directory">
+                    Employee Name &nbsp;&nbsp;&nbsp;<apex:inputText value="{!EmpSearchName}" />  &nbsp;&nbsp;&nbsp; 
+                    <apex:commandButton action="{!SearchEmp}" value="Search" reRender="theaddrs1"  oncomplete="CompleteRender();" />
+                    <br/>
+                    <br/>
+                    <div style="overflow-x:scroll;width:1185px">
+                    <apex:pageBlockTable value="{!EmpList}" var="emp" id="theaddrs1" styleClass="tablesorter"  >
+                    
+                           <apex:column value="{!emp.Name}" style="padding-right:15px" />
+                           <apex:column value="{!emp.Email_Address__c}" />
+                           <apex:column value="{!emp.Skype_ID__c}" />
+                           
+                           <apex:column headerValue="Direct Manager">
+                              <apex:outputLink target="_blank" value="https://dimagi.my.salesforce.com/{!emp.Direct_Manager_Lookup__c}">{!emp.Direct_Manager_Lookup__r.Name}</apex:outputLink>
+                           </apex:column>
+                           
+                           <!--<apex:column value="{!emp.Direct_Manager_Lookup__c}" />-->
+                           
+                           <apex:column value="{!emp.Business_Unit__c}" />
+                           <apex:column value="{!emp.Sub_Unit__c}" />
+                           <apex:column value="{!emp.Entity__c}" />
+                           
+                           <apex:column value="{!emp.Personal_Phone_Number__c}" />
+                           <apex:column value="{!emp.Title__c}" />
+                           
+                           <apex:column value="{!emp.Languages_Spoken__c}" />
+                           <apex:column value="{!emp.Language_1_Proficiency__c}" />
+                           
+                           <apex:column value="{!emp.Language_Spoken_2__c}" />
+                           <apex:column value="{!emp.Language_2_Proficiency__c}" />
+                           
+                           <apex:column value="{!emp.Language_Spoken_3__c}" />
+                           <apex:column value="{!emp.Language_3_Proficiency__c}" />
+                           
+                           <apex:column value="{!emp.Language_Spoken_4__c}" />
+                           <apex:column value="{!emp.Language_4_Proficiency__c}" />
+                           
+                           <apex:column value="{!emp.Language_Spoken_5__c}" />
+                           <apex:column value="{!emp.Language_5_Proficiency__c}" />
+                           
+                           <apex:column value="{!emp.Language_Spoken_6__c}" />
+                           <apex:column value="{!emp.Language_6_Proficiency__c}" />
+                           
+                    </apex:pageBlockTable>
+                  </div>
+                </apex:pageBlock>
+            </apex:tab>
+            
+            <apex:tab label="Active Safety Contacts for Contracts" name="ProjectPage" id="ProjectPageTab" >
+            <apex:pageMessages ></apex:pageMessages>
+                <apex:pageBlock title="Active Safety Contacts for Contracts" >
+                    
+                    Contract Name &nbsp;&nbsp;&nbsp;<apex:inputText value="{!ContractSearchName}" />  &nbsp;&nbsp;&nbsp; 
+                    <apex:commandButton action="{!SearchContract}" value="Search" reRender="theaddrs" oncomplete="CompleteRender1();" />
+                    <br/>
+                    <br/>
+
+                     <apex:pageBlockTable value="{!ContractList}" var="con" id="theaddrs" styleClass="tablesorter">
+                           <apex:column value="{!con.id}" />
+                           <apex:column headerValue="Execution Owner (BU)">
+                              <apex:outputLink target="_blank" value="https://dimagi.my.salesforce.com/{!con.Prime_Contracting_Business_Unit__c}">{!con.Prime_Contracting_Business_Unit__r.Name}</apex:outputLink>
+                           </apex:column>
+                          
+                           <apex:column value="{!con.Name}" />
+                           <apex:column value="{!con.Safety_Contact__c}" />
+                           <apex:column value="{!con.Contract_End_Date__c}" />
+                     </apex:pageBlockTable>
+                     
+                  </apex:pageBlock>
+            </apex:tab>
+        </apex:tabPanel>
+        
+        <apex:pageBlock title="Contact Directory" rendered="{!NOT(isAuthenticated)}">
+            <apex:commandButton action="{!authenticate}" value="Authenticate with Dimagi email" />
+            
+        </apex:pageBlock>
+        
+        
+    </apex:form>
+</body>
+</apex:page>

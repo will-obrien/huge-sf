@@ -1,0 +1,152 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.PipelineBehaviorsController" extensions="ePrize_Zemzu.PipelineBehaviorsStep4bControllerExt" tabStyle="ContestBuilder__tab">
+  <!--
+    This page use to contain items that allowed the user to specify the contest teams.
+   -->
+<head>
+    <apex:includeScript value="{!$Resource.ePrize_Zemzu__jquery}"/>
+    <apex:includeScript value="{!$Resource.ePrize_Zemzu__app}"/>
+    <apex:stylesheet value="{!$Resource.ePrize_Zemzu__zemzu_css}"/>
+    
+    <script type="text/javascript">
+    function noenter(ev)
+    {
+      if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+        doSearchAF();
+        return false;
+      } else {
+        return true;
+      }
+    }
+    
+    function checkAll(cb, ie)
+    {
+      var inputElem = document.getElementsByTagName("input");
+      for(var i=0; i<inputElem.length; i++)
+      {
+        if(inputElem[i].id.indexOf(ie)!=-1)
+          if(!inputElem[i].disabled)
+            inputElem[i].checked = cb.checked;
+      }
+    }
+      
+    function confirmCancel() {
+      var isCancel = confirm("Are you sure you wish to cancel?");
+      if (isCancel) return true;
+      return false;
+    } 
+    
+  </script>
+  </head>
+  <body>
+    <div id="theLoader" style="display: block; height: 300px; width: 100%">
+      <table border="0" width="100%" height="100%">
+        <tr>
+          <td valign="middle" align="center">
+            <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div id="thePage" style="display: none;">
+      <apex:form id="form" >
+        <apex:pageBlock title="Contest Teams and Members" id="contestBuilderSelection" mode="edit">
+          <apex:pageMessages />
+          <apex:pageBlockButtons >
+          	<apex:commandButton action="{!previousStep}" value="Back" />
+          	<apex:commandButton action="{!cancel}" value="Cancel" onclick="return confirmCancel()" immediate="true" />
+          	<apex:commandButton action="{!nextStep}" value="Next" />
+      	  </apex:pageBlockButtons>
+          <apex:pageBlockSection title="Create Teams" columns="1" collapsible="false">
+            <apex:outputPanel >
+              <apex:outputText value="Please create at least 2 contest teams. After adding a team, click on the 0 link under the Team Members Assigned column. This will take you to a new page to identify which participants to include on the given team."> </apex:outputText>
+              <br/>
+              <apex:outputText value="To add a team photo, simply include a direct link to any public image in the team photo field. This image will render on the leaderboard, LeaderTV and the Compete mobile app. Once you save the team you should see a preview of the image, if you don't see the image, then the URL is not public or malformed."> </apex:outputText>
+            </apex:outputPanel>
+            <apex:outputText style="font-weight:bold" value="Unassigned Participants: {0}">
+          		<apex:param value="{!unassignedMembers}"/>
+            </apex:outputText>
+           <apex:outputPanel id="manageTeamsPanel">
+          <apex:actionStatus id="manageTeamsStatus">
+            <apex:facet name="start">
+              <div style="display: block; height: 100px; width: 100%">
+                <table border="0" width="100%" height="100%">
+                  <tr>
+                    <td valign="middle" align="center">
+                      <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </apex:facet>
+            <apex:facet name="stop">
+              <apex:outputPanel id="teamTablePanel" rendered="{!teamContest}">
+                <apex:pageBlockTable id="availableTeamsTable" value="{!availableTeams}" var="t" rowClasses="odd,even">
+                  <apex:column >
+                    <apex:outputPanel rendered="{!!editingTeam && t.teamNumber > 0}">
+                      <apex:commandLink value="Edit" action="{!editTeam}" rerender="manageTeamsPanel, selectUserPanel" status="manageTeamsStatus">
+                        <apex:param name="teamNumberInFocus" value="{!t.teamNumber}" assignTo="{!teamNumberInFocus}"/>
+                      </apex:commandLink>
+                      <apex:outputText value=" | "/>
+                      <apex:commandLink value="Delete" action="{!deleteTeam}" rerender="manageTeamsPanel, selectUserPanel" status="manageTeamsStatus">
+                        <apex:param name="teamNumberInFocus" value="{!t.teamNumber}" assignTo="{!teamNumberInFocus}"/>
+                      </apex:commandLink>
+                    </apex:outputPanel>
+                    <apex:outputPanel rendered="{!editingTeam && t.teamEditing && t.teamNumber > 0}">
+                      <apex:commandLink value="Save" action="{!saveTeam}" rerender="manageTeamsPanel, selectUserPanel" status="manageTeamsStatus">
+                        <apex:param name="teamNumberInFocus" value="{!t.teamNumber}" assignTo="{!teamNumberInFocus}"/>
+                      </apex:commandLink>
+                      <apex:outputText value=" | "/>
+                      <apex:commandLink value="Cancel" action="{!cancelTeam}" rerender="manageTeamsPanel, selectUserPanel" status="manageTeamsStatus">
+                        <apex:param name="teamNumberInFocus" value="{!t.teamNumber}" assignTo="{!teamNumberInFocus}"/>
+                      </apex:commandLink>
+                    </apex:outputPanel>
+                    <apex:outputPanel rendered="{!!editingTeam && t.teamNumber <= 0}">
+                      <apex:commandLink value="Add" action="{!addTeam}" rerender="manageTeamsPanel, selectUserPanel" status="manageTeamsStatus"/>
+                    </apex:outputPanel>
+                  </apex:column>
+                  <apex:column >
+                    <apex:facet name="header">
+                      Team Name
+                    </apex:facet>
+                    <apex:inputText value="{!t.teamName}" rendered="{!t.teamEditing && t.teamNumber > 0}"/>
+                    <apex:outputText value="{!t.teamName}" rendered="{!!t.teamEditing && t.teamNumber > 0}"/>
+                    <apex:outputText value="{!t.teamNameErrorMessage}" styleClass="errorMsg" rendered="{!t.teamEditing && t.teamNameError}"/>
+                  </apex:column>
+                  <apex:column >
+                    <apex:facet name="header">
+                      Team Photo
+                    </apex:facet>
+                    <apex:inputText value="{!t.photo}" rendered="{!t.teamEditing}"/>
+                    <apex:outputPanel rendered="{!!t.teamEditing && t.photo != ''}">
+                      <img src="{!t.photo}" height="75"/>
+                    </apex:outputPanel>
+                  </apex:column>
+                  <apex:column rendered="{!goalContest}">
+                    <apex:facet name="header">
+                      Team Goal
+                    </apex:facet>
+                    <apex:inputText value="{!t.teamGoal}" rendered="{!t.teamEditing && t.teamNumber > 0}"/>
+                    <apex:outputText value="{!TEXT(t.teamGoal)}" rendered="{!!t.teamEditing && t.teamNumber > 0}"/>
+                    <apex:outputText value="{!t.teamGoalErrorMessage}" styleClass="errorMsg" rendered="{!t.teamEditing && t.teamGoalError}"/>
+                  </apex:column>
+                  <apex:column headerValue="Team Members Assigned">
+                  <apex:commandLink action="{!nextSubStep}">
+                    <apex:outputText value="{!t.teamMemberCount}" rendered="{!!t.teamEditing && t.teamNumber > 0}"/>
+                    <apex:param name="t" value="{!t.teamNumber}"/>
+                  </apex:commandLink> 
+                </apex:column>
+                </apex:pageBlockTable>
+              </apex:outputPanel>
+            </apex:facet>
+          </apex:actionStatus>
+        </apex:outputPanel>
+          </apex:pageBlockSection> 
+                    
+         <!-- <apex:pageBlockSection title="Team Members" columns="1"  collapsible="false">
+            
+          </apex:pageBlockSection> -->
+        </apex:pageBlock>
+      </apex:form>
+    </div>
+  </body>
+</apex:page>

@@ -1,0 +1,288 @@
+<apex:page controller="rh2.PS_DefineFilter_Controller" sidebar="false" tabStyle="PS_Rollup_Helper__tab">
+    
+    <apex:includeScript value="{! URLFOR($Resource.PT_Resources_v1, '/js/modernizr-1.7.min.js') }"/>
+     
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/reset.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/grid.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/general.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/css3.css') }"/>    
+    
+    <style>
+        .caption {font-size:smallest; padding-left:10px; padding-bottom:5px; padding-top:5px;}
+  		.breadcrumb {font-size:small;}
+    </style>
+    
+    <apex:outputPanel styleClass="row" layout="block">
+        <apex:outputPanel styleClass="col col_16 breadcrumb" id="heading">
+                <apex:outputPanel rendered="{!NOT(ISBLANK(settingName))}">
+	        		<apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_SelectMaster)}">Select Target Object</apex:outputLink>
+	            	<apex:outputText styleClass="bold" value=" > "/>
+	                <apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_SelectTargetField)}?mast={!targetObjectAPI}">{!targetObjectLabel} Field For Results</apex:outputLink>
+	            	<apex:outputText styleClass="bold" value=" > "/>
+	                <apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_RollupType)}?s={!settingName}">{!targetFieldLabel} Summary Calculation</apex:outputLink>
+                </apex:outputPanel> 
+                <apex:outputPanel rendered="{!ISBLANK(settingName)}">
+	        		<apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_AllSettings)}">All Rollup Settings</apex:outputLink>                	
+				</apex:outputPanel>
+            	<apex:outputText value=" > Edit Filter"/>
+        </apex:outputPanel>
+    </apex:outputPanel>
+    
+    
+    <apex:form >
+    <apex:outputPanel styleClass="row" layout="block" rendered="{!NOT(ISBLANK(sourceObjectAPI))}">
+    	<apex:pageBlock helpUrl="http://rolluphelper.passagetech.com/resources/user-guide/applying-a-rollup-filter"
+        				helpTitle="Help for this Page"
+         				title="Define Filter"
+        >
+        <apex:pageBlockButtons >
+            <apex:commandButton action="{! save }" value="Save"/>            
+	        <apex:commandButton rendered="{!NOT(ISBLANK(filterName))}" action="{!deleteFilter}" value="Delete"/>        
+	  		<apex:commandButton rendered="{!ISBLANK(settingName)}" action="{!URLFOR($Page.rh2__PS_AllSettings)}" value="Cancel"/>                	
+	        <apex:commandButton rendered="{!NOT(ISBLANK(settingName))}" action="{!URLFOR($Page.rh2__PS_RollupType)}?s={!settingName}" value="Cancel"/>        
+
+            <!-- Premium Feature Notice>
+            <apex:commandButton disabled="{!notPaid}" action="{! save }" value="Save"/>
+			<apex:outputLink style="margin-left:0px;" rendered="{!notPaid}" target="_blank" value="http://www.passagetech.com/products/rollup-helper/premium-features">
+				<apex:image value="{!URLFOR($Resource.PT_Resources_v1, 'images/upgrade_icon_green.gif')}" width="16" height="17" style="vertical-align:text-top;"/>
+			</apex:outputLink>
+			<apex:commandButton rendered="{!notPaid}" value="Upgrade" onClick="window.open('http://www.passagetech.com/products/rollup-helper/premium-features');"/>
+            <!-- Premium Feature Notice -->
+            
+        </apex:pageBlockButtons>
+        
+	    <apex:pageMessages />
+	    
+            <!-- Step 1. Filter Name -->       		
+	        <apex:outputPanel styleClass="row" layout="block">       		
+       			<apex:pageBlockSection title="Step 1. Enter Filter Name" showHeader="true" columns="1" collapsible="false"/>
+            	<apex:outputLabel styleClass="col col_2 bold align_right" style="padding-top:5px;" value="Filter Name:" for="fName"/>
+            	<apex:inputText styleClass="col col_5" value="{!results.filterName}" id="fName"/>
+            	
+            	<apex:outputText styleClass="col col_3 align_right" style="padding-top:5px;" value="Limit to"/>
+            	<apex:inputText styleClass="col col_1 align_center" style="margin-left:0px; margin-right:0px; width:60px;" value="{!limitInt}">
+					<apex:actionSupport event="onchange" reRender="preview"/>
+				</apex:inputText>									
+            	 
+            	<apex:outputText styleClass="col col_4 align_left" style="padding-top:5px;" value="records"/>         
+            	<apex:outputText styleClass="col col_1" value=" "/>   	
+            </apex:outputPanel>
+            
+            <!-- Step 2. Sort Order -->       		
+	        <apex:outputPanel styleClass="row" layout="block">       		
+       			<apex:pageBlockSection title="Step 2. Specify Sort Order" showHeader="true" columns="1" collapsible="false"/>
+       			<apex:outputPanel styleClass="col col_16">
+	       			<apex:outputPanel styleClass="row" layout="block">
+		            	<apex:outputText styleClass="col col_4 bold align_center" value="{!sourceObjectLabel} Fields"/>
+		            	<apex:outputText styleClass="col col_11 bold align_center" value="Defined Sort Order"/>
+	            	</apex:outputPanel> 
+	            	
+	            	<apex:outputPanel styleClass="row" layout="block" style="margin-top:5px;">
+						<apex:selectList size="5" value="{!selectedSortField}" styleClass="col col_4" id="availSortFields">
+		                    <apex:selectOptions value="{! sortFields }"/>  
+		                </apex:selectList>
+		                
+           				<apex:commandButton action="{!addSortField}" value="Add >>" reRender="preview, existingSortList, availSortFields" 
+           					styleClass="col col_2" style="margin-top:30px;"/>
+						
+						<apex:outputPanel id="existingSortList">
+			            <apex:outputPanel layout="block" styleClass="col col_8" rendered="{!sortsAreSelected}">
+		                    <apex:dataTable value="{! selectedSorts }" var="item" id="table" 
+		                    	headerClass="align_center bold" style="background:white;border:1px solid black;">
+		                    	
+			                    <apex:column headerClass="col col_1" styleClass="col col_1">
+			                        <apex:facet name="header">
+			                            <apex:outputText value="Action"/>
+			                        </apex:facet> 
+			                        <apex:commandLink action="{!removeSortField}" value="Remove" reRender="preview, existingSortList, availSortFields">
+			                        	<apex:param value="{!item.Id}" name="sortId"/>
+			                        </apex:commandLink>			 						
+			                    </apex:column>  
+			                    
+			                    <apex:column headerClass="col col_1" styleClass="col col_1">			                         
+			                        <apex:facet name="header">
+			                            <apex:outputText value="Order"/>
+			                        </apex:facet>
+			                        
+									<apex:inputText size="1" value="{!item.sortOption.itemNumber}" styleClass="align_center">
+				                        <apex:actionSupport event="onchange" reRender="preview, existingSortList"/>									
+									</apex:inputText>
+			                    </apex:column>
+			                    
+			                    <apex:column value="{! item.fieldLabel }" headerClass="col col_3" styleClass="col col_3">
+			                        <apex:facet name="header">
+			                            <apex:outputText value="Field"/>
+			                        </apex:facet>			 						
+			                    </apex:column>
+			                     
+			                    <apex:column headerClass="col col_2" styleClass="col col_2">			                         
+			                        <apex:facet name="header">
+			                            <apex:outputText value="Sort"/>
+			                        </apex:facet>
+			                        
+									<apex:selectList size="1" value="{!item.sortOption.logic}">
+				                        <apex:actionSupport event="onchange" reRender="preview"/>
+					                    <apex:selectOptions value="{! sortOptions }"/>  
+					                </apex:selectList>                        
+			                    </apex:column>
+
+			                </apex:dataTable>
+			            </apex:outputPanel>
+			            
+			            <apex:outputPanel layout="block" styleClass="col col_10" rendered="{!NOT(sortsAreSelected)}">
+			            	<b>This filter does not sort {!targetObjectLabel} records.</b><br/>  
+			            	Select a field and then click the "Add >>" button if 
+			            	you want to sort the source records when calculating target field values 
+			            	with this filter.   
+			            </apex:outputPanel>
+			                  
+			            </apex:outputPanel> 
+	            	</apex:outputPanel>
+				</apex:outputPanel>            	 	
+            </apex:outputPanel>
+            
+            <!-- Step 3. Filter Criteria -->
+            <apex:outputPanel styleClass="row" layout="block">       		
+       			<apex:pageBlockSection title="Step 3. Specify Filter Criteria" showHeader="true" columns="1" collapsible="false"/>
+       			<apex:outputPanel styleClass="col col_16">
+	       			<apex:outputPanel styleClass="row" layout="block">
+		            	<apex:outputText styleClass="col col_14" value="Labels followed by a '>' indicate there are more fields available."/>
+		        		<apex:actionStatus id="statusMessage" startText="(refreshing)" stopText=" " styleClass="caption col col_1" />	            	
+	            	</apex:outputPanel> 
+	       			<apex:outputPanel styleClass="row" layout="block">
+		            	<apex:outputText styleClass="col col_4 bold align_center" value="{!sourceObjectLabel} Fields"/>
+		            	<apex:outputText styleClass="col col_12" value=" "/>
+	            	</apex:outputPanel> 
+					
+					<!-- FILTER INPUT -->
+		            <apex:outputPanel styleClass="row caption" layout="block" id="field1">
+		                <apex:selectList size="8" value="{!filterField1API}" styleClass="col col_4">
+		                    <apex:actionSupport event="onchange" action="{!refreshFilter2}" reRender="field2, operator, addButton" status="statusMessage"/>
+		                    <apex:selectOptions value="{!filterFields1}"/> 
+		                </apex:selectList>
+		                                
+		                <apex:outputPanel id="field2">
+		                    <apex:selectList size="8" value="{! filterField2API }" styleClass="col col_4" rendered="{! AND(NOT(ISBLANK(filterField1API)), filterFields1FK)}">
+		                        <apex:actionSupport event="onchange" action="{! selectFilterField }" reRender="operator, addButton" status="statusMessage"/>
+		                        <apex:selectOptions value="{! filterFields2 }"/> 
+		                    </apex:selectList>
+		                </apex:outputPanel>
+		
+		                <apex:outputPanel id="operator">
+		                    <apex:outputPanel styleClass="row" layout="block" rendered="{! NOT(ISBLANK(filterField_c)) }">
+		                        
+		                        <apex:outputPanel styleClass="col col_3">
+		                        	<apex:outputPanel styleClass="row" layout="block"> 
+		                        		<apex:outputText value="Operator" styleClass="col col_3 bold align_center"/>
+		                        	</apex:outputPanel>
+		                        	<apex:outputPanel styleClass="row" layout="block"> 
+					                    <apex:selectList size="1" value="{! filterLogic }" styleClass="col col_3">
+						                    <apex:actionSupport event="onchange" reRender="criteria, addButton" status="statusMessage"/>
+					                        <apex:selectOptions value="{! filterLogicOptions }"/> 
+					                    </apex:selectList>
+		                        	</apex:outputPanel>
+		                        </apex:outputPanel>
+		                         
+		                        <apex:outputPanel styleClass="col col_4" id="criteria">
+		                        	<apex:outputPanel rendered="{! NOT(ISBLANK(filterLogic)) }">
+		                        	
+		                        	<apex:outputPanel styleClass="row" layout="block" id="filterCriteriaHead"> 
+			                        	<apex:outputText value="Criteria" styleClass="col col_4 bold align_center"/>
+		                        	</apex:outputPanel>
+		                        	
+		                        	<apex:outputPanel styleClass="row" layout="block" id="filterDataEntry" rendered="{!NOT(hasCriteriaPicklist)}"> 
+					                    <apex:inputText value="{! filterCondition }" styleClass="col col_4" />
+		                        	</apex:outputPanel>
+		                        	
+		                        	<apex:outputPanel styleClass="row" layout="block" id="filterPicklist" rendered="{!hasCriteriaPicklist}"> 
+					                    
+					                    <apex:selectList size="1" value="{! filterCondition }" styleClass="col col_4" >
+						                    <apex:actionSupport event="onchange" reRender="filterCriteriaHead, filterCriteriaVar, addButton" status="statusMessage"/>
+					                        <apex:selectOptions value="{! filterCriteriaOptions }"/> 
+					                    </apex:selectList>
+					                    
+				                        <apex:outputPanel id="filterCriteriaVar" >
+				                        <apex:outputPanel styleClass="row" rendered="{!hasFilterCriteriaVariable}">
+				                        	<apex:outputText value="Number" styleClass="col col_3 bold align_right"/>		                        	
+					                    	<apex:inputText value="{! filterConditionVar }" styleClass="col col_1" />
+					                    </apex:outputPanel>
+					                    </apex:outputPanel>									
+					                    
+		                        	</apex:outputPanel>
+		                        	
+		                        	</apex:outputPanel>
+		                        </apex:outputPanel>
+		                        
+		                        <apex:outputPanel styleClass="col col_1" id="addButton">
+	                        	<apex:outputPanel rendered="{! OR(AND(NOT(ISBLANK(filterLogic)),NOT(hasCriteriaPicklist)), AND(NOT(ISBLANK(filterLogic)),AND(hasCriteriaPicklist, NOT(ISBLANK(filterCondition)))))  }">
+		                        	<apex:commandButton action="{!addFilter}" value="Add" reRender="preview, field1, existingFilters" style="margin-top:15px;"/>
+		                        </apex:outputPanel>
+		                        
+		                        
+		                        </apex:outputPanel>
+		                        
+		                    </apex:outputPanel>
+		                </apex:outputPanel>
+		                
+	                </apex:outputPanel> 
+	                <!-- FILTER INPUT END -->
+	                
+	       			<apex:outputPanel id="existingFilters">
+	       			<apex:outputPanel rendered="{! filtersExist }">
+	       			
+	       			<apex:outputPanel styleClass="row" layout="block">
+		            	<apex:outputText styleClass="col col_10 bold" value="Existing {!sourceObjectLabel} Filters (all conditions must be met to rollup the value)"/>
+		            	<apex:outputText styleClass="col col_6" value=" "/>
+	            	</apex:outputPanel> 
+ 
+					<!-- FILTER OUTPUT -->
+	                <apex:pageBlockTable value="{! selectedFilters }" var="item">
+	                    <apex:column >
+	                        <apex:facet name="header">Action</apex:facet>
+	                        <apex:commandLink value="Remove" reRender="preview, existingFilters" action="{! removeFilter }">
+	                            <apex:param name="filterId" value="{! item.Id }"/>
+	                        </apex:commandLink>
+	                    </apex:column>
+	                    <apex:column >
+	                        <apex:facet name="header">
+	                        	Filtered Field
+	                        </apex:facet>
+	                    	{! item.filter.field }
+	                    </apex:column>
+	                    <apex:column >
+	                        <apex:facet name="header">
+	                        	Operator
+	                        </apex:facet>
+	                    	{! item.filter.logic }
+	                    </apex:column>
+	                    <apex:column >
+	                        <apex:facet name="header">
+	                        	Criteria
+	                        </apex:facet>
+	                    	{! item.filter.condition }
+	                    </apex:column>
+	                </apex:pageBlockTable>
+	                
+	            	</apex:outputPanel>
+	            	</apex:outputPanel>
+	            	
+				</apex:outputPanel>
+				            	 	
+            </apex:outputPanel>
+            
+            <!-- Step 4. Save -->
+            <apex:outputPanel styleClass="row" layout="block" style="margin-top:10px;">
+            
+               	<apex:outputPanel id="preview">
+               	<apex:outputText styleClass="col col_16 bold" value="Filter Preview"/>
+               	<code class="col col_16" style="margin-bottom:10px;">
+               		{!filterString}
+               	</code>
+               	</apex:outputPanel>
+               	      		
+            </apex:outputPanel>
+                         
+        </apex:pageBlock>
+    </apex:outputPanel>
+    </apex:form>
+</apex:page>

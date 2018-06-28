@@ -1,0 +1,1186 @@
+<apex:page controller="lmscons.MyTrainingExtension" title="{!$Label.MyTraining_title_My_Training}" sidebar="false" action="{!create_pub}">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>{!$Label.MyTraining_title_My_Training}</title>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/jquery.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/init.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__LMSSource, 'css/training.css')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__lmslightbox, 'css/lms-lightbox.css')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__jquery1816min, 'jquery-ui.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery1816min, 'jquery-ui.min.js')}" />
+
+<style type="text/css">
+/* sf fix */
+#tsid {z-index:200}
+
+.cField{
+	width:300px;
+}
+
+.cust_btn {
+	border-radius: 4px 4px 4px 4px;
+	color: #F4F4F4;
+	display: inline-block;
+	padding: 3px 8px;
+	text-decoration: none;
+	background: none repeat scroll 0 0 #209BC4;
+}
+
+.button_inactive {
+	background: none repeat scroll 0 0 #aaaaaa;
+
+}
+
+.DeleteLink {
+	display:inline-block;
+	padding-left:12px;
+	line-height:8px;
+	diplay: block;
+	background:transparent url("/img/feeds/x_sprite.png") center left no-repeat;
+	background-position: -0px -8px;
+	position:relative;
+	top: 1px;
+}
+
+
+.ui-widget-overlay {
+	background: #010101;
+	opacity: 0.6;
+	filter:alpha(opacity=60);
+	height:100%;
+	width:100%;
+	z-index: 999;
+}
+</style>
+
+<script type="text/javascript">
+<!------------------ Chatter Javascript Start ----->
+
+	var overlay;
+	var lightbox;
+	var openedwindow;
+
+	var UploadId = '';
+	var newwindow;
+	var uploadcontent;
+	var i = 0;
+	var enableRedir = false;
+	var idisSet = false;
+
+	window.onkeypress = handleKeyPress;
+
+	jQuery(document).ready(function(){
+		overlay = $('.b-overlay');
+		lightbox = $('.b-lightbox');
+
+		jQuery("th:contains('{!$ObjectType.Content_Upload__c.fields.CreatedDate.label}')").text('Upload Date');
+		if(getUrlVars()['open_popup_attach']){
+			open_popup_attach();
+		}
+	});
+
+	function init_redir() {
+		//alert('enredir');
+		uploadcontent = 1;
+		i = 1;
+		idisSet = true;
+		enableRedir = true;
+	}
+
+	function handleKeyPress(e) {
+		var eventInstance = window.event ? event : e;
+		var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+		if (keyCode == 13){
+
+			if (openedwindow == 1) {
+				SearchUser();
+			}
+			else {
+				SearchGroup();
+			}
+			return false;
+		}
+	}
+
+	function Lightbox() {
+		lightbox.fadeIn('fast');
+		overlay
+			.height( $(document).height() )
+			.css('opacity','0.6')
+			.fadeIn('fast');
+	}
+
+
+	function Closelightbox() {
+		Closelb()
+
+
+		Refresh();
+	}
+
+	function Closelb() {
+		lightbox.fadeOut('fast');
+		overlay.fadeOut('fast');
+	}
+
+
+	function select_people() {
+		openedwindow = 1;
+		Lightbox();
+	}
+
+	function select_group() {
+		openedwindow = 2;
+		Lightbox();
+	}
+
+	function open_upload_popup() {
+		openedwindow = 3;
+		Lightbox();
+	}
+
+	function open_popup_attach(){
+		uploadcontent = 1;
+		newwindow = window.open('/apex/Upload_Popup?override=1','name','height=500,width=600');
+		if (window.focus) {newwindow.focus()}
+	}
+
+	function test_baca() {
+		//UploadId = 'a00U0000002biI7';
+		//alert(UploadId);
+		uploadcontent = 1
+		GetUploadedObject(UploadId);
+		//redirectWindow();
+	}
+
+	function attach_file(){
+		Closelb();
+		setTimeout('attach2();', 1000);
+		}
+
+	function attach2() {
+		if (uploadcontent == 1) {
+			uploadcontent = 0;
+			UploadId = jQuery('input[name$="UploadId"]').val();
+			//UploadId
+			GetUploadedObject();
+		}
+		else {
+			//window.location.href = window.location.href;//'/apex/MyTraining';
+		}
+	}
+
+	function getUrlVars() {
+		var vars = [], hash;
+		var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+		for(var i = 0; i < hashes.length; i++)
+		{
+			hash = hashes[i].split('=');
+			vars.push(hash[0]);
+			vars[hash[0]] = hash[1];
+		}
+		return vars;
+	}
+
+	function check_poller() {
+		var c = jQuery('[id*="poller_step"]').html();
+
+		if (c == 'true') {
+			process_publish();
+		}
+
+	}
+
+	function testT() {
+		i++;
+		var ua = jQuery.browser;
+		if( i > 2) {
+			if(enableRedir == true) {
+				if(idisSet == true) {
+					attach_file();
+				}
+			}
+		}
+	}
+
+
+	function closesearch() {
+		jQuery("#dialog-modal3").dialog('close');
+
+	}
+
+	function open_sc_popup() {
+
+		var szx = jQuery(window).width()*0.9;
+		var szy = jQuery(window).height()*0.9-100;
+
+		jQuery('#dialog-modal3').html('<iframe id="searchcatalogframe" name="searchcatalogframe" frameborder="0" height="'+szy+'px" src="/apex/SearchCatalog" width="100%"></iframe>');
+
+		jQuery('#dialog-modal3').dialog({
+			autoOpen: false,
+			width: jQuery(window).width()*0.9,
+			height: jQuery(window).height()*0.9,
+			modal: true,
+			resizable: false,
+			close: function(event, ui) {
+				RefreshPage();
+			}
+		});
+
+
+		jQuery("#dialog-modal3").dialog('open');
+	}
+
+	function RefreshPage() {
+		window.location.reload();
+	}
+
+
+	function init_pg() {
+
+		jQuery('.m-tbl').find('table.m-hide').parent().parent().addClass('m-hide');
+		jQuery('.m-tbl').find('table.m-hide').parent().parent().attr('style', 'display: table-row;');
+		/*$('.m-tbl').find('table.m-hide tr').addClass('m-faded');*/
+		jQuery('.m-tbl').find('table.m-hide').removeClass('m-hide');
+
+
+		Toggler();
+		HideShowToggler();
+		Check();
+		ShowSession();
+		SearchToggler();
+
+
+		/* last/first child */
+		jQuery('.m-tbl th:first-child,.m-tbl td:first-child').addClass('m-first');
+		jQuery('.m-tbl th:last-child, .m-tbl td:last-child, .m-first-level tr:last-child').addClass('m-last');
+		jQuery('.m-first-level .m-second-level').parent().closest('td.m-first-level').addClass('m-no-bord');
+
+		/* chrome/safari fix */
+		jQuery('.b-results .m-tbl tr td:nth-child(2)').addClass('m-auto-width');
+
+		/* ie table fix */
+		if (jQuery.browser.msie) {
+		jQuery(".m-tbl td:empty, .m-tbl thead th div:empty").html("&nbsp;");
+		}
+
+	}
+
+	function change_parent() {
+		//jQuery('#searchcatalogframe').html('lalala');
+		alert('Trying to change height');
+
+
+		jQuery('#social_learning').attr('height','1000');
+		//jQuery('#social_learning').height = '1000px';
+		//jQuery('#social_learning').height = 1000;
+
+	}
+
+
+</script>
+
+<!------------------ Chatter Javascript End -------------------------->
+
+</head>
+<body>
+
+	<div class="b-overlay"></div>
+
+	<apex:actionStatus id="load_select_people" onstop="select_people()">
+		<apex:facet name="start">
+			<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+		</apex:facet>
+	</apex:actionStatus>
+
+	<apex:actionStatus id="load_select_group" onstop="select_group()">
+		<apex:facet name="start">
+			<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+		</apex:facet>
+	</apex:actionStatus>
+
+	<apex:actionStatus id="load_upload_popup" onstop="open_upload_popup()">
+		<apex:facet name="start">
+			<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+		</apex:facet>
+	</apex:actionStatus>
+
+
+	<apex:actionStatus id="loading">
+		<apex:facet name="start">
+			<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+		</apex:facet>
+	</apex:actionStatus>
+
+
+<div class="h-base">
+	<div class="l-header">
+		<h1 class="b-title"><img src="{!URLFOR($Resource.LMSSource, 'i/header-icon.png')}" />{!$Label.MyTraining_title_My_Training}</h1>
+
+		<div class="b-btns">
+			<!-- <div class="m-calendar"><a class="b-btn" href="#"><span class="b-icon">&nbsp;</span>Training Calendar</a></div> -->
+			<apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_Catalog_Search__c}">
+				<div class="m-search">
+					<a class="b-btn" href="Javascript:open_sc_popup();"><span class="b-icon">&nbsp;</span>{!$Label.MyTraining_SearchCatalog}</a>
+				</div>
+			</apex:outputPanel>
+		</div>
+	</div>
+
+	<apex:pageMessages id="messages" />
+
+<!--  <input type="button" value="par" onclick="change_parent()" /> -->
+
+	<apex:outputpanel layout="none" rendered="{!lmsConfig.lmscons__Social_Learning__c = true}">
+		<iframe id="social_learning" name="social_learning" style="z-index: 1;" frameborder="0" height="1px" src="/apex/AddConsumerUsersBatchable" width="100%"></iframe>
+	</apex:outputpanel>
+
+	<div class="l-content">
+
+	<apex:outputpanel layout="none" id="mycontent">
+
+		<div class="b-tabs" style="z-index: 0;">
+			<div class="b-tab">Current Training</div>
+			<!-- <div class="b-tab">Historical Imports</div> -->
+			<div class="b-setting" style="z-index: 0;">
+				<div class="b-checkbox" style="z-index: 0;">
+					<input type="checkbox" checked="checked" id="a" /><label for="a">Show Completed Training</label>
+				</div>
+				<!--<div class="b-xls-print">
+					<a href="#" class="m-xls">excel</a>
+					<a href="#" class="m-print">print</a>
+				</div>-->
+			</div>
+		</div>
+
+		<div class="b-tab-bodies">
+			<div class="b-tab-body">
+				<apex:outputPanel rendered="{!TrainingList.size==0}">
+					<table width="100%" border="0" class="m-tbl">
+						<tr>
+							<td align="center">
+								{!$Label.MyTraining_No_Training_to_Complete}
+							</td>
+						</tr>
+					</table>
+				</apex:outputPanel>
+				<apex:dataTable rendered="{!TrainingList.size!=0}" headerClass="t-head-top" value="{!TrainingList}" var="c" width="100%" border="0" styleClass="m-tbl">
+
+					<!-- ------- -->
+					<apex:column headerClass="col1" styleClass="emptyFix m-col1 {!IF(ISNULL(c.TitleCurriculum), '', 'm-plus')}" rendered="{!IF(ISNULL(c.TitleCurriculum), true, false)}">
+						<apex:facet name="header" >
+							TRAINING
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col2" rendered="{!IF(lmsConfig.lmscons__Show_Type__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col2">
+						<apex:facet name="header" >
+							TRAINING TYPE
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col3" rendered="{!IF(lmsConfig.lmscons__Show_status__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col3">
+						<apex:facet name="header" >
+							STATUS
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col4" rendered="{!IF(lmsConfig.lmscons__Show_progress_bar__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col4">
+						<apex:facet name="header" >
+							PROGRESS
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col5" rendered="{!IF(lmsConfig.lmscons__Show_Score__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col5">
+						<apex:facet name="header" >
+							SCORE
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col6" rendered="{!IF(lmsConfig.lmscons__Show_Duration__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col6">
+						<apex:facet name="header" >
+							DURATION
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col7" rendered="{!IF(lmsConfig.lmscons__Show_Due_Date__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col7">
+						<apex:facet name="header" >
+							DUE DATE
+						</apex:facet>
+					</apex:column>
+					<apex:column headerClass="col8" rendered="{!IF(ISNULL(c.TitleCurriculum), true, false)}" styleClass="emptyFix m-col8">
+						&nbsp;
+					</apex:column>
+					<apex:column headerClass="col9" rendered="{!IF(lmsConfig.lmscons__Enable_certificate__c, IF(ISNULL(c.TitleCurriculum), true, false), false)}" styleClass="emptyFix m-col9">
+						&nbsp;
+					</apex:column>
+					<!-- ------- -->
+					<apex:column styleClass="m-col1 {!IF(ISNULL(c.TitleCurriculum), '', 'm-plus')}" rendered="{!IF(ISNULL(c.TitleCurriculum), false, true)}">
+						<apex:facet name="header" >
+							TRAINING
+						</apex:facet>
+						<apex:outputText value="{!c.TitleCurriculum}"  />
+					</apex:column>
+					<apex:column styleClass="m-col2"  rendered="{!IF(lmsConfig.lmscons__Show_Type__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							TRAINING TYPE
+						</apex:facet>
+						<apex:outputText value="{!c.Type}"/>
+					</apex:column>
+					<apex:column styleClass="m-col3" rendered="{!IF(lmsConfig.lmscons__Show_status__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							STATUS
+						</apex:facet>
+						<apex:outputField value="{!c.CItem.Curriculum_Assignment__r.lmscons__Status__c}"/>
+					</apex:column>
+					<apex:column styleClass="m-col4" rendered="{!IF(lmsConfig.lmscons__Show_progress_bar__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							PROGRESS
+						</apex:facet>
+						<c:ProgressBar percent="{!IF(ISNULL(c.CItem.Curriculum_Assignment__r.lmscons__Curriculum_Progress__c), 0,ROUND(c.CItem.Curriculum_Assignment__r.lmscons__Curriculum_Progress__c,0))}"  ispath="true" score="" />
+					</apex:column>
+					<apex:column styleClass="m-col5" rendered="{!IF(lmsConfig.lmscons__Show_Score__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							SCORE
+						</apex:facet>
+						<!-- Curriculum -->
+						<apex:outputText value="{!c.scoreCurriculum}" styleClass="m-bold" />
+					</apex:column>
+					<apex:column styleClass="m-col6" rendered="{!IF(lmsConfig.lmscons__Show_Duration__c,IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							DURATION
+						</apex:facet>
+						<apex:outputText value="{!c.Curr_Duration}"/>
+					</apex:column>
+					<apex:column styleClass="m-col7" rendered="{!IF(lmsConfig.lmscons__Show_Due_Date__c, IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:facet name="header" >
+							DUE DATE
+						</apex:facet>
+						<apex:outputField value="{!c.CItem.Curriculum_Assignment__r.lmscons__Due_Date__c}"/>
+					</apex:column>
+					<apex:column styleClass="m-col8" rendered="{!IF(ISNULL(c.TitleCurriculum), false, true)}">
+						&nbsp;
+					</apex:column>
+					<apex:column styleClass="m-col9" rendered="{!IF(lmsConfig.lmscons__Enable_certificate__c,IF(ISNULL(c.TitleCurriculum), false, true), false)}">
+						<apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+							<apex:outputLink rendered="{!IF(c.CItem.Curriculum_Assignment__r.lmscons__Curriculum_Progress__c==100.0, true, false)}" value="/apex/{!IF(lmsConfig.lmscons__Certificate_Page_Name__c=='','LMS_Certificate','c__'+lmsConfig.lmscons__Certificate_Page_Name__c)}?Id={!c.CItem.Curriculum_Assignment__r.id}" styleClass="btn b-btn" style="text-decoration:none" target="_blank"><span class="m-award">&nbsp;</span></apex:outputLink>
+						</apex:outputPanel>
+					</apex:column>
+
+					<!-- ---------------- -->
+
+					<!-- first level -->
+					<apex:column styleClass="m-hide-tbl m-first-level" colspan="{!Columns}" breakBefore="true">
+						<apex:dataTable width="100%" value="{!c.LpEntryList}" var="LP" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rendered="{!c.CuSeqList.size == 0}">
+							<apex:column styleClass="m-plus m-col1" style="{!IF(ISNULL(c.TitleCurriculum), 'background-position: 8px 17px;', '')}">
+								<div class="m-lev-0">
+									<apex:outputText value="{!LP.LpItem.Learning_Path_Assignment__r.Learning_Path__r.Name}"/>
+								</div>
+							</apex:column>
+							<apex:column styleClass="m-col2"  rendered="{!lmsConfig.lmscons__Show_Type__c}">
+								<apex:outputText value="{!LP.Type}"/>
+							</apex:column>
+							<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+								<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Status__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+								<c:ProgressBar percent="{!IF(ISNULL(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c),0,ROUND(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c,0))}"  ispath="false" score="" />
+							</apex:column>
+							<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+								<!-- Path -->
+								<apex:outputText value="{!LP.scoreLpEntry}" styleClass="m-bold" />
+							</apex:column>
+							<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+								<apex:outputText value="{!LP.LP_Duration}"/>
+							</apex:column>
+							<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+								<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Due_Date__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col8 m-center">
+								&nbsp;
+							</apex:column>
+							<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+								<apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+									<apex:outputLink rendered="{!IF(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c==100.0, true, false)}" value="/apex/{!IF(lmsConfig.lmscons__Certificate_Page_Name__c=='','LMS_Certificate','c__'+lmsConfig.lmscons__Certificate_Page_Name__c)}?Id={!LP.LpItem.Learning_Path_Assignment__r.id}" styleClass="btn b-btn" style="text-decoration:none" target="_blank"><span class="m-award">&nbsp;</span></apex:outputLink>
+								</apex:outputPanel>
+							</apex:column>
+
+							<!-- second level -->
+							<apex:column styleClass="m-hide-tbl m-second-level" breakBefore="true" colspan="{!Columns}">
+								<!-- sequence -->
+								<apex:repeat value="{!LP.LpSeqList}" var="LPS">
+									<apex:dataTable width="100%" value="{!LPS.LpEntryObj.MEntryList}" var="M" rowClasses="m-faded"  styleClass="m-hide">
+										<apex:column styleClass="m-col1">
+											<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-1', 'm-lev-0')}">
+												<span class="m-icon-type-1">&nbsp;</span>
+												<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+											</div>
+										</apex:column>
+										<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+											<apex:outputText value="{!M.Type}"/>
+										</apex:column>
+										<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+											<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+										</apex:column>
+										<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+											<apex:outputText value="{!M.Module_Duration}"/>
+										</apex:column>
+										<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col8 m-center">
+											<apex:outputPanel rendered="{!IF(isblank(LPS.seq),true,false)}">
+												<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+												<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+											</apex:outputPanel>
+											<apex:outputPanel rendered="{!IF(isblank(LPS.seq),false,true)}">
+												<apex:outputPanel rendered="{!LPS.seq != -1}">
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+												</apex:outputPanel>
+												<apex:outputPanel rendered="{!LPS.seq == -1}">
+													<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+												</apex:outputPanel>
+											</apex:outputPanel>
+										</apex:column>
+										<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+											&nbsp;
+										</apex:column>
+									</apex:dataTable>
+
+									<apex:dataTable width="100%" value="{!LPS.LpEntryObj.CoEntryList}" var="Co" border="0">
+										<apex:column styleClass="m-plus m-col1"  style="{!IF(ISNULL(c.TitleCurriculum), 'background-position: 23px 17px;', '')}">
+											<div class="m-lev-1">
+												<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+											</div>
+										</apex:column>
+										<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+											<apex:outputText value="{!Co.Type}"/>
+										</apex:column>
+										<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+											<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+											<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+										</apex:column>
+										<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+											<!-- PathCourse -->
+											<apex:outputText value="{!Co.scoreCoEntry}" styleClass="m-bold" />
+										</apex:column>
+										<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+											<apex:outputText value="{!Co.Course_Duration}"/>
+										</apex:column>
+										<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+											<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col8 m-center">
+											&nbsp;
+										</apex:column>
+										<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+											&nbsp;
+										</apex:column>
+
+										<!-- three level -->
+										<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+											<apex:dataTable width="100%" rowClasses="m-faded" value="{!Co.MEntryList}" var="M" border="0"  styleClass="m-hide">
+												<apex:column styleClass="m-col1">
+													<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+														<span class="m-icon-type-1">&nbsp;</span>
+														<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+													</div>
+												</apex:column>
+												<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+													<apex:outputText value="{!M.Type}"/>
+												</apex:column>
+												<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+													<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+												</apex:column>
+												<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+													<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+												</apex:column>
+												<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+														<!-- PathCourseModule -->
+													<apex:outputField value="{!M.MItem.lmscons__Score__c}" />
+												</apex:column>
+												<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+													<apex:outputText value="{!M.Module_Duration}"/>
+												</apex:column>
+												<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+													<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+												</apex:column>
+												<apex:column styleClass="m-col8 m-center">
+
+													<apex:outputPanel rendered="{!IF(isblank(LPS.seq),true,false)}">
+															<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),true,false)}">
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+															<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),false,true)}">
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+													</apex:outputPanel>
+													<apex:outputPanel rendered="{!IF(isblank(LPS.seq),false,true)}">
+														<apex:outputPanel rendered="{!LPS.seq != -1}">
+															<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),true,false)}">
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+															<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),false,true)}">
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+															<!-- <apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															-->
+														</apex:outputPanel>
+														<apex:outputPanel rendered="{!LPS.seq == -1}">
+															<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														</apex:outputPanel>
+													</apex:outputPanel>
+												</apex:column>
+												<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+													<apex:outputPanel rendered="false">
+														<apex:outputLink rendered="{!IF(M.MItem.lmscons__Percent_Complete__c==100.0, true, false)}" value="/apex/{!IF(lmsConfig.lmscons__Certificate_Page_Name__c=='','LMS_Certificate','c__'+lmsConfig.lmscons__Certificate_Page_Name__c)}?Id={!M.MItem.Id}" styleClass="btn b-btn" style="text-decoration:none" target="_blank"><span class="m-award">&nbsp;</span></apex:outputLink>
+													</apex:outputPanel>
+												</apex:column>
+											</apex:dataTable>
+										</apex:column>
+									</apex:dataTable>
+								</apex:repeat>
+								<!-- end sequence -->
+							</apex:column>
+						</apex:dataTable>
+
+						<!-- ------- -->
+						<apex:dataTable width="100%" value="{!c.CoEntryList}" var="Co" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}"  rendered="{!c.CuSeqList.size == 0}">
+							<apex:column styleClass="m-plus m-col1" style="{!IF(ISNULL(c.TitleCurriculum), 'background-position: 8px 17px;', '')}">
+								<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+									<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+								</div>
+							</apex:column>
+							<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+								<apex:outputText value="{!Co.Type}"/>
+							</apex:column>
+							<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+								<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+								<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+							</apex:column>
+							<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+								<!-- Course -->
+								<apex:outputText value="{!Co.scoreCoEntry}" styleClass="m-bold" />
+							</apex:column>
+							<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+								<apex:outputText value="{!Co.Course_Duration}"/>
+							</apex:column>
+							<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+								<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col8 m-center">
+								&nbsp;
+							</apex:column>
+							<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+								<apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+									<apex:outputLink rendered="{!IF(Co.TPAPItem.lmscons__Progress_Training_Path__c==100.0, true, false)}" value="/apex/{!IF(lmsConfig.lmscons__Certificate_Page_Name__c=='','LMS_Certificate','c__'+lmsConfig.lmscons__Certificate_Page_Name__c)}?Id={!Co.TPAPItem.id}" styleClass="btn b-btn" style="text-decoration:none" target="_blank"><span class="m-award">&nbsp;</span></apex:outputLink>
+								</apex:outputPanel>
+							</apex:column>
+							<!-- ------- -->
+							<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+								<apex:dataTable width="100%" value="{!Co.MEntryList}" var="M" border="0" styleClass="m-hide" rowClasses="m-faded">
+									<apex:column styleClass="m-col1">
+										<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+											<span class="m-icon-type-1">&nbsp;</span>
+											<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+										</div>
+									</apex:column>
+									<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+										<apex:outputText value="{!M.Type}"/>
+									</apex:column>
+									<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+										<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+										<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+									</apex:column>
+									<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+										<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+										<apex:outputText value="{!M.Module_Duration}"/>
+									</apex:column>
+									<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+										<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+									</apex:column>
+									<apex:column styleClass="m-col8 m-center">
+										<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),true,false)}">
+											<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+											<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+										</apex:outputPanel>
+										<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),false,true)}">
+											<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+											<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+										</apex:outputPanel>
+									</apex:column>
+									<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+										&nbsp;
+									</apex:column>
+								</apex:dataTable>
+							</apex:column>
+						</apex:dataTable>
+
+						<!-- ------- -->
+						<apex:dataTable rendered="{!c.CuSeqList.size == 0}" width="100%" value="{!c.MEntryList}" var="M" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rowClasses="{!IF(ISNULL(c.TitleCurriculum), '', 'm-faded')}">
+							<apex:column styleClass="m-col1">
+								<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+									<span class="m-icon-type-1">&nbsp;</span>
+									<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+								</div>
+							</apex:column>
+							<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+								<apex:outputText value="{!M.Type}"/>
+							</apex:column>
+							<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+								<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+								<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+							</apex:column>
+							<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+								<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+								<apex:outputText value="{!M.Module_Duration}"/>
+							</apex:column>
+							<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+								<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+							</apex:column>
+							<apex:column styleClass="m-col8 m-center">
+								<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+								<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn " style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+							</apex:column>
+							<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+								<apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+									<apex:outputLink rendered="{!IF(M.MItem.lmscons__Percent_Complete__c==100.0, true, false)}" value="/apex/{!IF(lmsConfig.lmscons__Certificate_Page_Name__c=='','LMS_Certificate','c__'+lmsConfig.lmscons__Certificate_Page_Name__c)}?Id={!M.MItem.Id}" styleClass="btn b-btn" style="text-decoration:none" target="_blank"><span class="m-award">&nbsp;</span></apex:outputLink>
+								</apex:outputPanel>
+							</apex:column>
+						</apex:dataTable>
+
+						<!-- Sequence Curriculum -->
+						<apex:repeat value="{!c.CuSeqList}" var="Cu">
+							<!-- Single Or In Curriculum modules -->
+							<apex:dataTable width="100%" value="{!Cu.CurriculumEntryObj.MEntryList}" var="M" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rowClasses="{!IF(ISNULL(c.TitleCurriculum), '', 'm-faded')}">
+								<apex:column styleClass="m-col1">
+									<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+										<span class="m-icon-type-1">&nbsp;</span>
+										<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+									</div>
+								</apex:column>
+								<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+									<apex:outputText value="{!M.Type}"/>
+								</apex:column>
+								<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+									<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+									<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+								</apex:column>
+								<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+									<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+									<apex:outputText value="{!M.Module_Duration}"/>
+								</apex:column>
+								<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+									<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col8 m-center">
+
+									<apex:outputPanel rendered="{!IF(isblank(Cu.seq),true,false)}">
+										<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+										<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn " style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+									</apex:outputPanel>
+									<apex:outputPanel rendered="{!IF(isblank(Cu.seq),false,true)}">
+										<apex:outputPanel rendered="{!Cu.seq != -1}">
+											<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+											<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn " style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+										</apex:outputPanel>
+										<apex:outputPanel rendered="{!Cu.seq == -1}">
+											<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(Cu.seq != -1,'', 'alert('+Cu.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+										</apex:outputPanel>
+									</apex:outputPanel>
+								</apex:column>
+								<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+									&nbsp;
+								</apex:column>
+							</apex:dataTable>
+
+							<!-- Course -->
+							<apex:dataTable width="100%" value="{!Cu.CurriculumEntryObj.CoEntryList}" var="Co" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}"  rendered="{!IF(ISNULL(c.CoEntryList), false, true)}">
+								<apex:column styleClass="m-plus m-col1">
+									<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+										<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+									</div>
+								</apex:column>
+								<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+									<apex:outputText value="{!Co.Type}"/>
+								</apex:column>
+								<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+									<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+									<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+								</apex:column>
+								<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+										<!-- CurriculumCourse -->
+									<apex:outputText value="{!Co.scoreCoEntry}" styleClass="m-bold" />
+								</apex:column>
+								<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+									<apex:outputText value="{!Co.Course_Duration}"/>
+								</apex:column>
+								<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+									<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col8 m-center">
+									&nbsp;
+								</apex:column>
+								<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+									&nbsp;
+								</apex:column>
+								<!-- Course three level  -->
+								<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+									<apex:dataTable width="100%" value="{!Co.MEntryList}" var="M" border="0" styleClass="m-hide" rowClasses="m-faded">
+										<apex:column styleClass="m-col1">
+											<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+												<span class="m-icon-type-1">&nbsp;</span>
+												<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+											</div>
+										</apex:column>
+										<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+											<apex:outputText value="{!M.Type}"/>
+										</apex:column>
+										<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+											<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+										</apex:column>
+										<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+												<!-- CurriculumCourseModule -->
+											<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+											<apex:outputText value="{!M.Module_Duration}"/>
+										</apex:column>
+										<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+											<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+										</apex:column>
+										<apex:column styleClass="m-col8 m-center">
+
+											<apex:outputPanel rendered="{!IF(isblank(Cu.seq),true,false)}">
+												<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),true,false)}">
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+												</apex:outputPanel>
+												<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),false,true)}">
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+												</apex:outputPanel>
+											</apex:outputPanel>
+											<apex:outputPanel rendered="{!IF(isblank(Cu.seq),false,true)}">
+												<apex:outputPanel rendered="{!Cu.seq != -1}">
+													<!-- <apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink> -->
+													<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),true,false)}">
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!$Page.lmscons__ConsumerDirector}?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													</apex:outputPanel>
+													<apex:outputPanel rendered="{!IF(isblank(M.MItem.Training_Path_Item__r.lmscons__Sequence__c),false,true)}">
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													</apex:outputPanel>
+
+												</apex:outputPanel>
+												<apex:outputPanel rendered="{!Cu.seq == -1}">
+													<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(Cu.seq != -1,'', 'alert('+Cu.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+												</apex:outputPanel>
+											</apex:outputPanel>
+										</apex:column>
+										<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+											&nbsp;
+										</apex:column>
+									</apex:dataTable>
+								</apex:column>
+							</apex:dataTable>
+
+							<!-- Learning Path -->
+							<apex:dataTable width="100%" value="{!Cu.CurriculumEntryObj.LpEntryList}" var="LP" border="0" styleClass="{!IF(ISNULL(c.TitleCurriculum), '', 'm-hide')}" rendered="{!IF(ISNULL(c.LpEntryList), false, true)}">
+								<apex:column styleClass="m-plus m-col1">
+									<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-0', 'm-lev-1')}">
+										<apex:outputText value="{!LP.LpItem.Learning_Path_Assignment__r.Learning_Path__r.Name}"/>
+									</div>
+								</apex:column>
+								<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+									<apex:outputText value="{!LP.Type}"/>
+								</apex:column>
+								<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+									<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Status__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+									<c:ProgressBar percent="{!IF(ISNULL(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c),0,ROUND(LP.LpItem.Learning_Path_Assignment__r.lmscons__Learning_Path_Progress__c,0))}"  ispath="false" score="" />
+								</apex:column>
+								<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+										<!-- CurriculumPath -->
+									<apex:outputText value="{!LP.scoreLpEntry}" styleClass="m-bold" />
+								</apex:column>
+								<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+									<apex:outputText value="{!LP.LP_Duration}"/>
+								</apex:column>
+								<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+									<apex:outputField value="{!LP.LpItem.Learning_Path_Assignment__r.lmscons__Due_Date__c}"/>
+								</apex:column>
+								<apex:column styleClass="m-col8 m-center">
+									&nbsp;
+								</apex:column>
+								<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+									&nbsp;
+								</apex:column>
+								<!-- Learning Path three level  -->
+								<apex:column styleClass="m-hide-tbl m-second-level" breakBefore="true" colspan="{!Columns}">
+									<!-- sequence -->
+									<apex:repeat value="{!LP.LpSeqList}" var="LPS">
+										<apex:dataTable width="100%" value="{!LPS.LpEntryObj.MEntryList}" var="M" rowClasses="m-faded"  styleClass="m-hide">
+											<apex:column styleClass="m-col1">
+												<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-1', 'm-lev-2')}">
+													<span class="m-icon-type-1">&nbsp;</span>
+													<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+												</div>
+											</apex:column>
+											<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+												<apex:outputText value="{!M.Type}"/>
+											</apex:column>
+											<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+												<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+												<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+											</apex:column>
+											<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+													<!-- CurriculumPathModule -->
+												<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+												<apex:outputText value="{!M.Module_Duration}"/>
+											</apex:column>
+											<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+												<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col8 m-center">
+
+												<apex:outputPanel rendered="{!IF(isblank(Cu.seq),true,false)}">
+													<apex:outputPanel rendered="{!IF(isblank(LPS.seq),true,false)}">
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													</apex:outputPanel>
+													<apex:outputPanel rendered="{!IF(isblank(LPS.seq),false,true)}">
+														<apex:outputPanel rendered="{!LPS.seq != -1}">
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														</apex:outputPanel>
+														<apex:outputPanel rendered="{!LPS.seq == -1}">
+															<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														</apex:outputPanel>
+													</apex:outputPanel>
+												</apex:outputPanel>
+
+												<apex:outputPanel rendered="{!IF(isblank(Cu.seq),false,true)}">
+													<apex:outputPanel rendered="{!Cu.seq != -1}">
+														<apex:outputPanel rendered="{!IF(isblank(LPS.seq),true,false)}">
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														</apex:outputPanel>
+														<apex:outputPanel rendered="{!IF(isblank(LPS.seq),false,true)}">
+															<apex:outputPanel rendered="{!LPS.seq != -1}">
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+															<apex:outputPanel rendered="{!LPS.seq == -1}">
+																<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+														</apex:outputPanel>
+														<!-- <apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink> -->
+														<!-- <apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink> -->
+														<!-- <apex:outputPanel rendered="{!LPS.seq != -1}">
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														</apex:outputPanel>
+														<apex:outputPanel rendered="{!LPS.seq == -1}">
+															<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+														</apex:outputPanel>-->
+
+
+													</apex:outputPanel>
+													<apex:outputPanel rendered="{!Cu.seq == -1}">
+														<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(Cu.seq != -1,'', 'alert('+Cu.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+													</apex:outputPanel>
+												</apex:outputPanel>
+											</apex:column>
+											<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+												&nbsp;
+											</apex:column>
+										</apex:dataTable>
+
+										<!-- ------- -->
+										<apex:dataTable width="100%" value="{!LPS.LpEntryObj.CoEntryList}" var="Co" border="0">
+											<apex:column styleClass="m-plus m-col1">
+												<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-1', 'm-lev-2')}">
+													<apex:outputText value="{!Co.CoItem.Training_Path_Item__r.Training_Path__r.Name}"/>
+												</div>
+											</apex:column>
+											<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+												<apex:outputText value="{!Co.Type}"/>
+											</apex:column>
+											<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+												<apex:outputField value="{!Co.TPAPItem.lmscons__StatusPicklist__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+												<c:ProgressBar percent="{!ROUND(Co.TPAPItem.lmscons__Progress_Training_Path__c,0)}"  ispath="false" score="" />
+											</apex:column>
+											<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+												<!-- CurriculumPathCourse -->
+												<apex:outputText value="{!Co.scoreCoEntry}" styleClass="m-bold" />
+											</apex:column>
+											<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+												<apex:outputText value="{!Co.Course_Duration}"/>
+											</apex:column>
+											<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+												<apex:outputField value="{!Co.TPAPItem.lmscons__Due_Date__c}"/>
+											</apex:column>
+											<apex:column styleClass="m-col8 m-center">
+												&nbsp;
+											</apex:column>
+											<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+												&nbsp;
+											</apex:column>
+											<!-- three level -->
+											<apex:column styleClass="m-hide-tbl m-three-level" breakBefore="true" colspan="{!Columns}">
+												<apex:dataTable width="100%" rowClasses="m-faded" value="{!Co.MEntryList}" var="M" border="0"  styleClass="m-hide">
+													<apex:column styleClass="m-col1">
+														<div class="{!IF(ISBLANK(c.TitleCurriculum), 'm-lev-2', 'm-lev-3')}">
+															<span class="m-icon-type-1">&nbsp;</span>
+															<apex:outputText value="{!M.MItem.Training_Content__r.lmscons__Title__c}"/>
+														</div>
+													</apex:column>
+													<apex:column styleClass="m-col2" rendered="{!lmsConfig.lmscons__Show_Type__c}">
+														<apex:outputText value="{!M.Type}"/>
+													</apex:column>
+													<apex:column styleClass="m-col3" rendered="{!lmsConfig.lmscons__Show_status__c}">
+														<apex:outputField value="{!M.MItem.lmscons__Status__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col4" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+														<c:ProgressBar percent="{!M.MItem.lmscons__Percent_Complete__c}"  ispath="false" score="" />
+													</apex:column>
+													<apex:column styleClass="m-col5" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+														<!-- CurriculumPathCourseModule -->
+														<apex:outputField value="{!M.MItem.lmscons__Score__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col6" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+														<apex:outputText value="{!M.Module_Duration}"/>
+													</apex:column>
+													<apex:column styleClass="m-col7" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+														<apex:outputField value="{!M.MItem.lmscons__Due_Date__c}"/>
+													</apex:column>
+													<apex:column styleClass="m-col8 m-center">
+
+														<apex:outputPanel rendered="{!IF(isblank(Cu.seq),true,false)}">
+															<apex:outputPanel rendered="{!IF(isblank(LPS.seq),true,false)}">
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+															<apex:outputPanel rendered="{!IF(isblank(LPS.seq),false,true)}">
+																<apex:outputPanel rendered="{!LPS.seq != -1}">
+																	<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																	<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																</apex:outputPanel>
+																<apex:outputPanel rendered="{!LPS.seq == -1}">
+																	<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																</apex:outputPanel>
+															</apex:outputPanel>
+														</apex:outputPanel>
+
+														<apex:outputPanel rendered="{!IF(isblank(Cu.seq),false,true)}">
+															<apex:outputPanel rendered="{!Cu.seq != -1}">
+
+																<apex:outputPanel rendered="{!IF(isblank(LPS.seq),true,false)}">
+																	<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																	<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																</apex:outputPanel>
+																<apex:outputPanel rendered="{!IF(isblank(LPS.seq),false,true)}">
+																	<apex:outputPanel rendered="{!LPS.seq != -1}">
+																		<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																		<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																	</apex:outputPanel>
+																	<apex:outputPanel rendered="{!LPS.seq == -1}">
+																		<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																	</apex:outputPanel>
+																</apex:outputPanel>
+
+
+																<!-- <apex:outputPanel rendered="{!LPS.seq != -1}">
+																	<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==true, true, false)}" value="javascript:openInNewWindow('/apex/ConsumerDirector?action=LaunchContent&tuId={!M.MItem.lmscons__Training_User_License__c}')" styleClass="btn" style="text-decoration:none"  onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																	<apex:outputLink rendered="{!IF(lmsConfig.lmscons__Show_module_in_new_window__c==false, true, false)}" value="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+M.MItem.lmscons__Training_User_License__c,'#')}" styleClass="btn" style="text-decoration:none" target="_blank" onclick="{!IF(M.MItem.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+M.MItem.Training_Content__r.lmscons__Description__c+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																</apex:outputPanel>
+																<apex:outputPanel rendered="{!LPS.seq == -1}">
+																	<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(LPS.seq != -1,'', 'alert('+LPS.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+																</apex:outputPanel> -->
+
+															</apex:outputPanel>
+															<apex:outputPanel rendered="{!Cu.seq == -1}">
+																<apex:outputLink value="#" styleClass="btn" style="text-decoration:none" onclick="{!IF(Cu.seq != -1,'', 'alert('+Cu.Description+'); return false;')}">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+															</apex:outputPanel>
+														</apex:outputPanel>
+													</apex:column>
+													<apex:column styleClass="m-col9 m-center" rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+														&nbsp;
+													</apex:column>
+												</apex:dataTable>
+											</apex:column>
+										</apex:dataTable>
+									</apex:repeat>
+									<!-- end: sequence -->
+								</apex:column>
+							</apex:dataTable>
+
+						</apex:repeat>
+						<!-- End: Sequence Curriculum -->
+					</apex:column>
+				</apex:dataTable>
+			</div>
+		</div>
+		<p class="m-txt-right m-small">* signifies the next session requiring your attendence</p>
+		</apex:outputpanel>
+	</div>
+</div>
+
+<div id="dialog-modal3" title="{!$Label.MyTraining_SearchCatalog}" style="display:none;">
+</div>
+
+<script type="text/javascript">
+
+	function openInNewWindow(link){
+		window.open (link, "NewWindow","status=1,toolbar=1,resizable=1,scrollbars=1,location=1");
+	}
+
+	function open_popup(){
+		newwindow=window.open('/apex/Search','name','height=500, width=1000, resizable=1, scrollbars=1');
+		if (window.focus) {newwindow.focus()}
+	}
+
+</script>
+</body>
+</html>
+</apex:page>

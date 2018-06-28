@@ -1,0 +1,116 @@
+<apex:page controller="lmscons.AssignmentExtension" title="Assignments" sidebar="false" tabStyle="lmscons__Transcript_Line__c">
+	<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+		<head>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<title>User Assignments</title>
+			<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/jquery.js')}"/>
+			<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/init.js')}"/>
+			<apex:stylesheet value="{!URLFOR($Resource.lmscons__LMSSource, 'css/training.css')}"/>
+			<apex:stylesheet value="{!URLFOR($Resource.lmscons__lmslightbox, 'css/lms-lightbox.css')}"/>
+
+			<script>
+				function ask_confirmation() {
+					return confirm("Are you sure that you want to permanently delete the selected assignment ?");
+				}
+			</script>
+
+		</head>
+
+		<body>
+
+			<apex:pageMessages id="messages" />
+			<apex:form >
+
+				<apex:pageBlock title="Assignments" id="assign_block">
+
+					<apex:pageBlockSection id="filter" columns="5" title="Filter">
+						<apex:pageBlockSectionItem datastyle="width: 100px;" >
+							<apex:outputLabel value="Trainee" />
+							<apex:inputField required="false" value="{!UsrLookup.lmscons__Trainee__c}" />
+						</apex:pageBlockSectionItem>
+						<apex:pageBlockSectionItem datastyle="width: 100px;">
+							<apex:outputLabel value="Learning" />
+							<apex:inputText value="{!Learning}" />
+						</apex:pageBlockSectionItem>
+						<apex:pageBlockSectionItem datastyle="width: 100px;">
+							<apex:outputLabel value="Assigned from:" />
+							<apex:inputField value="{!DteLookup.lmscons__Completed_Date__c}" />
+						</apex:pageBlockSectionItem>
+						<apex:pageBlockSectionItem datastyle="width: 100px;">
+							<apex:outputLabel value="Assigned to:" />
+							<apex:inputField value="{!DteLookup.lmscons__Due_Date__c}" />
+						</apex:pageBlockSectionItem>
+						<apex:pageBlockSectionItem >
+							<apex:commandButton action="{!BuildAssignmentsList}" rerender="assign_block, messages" status="search_status" value="Search" id="searchbutton"/>
+							<apex:actionStatus id="search_status">
+								<apex:facet name="start">
+									<apex:image url="/img/loading.gif" />
+								</apex:facet>
+							</apex:actionStatus>
+						</apex:pageBlockSectionItem>
+					</apex:pageBlockSection>
+
+					<apex:outputLabel value="No records were found" rendered="{!FirstSearch == false && AsgList.size == 0}" />
+
+					<apex:pageBlockTable value="{!AsgList}" var="a" cellPadding="4" border="1" rendered="{!AsgList.size > 0}">
+						<apex:column >
+							<apex:facet name="header">Action</apex:facet>
+
+							<apex:commandLink action="{!RemoveEntity}" onclick="return confirm('Are you sure that you want to permanently delete the selected assignment ?')" value="Del" status="search_status">
+								<apex:param name="var1" value="{!a.Id}" assignTo="{!EntityId}"/>
+								<apex:param name="var2" value="{!a.TraineeId}" assignTo="{!TraineeId}"/>
+								<apex:param name="var3" value="{!a.Type}" assignTo="{!Type}"/>
+							</apex:commandLink>
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Assigned</apex:facet>
+							<apex:outputText value="{0,date,MM/dd/yyyy}">
+								<apex:param value="{!a.AssignDate}" />
+							</apex:outputText>
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Title</apex:facet>
+							{!a.Title}
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Type</apex:facet>
+							{!a.Type}
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Trainee</apex:facet>
+							{!a.Trainee}
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Status</apex:facet>
+							{!a.Status}
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Progress</apex:facet>
+							{!a.Progress}
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Score</apex:facet>
+							{!a.Score}
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Completed</apex:facet>
+							<apex:outputText value="{0,date,MM/dd/yyyy}">
+								<apex:param value="{!a.Completed}" />
+							</apex:outputText>
+						</apex:column>
+					</apex:pageBlockTable>
+
+					<apex:outputText rendered="{!Pages.size != 0 && Pages.size > 1}">Page: &nbsp;&nbsp;</apex:outputText>
+					<apex:repeat value="{!Pages}" var="p" rendered="{!Pages.size > 1}">
+						<apex:commandLink value="{!p}" rendered="{!CurrentPage != p}" action="{!BuildAssignmentsList}" rerender="assign_block, messages" status="search_status">
+							<apex:param value="{!p}" assignTo="{!CurrentPage}" name="var1"/>
+						</apex:commandLink>
+						<apex:outputText rendered="{!CurrentPage = p}"><b>{!p}</b></apex:outputText>
+						&nbsp;&nbsp;
+					</apex:repeat>
+				</apex:pageBlock>
+			</apex:form>
+
+		</body>
+	</html>
+</apex:page>

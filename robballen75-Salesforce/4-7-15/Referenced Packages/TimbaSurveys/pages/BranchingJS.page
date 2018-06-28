@@ -1,0 +1,1425 @@
+<apex:page standardController="TIMBASURVEYS__Survey__c" extensions="TIMBASURVEYS.SurveyDesignController" showheader="false" sidebar="false" standardstylesheets="false">
+    <script type="text/javascript">
+        /**
+        * COMMON branching methods
+        * @author Bruno Fagundez (c) 2010 Timba Software (www.timbasoftware.com)
+        **/
+
+        var undoConditions;
+        var undoData;
+        var survey_branching = {};
+        var option_branches_to_delete = [];
+        var current_option_id_branching_var = '';
+        var availablequestions_for_p_branching = [];
+
+
+          // Check visibility of different controls around the overlays
+          function s_branching__check_visibility(control,type){
+            if(control.checked){
+                switch(type){
+                    case 'required_answer':
+                        // dojo.byId('q_branching_required_answer_input_container').style.display = '';
+                        break;
+                    case 'not_required_answer':
+                        dojo.byId('q_branching_required_answer_input_container').style.display = 'none';
+                        break;
+                    case 'required_answer_value':
+                        dojo.attr(dojo.byId('q_branching_required_answer_input'),'disabled',false);
+                        break;
+                    default:
+                        break;
+                }
+            }else{
+                switch(type){
+                    case 'required_answer_value':
+                        dojo.attr(dojo.byId('q_branching_required_answer_input'),'disabled',true);
+                        break;
+                    default:
+                        break;
+                }
+            }
+          }
+
+          /*
+          * Get REQUIRED Questions from the table to choose checkboxes
+          */
+          function get_overlay_required_questions(){
+            var required_checkboxes = dojo.query('#q_branching_table .question_required');
+            var temp_required_questions = {};
+            /*
+            for(var i = 0; i < required_checkboxes.length; i++){
+                var temp_q_required = false;
+                if(required_checkboxes[i].checked){
+                    temp_q_required = true;
+                }
+                temp_required_questions[required_checkboxes[i].getAttribute('name')] = temp_q_required;
+            }
+            */
+            return temp_required_questions;
+          }
+
+          /*
+          * Get VISIBLE questions from the table of checboxes
+          */
+          function get_overlay_visible_questions(){
+
+            //var visible_checkboxes = dojo.query('#q_branching_table .question_visible');
+            var temp_visible_questions = {};
+
+            var questions_in_branch = dojo.query('.marginoutBran .locBranQuestionContainer .contentInPreview .titlemainquestions');
+            for(var i = 0; i < questions_in_branch.length; i++){
+                temp_visible_questions[ questions_in_branch[i].id ] = true;
+            }
+
+            return temp_visible_questions;
+          }
+
+          /*
+          * Remove option Branch
+          */
+
+          /* 14136
+          function s_branching__remove_option_branch(ao_id){
+
+            one_time_disable_optionBranching_dialog = true; // -> disable the OptionBranching dialog for this time only
+
+            if(confirm('{!$Label.timbasurveys_branchingJS_are_u_sure}')){
+
+                // === \/
+                // Remove 'AllowActiveBranching' from all
+                //  associated questions
+                var a = getChildrenSurveysInBranch( currentQuestionId );
+                for(var i = 0; i < a.length; i++){
+                    surveyChangeBranchingState( a[i] ,false);
+                }
+                // === /\
+
+                delete survey_branching[ao_id];
+                option_branches_to_delete.push(ao_id);
+
+                // === \/
+                saveSurvey(false,'self');
+                // === /\
+            }
+          }
+          */
+
+          /*
+          * Survey OPTION Branching Scripts
+          * @author Bruno Fagundez (c) 2010 Timba Software (www.timbasoftware.com)
+          */
+          var one_time_disable_optionBranching_dialog = false;
+          function s_branching__create_option_branch(qid, oid){
+
+            if (one_time_disable_optionBranching_dialog == true){
+                one_time_disable_optionBranching_dialog = false;
+                return;
+            }
+            one_time_disable_optionBranching_dialog = false;
+
+            // Populate Options dropdown and load existent branching options
+            // First check for existent options branching
+
+            var selected_option;
+            var selected_option_name = '';
+
+            current_option_id_branching_var = oid;
+
+            dojo.query('.marginoutBran .locBranQuestionContainer')[0].innerHTML = '';
+
+            for(var i = 0; i < Survey[qid].AnswerOptions.length; i++){
+                selected_option = Survey[qid].AnswerOptions[i];
+                if(selected_option != null){
+                    if( selected_option.Id == oid ){
+                        selected_option_name = selected_option.OptionValue;
+                    }
+                }
+            }
+
+            // === \/
+            // Create parent-questions-array
+            locBran_parentQuestions = new Array();
+            // === /\
+
+            // === \/
+            dojo.byId('currentOptBranch').innerHTML = '{!$Label.timbasurveys_branchingJS_when} ' + selected_option_name + ' {!$Label.timbasurveys_branchingJS_is_selected}:';
+            // === /\
+
+            if(SurveyModified || current_option_id_branching_var.indexOf('option') > -1){
+                alert('{!$Label.timbasurveys_branchingJS_please_save}.');
+            } else {
+                s_branching__build_question_list('option_dialog');
+                option_branching_dialog.show();
+            }
+          }
+
+         /*
+         * Set survey Branching allowance
+         */
+         function allowBranching(qid,check){
+
+            if(check.checked){
+                Survey[qid].AllowActiveBranching = true;
+            } else {
+                Survey[qid].AllowActiveBranching = false;
+            }
+            SurveyModified = true;
+
+         }
+
+         /*
+         * Save Option Branching
+         * @author Bruno Fagundez (c) 2010 Timba Software (www.timbasoftware.com)
+         */
+         function s_branching__save_option_branch(){
+
+            var o_branching = {};
+            o_branching.visible_questions = {};
+            o_branching.required_questions = {};
+            o_branching.parent_question = currentQuestionId;
+            o_branching.answered = dojo.byId('o_branching_selected').checked;
+
+            o_branching.visible_questions = get_overlay_visible_questions();
+
+            // Setting the selected option as the master key for the branching.
+            survey_branching[current_option_id_branching_var] = o_branching;
+
+            // Deleting the other options in this question
+
+            var currentOption;
+
+            for(var i = 0; i < Survey[currentQuestionId].AnswerOptions.length; i++){
+                currentOption = Survey[currentQuestionId].AnswerOptions[i];
+                if( ( survey_branching[currentOption.Id] != null ) && ( currentOption.Id == current_option_id_branching_var ) ){
+                    delete survey_branching[currentOption.Id];
+                    option_branches_to_delete.push(currentOption.Id);
+                }
+            }
+
+            // dojo.byId('remove_opt_branching_button').style.display = '';
+            option_branching_dialog.hide();
+
+         }
+
+         /*
+          * Survey QUESTION Branching Scripts
+          * @author Bruno Fagundez (c) 2010 Timba Software (www.timbasoftware.com)
+          */
+          function s_branching__create_question_branch(){
+            s_branching__build_question_list('question_dialog');
+            question_branching_dialog.show();
+          }
+
+          function s_branching__build_question_list(dialog){
+
+            // is html from js , must be improved
+            var raw_question_table = '<table id="q_branching_table"><tr><th>Question</th><th>{!$Label.timbasurveys_visible}</th></tr>';
+            var visible_questions = {};
+
+            switch(dialog){
+                case 'option_dialog':
+                    // Get existent option branching
+                    if(survey_branching[current_option_id_branching_var] != null){
+                        visible_questions = survey_branching[current_option_id_branching_var].visible_questions;
+                    }
+                break;
+            }
+            var current_question_position = Survey[currentQuestionId].RowPlacement;
+
+            // Questions that we're able to branch.
+            var branchable_questions = {};
+
+            for(var property in Survey){
+
+                if(Survey[property] != null && Survey[property].RowPlacement > current_question_position){ // && Survey[property].AllowActiveBranching){
+
+                    var id_already_branched = false;
+
+                    for(var item in survey_branching){
+                        if(item == current_option_id_branching_var){
+                            if(survey_branching[item] != null){
+                                if( survey_branching[item].visible_questions != null){
+                                    for(var visibleQ in survey_branching[item].visible_questions){
+                                        if((visibleQ == property) && survey_branching[item].visible_questions[visibleQ] ){
+                                            id_already_branched = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if(!id_already_branched){
+                        branchable_questions[property] = true;
+                    }
+                }
+            }
+
+            var has_visible_qs = false;
+
+            // === \/
+            var alreadyLinkedQuestions = new Array();
+            // === /\
+
+            // Question visibles
+            // Iterate over VISIBLE questions for CURRENT ANSWER OPTION
+            if(survey_branching[current_option_id_branching_var] != null){
+                for(visibleQ in visible_questions){
+                    if(Survey[visibleQ] != null){
+                        if(visible_questions[visibleQ]){
+                            question_row = '';
+                            question_row = '<tr><td>'+Survey[visibleQ].Text+'</td>';
+                            question_row += '<td><input type="checkbox" name="'+visibleQ+'" class="question_visible" checked="checked" /></td>';
+                            question_row += '</tr>';
+                            raw_question_table += question_row;
+                            has_visible_qs = true;
+
+                            // === \/
+                            alreadyLinkedQuestions.push({'id':visibleQ, 'name':Survey[visibleQ].Text, 'RowPlacement':Survey[visibleQ].RowPlacement,'optionId':current_option_id_branching_var});
+                            // === /\
+
+                        }
+                    }
+                }
+            }
+
+            // Branchables
+            // IF NO VISIBLE QUESTIONS FOR THIS BRANCH , SHOW ALL BRANCHABLE
+            if(!has_visible_qs){
+                for(branchableQ in branchable_questions){
+                    question_row = '';
+                    question_row = '<tr><td>'+Survey[branchableQ].Text+'</td>';
+                    question_row += '<td><input type="checkbox" name="'+branchableQ+'" class="question_visible" /></td>';
+                    question_row += '</tr>';
+                    raw_question_table += question_row;
+                }
+            } else {
+                for(branchableQ in branchable_questions){
+                    if(survey_branching[current_option_id_branching_var] != null){
+
+                        var branchableQ_found_in_visible = false;
+
+                        for(visibleQ in survey_branching[current_option_id_branching_var].visible_questions){
+                            // If the visible is in the list
+                            //alert('comparing this: visibleQ',visibleQ,'with this branchableQ: ',branchableQ );
+
+                            if(visibleQ == branchableQ){
+                                var qdisplayed = false;
+                                if(!survey_branching[current_option_id_branching_var].visible_questions[visibleQ] ){
+                                    question_row = '';
+                                    question_row = '<tr><td>'+Survey[branchableQ].Text+'</td>';
+                                    question_row += '<td><input type="checkbox" name="'+branchableQ+'" class="question_visible" /></td>';
+                                    question_row += '</tr>';
+                                    raw_question_table += question_row;
+                                    qdisplayed = true;
+                                    branchableQ_found_in_visible = true;
+                                }
+                            }
+                        }
+
+                        // If not found the id
+                        if(!qdisplayed) {
+                            question_row = '';
+                            question_row = '<tr><td>'+Survey[branchableQ].Text+'</td>';
+                            question_row += '<td><input type="checkbox" name="'+branchableQ+'" class="question_visible" /></td>';
+                            question_row += '</tr>';
+                            raw_question_table += question_row;
+                        }
+                    }
+                }
+            }
+
+            raw_question_table +=  '</table>';
+            if(dialog == 'option_dialog'){
+                dojo.byId('question_list_container_at_option_dialog').innerHTML = raw_question_table;
+            }
+
+            if(dialog == 'question_dialog'){
+                dojo.byId('question_list_container').innerHTML = raw_question_table;
+            }
+
+
+            // === ============================ \/
+            // Get all questions that can be in branching
+            var ar = Survey;
+
+            var start_collecting = false;
+            var questions_to_branch = new Array();
+            for(var x in ar){
+                if(start_collecting == false){
+                    if(ar[x].Id == currentQuestionId){
+                        start_collecting = true;
+                    }
+                }else{
+                    // === ================ WARNING NESTED BRANCHING ENABLED ============ \/
+                    //if( ar[x].QuestionType != SurveyEnviroment.MultipleChoiceSingleAnswer){
+                        // 14136
+                        //if( ar[x]['AllowActiveBranching'] == false ){
+                            questions_to_branch.push( ar[x] );
+                        //}
+                    //}
+                    // === ============================ /\
+                }
+            }
+
+            locBran_resetGlobalVars();
+            locBran_questionsForBranching = new Array();
+            locBran_questionsForBranchingBackup = new Array();
+            for(var x2 = 0; x2 < questions_to_branch.length; x2++){
+                var locBran_obj = {'id':questions_to_branch[x2].Id,'name':questions_to_branch[x2].Text,'RowPlacement':questions_to_branch[x2].RowPlacement,'optionId':current_option_id_branching_var};
+                locBran_questionsForBranching.push(locBran_obj);
+            }
+
+            for(var x3 = 0; x3 < alreadyLinkedQuestions.length; x3++){
+                locBran_questionsForBranching.push( {'id':alreadyLinkedQuestions[x3]['id'], 'name':alreadyLinkedQuestions[x3]['name'], 'RowPlacement':alreadyLinkedQuestions[x3]['RowPlacement'], 'optionId':current_option_id_branching_var} );
+                locBran_addQuestion( alreadyLinkedQuestions[x3]['id'], current_option_id_branching_var );
+            }
+
+            locBran_loadAlreadyBranchedQuestions();
+            // === ============================ /\
+
+          }
+
+    /*******************************************************************************************************/
+
+
+        /*********************
+        * Page branching logic
+        */
+        // Main object to store page branching rules
+        var page_branching_rules = {};
+        var page_branching_rules_undo = {};
+        // Page branching rule counter
+        var page_branching_rules_counter = 0;
+
+        // Show page branching logic
+        function add_page_branching(){
+
+            var branching_questions_available = false;
+
+            for(property in Survey){
+                if(Survey[property] != null){
+                    switch (Survey[property].QuestionType){
+                        case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                        case SurveyEnviroment.Picklist:
+                        case SurveyEnviroment.SingleTextbox:
+                            branching_questions_available = true;
+                        break;
+                    }
+                }
+            }
+
+            if(SurveyModified){
+                alert('{!$Label.timbasurveys_branchingJS_please_save_to}.');
+            } else if(!branching_questions_available) {
+                alert('{!$Label.timbasurveys_branchingJS_theres_no}.');
+            } else {
+                page_branching_overlay.show();
+
+                //
+                populate_page_combos();
+                // clear existent stuff
+                empty_p_branching();
+
+                // add a check to see if the survey is saved
+                var conditions = CurrentPageId;
+                overlay.show();
+                loadPageBranchingRulesOperation('load', dojo.byId('operation_data').value, conditions);
+            }
+        }
+
+        function populate_page_combos(){
+            var s_then = dojo.byId('s_branching_then_combo_container');
+            var s_else = dojo.byId('s_branching_else_combo_container');
+
+            s_then.innerHTML = '';
+            s_else.innerHTML = '';
+
+            var t_objOption, e_objOption;
+            for(i= (CurrentPageNumber+1) ;i <= TotalSurveyPages;i++){
+                t_objOption = document.createElement("option");
+                t_objOption.innerHTML = i;
+                t_objOption.value = i;
+                e_objOption = document.createElement("option");
+                e_objOption.innerHTML = i;
+                e_objOption.value = i;
+                if (i == (CurrentPageNumber+1)){
+                    t_objOption.selected="selected";
+                    e_objOption.selected="selected";
+                }
+
+                s_then.appendChild(t_objOption);
+                s_else.appendChild(e_objOption);
+            }
+
+                t_objOption = document.createElement("option");
+                t_objOption.innerHTML = "{!$Label.timbasurveys_branchingJS_end_survey}";
+                t_objOption.value = 0;
+                e_objOption = document.createElement("option");
+                e_objOption.innerHTML = "{!$Label.timbasurveys_branchingJS_end_survey}";
+                e_objOption.value = 0;
+
+                s_then.appendChild(t_objOption);
+                s_else.appendChild(e_objOption);
+        }
+
+        function loadPageBranchingRulesCompleted(success, result, error){
+            if(success == true){
+                if(result != "no_records"){
+                    var result = dojo.fromJson(result);
+                    dojo.query('#s_branching_then_combo_container')[0].value = result.goto_page;
+                    dojo.query('#s_branching_else_combo_container')[0].value = result.else_go_to_page;
+                }
+                var q_structure_changed = false;
+                // Reconstruct rules , one by one.
+                var p = 0;
+                var tmpArray = new Array();
+                for(var propery in result.rules){
+                    tmpArray[p] = propery;
+                    p++;
+                }
+                tmpArray = tmpArray.reverse();
+                for(var inc in tmpArray){
+                    var propery = tmpArray[inc];
+                    if(Survey[result.rules[propery].question_id] != null ){
+                        var rule_id = propery;
+                        add_page_branching_rule(propery);
+                        var question_id = result.rules[propery].question_id;
+                        if(dojo.byId('operator-for-'+rule_id) != null){
+                            dojo.byId('operator-for-'+rule_id).value = result.rules[propery].operator;
+                        }
+                        dojo.byId(rule_id+'-question_select').value = question_id+'|'+rule_id;
+                        page_branching_get_options(dojo.byId(rule_id+'-question_select').value);
+                        // requires answer ?
+                        if(result.rules[propery].answered){
+                            dojo.byId(rule_id+'_has_answer').checked = 'checked';
+                            change(true,'condition-'+rule_id);
+                        }else{
+                            dojo.byId(rule_id+'_has_not_answer').checked = 'checked';
+                            change(false,'condition-'+rule_id);
+                        }
+                        switch (Survey[question_id].QuestionType){
+                            case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                            case SurveyEnviroment.NumericalTextboxes:
+                            case SurveyEnviroment.Picklist:
+                                if((result.rules[propery].branches != null) && (result.rules[propery].branches != "null")){
+                                    if(result.rules[propery].branches.length > 0){
+                                        dojo.byId(rule_id+'-rule_required').checked = 'checked';
+                                        dojo.byId(rule_id+'-single-option-select').value = result.rules[propery].branches[0];
+                                    }
+                                }
+                                break;
+                            case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                                query_rule = '#'+rule_id+'-p-branch-rule .answer_select';
+                                var form_ctls_options_selected = dojo.query(query_rule);
+                                if((result.rules[propery].branches != null) && (result.rules[propery].branches != "null")){
+                                    for(x = 0 ; x < result.rules[propery].branches.length ; x++){
+                                        for(y = 0 ; y < form_ctls_options_selected.length ; y++){
+                                            if(form_ctls_options_selected[y].value == result.rules[propery].branches[x]){
+                                                form_ctls_options_selected[y].checked = 'checked';
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
+                             case SurveyEnviroment.SingleTextbox:
+                                if(result.rules[propery].answer != 'null' && result.rules[propery].answer.length > 0){
+                                    dojo.byId(rule_id+'-rule_required').checked = 'checked';
+                                    dojo.byId(rule_id+'-rule_required_answer').value = result.rules[propery].answer;
+                                }
+                                break;
+                            }
+                        }else{
+                            q_structure_changed = true;
+                        }
+                    }
+                    // End loading
+                    page_branching_overlay.hide();
+                    undo_s_branching__save_page_branching();
+                    if(q_structure_changed){
+                        alert('{!$Label.timbasurveys_branchingJS_the_question_structure}.');
+                    }
+                    overlay.hide();
+                    dijit.byId('page_branching').show();
+            }else{
+                alert('{!$Label.timbasurveys_branchingJS_an_error_was}. :' + error);
+                dijit.byId('page_branching').hide();
+            }
+        }
+
+        function add_page_branching_rule(rule_id){
+
+            if(page_branching_rules_counter < 5){
+
+                var existent_rule = true;
+
+                // generate a random ID
+                if(rule_id == null){
+                    rule_id = Math.floor(Math.random() * 90000) + 10000;
+                    existent_rule = false;
+                }
+
+                // Get default rule template
+                var template_node = dojo.byId('page_branching_question_template');
+                var new_q = dojo.clone(template_node);
+                var question_branch_template = new_q.innerHTML;
+
+                // If there is another rule before, add operator
+                if(page_branching_rules_counter == 0){
+                    question_branch_template = question_branch_template.replace('%IMG%',"{!URLFOR($Resource.SurveyResources2, 'img/page_branching/if.png')}");
+                }else{
+                    question_branch_template = question_branch_template.replace('%IMG%',"{!URLFOR($Resource.SurveyResources2, 'img/page_branching/and.png')}");
+                }
+
+                // Get question list and add it to the default template
+
+                q_list = '<SELECT name="component-select" class="questionOptions" id="'+ rule_id +'-question_select" onchange="page_branching_get_options(this.value);">';
+                var ct = 0;
+                var default_qid_rid = '';
+                for(property in Survey){
+                    if(Survey[property] != null){
+                        switch (Survey[property].QuestionType){
+                            case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                            case SurveyEnviroment.Picklist:
+                            case SurveyEnviroment.SingleTextbox:
+                                q_list += '<option id="'+property+'_p_branch" value="'+property+'|'+rule_id+'" >'+Survey[property].Text+'</option>';
+                            break;
+                        }
+                    }
+                }
+
+                q_list += '</select>';
+                question_branch_template = question_branch_template.replace('%QUESTION_LIST%',q_list);
+                question_branch_template = question_branch_template.replace(/%RULE_ID%/gi,rule_id);
+
+                dojo.place(dojo.trim(question_branch_template), 'list_page_branching_rules', 'last');
+
+                // get new options
+                if(!existent_rule){
+                    page_branching_get_options(dojo.byId(rule_id+'-question_select').value);
+                }
+
+                page_branching_rules_counter++;
+            } else {
+                alert('{!$Label.timbasurveys_branchingJS_the_maximum}.');
+            }
+
+        }
+
+        function page_branching_get_options(qid_rid){
+            var qid = qid_rid.split('|')[0];
+            var rid = qid_rid.split('|')[1];
+
+            var option_select = '<div class="%CSS%" id="condition-'+rid+'">';
+            option_select += '<div class="true"><input class="has_answer" id="'+rid+'_has_answer" type="radio" name="'+rid+'-answered" value="true" onchange="change(true,\'condition-'+rid+'\');" CHECKED /> {!$Label.timbasurveys_branchingJS_answered}</div>';
+            option_select += '<div class="false"><input id="'+rid+'_has_not_answer" type="radio" name="'+rid+'-answered" value="false" onchange="change(false,\'condition-'+rid+'\');" /> {!$Label.timbasurveys_branchingJS_unanswered}</div>';
+            option_select += '<a href="#" class="close" onclick="remove_rule(\''+rid+'\'); return false;"></a>';
+            option_select += '<input type="checkbox" name="option" value="option" class="check" id="'+rid+'-rule_required" />';
+            option_select += '<div class="pg_selection_res">';
+
+            switch (Survey[qid].QuestionType){
+                case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                case SurveyEnviroment.NumericalTextboxes:
+                case SurveyEnviroment.Picklist:
+
+                    option_select += '{!$Label.timbasurvey_surveyDesigner_Option_Selected}: <SELECT id="'+rid+'-single-option-select" class="answer_select">';
+                    for(property in Survey[qid].AnswerOptions){
+                        option_select += '<OPTION value="'+Survey[qid].AnswerOptions[property].Id+'">'+Survey[qid].AnswerOptions[property].OptionValue+'</OPTION>';
+                    }
+                    option_select +='</SELECT>';
+
+                    option_select = option_select.replace('%CSS%',"condition2");
+
+                break;
+                case SurveyEnviroment.SingleTextbox:
+
+                    option_select += '{!$Label.timbasurveys_branchingJS_answer_equals}: <input type="text" id="'+rid+'-rule_required_answer" class="answer_select" />';
+                    option_select = option_select.replace('%CSS%',"condition3");
+
+                break;
+                default:
+                break;
+            }
+
+            option_select += '</div>';
+            option_select += '</div>';
+
+
+            var query_line = '#'+ rid +'-p-branch-rule .pbCondition';
+
+            var rule_options = dojo.query(query_line);
+            rule_options[0].innerHTML = option_select;
+        }
+
+        function remove_rule(r_id){
+            var rule_id = r_id+'-p-branch-rule';
+            dojo._destroyElement(dojo.byId(rule_id));
+            delete page_branching_rules[r_id];
+            page_branching_rules_counter--;
+        }
+
+        function s_branching__save_page_branching(){
+            if (dojo.byId('s_branching_then_combo_container').value == dojo.byId('s_branching_else_combo_container').value){
+                alert('{!$Label.timbasurveys_then_and_else}');
+            }else{
+                page_branching_overlay.show();
+                var q_rules = dojo.query('#page_branching .pbQC');
+                var isValid = true;
+                var rules_qids = [];
+                // first check if the rules are ok
+                for(var i=0; i < q_rules.length ; i++){
+                    var active_rule = q_rules[i].id;
+                    query_rule = '#'+active_rule+' .questionOptions';
+                    var qid = (dojo.query(query_rule)[0].value).split('|')[0];
+                    var filteredArr = dojo.filter(rules_qids, function(item) {
+                         return item == qid;
+                    });
+                    if(filteredArr.length > 0){
+                        isValid = false;
+                        break;
+                    } else {
+                        rules_qids.push(qid);
+                    }
+                }
+                if(isValid){
+                    for(var i=0; i < q_rules.length ; i++){
+                        var active_rule = q_rules[i].id;
+                        // Get rule id
+                        var query_rule = '#'+active_rule+' .rule_id';
+                        var rule_id = dojo.query(query_rule)[0].value;
+                        // Get question id
+                        query_rule = '#'+active_rule+' .questionOptions';
+                        var qid = (dojo.query(query_rule)[0].value).split('|')[0];
+                        // Need to be answered or not?
+                        query_rule = '#'+active_rule+' .has_answer';
+                        var answered = dojo.query(query_rule)[0].checked;
+                        // Options required
+                        var options_required = [];
+                        var answer_required = '';
+                        // console.info(Survey[qid].QuestionType);
+                        switch(Survey[qid].QuestionType){
+                            case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                            case SurveyEnviroment.Picklist:
+                            case SurveyEnviroment.SingleTextbox:
+                                // console.info('has single answer');
+                                // Ask for the checkbox that activates the selected option..
+                                query_rule = '#'+active_rule+' .check';
+                                var form_ctls_options_required = dojo.query(query_rule);
+
+                                // console.info(form_ctls_options_required);
+                                if(form_ctls_options_required[0] != null){
+                                    //////////
+                                    /// If is a single textbox
+                                    // we require a specific answer
+                                    if(Survey[qid].QuestionType == SurveyEnviroment.SingleTextbox){
+                                        if(form_ctls_options_required[0].checked){
+                                            // console.info('Checking the answer required');
+                                            query_rule = '#'+active_rule+' .answer_select';
+                                            var form_input_required_answer = dojo.query(query_rule);
+                                            if(form_input_required_answer[0] != null){
+                                                answer_required = form_input_required_answer[0].value;
+                                            }
+                                            // console.info('answer required:',answer_required);
+                                        }
+                                    }else{
+                                    ///////////////
+                                    //
+                                        if(form_ctls_options_required[0].checked){
+                                            // console.info('Checking the options required');
+                                            // Get selected options in this cases
+                                            query_rule = '#'+active_rule+' .answer_select';
+                                            var form_ctls_options_selected = dojo.query(query_rule);
+                                            for(var u=0;u < form_ctls_options_selected.length; u++){
+                                                options_required.push(form_ctls_options_selected[u].value);
+                                            }
+                                            // console.info('options required:',options_required);
+                                        }
+                                    }
+                                }
+                            break;
+                            default:
+                                // console.info('has more than 1 answer');
+
+                                query_rule = '#'+active_rule+' .answer_select';
+                                var form_ctls_options_required = dojo.query(query_rule);
+
+                                for(var u=0;u < form_ctls_options_required.length; u++){
+                                    if(form_ctls_options_required[u].checked){
+                                        options_required.push(form_ctls_options_required[u].value);
+                                    }
+                                }
+                            break;
+                        }
+                        // Operator
+                        var operator = 'and';
+                        /*
+                        if(i > 0 ){
+                           operator = dojo.query('#'+rule_id+'-condition')[0].value;
+                        }
+                        */
+                        // Build Rule Object
+                        p_b_rule = {};
+                        p_b_rule.Question = qid;
+                        p_b_rule.Answered = answered;
+                        p_b_rule.Operator = operator;
+                        p_b_rule.Answer = answer_required;
+                        if(answered){
+                           p_b_rule.OptionsRequired = options_required;
+                        }
+                        page_branching_rules[active_rule] = p_b_rule;
+                    }
+                    dojo.byId('branching_operation').value = 'save';
+                    dojo.byId('operation_data').value = create_page_branching_xml();
+                    var compOpData = dojo.byId('operation_data').value;
+                    var conditions = dojo.query('#s_branching_then_combo_container')[0].value+'|';
+                    conditions += dojo.query('#s_branching_else_combo_container')[0].value+'|';
+                    conditions += CurrentPageId+'|';
+                    conditions += SurveyData.Id;
+                    dojo.byId('page_branching_options').value = conditions;
+                    savePageBranchingOperation('save', compOpData, conditions, undoData);
+                 }else{
+                    alert('{!$Label.timbasurveys_branchingJS_one_or}.');
+                    page_branching_overlay.hide();
+                 }
+            }
+        }
+
+        function savePageBranchingCompleted(success, stage, undoData, compOpData, error){
+            if (success){
+                //if data is diferent before and after of click in done add to the undo
+                if(undoData != compOpData){
+                    var undoAction = {};
+                    undoAction.method = 'pageBranching';
+                    undoAction.page_branching_options = undoConditions;
+                    undoAction.operation_data = undoData;
+                    undoActions.push(undoAction);
+                }
+                var renew_page_branching_rules_undo = {};
+                page_branching_rules_undo = renew_page_branching_rules_undo;
+            }else{
+                alert(error);
+            }
+            page_branching_overlay.hide();
+            dijit.byId('page_branching').hide();
+        }
+
+        //this function save the config of the page branching before click in done
+        function undo_s_branching__save_page_branching(){
+
+            var q_rules = dojo.query('#page_branching .pbQC');
+            var isValid = true;
+            var rules_qids = [];
+
+            // first check if the rules are ok
+            for(var i=0; i < q_rules.length ; i++){
+
+                var active_rule = q_rules[i].id;
+                query_rule = '#'+active_rule+' .questionOptions';
+                var qid = (dojo.query(query_rule)[0].value).split('|')[0];
+
+                var filteredArr = dojo.filter(rules_qids, function(item) {
+                         return item == qid;
+                });
+
+                if(filteredArr.length > 0){
+                    isValid = false;
+                    break;
+                } else {
+                    rules_qids.push(qid);
+                }
+
+            }
+
+            if(isValid){
+                for(var i=0; i < q_rules.length ; i++){
+
+                    var active_rule = q_rules[i].id;
+
+                    // Get rule id
+                    var query_rule = '#'+active_rule+' .rule_id';
+                    var rule_id = dojo.query(query_rule)[0].value;
+
+                    // Get question id
+                    query_rule = '#'+active_rule+' .questionOptions';
+                    var qid = (dojo.query(query_rule)[0].value).split('|')[0];
+
+
+
+                    // Need to be answered or not?
+                    query_rule = '#'+active_rule+' .has_answer';
+                    var answered = dojo.query(query_rule)[0].checked;
+
+                    // Options required
+
+                    var options_required = [];
+
+                    var answer_required = '';
+
+                    // console.info(Survey[qid].QuestionType);
+                    switch(Survey[qid].QuestionType){
+                        case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                        case SurveyEnviroment.Picklist:
+                        case SurveyEnviroment.SingleTextbox:
+
+                            // console.info('has single answer');
+                            // Ask for the checkbox that activates the selected option..
+                            query_rule = '#'+active_rule+' .check';
+                            var form_ctls_options_required = dojo.query(query_rule);
+
+                            // console.info(form_ctls_options_required);
+                            if(form_ctls_options_required[0] != null){
+                                //////////
+                                /// If is a single textbox
+                                // we require a specific answer
+                                if(Survey[qid].QuestionType == SurveyEnviroment.SingleTextbox){
+                                    if(form_ctls_options_required[0].checked){
+
+                                        // console.info('Checking the answer required');
+
+                                        query_rule = '#'+active_rule+' .answer_select';
+
+                                        var form_input_required_answer = dojo.query(query_rule);
+
+                                        if(form_input_required_answer[0] != null){
+                                            answer_required = form_input_required_answer[0].value;
+                                        }
+
+                                        // console.info('answer required:',answer_required);
+
+                                    }
+                                }else{
+                                ///////////////
+                                //
+                                    if(form_ctls_options_required[0].checked){
+
+                                        // console.info('Checking the options required');
+
+                                        // Get selected options in this cases
+                                        query_rule = '#'+active_rule+' .answer_select';
+
+                                        var form_ctls_options_selected = dojo.query(query_rule);
+
+                                        for(var u=0;u < form_ctls_options_selected.length; u++){
+                                            options_required.push(form_ctls_options_selected[u].value);
+                                        }
+                                    }
+                                }
+                            }
+                        break;
+                        default:
+                            // console.info('has more than 1 answer');
+
+                            query_rule = '#'+active_rule+' .answer_select';
+                            var form_ctls_options_required = dojo.query(query_rule);
+
+                            for(var u=0;u < form_ctls_options_required.length; u++){
+                                if(form_ctls_options_required[u].checked){
+                                    options_required.push(form_ctls_options_required[u].value);
+                                }
+                            }
+                        break;
+                    }
+
+                    // Operator
+                    var operator = 'and';
+                    /*
+                    if(i > 0 ){
+                       operator = dojo.query('#'+rule_id+'-condition')[0].value;
+                    }
+                    */
+                    // Build Rule Object
+                    p_b_rule = {};
+                    p_b_rule.Question = qid;
+                    p_b_rule.Answered = answered;
+                    p_b_rule.Operator = operator;
+                    p_b_rule.Answer = answer_required;
+
+                    if(answered){
+                       p_b_rule.OptionsRequired = options_required;
+                    }
+
+                    page_branching_rules_undo[active_rule] = p_b_rule;
+
+                }
+            }
+
+            //console.log(create_page_branching_xml_Undo());
+
+            undoConditions = dojo.query('#s_branching_then_combo_container')[0].value+'|';
+            undoConditions += dojo.query('#s_branching_else_combo_container')[0].value+'|';
+            undoConditions += CurrentPageId+'|';
+            undoConditions += SurveyData.Id;
+
+            undoData = create_page_branching_xml_Undo();
+        }
+
+        /**
+        * Create Page Branching XML
+        */
+        function create_page_branching_xml(){
+
+            var pagebranchingXML = '<?xml version="1.0" encoding="UTF-8" ?><page_branching_rules>';
+
+            for(property in page_branching_rules){
+
+                p_b_rule = page_branching_rules[property];
+                pagebranchingXML += '<rule>';
+                pagebranchingXML += '<question_id>'+p_b_rule.Question+'</question_id>';
+                pagebranchingXML += '<answer>'+entity.encode(p_b_rule.Answer)+'</answer>';
+                pagebranchingXML += '<answered>'+p_b_rule.Answered+'</answered>';
+                pagebranchingXML += '<question_type>'+Survey[p_b_rule.Question].QuestionType+'</question_type>';
+                pagebranchingXML += '<operator>'+p_b_rule.Operator+'</operator>';
+                if(p_b_rule.Answered){
+                    if(p_b_rule.OptionsRequired != null){
+
+                        pagebranchingXML += '<options_required>';
+
+                        var counter = 0;
+                        var options = '';
+
+                        for(i = 0 ; i < p_b_rule.OptionsRequired.length; i++ ){
+                            options += p_b_rule.OptionsRequired[i]+'|';
+                            counter++;
+                        }
+
+                        pagebranchingXML += options;
+                        pagebranchingXML += '</options_required>';
+                    }
+                }
+                pagebranchingXML += '</rule>';
+
+            }
+            pagebranchingXML += '</page_branching_rules>';
+
+            return pagebranchingXML;
+        }
+
+        /**
+        * Create Page Branching XML for Undo
+        */
+        function create_page_branching_xml_Undo(){
+
+            var pagebranchingXML = '<?xml version="1.0" encoding="UTF-8" ?><page_branching_rules>';
+
+            for(property in page_branching_rules_undo){
+
+                p_b_rule = page_branching_rules_undo[property];
+                pagebranchingXML += '<rule>';
+                pagebranchingXML += '<question_id>'+p_b_rule.Question+'</question_id>';
+                pagebranchingXML += '<answer>'+entity.encode(p_b_rule.Answer)+'</answer>';
+                pagebranchingXML += '<answered>'+p_b_rule.Answered+'</answered>';
+                pagebranchingXML += '<question_type>'+Survey[p_b_rule.Question].QuestionType+'</question_type>';
+                pagebranchingXML += '<operator>'+p_b_rule.Operator+'</operator>';
+                if(p_b_rule.Answered){
+                    if(p_b_rule.OptionsRequired != null){
+
+                        pagebranchingXML += '<options_required>';
+
+                        var counter = 0;
+                        var options = '';
+
+                        for(i = 0 ; i < p_b_rule.OptionsRequired.length; i++ ){
+                            options += p_b_rule.OptionsRequired[i]+'|';
+                            counter++;
+                        }
+
+                        pagebranchingXML += options;
+                        pagebranchingXML += '</options_required>';
+                    }
+                }
+                pagebranchingXML += '</rule>';
+
+            }
+            pagebranchingXML += '</page_branching_rules>';
+
+            return pagebranchingXML;
+        }
+
+        /**
+        * Clear Page Branching and renew existing model
+        */
+        function clear_page_branching_rules(){
+            if(confirm('{!$Label.timbasurveys_branchingJS_are_u_sure_all_rules}')){
+                //page_branching_overlay.show();
+
+                page_branching_rules_counter = 0;
+
+                var elems = dojo.query('#page_branching .pbQC');
+                for (var i = elems.length - 1; i >= 0; i--){
+                    dojo.destroy(elems[i]);
+                };
+
+
+                new_branching_rules = {};
+                page_branching_rules = new_branching_rules;
+
+                // do the call
+                /*
+                    clearPageBranchingRulesOperation('clear', CurrentPageId);
+                */
+            }
+        }
+
+        function clearPageBranchingRulesCompleted(success){
+            if(success == false){
+                alert(response.exception);
+            }
+        }
+
+        /**
+        * Cancel Page Branching and delete existing model
+        */
+        function cancel_page_branching(){
+            if(confirm('{!$Label.timbasurveys_branchingJS_are_u_sure_not_saved_rules}')){
+                empty_p_branching();
+
+                page_branching.hide();
+            }
+        }
+
+
+        /*
+        Empty page branching container
+        */
+        function empty_p_branching(){
+
+            page_branching_rules_counter = 0;
+
+            new_branching_rules = {};
+            page_branching_rules = new_branching_rules;
+
+            for(q in Survey){
+                availablequestions_for_p_branching.push(q);
+            }
+
+            var elems = dojo.query('#page_branching .pbQC');
+            for (var i = elems.length - 1; i >= 0; i--){
+                dojo.destroy(elems[i]);
+            };
+
+        }
+
+        function change(op, id){
+            var chck = dojo.query('#' + id + ' > .check')[0];
+            var sele = dojo.query('#' + id + ' > .pg_selection_res > .answer_select')[0];
+            if(op){
+                chck.disabled=false;
+                sele.disabled=false;
+            }else{
+                chck.disabled=true;
+                sele.disabled=true;
+            }
+        }
+
+
+    </script>
+    <style type="text/css">
+        #locBranBtnClose {
+            color: #A8211B;
+        }
+
+        .s_branching__dialog_content {
+            background:white;
+        }
+
+        #list_page_branching_container {
+            height:300px;
+        }
+
+            #question_branching ul.layout_spacer,
+        #question_branching ul.layout_spacer li,
+        #page_branching ul.layout_spacer,
+        #page_branching ul.layout_spacer li {
+          margin:0;
+          padding:0;
+          list-style:none;
+        }
+
+        #question_branching ul.layout_spacer li,
+        #page_branching ul.layout_spacer li {
+          margin-bottom:10px;
+        }
+
+        /* Branching overlay styles */
+
+        .s_branching__dialog_content {
+            width:450px;
+
+            padding-right:5px;
+            clear:both;
+            overflow:auto;
+        }
+
+        .s_branching__dialog_content .q_condition {
+            border-top:2px solid #CCCCCC;
+            left: expression( document.body.scrollLeft + 'px' );
+            top: expression( document.body.scrollTop + 'px' );
+
+        }
+
+        .s_branching__dialog_content .q_condition .remove_branching_rule {
+            left: expression( document.body.scrollLeft + 'px' );
+            top: expression( document.body.scrollTop + 'px' );
+
+
+        }
+
+        .s_branching__dialog_content .operator {
+            background:#AEBCD0;
+            padding:5px 0 !important;
+            text-align:center;
+        }
+
+        .s_branching__dialog_content .condition_headers {
+            width:100%;
+            height:30px;
+            clear:both;
+        }
+
+        .s_branching__dialog_content .condition_headers .if_question,
+        .s_branching__dialog_content .condition_headers .meet_condition {
+            background:#ACB1C1;
+            color:#FFFFFF;
+            font-weight:bold;
+        }
+
+
+        .s_branching___dialog_content .no_border {
+            border:none !important;
+        }
+        .s_branching__dialog_content .if_question {
+            width:50%;
+            float:left;
+            height:20px;
+            border:1px solid #FFFFFF;
+            text-align:center;
+            padding:6px 0;
+        }
+
+        .s_branching__dialog_content .sub_condition_options {
+            text-align:center;
+            clear:both;
+        }
+
+        .s_branching__dialog_content .clear_ruler{
+            border-top:1px solid #CCCCCC;
+            clear:both;
+            padding-top:5px;
+        }
+
+        .s_branching__dialog_content .meet_condition {
+            width:43%;
+            text-align:center;
+            height:20px;
+            border:1px solid #FFFFFF;
+            float:left;
+            padding:6px 0;
+        }
+
+        .buttons_s_branching {
+            text-align:center;
+        }
+
+        .question_container {
+            overflow:auto;
+            height:100px;
+            width:430px;
+        }
+
+        .question_list_container {
+            overflow:auto;
+            width:430px;
+            height:100px;
+        }
+
+    </style>
+    <div style="display: none;">
+        <!--
+            Question Branching Dialog.
+        -->
+        <div id="question_branching" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_Branching_Question_Branching}" data-dojo-id="question_branching_dialog" style="width:450px;">
+            <div class="s_branching__dialog_content">
+                <br />
+                <div class="available_options">
+                    <input type="radio" value="true" name="answered" id="q_branching_has_answer"  />{!$Label.timbasurveys_branchingJS_if_the_question_has_answer}<br />
+                    <input type="radio" value="false" name="answered" checked="checked" /> {!$Label.timbasurveys_branchingJS_if_the_question_has_left} <br />
+                </div>
+                <br />
+                <div id="q_branching_required_answer_input_container" style="display:none;">
+                    <input type="checkbox" id="q_branching_required_answer_value" onclick="s_branching__check_visibility(this,'required_answer_value');" />
+                    <label for="q_branching_required_answer_input">{!$Label.timbasurveys_branchingJS_answer_equals} :</label>
+                    <br />
+                    <input type="text" id="q_branching_required_answer_input" disabled="disabled"/>
+                </div>
+                <br />
+                <div class="question_container" id="question_list_container"></div>
+                <br />
+
+                <button data-dojo-type="dijit.form.Button" onclick="s_branching__save_question_branch()">{!$Label.timbasurveys_branchingJS_create_branching}</button>
+                <button data-dojo-type="dijit.form.Button"  onclick="question_branching_dialog.hide();" >{!$Label.timbasurvey_surveylist_cancel}</button>
+
+            </div>
+        </div>
+
+
+        <!--
+            Option Branching Dialog.
+        -->
+
+        <div id="option_branching" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_Branching_Option_Branching}" data-dojo-id="option_branching_dialog" style="width:590px;">
+            <div class="marginoutBran">
+                <div class="containerMain">
+                    <div class="datacontainer">
+
+                        <div class="containersingle">
+                            <span class="titlemainquestions toptitle" id="currentOptBranch"></span>
+                        </div>
+
+                        <div class="locBranQuestionContainer">
+
+
+                        </div>
+
+                        <div class="containersingle">
+                            <button id="locBranAddNewQuestion" class="surveyButton" style="height: 32px; padding: 3px;" ><img class="vertmid" alt="" src="{!URLFOR($Resource.SurveyResources2,'img/icons/add.png')}" />{!$Label.timbasurveys_002surveyDesigner_addQuestion}</button>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="container">
+                    <div class="floatleft">
+                        <button id="locBranBtnClose" class="surveyButton" style="height: 32px; padding: 3px;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/delete.png')}" /> {!$Label.timbasurveys_002surveyDesigner_Cancel}</button>
+                    </div>
+                    <div class="floatright">
+                        <button id="locBranBtnSave" class="surveyButton" style="height: 32px; padding: 3px;"><img src="{!URLFOR($Resource.SurveyResources2, 'img/shared/checkicon.png')}" />{!$Label.timbasurveys_002surveyDesigner_Save}</button>
+                    </div>
+                </div>
+
+            </div>
+            <!--/\ ========================= /\-->
+
+
+            <div class="s_branching__dialog_content" style="display: none;">
+                <br />
+                <div class="available_options ">
+                    {!$Label.timbasurveys_branchingJS_if_this_option_selected}:
+                    <div id="options_dropdown">
+
+                    </div>
+                    <div style="display:none;">
+                        <input type="radio" value="true" name="option_answered" id="o_branching_selected" checked="checked" /> {!$Label.timbasurveys_branchingJS_if_this_option_selected}<br />
+                        <input type="radio" value="false" name="option_answered"  /> {!$Label.timbasurveys_branchingJS_if_this_option_not_selected} <br />
+                    </div>
+                </div>
+                <br />
+                <div class="question_container" id="question_list_container_at_option_dialog"></div>
+                <br />
+                <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="s_branching__save_option_branch()">{!$Label.timbasurveys_branchingJS_create_branching}</a>
+                <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="option_branching_dialog.hide();" >{!$Label.timbasurvey_surveylist_cancel}</a>
+            </div>
+        </div>
+
+
+        <!--
+            Page Branching
+         -->
+         <div data-dojo-id="page_branching_overlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'page_branching', color: 'white'"></div>
+         <div id="page_branching" data-dojo-id="page_branching" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurveys_branchingJS_page_branching}" >
+
+               <div class="pbConbtainer">
+                    <div class="pbWindowHeader">
+                        <div class="headIcon"></div>
+                        <span>{!$Label.timbasurveys_branchingJS_page_branching}</span>
+                    </div>
+
+                    <div class="pbDataDisplay">
+                        <div class="pbConditions">
+                            <div class="pbConditionsHedear">
+                                <span class="questionSpan">{!$Label.timbasurveys_branchingJS_question}</span>
+                                <span class="conditionSpan">{!$Label.timbasurveys_branchingJS_condition}</span>
+                            </div>
+                            <div class="pbConditionContainer" id="list_page_branching_rules">
+
+                            </div>
+
+                            <a href="#" class="add_rule" onclick="add_page_branching_rule(); return false;" >
+                                <img src="{!URLFOR($Resource.SurveyResources2, 'img/edition_panel/add.png')}" /> <span>{!$Label.timbasurveys_branchingJS_add_rule}</span>
+                            </a>
+
+                            <a href="#" class="rem_rule" onclick="clear_page_branching_rules(); return false;">
+                                <img src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/delete.png')}" /> <span>{!$Label.timbasurveys_branchingJS_clear_rule}</span>
+                            </a>
+
+                        </div>
+
+                        <div class="then">
+                            <img src="{!URLFOR($Resource.SurveyResources2, 'img/page_branching/then.png')}" />
+                            <span>{!$Label.timbasurveys_branchingJS_go_to_page}</span>
+                            <SELECT name="else_select" class="answer_select" id="s_branching_then_combo_container">
+                           </SELECT>
+                        </div>
+
+                        <div class="else">
+                            <img src="{!URLFOR($Resource.SurveyResources2, 'img/page_branching/else.png')}" />
+                            <span>{!$Label.timbasurveys_branchingJS_go_to_page}</span>
+                            <SELECT name="else_select" class="answer_select" id="s_branching_else_combo_container" >
+                           </SELECT>
+                        </div>
+
+
+                    </div>
+
+                    <a href="#" class="surveyButton cancel cancel_botton" onclick="cancel_page_branching();return false;">
+                        <span> <img src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/delete.png')}" /> {!$Label.timbasurvey_surveylist_cancel}</span>
+                    </a>
+
+                    <a href="#" class="done_botton" onclick="s_branching__save_page_branching(); return false;" >
+                        <img src="{!URLFOR($Resource.SurveyResources2, 'img/shared/checkicon.png')}" />
+                        <span>{!$Label.timbasurveys_surveycollect_Done}</span>
+                    </a>
+
+                </div>
+
+      </div>
+<!-- ---------------------------------------------------------------------------------------------------------- -->
+        <!--
+            Branching operations form
+        -->
+
+        <form id="branching_operations_form" name="branching_operations_form" action="" >
+            <input name="branching_operation" value=""  id="branching_operation" />
+            <input name="operation_data" value=""  id="operation_data" />
+            <input name="page_branching_options" value="" id="page_branching_options" />
+        </form>
+    </div>
+    <div style="display:none;" id="page_branching_question_template" >
+        <div class="pbQC" id="%RULE_ID%-p-branch-rule">
+            <input type="hidden" class="rule_id" value="%RULE_ID%" />
+            <div class="pbQuestion">
+                <img src="%IMG%" />
+                %QUESTION_LIST%
+            </div>
+            <div class="pbSeparator"></div>
+            <div class="pbCondition"></div>
+        </div>
+    </div>
+    <apex:outputPanel id="myStateBranchingJS" rendered="false" />
+    <apex:form id="BranchingJSActions">
+        <apex:actionFunction name="clearPageBranchingRulesOperation" oncomplete="clearPageBranchingRulesCompleted({!success})" action="{!doOperation}" rerender="myStateBranchingJS">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSpageId" value="" assignTo="{!TSpageId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="loadPageBranchingRulesOperation" oncomplete="loadPageBranchingRulesCompleted({!success},'{!TSoperationStatus}','{!error}')" action="{!doOperation}" rerender="myStateBranchingJS">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSpageBranchingOptions" value="" assignTo="{!TSpageBranchingOptions}" />
+            <apex:param name="TSpageId" value="" assignTo="{!TSpageId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="savePageBranchingOperation" oncomplete="savePageBranchingCompleted({!success},'{!TSoperationStatus}','{!undoData}', '{!TSoperationData}','{!error}')" action="{!doOperation}" rerender="myStateBranchingJS">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSoperationData" value="" assignTo="{!TSoperationData}" />
+            <apex:param name="TSpageBranchingOptions" value="" assignTo="{!TSpageBranchingOptions}" />
+            <apex:param name="undoData" value="" assignTo="{!undoData}" />
+        </apex:actionFunction>
+    </apex:form>
+</apex:page>

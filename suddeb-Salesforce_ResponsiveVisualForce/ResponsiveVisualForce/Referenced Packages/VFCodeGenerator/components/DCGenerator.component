@@ -1,0 +1,63 @@
+<apex:component controller="vfcode.DynamicCodeGeneratorController" >
+	<apex:includescript value="{!URLFOR($Resource.vfcode__DynamicVFCodeGenerator, 'DynamicVFCodeGenerator/jquery.js')}" />
+    <apex:includescript value="{!URLFOR($Resource.vfcode__DynamicVFCodeGenerator, 'DynamicVFCodeGenerator/block_ui.js')}" />
+    <input id="__sfdcSessionId" type="hidden" value="{!GETSESSIONID()}" />
+    <input id="sessionId" type="hidden" value="{!$Api.Session_ID}" />
+    <script type="text/javascript">
+        var __sfdcSessionId = '{!GETSESSIONID()}';
+    </script>
+
+    <script src="/soap/ajax/28.0/connection.js" type="text/javascript"></script>
+    <apex:stylesheet value="{!URLFOR($Resource.vfcode__DynamicVFCodeGenerator, 'DynamicVFCodeGenerator/DynamicVFcodeGenerator.css')}"/>
+	 <apex:includescript value="{!URLFOR($Resource.vfcode__DynamicVFCodeGenerator, 'DynamicVFCodeGenerator/DynamicVFcodeGenerator.js')}" />
+   
+        
+    <apex:form id="myForm">
+        <apex:actionfunction name="createPageAF" action="{!createPage}" onComplete="showMessage('{!errorMessage}')" rerender="none">
+            <apex:param name="visualforceCode" value=""/>
+        </apex:actionfunction> 
+        <apex:actionfunction name="transferFieldsAF" action="{!retrieveFields}" oncomplete="deselectSelectAllChkbxk();" rerender="FiledSection,pbButtons,layTypeSelectList">
+            <apex:param name="fields" value=""/>
+        </apex:actionfunction> 
+        <apex:pageblock title="Visualforce Code Generator" >
+            <apex:pageblocksection >
+                <apex:selectlist styleclass="form-control" id="selectObjectList" label="Select an Object" value="{!selectedObject}" size="1">
+                    <apex:selectoptions value="{!obects}" />
+                    <apex:actionsupport event="onchange" onsubmit="j$.blockUI({ message: null });" action="{!objectRecordTypes}" oncomplete="deselectSelectAllChkbxk();"  rerender="recordTypelist,FiledSection,pbButtons,layTypeSelectList"/>
+                </apex:selectlist>
+                <apex:selectlist styleclass="form-control" id="recordTypelist" label="Select a record type" disabled="{!if(recordTypes.size > 1 , false , true )}" value="{!selectedRecordType}" size="1">
+                    <apex:selectoptions value="{!recordTypes}" />
+                    <apex:actionsupport event="onchange" onsubmit="j$.blockUI({ message: null });" oncomplete="editPageFields()"  rerender="none"/>
+                </apex:selectlist>
+                <apex:selectlist styleclass="form-control" label="Select Layout Type" id="layTypeSelectList" disabled="{!if(selectedRecordType != null && selectedRecordType != ''  && selectedObject != null && selectedObject != '' , false , true )}" value="{!selectedLayoutType}" size="1">
+                    <apex:selectOption itemValue="Edit" itemLabel="Edit"/>
+                    <apex:selectOption itemValue="Detail" itemLabel="Detail"/>
+                    <apex:actionsupport event="onchange" onsubmit="j$.blockUI({ message: null });" oncomplete="editPageFields();" rerender="none"/> 
+                </apex:selectlist>
+                <apex:inputtext id="pageName" styleclass="pageName form-control" label="Visualforce page name" maxlength="40" value="{!pageName}"/>
+                <apex:inputCheckbox styleclass="largerCheckbox" id="selectAll" label="Select all fields" onchange="selectAllFields();"/>
+            </apex:pageblocksection>
+            <apex:outputpanel id="FiledSection" >
+                <apex:outputpanel rendered="{!if( allFields != null  && allFields.size > 0  , true , false)}">
+                    <apex:pageblocksection title="Fields" >
+                        <apex:repeat value="{!allFields}" var="reference">
+                            <apex:inputCheckbox styleclass="chkbx largerCheckbox" value="{!reference.selected}" onchange="deselectSelectAllChkbxk();" disabled="{!reference.selected}" label="{!reference.fieldLabel}"  />
+                        </apex:repeat>
+                    </apex:pageblocksection>
+                </apex:outputpanel>
+            </apex:outputpanel>
+            <apex:pageblockbuttons location="bottom" >
+                <apex:outputpanel id="pbButtons">
+                    <apex:commandbutton styleClass=" paginationButtons" value="Proceed" onclick="j$.blockUI({ message: null });"  action="{!proceedWithSelectedFields}" oncomplete="resultOfDescribeLayout('{!selectedObject}','{!selectedLayoutType}','{!selectedFields}' , '{!isPageExists}' , '{!nameField}' )" rendered="{!if(allFields != null && allFields.size > 0 , true , false )}" rerender="none" />
+                </apex:outputpanel>
+            </apex:pageblockbuttons>
+            <apex:pageblockbuttons location="top" >
+                <apex:outputpanel >
+                    <a style="text-decoration: none;padding: 4px 3px;color: #FFF;font-weight: bold;float: right;" href="/apex/Thankyou" target="_blank">help
+                    	<img src="http://icons.iconarchive.com/icons/xenatt/the-circle/16/App-Help-icon.png" alt="Briskminds Software Solutions"/>
+                    </a>
+                </apex:outputpanel>
+            </apex:pageblockbuttons>
+        </apex:pageblock>
+    </apex:form>
+</apex:component>

@@ -1,0 +1,634 @@
+<apex:page controller="lmscons.SearchCatalog" showHeader="false" sideBar="false">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>{!$Label.SearchCatalog_Title}</title>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSearch, 'js/jquery.js')}"/>
+<!--
+<apex:includeScript value="{!URLFOR($Resource.LMSSearch, 'js/lms-search.js')}"/>
+-->
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSearch, 'js/lightbox.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSearch, 'js/lightbox.js')}"/>
+
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__LMSSearch, 'css/search-catalog.css')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__LMSSearch, 'css/lms-lightbox.css')}"/>
+
+<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+<link rel="stylesheet" type="text/css" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css" />
+
+<style type="text/css">
+    .menuButton, #phSearchContainer {//z-index:0}
+</style>
+
+<script type="text/javascript">
+    var overlay;
+    var lightbox;
+
+    var isenroll = 0;
+
+    jQuery.noConflict();
+
+    InitPage();
+    InitLightbox();
+
+    jQuery(document).ready(function() {
+        //jQuery('[id$="DueDateId"]').val('').parent().hide();
+        overlay = jQuery('.b-overlay');
+        lightbox = jQuery('.b-lightbox');
+
+        jQuery.fn.center = function(parent) {
+            if (parent) {
+                parent = this.parent();
+            }
+            else {
+                parent = window;
+            }
+
+            this.css({
+                "position": "absolute",
+                "top": ((($(parent).height() - this.outerHeight()) / 3) + $(parent).scrollTop() + "px"),
+                //"left": ((($(parent).width() - this.outerWidth())) / 1.5 + $(parent).scrollLeft() + "px")
+            });
+
+            return this;
+        }
+
+
+    });
+
+    function closepopup() {
+        //window.opener.closesearch();
+        parent.closesearch();
+    }
+
+    function showDueDate(){
+        jQuery('[id$="DueDateId"]').parent().toggle();
+    }
+
+    function Lightbox() {
+        jQuery('[id$="DueDateId"]').val('').parent().hide();
+        jQuery('[id*=selectall]').attr('checked', false);
+
+        //b-lightbox
+
+
+        lightbox.fadeIn('fast');
+        overlay
+            .height( 1000 )
+            .css('opacity','0.6')
+            .fadeIn('fast');
+        jQuery(".b-lightbox").center();
+        return false;
+    }
+
+    function Closelightbox() {
+        lightbox.fadeOut('fast');
+        overlay.fadeOut('fast');
+
+    }
+
+    function handleKeyPress(e) {
+        var eventInstance = window.event ? event : e;
+        var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+        if (keyCode == 13){
+            dosearch();
+            return false;
+        }
+    }
+
+    function closec() {
+        //window.opener.focus()
+    }
+
+    function refreshc() {
+        //self.scrollTo(0, 0)
+        //window.opener.redirectWindow();
+        //InitPage();
+    }
+
+    window.onbeforeunload = function() {
+        //closec();
+    }
+
+    function AssignTraining(asgn, tp) {
+        overlay = jQuery('.b-overlay');
+        lightbox = jQuery('.b-lightbox');
+
+        assign_train(asgn, tp);
+    }
+
+    function EnrollContent(asgn) {
+        enroll_content(asgn);
+    }
+
+    function init_page() {
+        InitPage();
+        //InitLightbox();
+    }
+
+
+    function InitPage() {
+
+        jQuery(document).ready(function(){
+
+
+            jQuery('.m-tbl').find('table.m-hide').parent().parent().addClass('m-hide');
+            jQuery('.m-tbl').find('table.m-hide').parent().parent().attr('style', 'display: table-row;');
+            jQuery('.m-tbl').find('table.m-hide').removeClass('m-hide');
+
+            TabToggler();
+            SearchToggler();
+            HideShowRowsToggler();
+
+            /* last/first child */
+            jQuery('.m-tbl th:first-child,.m-tbl td:first-child').addClass('m-first');
+            jQuery('.m-tbl th:last-child, .m-tbl td:last-child, .m-first-level tr:last-child').addClass('m-last');
+            jQuery('.m-first-level .m-second-level').parent().closest('td.m-first-level').addClass('m-no-bord');
+
+            /* chrome/safari fix */
+            jQuery('.b-results .m-tbl tr td:nth-child(2)').addClass('m-auto-width');
+
+        });
+    }
+
+    /* Login Toggler */
+    function SearchToggler()
+    {
+        /*jQuery('.b-search .b-advanced-box').hide();
+
+        jQuery('.b-search .b-advanced-link .m-toggle-link').click(function(){
+            jQuery('.b-search .b-advanced-link .m-toggle-link').toggleClass('m-open');
+            jQuery('.b-search .b-advanced-box').toggle();
+        });
+        */
+    }
+
+
+    /* Toggler */
+    function TabToggler()
+    {
+        jQuery('.b-tab-bodies .b-tab-body').hide();
+        jQuery('.b-tab-bodies .b-tab-body:first-child').show();
+        jQuery('.b-tabs .b-tab:first-child').addClass('m-active');
+
+        var tabs = $('.b-tabs .b-tab');
+        var tabBodies = $('.b-tab-bodies .b-tab-body');
+        var activeTabIndex = 0;
+
+        tabs.click(function(){
+            if (tabs.index(this) != activeTabIndex ) {
+                tabs.removeClass('m-active');
+
+                jQuery(this).addClass('m-active');
+                tabBodies.hide();
+
+                if ($.browser.msie) {
+                    tabBodies.eq( tabs.index(this) ).show();
+                }
+                else {
+                    tabBodies.eq( tabs.index(this) ).fadeIn();
+                }
+
+                activeTabIndex = tabs.index(this);
+            };
+        });
+    }
+
+
+    /* Hide/Show toggler */
+    function HideShowRowsToggler() {
+        jQuery('.m-hide').hide();
+        jQuery('.m-close').click( function() {
+            jQuery(this).parent('tr').next('tr.m-hide').toggle();
+            jQuery(this).toggleClass('m-open');
+        });
+
+        jQuery('.m-plus').click( function() {
+            jQuery(this).parent('tr').next('tr.m-hide').toggle();
+            jQuery(this).toggleClass('m-minus');
+        });
+
+    }
+
+
+    </script>
+
+
+</head>
+    <body>
+
+
+
+        <apex:outputpanel id="whole">
+
+            <apex:actionStatus id="while_assign" onstop="Lightbox()">
+            <apex:facet name="start">
+                <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="1" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+            </apex:facet>
+            </apex:actionStatus>
+
+
+            <apex:actionStatus id="status2">
+            <apex:facet name="start">
+                <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="1" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+            </apex:facet>
+            </apex:actionStatus>
+
+
+            <div class="h-base">
+                <br/>
+                <apex:form id="frm">
+                <apex:pageMessages id="messages" ></apex:pageMessages>
+                    <div class="l-content">
+                        <div class="b-search-catalog">
+                            <div class="b-search">
+                                <div class="m-cfix">
+                                    <div class="b-search-controls">
+                                        <apex:inputText id="SearchKeyWord" value="{!searchKeyWord}" maxlength="200" style="width:400px;font-size:8pt" onkeypress="return handleKeyPress(event)"></apex:inputText>
+
+
+
+
+                                        <apex:actionFunction name="dosearch" action="{!SearchCoursesModules2}" oncomplete="init_page()" status="loadStatus" reRender="whole" />
+
+                                        <apex:actionFunction name="ToggleSearch" action="{!ToggleSearch}" oncomplete="init_page()" status="loadStatus" reRender="whole" />
+
+                                        <apex:actionFunction name="SortCol" action="{!SortCol}" oncomplete="init_page()" status="loadStatus" reRender="whole">
+                                            <apex:param name="snd1" value="" assignTo="{!SortColumnNumber}"/>
+                                        </apex:actionFunction>
+
+                                        <a class="b-btn" href="JavaScript:dosearch()"><span class="b-icon">&nbsp;</span>{!$Label.ConsumerUser_value_Search}</a>
+                                        <apex:actionStatus id="loadStatus">
+                                            <apex:facet name="start">
+                                                <apex:image url="/img/loading.gif" />
+                                            </apex:facet>
+                                        </apex:actionStatus>
+                                    </div>
+                                    <div class="b-checkbox">
+                                        <apex:inputCheckbox value="{!Search_Description}"/>
+                                        <label for="description">{!$Label.SearchCatalog_Search_Description}</label>
+                                    </div>
+                                    <div class="b-advanced-link">
+                                        <a href="javascript:ToggleSearch()" class="m-toggle-link">{!$Label.SearchCatalog_Advanced_Search}</a>
+                                    </div>
+                                </div>
+                                <apex:outputPanel layout="block" styleclass="b-advanced-box" rendered="{!AdvancedSearch = true}">
+                                    <div class="b-box">
+                                        <apex:inputCheckbox value="{!Search_Module}"/>
+                                        <label for="option1">{!$Label.SearchCatalog_Modules}</label>&nbsp;
+                                    </div>
+                                    <div class="b-box">
+                                        <apex:inputCheckbox value="{!Search_Course}"/>
+                                        <label for="option2">{!$Label.SearchCatalog_Courses}</label>
+                                    </div>
+                                    <div class="b-box">
+                                        <apex:inputCheckbox value="{!Search_LP}"/>
+                                        <label for="option3">{!$Label.SearchCatalog_LearningPaths}</label>&nbsp;
+                                    </div>
+                                    <div class="b-box">
+                                        <apex:inputCheckbox value="{!Search_Curr}"/>
+                                        <label for="option4">{!$Label.SearchCatalog_Curriculums}</label>
+                                    </div>
+                                </apex:outputPanel>
+                            </div>
+
+                        <apex:outputpanel layout="block" rendered="{!SearchItem.size = 0}"><br/>No results found. Please search again.</apex:outputpanel>
+
+                            <div class="b-results">
+
+                            <apex:outputpanel id="b1" layout="none" rendered="{!SearchItem.size > 0}">
+                                <table width="100%" cellpadding="0" cellspacing="0" class="m-tbl">
+                                    <thead>
+                                        <tr>
+                                            <th width="278"><a href="JavaScript:SortCol('1');" class="{!IF(SortColumnNumber == '1' && AscDesc == true, 'm-sort2', '')}{!IF(SortColumnNumber == '1' && AscDesc == false, 'm-sort1', '')}">{!$Label.SearchCatalog_Column_Title}</a></th>
+                                            <th><a href="JavaScript:SortCol('2');" class="{!IF(SortColumnNumber == '2' && AscDesc == true, 'm-sort2', '')}{!IF(SortColumnNumber == '2' && AscDesc == false, 'm-sort1', '')}">{!$Label.SearchCatalog_Column_Description}</a></th>
+                                            <th width="100">{!$Label.SearchCatalog_Column_Type}</th>
+                                            <th width="32" class="m-right">{!$Label.SearchCatalog_Column_Items}</th>
+                                            <th width="120" class="m-count">{!SearchItem.size} {!$Label.SearchCatalog_Column_Results}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <apex:repeat value="{!SearchItem}" var="s" id="rep">
+
+                <!-------------------------- MODULES ---------------------------------->
+
+                                            <apex:outputpanel rendered="{!s.Type = 'Module'}" layout="none">
+                                                <tr>
+                                                    <td width="278" class="m-first">{!s.Module.Title}</td>
+                                                    <td>{!HTMLENCODE(s.Module.Description)}</td>
+                                                    <td width="100">{!s.Type}</td>
+                                                    <td width="32" class="m-right">1</td>
+                                                    <td width="120" class="m-right">
+                                                        <apex:outputpanel rendered="{!s.Module.ShowEnroll = true}" layout="none" >
+                                                            <a href="JavaScript:EnrollContent('{!s.Module.ItemId}');" class="b-btn">{!$Label.SearchCatalog_Enroll}</a>
+                                                        </apex:outputpanel>
+
+                                                        <apex:outputpanel rendered="{!IsManager = true}" layout="none" >
+                                                            <a href="JavaScript:AssignTraining('{!s.Module.ItemId}','{!s.Type}');" class="b-btn">{!$Label.SearchCatalog_Assign}</a>
+                                                        </apex:outputpanel>
+                                                    </td>
+                                                </tr>
+                                            </apex:outputpanel>
+
+
+                    <!-------------------------- COURSES ---------------------------------->
+
+
+                                            <apex:outputpanel rendered="{!s.Type = 'Course'}" layout="none" id="m2">
+                                                <tr>
+                                                    <td width="278" class="m-plus m-first">{!s.Module.Title} </td>
+                                                    <td>{!HTMLENCODE(s.Module.Description)}</td>
+                                                    <td width="100">{!s.Type}</td>
+                                                    <td width="32" class="m-right">{!s.Modules.size}</td>
+                                                    <td width="120" class="m-right">
+                                                        <apex:outputpanel rendered="{!s.Module.ShowEnroll = true}" layout="none" >
+                                                            <a href="JavaScript:EnrollContent('{!s.Module.ItemId}');" class="b-btn">{!$Label.SearchCatalog_Enroll}</a>
+                                                        </apex:outputpanel>
+                                                        <apex:outputpanel rendered="{!IsManager = true}" layout="none" >
+                                                            <a href="JavaScript:AssignTraining('{!s.Module.ItemId}','{!s.Type}');" class="b-btn">{!$Label.SearchCatalog_Assign}</a>
+                                                        </apex:outputpanel>
+                                                    </td>
+                                                </tr>
+
+                                                <tr class="m-hide">
+                                                    <td class="m-hide-tbl m-first-level" colspan="5">
+                                                        <table width="100%" cellspacing="0" cellpadding="0">
+                                                            <tbody>
+                                                                <apex:repeat value="{!s.Modules}" var="m">
+                                                                <tr>
+                                                                    <td width="263" >{!m.Title}</td>
+                                                                    <td>{!HTMLENCODE(m.Description)}</td>
+                                                                    <td width="100">{!m.Type}</td>
+                                                                    <td width="32" class="m-right">1</td>
+                                                                    <td width="120" class="m-right">&nbsp;</td>
+                                                                </tr>
+                                                                </apex:repeat>
+                                                            </tbody>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </apex:outputpanel>
+
+                    <!-------------------------- LEARNING PATHS ---------------------------------->
+
+                                            <apex:outputpanel rendered="{!s.Type = 'Learning Path'}" layout="none" id="m3">
+                                                <tr>
+                                                    <td width="278" class="m-plus">{!s.Module.Title}</td>
+                                                    <td>{!HTMLENCODE(s.Module.Description)}</td>
+                                                    <td width="100">{!s.Type}</td>
+                                                    <td width="32" class="m-right">{!s.Courses.size}</td>
+                                                    <td width="120" class="m-right">
+
+                                                        <apex:outputpanel rendered="{!s.Module.ShowEnroll = true}" layout="none" >
+                                                            <a href="JavaScript:EnrollContent('{!s.Module.ItemId}');" class="b-btn">{!$Label.SearchCatalog_Enroll}</a>
+                                                        </apex:outputpanel>
+                                                        <apex:outputpanel rendered="{!IsManager = true}" layout="none" >
+                                                            <a href="JavaScript:AssignTraining('{!s.Module.ItemId}','{!s.Type}');" class="b-btn">{!$Label.SearchCatalog_Assign}</a>
+                                                        </apex:outputpanel>
+                                                    </td>
+                                                </tr>
+
+                                                <tr class="m-hide">
+                                                    <td class="m-hide-tbl m-first-level" colspan="5">
+                                                        <table width="100%" cellspacing="0" cellpadding="0">
+                                                            <tbody>
+                                                                <apex:repeat value="{!s.Courses}" var="m">
+                                                                <tr>
+                                                                    <td width="263" class="m-plus">{!m.Course.Title}</td>
+                                                                    <td>{!HTMLENCODE(m.Course.Description)}</td>
+                                                                    <td width="100">{!m.Course.Type}</td>
+                                                                    <td width="32" class="m-right">{!m.Modules.size}</td>
+                                                                    <td width="120" class="m-right">&nbsp;</td>
+                                                                </tr>
+                                                                <tr class="m-hide">
+                                                                    <td class="m-hide-tbl m-second-level" colspan="5">
+                                                                        <table width="100%" cellspacing="0" cellpadding="0">
+                                                                            <tbody>
+                                                                                <apex:repeat value="{!m.Modules}" var="m1">
+                                                                                    <tr>
+                                                                                        <td width="263" >{!m1.Title}</td>
+                                                                                        <td>{!HTMLENCODE(m1.Description)}</td>
+                                                                                        <td width="100">{!m1.Type}</td>
+                                                                                        <td width="32" class="m-right">1</td>
+                                                                                        <td width="120" class="m-right">&nbsp;</td>
+                                                                                    </tr>
+                                                                                </apex:repeat>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </td>
+                                                                </tr>
+
+                                                                </apex:repeat>
+                                                                <apex:repeat value="{!s.Modules}" var="m">
+                                                                    <tr>
+                                                                        <td width="263" >{!m.Title}</td>
+                                                                        <td>{!HTMLENCODE(m.Description)}</td>
+                                                                        <td width="100">{!m.Type}</td>
+                                                                        <td width="32" class="m-right">1</td>
+                                                                        <td width="120" class="m-right">&nbsp;</td>
+                                                                    </tr>
+                                                                </apex:repeat>
+                                                            </tbody>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </apex:outputpanel>
+
+                    <!-------------------------- CURRICULUM ---------------------------------->
+
+
+                                            <apex:outputpanel rendered="{!s.Type = 'Curriculum'}" layout="none" >
+                                                <tr>
+                                                    <td width="278" class="m-plus">{!s.Module.Title}</td>
+                                                    <td>{!HTMLENCODE(s.Module.Description)}</td>
+                                                    <td width="100">{!s.Type}</td>
+                                                    <td width="32" class="m-right">{!s.Courses.size}</td>
+                                                    <td width="120" class="m-right">
+                                                        <apex:outputpanel rendered="{!s.Module.ShowEnroll = true}" layout="none" >
+                                                            <a href="JavaScript:EnrollContent('{!s.Module.ItemId}');" class="b-btn">{!$Label.SearchCatalog_Enroll}</a>
+                                                        </apex:outputpanel>
+                                                        <apex:outputpanel rendered="{!IsManager = true}" layout="none" >
+                                                            <a href="JavaScript:AssignTraining('{!s.Module.ItemId}','{!s.Type}');" class="b-btn">{!$Label.SearchCatalog_Assign}</a>
+                                                        </apex:outputpanel>
+                                                    </td>
+                                                </tr>
+
+                                                <tr class="m-hide">
+                                                    <td class="m-hide-tbl m-first-level" colspan="5">
+                                                        <table width="100%" cellspacing="0" cellpadding="0">
+                                                            <tbody>
+                                                                <apex:repeat value="{!s.Learnpths}" var="m">
+                                                                <tr>
+                                                                    <td width="263" class="m-plus">{!m.LearnPath.Title}</td>
+                                                                    <td>{!HTMLENCODE(m.LearnPath.Description)}</td>
+                                                                    <td width="100">{!m.LearnPath.Type}</td>
+                                                                    <td width="32" class="m-right">{!m.Courses.size}</td>
+                                                                    <td width="120" class="m-right">&nbsp;</td>
+                                                                </tr>
+                                                                <tr class="m-hide">
+                                                                    <td class="m-hide-tbl m-second-level" colspan="5">
+                                                                        <table width="100%" cellspacing="0" cellpadding="0">
+                                                                            <tbody>
+                                                                                <apex:repeat value="{!m.Courses}" var="m1">
+                                                                                    <tr>
+                                                                                        <td width="263" class="m-plus">{!m1.Course.Title}</td>
+                                                                                        <td>{!HTMLENCODE(m1.Course.Description)}</td>
+                                                                                        <td width="100">{!m1.Course.Type}</td>
+                                                                                        <td width="32" class="m-right">1</td>
+                                                                                        <td width="120" class="m-right">&nbsp;</td>
+                                                                                    </tr>
+
+                                                                                    <tr class="m-hide">
+                                                                                        <td class="m-hide-tbl m-three-level" colspan="5">
+                                                                                            <table width="100%" cellspacing="0" cellpadding="0">
+                                                                                                <tbody>
+                                                                                                    <apex:repeat value="{!m1.Modules}" var="m2">
+                                                                                                    <tr>
+                                                                                                        <td width="263" >{!m2.Title}</td>
+                                                                                                        <td>{!HTMLENCODE(m2.Description)}</td>
+                                                                                                        <td width="100">{!m2.Type}</td>
+                                                                                                        <td width="32" class="m-right">1</td>
+                                                                                                        <td width="120" class="m-right">&nbsp;</td>
+                                                                                                    </tr>
+                                                                                                    </apex:repeat>
+                                                                                                </tbody>
+                                                                                            </table>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                </apex:repeat>
+                                                                                <apex:repeat value="{!m.Modules}" var="m3">
+                                                                                    <tr>
+                                                                                        <td width="263">{!m3.Title}</td>
+                                                                                        <td>{!HTMLENCODE(m3.Description)}</td>
+                                                                                        <td width="100">{!m3.Type}</td>
+                                                                                        <td width="32" class="m-right">1</td>
+                                                                                        <td width="120" class="m-right">&nbsp;</td>
+                                                                                    </tr>
+                                                                                </apex:repeat>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </td>
+                                                                </tr>
+                                                            </apex:repeat>
+
+                                                            <apex:repeat value="{!s.Courses}" var="m">
+                                                            <tr>
+                                                                <td width="263" class="m-plus">{!m.Course.Title}</td>
+                                                                <td>{!HTMLENCODE(m.Course.Description)}</td>
+                                                                <td width="100">{!m.Course.Type}</td>
+                                                                <td width="32" class="m-right">{!m.Modules.size}</td>
+                                                                <td width="120" class="m-right">&nbsp;</td>
+                                                            </tr>
+                                                            <tr class="m-hide">
+                                                                <td class="m-hide-tbl m-second-level" colspan="5">
+                                                                    <table width="100%" cellspacing="0" cellpadding="0">
+                                                                        <tbody>
+                                                                            <apex:repeat value="{!m.Modules}" var="m1">
+                                                                                <tr>
+                                                                                    <td width="263">{!m1.Title}</td>
+                                                                                    <td>{!HTMLENCODE(m1.Description)}</td>
+                                                                                    <td width="100">{!m1.Type}</td>
+                                                                                    <td width="32" class="m-right">1</td>
+                                                                                    <td width="120" class="m-right">&nbsp;</td>
+                                                                                </tr>
+                                                                            </apex:repeat>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </td>
+                                                            </tr>
+                                                        </apex:repeat>
+
+                                                        <apex:repeat value="{!s.Modules}" var="m">
+                                                            <tr>
+                                                                <td width="263" >{!m.Title}</td>
+                                                                <td>{!HTMLENCODE(m.Description)}</td>
+                                                                <td width="100">{!m.Type}</td>
+                                                                <td width="32" class="m-right">1</td>
+                                                                <td width="120" class="m-right">&nbsp;</td>
+                                                            </tr>
+                                                        </apex:repeat>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </apex:outputpanel>
+                                </apex:repeat>
+                            </tbody>
+                        </table>
+                    </apex:outputpanel>
+                </div>
+            </div>
+        </div>
+    </apex:form>
+</div>
+
+
+        <div class="b-overlay"></div>
+        <div class="b-lightbox">
+        <apex:form id="assign_form">
+        <apex:outputpanel id="ab" layout="none">
+
+            <apex:actionFunction status="while_assign" name="assign_train" action="{!RefreshAssignUser}" reRender="ab, assign_form">
+                <apex:param name="snd1" value="" assignTo="{!AssignedContentId}"/>
+                <apex:param name="snd2" value="" assignTo="{!AssignObjectType}"/>
+            </apex:actionFunction>
+
+            <apex:actionFunction name="enroll_content" oncomplete="init_page()" action="{!addToMyTraining}" status="status2" reRender="ab, assign_form, whole">
+                <apex:param name="snd1" value="" assignTo="{!idTraining}"/>
+            </apex:actionFunction>
+
+
+                <div class="b-title-bar">
+                    <div class="b-title">{!$Label.SearchCatalog_Assign_Learning}</div>
+                    <div class="b-close-btn"><a href="javascript:Closelightbox()">{!$Label.SearchCatalog_Close}</a></div>
+                </div>
+                <div class="b-content">
+                <apex:pageMessages id="messages2" ></apex:pageMessages>
+                    <div class="b-scroller">
+                        <p><strong class="m-faded">{!AsignObject.Type}:</strong> {!HTMLENCODE(AsignObject.Title)} </p>
+                        <p><strong class="m-faded">Description:</strong>  {!HTMLENCODE(AsignObject.Description)} </p>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="m-data">
+                            <thead>
+                                <tr>
+                                    <th width="20px"><apex:inputCheckbox id="selectall" selected="false" onclick="jQuery('[id*=usr_check]').attr('checked', jQuery(this).attr('checked'))" /> </th>
+                                    <th>{!$Label.SearchCatalog_Trainees}</th>
+                                    <th>{!$Label.SearchCatalog_Roles}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <apex:repeat value="{!Trainee}" var="tr">
+                                <tr>
+                                    <td> <apex:inputCheckbox value="{!tr.selected}" id="usr_check"/> </td>
+                                    <td>{!tr.user.Name}</td>
+                                    <td>{!tr.user.UserRole.Name} </td>
+                                </tr>
+                            </apex:repeat>
+                            </tbody>
+                        </table>
+
+                        <apex:outputPanel layout="block">
+                            <input type="checkbox" onclick="showDueDate()"/>
+                            {!$ObjectType.Transcript_Line__c.fields.Due_Date__c.label} &nbsp;&nbsp;&nbsp;
+                            <apex:inputField value="{!Dummy.lmscons__Due_Date__c}" id="DueDateId" />
+                        </apex:outputPanel>
+
+                        <apex:outputPanel layout="block">
+                            <apex:commandButton style="float:right;" onclick="Closelightbox()" value="{!$Label.SearchCatalog_Cancel}" />
+                            <apex:commandButton style="float:right;" action="{!AssignUsers}" oncomplete="Closelightbox()" rerender="messages" status="loadStatus2" value="{!$Label.SearchCatalog_Assign}" />
+                        </apex:outputPanel>
+                        <apex:actionStatus id="loadStatus2">
+                            <apex:facet name="start">
+                                <apex:image url="/img/loading.gif" />
+                            </apex:facet>
+                        </apex:actionStatus>
+
+
+
+                    </div>
+                </div>
+                </apex:outputpanel>
+            </apex:form>
+        </div>
+    </apex:outputpanel>
+    </body>
+</apex:page>

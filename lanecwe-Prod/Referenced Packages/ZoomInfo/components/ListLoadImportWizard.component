@@ -1,0 +1,331 @@
+<apex:component id="ListLoadImportWizard" controller="zisf.comp_ListLoadImportWizard" allowDML="true">
+   	<script type="text/JavaScript">
+        if(!String.prototype.trim) {  
+		  String.prototype.trim = function () {  
+		    return this.replace(/^\s+|\s+$/g,'');  
+		  };  
+		}
+   		var FormData = {};
+   		FormData.isShowNonMatches = false;
+   		FormData.isShowExactMatches = false;
+   		FormData.isShowPotentialMatches = false;
+   		var jImport$ = jQuery.noConflict();
+   	</script>
+    <apex:attribute name="basePageAttr"
+                  type="zisf.page_ListLoadSearch"
+                  assignTo="{!basePage}"
+                  required="true"
+                  description="The controller for the page." />
+    
+    <apex:form id="importForm">
+       	<apex:pageMessages id="pageMessages"/>
+        <apex:outputPanel id="detailsBlock" rendered="{!renderOptionScreen}" 
+        				  styleClass="wizardPanel">
+        	<div class="wizardContent">
+	            <apex:outputLabel styleClass="wizardTitle" value="Which profiles would you like to import into Salesforce?"/>
+	            <br/>
+	            <br/>
+	            <apex:outputLabel styleClass="wizardText" id="selectProfilesLabel" value="Select Profiles:"/>
+	            <apex:selectRadio styleClass="wizardText" id="selectProfiles" value="{!importTypeAsString}" layout="pageDirection" required="true" onclick="setRangeSettingsVisibility();">
+	                <apex:selectOption id="typeSelected" itemValue="SELECTED" itemLabel="Selected {!selectedCount} {!IF(selectedCount > 1,'Profiles','Profile')}" 
+	                				   itemDisabled="{!selectedCount == 0}"/>
+	                <apex:selectOption id="typeAll" itemValue="ALL" itemLabel="{!IF(maxListSize >= maxApiResultSize,'First','All')} {!maxListSize} {!IF(maxListSize > 1,'Profiles','Profile')}"/>
+	                <apex:selectOption id="typeRange" itemValue="RANGE" itemLabel="Range of Profiles"/>
+	            </apex:selectRadio>
+	            <div id="rangeSettingsDiv" style="display:none;">
+		            <br/>
+		            <apex:outputLabel styleClass="wizardSubTitle" value="What range of profiles would you like to import?"/>
+		            <br/>
+		            <br/>
+                    <apex:outputLabel id="startResultLabel" styleClass="wizardText" value="From " for="startResult"/>
+                    <apex:inputText id="startResult" value="{!startResult}" maxlength="4" size="4"/>
+                    <apex:outputLabel id="endResultLabel" value=" through " for="endResult"/>                    
+                    <apex:inputText id="endResult" value="{!endResult}" maxLength="4" size="4"/>
+	            </div>
+	            <br/>
+	            <apex:inputCheckbox id="dedupCheckbox" label="Check for potential duplicates" value="{!isCheckForMatches}"/>
+               	<apex:outputLabel styleClass="wizardText" value="Check for potential duplicates" for="dedupCheckbox"/>
+	            <br/>
+	            <br/>
+	            <apex:outputLabel id="creditNotice" styleClass="wizardSubTitle">Note: These imports will be deducted from your total number of available import credits.</apex:outputLabel>
+	            <apex:outputPanel rendered="{!pageTypeAsString == 'DO_IMPORT'}">
+	                <apex:commandButton id="loadingButton" style="visibility:hidden;"
+	                					action="{!import}" reRender="pageMessages, importWizardContainer" status="workingStatus"/>
+	                <script type="text/javascript">
+	                	document.getElementById('statusText').innerHTML = '{!statusText}';
+	                	document.getElementById('{!$Component.importForm.loadingButton}').click();
+	                </script>
+	            </apex:outputPanel>
+	            <apex:outputPanel rendered="{!pageTypeAsString == 'DEDUP'}">
+	                <apex:commandButton id="dedupButton" style="visibility:hidden;"
+	                					action="{!loadAndDedup}" reRender="pageMessages, importWizardContainer" status="workingStatus"/>
+	                <script type="text/javascript">
+	                	document.getElementById('statusText').innerHTML = '{!statusText}';
+	                	document.getElementById('{!$Component.importForm.dedupButton}').click();
+	                </script>
+	            </apex:outputPanel>
+		    </div>
+		    <script type="text/JavaScript">
+		    	var itemList = document.getElementsByName('{!$Component.importForm.selectProfiles}');
+		    	var selectedItem = itemList[0];
+		    	var allItem = itemList[1];
+		    	var rangeItem = itemList[2];
+
+		    	if (!(selectedItem.checked || allItem.checked || rangeItem.checked)) {
+		    		if (selectedItem.disabled) {
+		    			allItem.checked = true;
+		    		} else {
+		    			selectedItem.checked=true;
+		    		}
+		    	}
+		    </script>
+        </apex:outputPanel>
+        
+        <apex:outputPanel id="dedupReviewBlock" rendered="{!pageTypeAsString == 'DEDUP_DETAILS'}"
+           				  styleClass="wizardPanel">
+        	<div class="wizardContent">
+	            <apex:outputLabel styleClass="wizardTitle" value="Duplication Check Complete:"/>
+	            <br/>
+	            <br/>
+	           	<apex:outputPanel layout="block" rendered="{!totalNonMatches > 0}">
+	                <apex:outputLabel id="newProfilesLabel" value="{!totalNonMatches} New {!IF(totalNonMatches > 1,'Profiles','Profile')}"/>
+	            </apex:outputPanel>
+	            <apex:outputPanel layout="block" rendered="{!totalPotentialMatches > 0}">
+	                <apex:outputLabel id="potentialMatchesLabel" value="{!totalPotentialMatches} Potential {!IF(totalPotentialMatches > 1,'Matches','Match')}"
+	                				  onclick="setPotentialDuplicateTableVisibility();" styleClass="reviewLink"/>
+	            </apex:outputPanel>
+	            <div id="potentialMatchesTableDiv" style="display:none;">
+		            <div class="row">
+			            <span class="cell titleColumn">
+			            	<apex:outputPanel layout="block">
+			            		{!IF(importObjectTypeAsString == 'LEAD', 'Name', 'Company to Import')}
+			            	</apex:outputPanel>
+			            </span>           
+			            <span class="cell titleColumn">
+			            	<apex:outputPanel layout="block">
+			            		{!IF(importObjectTypeAsString == 'LEAD', 'Company', 'Existing Account')}
+			            	</apex:outputPanel>
+			            </span>           
+		            </div>
+		            <apex:repeat value="{!potentialMatches}" var="item" rendered="{!importObjectTypeAsString == 'LEAD'}">
+		            	<div class="row">
+				            <span class="cell nameColumn">
+								<apex:outputPanel styleClass="content" layout="block">
+									{!item.name}
+				                </apex:outputPanel>
+				            </span> 
+				            <span class="cell companyColumn">
+				            	<apex:outputPanel styleClass="content" layout="block">
+				            		{!item.company}
+				            	</apex:outputPanel>
+				            </span> 
+	       	        	</div> 
+		            </apex:repeat>
+		            <apex:repeat value="{!potentialMatches}" var="item" rendered="{!importObjectTypeAsString == 'ACCOUNT'}">
+		            	<div class="row">
+				            <span class="cell companyColumn">
+				            	<apex:outputPanel styleClass="content" layout="block">
+				            		{!item.company}
+								</apex:outputPanel>
+				            </span>           
+				            <span class="cell companyColumn">
+				            	<apex:outputPanel styleClass="content" layout="block">
+				            		{!item.account}
+								</apex:outputPanel>
+				            </span>           
+	       	        	</div> 
+		            </apex:repeat> 
+				</div>
+	            <apex:outputPanel layout="block" id="exactMatchesReviewBlock" rendered="{!totalExactMatches > 0}">
+	                <apex:outputLabel id="exactMatchesLabel" value="{!totalExactMatches} Exact {!IF(totalExactMatches > 1,'Matches','Match')}"
+	                				  onclick="setExactDuplicateTableVisibility();"	styleClass="reviewLink"/>
+	            </apex:outputPanel>
+	            <div id="exactMatchesTableDiv" style="display:none;">
+		            <div class="row">
+			            <span class="cell titleColumn">
+			            	<apex:outputPanel layout="block">
+			            		{!IF(importObjectTypeAsString == 'LEAD', 'Name', 'Company to Import')}
+			            	</apex:outputPanel>
+			            </span>           
+			            <span class="cell titleColumn">
+			            	<apex:outputPanel layout="block">
+			            		{!IF(importObjectTypeAsString == 'LEAD', 'Company', 'Existing Account')}
+			            	</apex:outputPanel>
+			            </span>           
+		            </div>
+		            <apex:repeat value="{!exactMatches}" var="item" rendered="{!importObjectTypeAsString == 'LEAD'}">
+		            	<div class="row">
+				            <span class="cell nameColumn">
+								<apex:outputPanel styleClass="content" layout="block">
+									{!item.name}
+				                </apex:outputPanel>
+				            </span> 
+				            <span class="cell companyColumn">
+				            	<apex:outputPanel styleClass="content" layout="block">
+				            		{!item.company}
+				            	</apex:outputPanel>
+				            </span> 
+	       	        	</div> 
+		            </apex:repeat> 
+		            <apex:repeat value="{!exactMatches}" var="item" rendered="{!importObjectTypeAsString == 'ACCOUNT'}">
+		            	<div class="row">
+				            <span class="cell companyColumn">
+				            	<apex:outputPanel styleClass="content" layout="block">
+				            		{!item.company}
+								</apex:outputPanel>
+				            </span>           
+	       	        	</div> 
+		            </apex:repeat> 
+	            </div>
+	            <br/>
+	            <br/>
+	            <apex:outputPanel layout="block" id="importPotentialMatchesItem" rendered="{!totalPotentialMatches > 0}">
+	                <apex:inputCheckbox id="importPotentialMatches" value="{!isImportPotentialMatches}"/>
+	                <apex:outputLabel id="importPotentialMatchesLabel" value="Import {!IF(totalPotentialMatches > 1,'All Potential Matches','Potential Match')}"/>
+	            </apex:outputPanel>
+	            <apex:outputPanel layout="block" id="importExactMatchesItem" rendered="{!totalExactMatches > 0}">
+	                <apex:inputCheckbox id="importExactMatches" value="{!isImportExactMatches}"/>
+	                <apex:outputLabel id="importExactMatchesLabel" value="Import {!IF(totalExactMatches > 1,'All Exact Matches','Exact Match')}"/>
+	            </apex:outputPanel>
+	    	</div>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="reviewBlock" rendered="{!OR(pageTypeAsString == 'REVIEW', pageTypeAsString == 'DO_IMPORT')}"
+           				  styleClass="wizardPanel">
+        	<div class="wizardContent">
+	            <apex:outputLabel value="Review Impending Imports:" styleClass="wizardTitle"/>
+	            <br/>
+	            <br/>
+	            <apex:outputPanel layout="block" id="reviewNewImports" rendered="{!totalImports > 0}">
+	                <apex:outputLabel id="reviewNewImportsLabel" value="{!summaryMessage}"/>
+	            </apex:outputPanel>
+	            <apex:outputPanel layout="block" id="reviewPotentialMatchImports" rendered="{!totalPotentialDuplicateImports > 0}">
+	                <apex:outputLabel />
+	                <apex:outputLabel id="reviewPotentialMatchImportsLabel" value="{!totalPotentialMatches} of these profiles {!IF(totalPotentialMatches > 1,'are potential matches.','is a potential match.')}"/>
+	            </apex:outputPanel>
+	            <apex:outputPanel layout="block" id="reviewExactMatchImports" rendered="{!totalExactDuplicateImports > 0}">
+	                <apex:outputLabel />
+	                <apex:outputLabel id="reviewExactMatchImportsLabel" value="{!totalExactMatches} of these profiles {!IF(totalExactMatches > 1,'are exact matches.','is an exact match.')}"/>
+	            </apex:outputPanel>
+	            <br/>
+	            <apex:outputPanel layout="block" id="reviewStatement">
+	                <apex:outputLabel />
+	                <apex:outputLabel value="A total of {!totalImports} import {!IF(totalImports > 1,'credits','credit')} will be deducted from your account. If this is correct, click the Finish button."/>
+	            </apex:outputPanel>
+                <script type="text/javascript">
+                	document.getElementById('statusText').innerHTML = 'Importing Profiles To Salesforce....';
+                </script>
+	            <apex:outputPanel rendered="{!pageTypeAsString == 'DO_IMPORT'}">
+	                <apex:commandButton id="importButton" style="visibility:hidden;"
+	                					action="{!import}" reRender="pageMessages, importWizardContainer" status="workingStatus"/>
+	                <script type="text/javascript">
+	                	document.getElementById('statusText').innerHTML = '{!statusText}';
+	                	document.getElementById('{!$Component.importForm.importButton}').click();
+	                </script>
+	            </apex:outputPanel>
+	        </div>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="confirmationBlock" rendered="{!pageTypeAsString == 'CONFIRMATION'}"
+           				  styleClass="wizardPanel">
+        	<div class="wizardContent">
+                <apex:outputPanel id="confirmationItem">
+		            <apex:outputLabel value="Final Summary:" styleClass="wizardTitle"/>
+		            <br/>
+		            <br/>
+                    <apex:outputLabel value="{!confirmationMessage}"/>
+                    <br/>
+                    <br/>
+                    <apex:outputLabel value="{!creditErrorMessage}" styleClass="errorMessage" rendered="{!NOT(ISNULL(creditErrorMessage))}"/>
+                    <br/>
+                    <br/>
+                    <apex:outputLink rendered="{!importObjectTypeAsString == 'LEAD'}" value="/00Q/o">Go to Leads</apex:outputLink>
+                    <apex:outputLink rendered="{!importObjectTypeAsString == 'ACCOUNT'}" value="/001/o">Go to Accounts</apex:outputLink>
+                    <br/>
+                    <br/>
+                    <apex:outputLink target="_blank" value="http://www.surveymonkey.com/s/V9NBYZ3">Feedback</apex:outputLink>
+                </apex:outputPanel>
+        		<br/>
+        		<br/>
+            </div>
+        </apex:outputPanel> 
+
+
+        <apex:pageBlock id="buttonBlock">
+            <apex:commandButton id="returnButton" value="Return To Search" action="{!doReturn}" rendered="{!canReturn}" rerender="pageMessages, tabPanelContainer,importWizardContainer" styleClass="wizardButton"/>
+            <apex:commandButton id="cancelButton" value="Cancel" action="{!doCancel}" disabled="{!NOT(canCancel)}" rendered="{!NOT(canReturn)}" immediate="true" rerender="pageMessages, tabPanelContainer,importWizardContainer" styleClass="wizardButton"/>
+            <apex:commandButton id="finishButton" value="Finish" action="{!doFinish}" rendered="{!canFinish}" rerender="pageMessages, importForm" status="workingStatus" styleClass="wizardButton"/>
+            <apex:commandButton id="nextButton" onclick="if (!validateBaseInput(event)) return false;" action="{!doNext}" value="Next" disabled="{!NOT(canNext)}" rendered="{!AND(NOT(canReturn),NOT(canFinish))}" rerender="pageMessages, importForm" styleClass="wizardButton"/>
+            <apex:commandButton id="backButton" value="Back" action="{!doBack}" disabled="{!NOT(canBack)}" rendered="{!NOT(canReturn)}" rerender="pageMessages, importForm" styleClass="wizardButton"/>
+        </apex:pageBlock>       
+    </apex:form>
+   	<script type="text/JavaScript">
+		function setRangeSettingsVisibility() {
+	   		FormData.rangeSettingsDiv = jImport$('[id$=rangeSettingsDiv]');
+	   		FormData.selectProfilesRange = jImport$('[id$=selectProfiles\\:2]');
+			FormData.rangeSettingsDiv[0].style.cssText = FormData.selectProfilesRange[0].checked ? '' : 'display:none;';
+		}
+		
+		function setExactMatchTableVisibility() {
+			FormData.newProfilesTableDiv = jImport$('[id$=newProfilesTableDiv]');
+			FormData.isShowNonMatches = !FormData.isShowNonMatches;
+			FormData.newProfilesTableDiv[0].style.cssText = FormData.isShowNonMatches ? '' : 'display:none;';
+		}
+		
+		function setPotentialDuplicateTableVisibility() {
+			FormData.potentialMatchesTableDiv = jImport$('[id$=potentialMatchesTableDiv]');
+			FormData.isShowPotentialMatches = !FormData.isShowPotentialMatches;
+			FormData.potentialMatchesTableDiv[0].style.cssText = FormData.isShowPotentialMatches ? '' : 'display:none;';
+		}
+		
+		function setExactDuplicateTableVisibility() {
+			FormData.exactMatchesTableDiv = jImport$('[id$=exactMatchesTableDiv]');
+			FormData.isShowExactMatches = !FormData.isShowExactMatches;
+			FormData.exactMatchesTableDiv[0].style.cssText = FormData.isShowExactMatches ? '' : 'display:none;';
+		}
+		
+		function validateBaseInput(event) {
+	   		FormData.rangeSettingsDiv = jImport$('[id$=rangeSettingsDiv]');
+	   		FormData.selectProfilesSelected = jImport$('[id$=selectProfiles\\:0]');
+	   		FormData.selectProfilesAll = jImport$('[id$=selectProfiles\\:1]');
+	   		FormData.selectProfilesRange = jImport$('[id$=selectProfiles\\:2]');
+	   		FormData.startResult = jImport$('[id$=startResult]');
+	   		FormData.endResult = jImport$('[id$=endResult]');
+	   		FormData.importPotentialMatches = jImport$('[id$=importPotentialMatches]');
+	   		FormData.importExactMatches = jImport$('[id$=importExactMatches]');
+			if ('{!pageTypeAsString}' != 'DETAILS' && '{!pageTypeAsString}' != 'DEDUP' && '{!pageTypeAsString}' != 'DEDUP_DETAILS') return true;
+			if ('{!pageTypeAsString}' == 'DETAILS') {
+				if (FormData.selectProfilesRange[0].checked && 
+					(FormData.startResult[0].value.trim() == '' || 
+					 FormData.endResult[0].value.trim() == '' || 
+					 FormData.startResult[0].value > FormData.endResult[0].value ||
+					 FormData.startResult[0].value < 1 || 
+					 FormData.endResult[0].value < 1 || 
+					 FormData.endResult[0].value > {!maxListSize} || 
+					 isNaN(FormData.startResult[0].value) || 
+					 isNaN(FormData.endResult[0].value))) {
+				   alert('Invalid range specified.');
+				   event.preventDefault();
+				   return false;
+				}
+				if (!FormData.selectProfilesRange[0].checked &&
+					!FormData.selectProfilesAll[0].checked &&
+					!FormData.selectProfilesSelected[0].checked) {
+						alert('Please select one of the profile import options.');
+	 				    event.preventDefault();
+					    return false;
+				}
+			}
+			if (('{!pageTypeAsString}' == 'DEDUP' || '{!pageTypeAsString}' == 'DEDUP_DETAILS') && {!totalNonMatches} == 0) {
+				if ((FormData.importExactMatches.length > 0 && FormData.importExactMatches[0].checked) ||
+					 (FormData.importPotentialMatches.length > 0 && FormData.importPotentialMatches[0].checked)) {
+					return true;
+				}
+				alert('Because all profiles are matches, you must select a match import to proceed. If you do not wish to import any matches, please hit Cancel.');
+			    event.preventDefault();
+			    return false;
+			}
+			return true;
+		}
+	</script>
+</apex:component>

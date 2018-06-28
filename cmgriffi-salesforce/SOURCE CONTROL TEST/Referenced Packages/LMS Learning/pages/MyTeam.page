@@ -1,0 +1,595 @@
+<apex:page controller="lmscons.MyTeam" title="{!$Label.MyTeam_Header}" sidebar="false" >
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8"/>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__MyTeam, 'js/jquery-1.6.4.js')}"/>
+<!--  <script>jQuery.noConflict();</script> -->
+<!--  apex:includeScript value="{!URLFOR($Resource.MyTeam, 'js/init.js')}"/> -->
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__MyTeam, 'css/team.css')}"/>
+
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__jquery1816min, 'jquery-ui.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery1816min, 'jquery-ui.min.js')}" />
+
+<style type="text/css">
+#tsid { z-index:200}
+
+.small-like-icon {
+	background: url("/img/chatter/likesmall.png") repeat scroll 0 0 transparent;
+	display: inline-block;
+	height: 12px;
+	margin-right: 6px;
+	width: 12px;
+}
+
+.sml {
+	font-size: 0.92em;
+	font-weight: bold;
+}
+
+.ui-widget-overlay {
+	background: #010101;
+	opacity: 0.6;
+	filter:alpha(opacity=60);
+	height:100%;
+	width:100%;
+	z-index: 1001;
+}
+
+</style>
+
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+	<apex:form id="formdraw" >
+
+
+	<apex:outputPanel id="err">
+	<h1 rendered="{!Error != ''}">{!Error}</h1>
+	</apex:outputPanel>
+
+	<apex:outputPanel rendered="{!Error = ''}" id="jsc">
+	<script type="text/javascript">
+
+	google.load("visualization", "1", {packages:["corechart"]});
+	google.setOnLoadCallback(drawChart2);
+	var current_size = {!ChatterPageSize}+1;
+	var userid = '';
+
+	function init() {
+
+		// Irina code start ---------------------------------------------------------------
+		Toggler();
+		SetHeight();
+		jQuery('.b-tabs .b-tab:first-child').addClass('m-first');
+		jQuery('.b-team-list .b-item:last-child').addClass('m-last');
+
+
+		jQuery('.b-tabs .b-tab').hover(
+			function () {jQuery(this).addClass('m-over');},
+			function () {jQuery(this).removeClass('m-over');}
+		);
+
+		jQuery('.b-tabs .b-tab.m-active:not(.m-first)').addClass('m-doc-icon');
+		jQuery('.b-tabs .b-tab.m-first:not(.m-active)').addClass('m-parent-icon');
+
+		// Irina code end ---------------------------------------------------------------
+
+		jQuery('#dialog-modal').dialog({
+			autoOpen: false,
+			width: 540,
+			height: 230,
+			modal: true,
+			resizable: false
+		});
+
+
+		jQuery('[id*="comment_click_"]').unbind('click');
+		jQuery('[id*="open_thread_"]').unbind('click');
+		jQuery('[id*="mlike_"]').unbind('click');
+
+		jQuery('[id*="comment_click_"]').click(function() {
+			var m = this.id;
+			m = m.replace(/comment_click_/ig, "");
+			//alert(jQuery('#comment_'+m).css('display'));
+			jQuery('#comment_'+m).toggle('slow');
+		});
+
+		jQuery('[id*="open_thread_"]').click(function() {
+			var m = this.id;
+			m = m.replace(/open_thread_/ig, "");
+			jQuery('#thread_comment_'+m).toggle('slow');
+		});
+
+		jQuery('[id*="mlike_"]').click(function() {
+			var m = this.id;
+			m = m.replace(/mlike_/ig, "");
+			likef(m);
+		});
+
+		jQuery('[id*="unlike_"]').click(function() {
+			var m = this.id;
+			m = m.replace(/unlike_/ig, "");
+			unlikef(m);
+		});
+
+		jQuery('[id*="trainingstatus_comment_click_"]').click(function() {
+
+			var m = this.id;
+			var person = jQuery("#"+m).text()
+
+			m = m.replace(/trainingstatus_comment_click_/ig, "");
+			userid = m;
+
+			jQuery("#frombox").html(person);
+
+			jQuery("#scm").val('');
+			jQuery("#dialog-modal").dialog('open');
+		});
+	}
+
+	function SendMesageToAll() {
+		jQuery("#scm").val('');
+		jQuery("#frombox").html('ALL');
+		userid = 'all';
+		jQuery("#dialog-modal").dialog('open');
+	}
+
+	function open_ass_popup(df) {
+
+		jQuery('#dialog-modal2').html('<iframe frameborder="0" height="600px" id="mytr_popup_frame" name="mytr_popup_frame" src="/apex/MyTrainingPopup?overrideuser='+df+'" width="100%"></iframe>');
+
+		open_assign_popup();
+		//as_pop_refr(df);
+	}
+
+	function closesearch() {
+		jQuery("#dialog-modal3").dialog('close');
+
+	}
+
+	function open_assign_popup() {
+
+		jQuery('#dialog-modal2').dialog({
+			autoOpen: false,
+			width: jQuery(window).width()*0.9,
+			height: jQuery(window).height()*0.9,
+			modal: true,
+			resizable: false
+		});
+
+
+		jQuery("#dialog-modal2").dialog('open');
+	}
+
+
+	function open_sc_popup() {
+
+		var szx = jQuery(window).width()*0.9;
+		var szy = jQuery(window).height()*0.9-100;
+
+		jQuery('#dialog-modal3').html('<iframe frameborder="0" height="'+szy+'px" id="theIframe" name="theIframe" src="/apex/SearchCatalog" width="100%"></iframe>');
+		open_search_catalog();
+	}
+
+
+	function open_search_catalog() {
+
+		jQuery('#dialog-modal3').dialog({
+			autoOpen: false,
+			width: jQuery(window).width()*0.9,
+			height: jQuery(window).height()*0.9,
+			modal: true,
+			resizable: false,
+			close: function(event, ui) {
+				RefreshPage();
+			}
+		});
+
+
+		jQuery("#dialog-modal3").dialog('open');
+	}
+
+
+
+		// Irina code start ---------------------------------------------------------------
+		function SetHeight() {
+			var tblscroll = jQuery('.b-scroll table');
+			if ( tblscroll.innerHeight() > 230) {
+					jQuery('.b-training-status .b-tbl table thead th:last-child').css({width:'32px'});
+			}
+			else {
+					jQuery('.b-training-status .b-tbl table thead th:last-child').css({width:'14px'});
+			}
+
+		}
+
+
+		/* Toggler */
+		function Toggler()
+		{
+			jQuery('.b-tab-bodies .b-tab-body').hide();
+			jQuery('.b-tab-bodies .b-tab-body:first-child').show();
+			jQuery('.b-tabs .b-tab').append('<span class="m-white-fix"></span>');
+		}
+
+		// Irina code end ---------------------------------------------------------------
+
+		function close_comment() {
+			jQuery("#dialog-modal").dialog('close');
+		}
+
+		function ShowMoreComments() {
+			var size = {!ChatterRec.size};
+			var increase = {!ChatterShowRecordsPerClick};
+
+			//alert('{!ChatterRec.size} '+(current_size+increase));
+
+			if ({!ChatterRec.size} <= (current_size+increase)) {
+				//alert('Ye!');
+				increase = {!ChatterRec.size} - current_size;
+				jQuery('#showmorelink').hide('slow');
+				}
+
+			for (i = current_size; i <= current_size+increase; i++) {
+				jQuery('#charter_'+i).show('slow');
+			}
+			current_size = current_size + increase;
+		}
+
+		function drawChart2() {
+			init();
+
+			var data = new google.visualization.DataTable();
+			data.addColumn('string', 'Task');
+			data.addColumn('number', 'Hours per Day');
+			data.addRows([
+				<apex:repeat value="{!ChData}" var="chart">
+					['{!chart.Status}', {!chart.Value}],
+				</apex:repeat>
+					['', 0]
+
+			]);
+
+			var options = {
+				width: 250, height: 250,
+				title: 'Record Count',
+				legend: {position: 'bottom'},
+				colors:[<apex:repeat value="{!Colors}" var="c" >'{!c}', </apex:repeat>]
+			};
+
+			var chart = new google.visualization.PieChart(document.getElementById('chart_div'));
+			chart.draw(data, options);
+		}
+
+		function drawchart() {
+			drawChart2();
+		}
+
+
+		function send_comment() {
+
+			var cmbody = jQuery("#scm").val();
+
+			if (cmbody.length > 0) {
+				CommitComment3(userid,cmbody);
+				close_comment();
+			}
+			else {
+				alert('Comment Body is required');
+			}
+
+
+		}
+
+
+
+	</script>
+
+	<apex:actionFunction action="{!RefreshAssignPopup}" name="as_pop_refr" rerender="formdraw2" status="loadStatus" oncomplete="open_assign_popup()">
+		<apex:param name="as_pop_refr2" assignTo="{!AsgnUsrId}" value="" />
+	</apex:actionFunction>
+
+	<apex:actionFunction action="{!RefreshPage}" name="RefreshPage" rerender="formdraw" oncomplete="drawchart()" status="loadStatus" />
+
+	<apex:actionFunction action="{!LikeFeed}" name="likef" rerender="formdraw" status="loadStatus" oncomplete="drawchart()">
+		<apex:param name="likevalue" assignTo="{!LikeValue}" value="" />
+	</apex:actionFunction>
+
+	<apex:actionFunction action="{!CommitComment3}" name="CommitComment3" rerender="formdraw" status="loadStatus" oncomplete="drawchart()">
+		<apex:param name="var1" assignTo="{!CommentTo}" value="" />
+		<apex:param name="var2" assignTo="{!Comment}" value="" />
+	</apex:actionFunction>
+
+	<apex:actionFunction action="{!UnLikeFeed}" name="unlikef" rerender="formdraw" status="loadStatus" oncomplete="drawchart()">
+		<apex:param name="likevalue" assignTo="{!LikeValue}" value="" />
+	</apex:actionFunction>
+
+	<apex:actionStatus id="loadStatus">
+		<apex:facet name="start">
+			<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699" borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif" Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+		</apex:facet>
+	</apex:actionStatus>
+
+<div class="h-base">
+	<div class="l-header">
+		<h1 class="b-title"><img src="{!URLFOR($Resource.MyTeam, 'i/header-ico.png')}" />{!$Label.MyTeam_Header}</h1>
+		<div class="b-btns">
+			<div class="m-training"><a class="b-btn" href="JavaScript:open_sc_popup();"><span class="b-icon">&nbsp;</span>{!$Label.MyTeam_Assign_Training}</a></div>
+		</div>
+	</div>
+	<div class="l-content">
+		<!--<div class="b-controls">
+			<div class="b-setting">
+				<a href="/apex/MyTeamExcel" class="m-xls">excel</a>
+				<a href="#" class="m-print">print</a>
+			</div>
+		</div>-->
+		<div class="b-content">
+			<div class="b-tabs">
+
+				<apex:outputpanel layout="block" rendered="{!RealUserName != SelectedUserName}" styleclass="b-tab m-parent-icon m-has-child m-first">
+					<apex:commandLink value="{!RealUserName}{!$Label.MyTeam_Team}" action="{!SelectUser}" status="loadStatus" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc" title="{!RealUserName}{!$Label.MyTeam_Team}" >
+						<apex:param value="{!RealUser}" assignTo="{!SelectedUser}" name="var1"/>
+					</apex:commandLink>
+				</apex:outputpanel>
+				<div class="b-tab m-active m-first">{!SelectedUserName}{!$Label.MyTeam_Team}<span class="m-white-fix"></span></div>
+				<apex:repeat value="{!UserDt2}" var="u">
+					<apex:outputpanel layout="block" styleclass="b-tab m-has-child" rendered="{!u.HasSubordinates = true}" >
+						<apex:commandLink action="{!SelectUser}" styleClass="m-img" status="loadStatus" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc">
+							<!--  img height="45" width="45" title="{!u.UserName}" align="left" alt="{!u.UserName}" src="{!u.SmallFoto}" /> -->
+
+							<apex:image rendered="{!ChatterEnabled = true}" value="{!u.SmallFoto}" alt="{!u.UserName}" width="45" height="45"/>
+
+							<apex:param value="{!u.UserId}" assignTo="{!SelectedUser}" name="var1"/>
+						</apex:commandLink>
+						<apex:commandlink value="{!u.UserName}" action="{!SelectUser}" status="loadStatus" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc" title="{!u.UserName}" >
+							<apex:param value="{!u.UserId}" assignTo="{!SelectedUser}" name="var1"/>
+						</apex:commandlink>
+
+					</apex:outputpanel>
+					<apex:outputpanel layout="block" styleclass="b-tab" rendered="{!u.HasSubordinates = false}" >
+						<!--  img height="45" width="45" title="{!u.UserName}" align="left" alt="{!u.UserName}" src="{!u.SmallFoto}" /> -->
+						<apex:image rendered="{!ChatterEnabled = true}" value="{!u.SmallFoto}" alt="{!u.UserName}" width="45" height="45"/>
+						<apex:outputText >{!u.UserName}</apex:outputText>
+					</apex:outputpanel>
+				</apex:repeat>
+
+				<div class="b-pagination m-cfix">
+					<div class="m-to-left">
+						<span class="m-bold">{!$Label.MyTeam_Page}:</span>&nbsp;
+						<apex:repeat value="{!Pages2}" var="p">
+							&nbsp;
+							<apex:commandLink action="{!ChangePage}" status="loadStatus" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc">
+								<apex:outputText rendered="{!p.Page = PageNum}" ><b>{!p.Page}</b></apex:outputText>
+								<apex:outputText rendered="{!p.Page != PageNum}" >{!p.Page}</apex:outputText>
+								<apex:param value="{!p.Page}" assignTo="{!PageNum}" name="var2"/>
+							</apex:commandLink>
+						</apex:repeat>
+					</div>
+					<!--<div class="m-to-right">
+						<span class="m-bold">Show: </span>&nbsp;&nbsp;
+						<apex:selectList value="{!RecordOnOnePage}" size="1">
+							<apex:selectOptions value="{!RecordOnOnePageValues}" />
+							<apex:actionSupport event="onchange" action="{!ChangePagination}" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc" status="loadStatus" />
+						</apex:selectList> &nbsp;items&nbsp;
+					</div>-->
+				</div>
+				<!--  </apex:form> -->
+			</div>
+
+			<div class="b-tab-bodies">
+				<div class="b-tab-body">
+					<div class="b-section">
+						<div class="b-title">{!$Label.MyTeam_Training_Status}</div>
+						<div class="b-training-status">
+							<div class="b-tbl">
+								<!--  <apex:form id="formdraw2" >  -->
+								<table cellpadding="0" cellspacing="0" class="m-no-bbord">
+									<thead>
+										<tr>
+											<th class="m-left">
+												<apex:outputpanel layout="none" rendered="{!ChatterEnabled = true}">
+													<a href="Javascript:SendMesageToAll();"><img src="{!URLFOR($Resource.MyTeam, 'i/mail-ico.png')}" width="13" height="13" /></a>
+												</apex:outputpanel>
+											</th>
+												<apex:repeat value="{!ChData}" var="chart">
+													<th width="25"><span style="background: none repeat scroll 0 0 {!chart.color}; border-color: {!chart.color};" title="{!chart.Status}">{!chart.Abridgement}</span></th>
+												</apex:repeat>
+											<th width="{!IF(RecordsTotal > 8,'32', '14')}">&nbsp;</th>
+										</tr>
+									</thead>
+								</table>
+								<div class="b-scroll">
+								<table cellpadding="0" cellspacing="0">
+									<tbody>
+										<apex:repeat value="{!UserDataAll}" var="u">
+											<tr>
+												<td class="m-bold m-left">
+												<apex:outputpanel layout="none" rendered="{!ChatterEnabled = true}">
+													<a class="m-mail" id="trainingstatus_comment_click_{!u.UserId}"  href="JavaScript:void(0);" >{!u.UserName}</a>
+												</apex:outputpanel>
+												<apex:outputpanel layout="none" rendered="{!ChatterEnabled = false}">
+													<a class="m-mail" id="trainingstatus_comment_noclick_{!u.UserId}"  href="JavaScript:void(0);" >{!u.UserName}</a>
+												</apex:outputpanel>
+
+													<!-- <a class="m-mail" target="blank" href="/apex/MyTeam?id={!u.UserId}" >{!u.UserName}</a> -->
+												</td>
+												<apex:repeat value="{!u.UserLst}" var="l">
+													<td width="25">{!l}</td>
+												</apex:repeat>
+												<td width="14" class="m-last">
+													<apex:outputpanel layout="block" rendered="{!u.TranscriptId != null}">
+
+													<a href="JavaScript:open_ass_popup('{!u.UserId}');" ><img src="{!URLFOR($Resource.MyTeam, 'i/doc-ico.png')}" width="14" height="17" /></a>
+													<!--  <a href="/{!u.TranscriptId}" target="blank"><img src="{!URLFOR($Resource.MyTeam, 'i/doc-ico.png')}" width="14" height="17" /></a> -->
+													</apex:outputpanel>
+												</td>
+											</tr>
+											<tr style="display:none;" id="addcomment_{!u.UserId}">
+												<td class="m-bold m-left">
+													<table cellpadding="0" cellspacing="0" style="width: 500px; border-style:none;">
+														<tr>
+															<td>
+																<apex:InputTextArea value="{!u.Comment}" style="padding: 3px; margin: 3px; width: 500px;"/>
+															</td>
+														</tr>
+														<tr>
+															<td>
+																<apex:commandButton style="float:right;" action="{!CommitComment2}" status="loadStatus" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc" value="Comment" />
+															</td>
+														</tr>
+													</table>
+												</td>
+											</tr>
+										</apex:repeat>
+									</tbody>
+								</table>
+
+								</div>
+
+								<div class="b-legend">
+									<div class="m-cfix">
+										<apex:repeat value="{!ChData}" var="chart">
+											<div class="b-item">
+											<span style="background: none repeat scroll 0 0 {!chart.color}; border-color: {!chart.color};" title="{!chart.Status}">{!chart.Abridgement}</span> &nbsp;{!chart.Status}</div>
+										</apex:repeat>
+									</div>
+								</div>
+								<!--  </apex:form> -->
+							</div>
+							<div class="b-pie">
+								<div id="chart_div"></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="b-section">
+
+						<apex:outputPanel rendered="{!ChatterEnabled = true}" styleclass="b-title" layout="block">{!$Label.MyTeam_Team_Updates}</apex:outputPanel>
+
+						<div class="b-team-list">
+							<apex:repeat value="{!ChatterRec}" var="c">
+
+								<div class="b-item" id="charter_{!c.LineNum}" style="{!IF(c.LineNum > ChatterPageSize, 'display:none;', '')}">
+									<table border="0">
+									<tr>
+										<td width="50" style="vertical-align: top;" valign="top"><img height="45" width="45" title="{!c.UserName}" alt="{!c.UserName}" align="top" src="{!c.SmallFoto}" /></td>
+										<td>
+											<apex:outputpanel layout="block" rendered="{!c.Type = 'TextPost'}">
+												<p>
+													From <strong><a href="/_ui/core/userprofile/UserProfilePage?u={!c.CreatedbyUserId}">{!c.CreatedbyUserName}</a></strong> to <strong><a href="/_ui/core/userprofile/UserProfilePage?u={!c.UserId}">{!c.UserName}</a></strong> {!c.Comment}
+												</p>
+											</apex:outputpanel>
+											<apex:outputpanel layout="block" rendered="{!c.Type = 'UserStatus'}">
+												<p>
+													<strong><a href="/_ui/core/userprofile/UserProfilePage?u={!c.UserId}">{!c.UserName}</a></strong> {!c.Comment}
+												</p>
+											</apex:outputpanel>
+
+												<p class="m-add-info">
+													<apex:outputText value="{0,date, EEEE, MMMM dd, yyyy HH:mm}">
+														<apex:param value="{!c.CreatedDate}" />
+													</apex:outputText> &nbsp;&nbsp;
+													<a href="JavaScript:void(0);" id="comment_click_{!c.FeedId}">{!$Label.MyTeam_Comment} </a>
+													&nbsp;&nbsp;&nbsp;
+
+													<apex:outputpanel rendered="{!c.FeedCommentQuantity > 0}">
+														<a href="JavaScript:void(0);" id="open_thread_{!c.FeedId}">{!$Label.MyTeam_Show_All} {!c.FeedCommentQuantity} {!$Label.MyTeam_Comments}</a>
+													</apex:outputpanel>
+
+													&nbsp;&nbsp;&nbsp;
+													<apex:outputpanel rendered="{!c.YouLikeIt = true}">
+														<a href="JavaScript:void(0);" id="unlike_{!c.FeedId}">{!$Label.MyTeam_Unlike}</a>
+														<span class="small-like-icon" />
+													</apex:outputpanel>
+
+													<apex:outputpanel rendered="{!c.YouLikeIt = false}">
+														<a href="JavaScript:void(0);" id="mlike_{!c.FeedId}">{!$Label.MyTeam_Like}</a>
+													</apex:outputpanel>
+
+													&nbsp;&nbsp;&nbsp;  {!c.PeopleLikeQuantity} {!$Label.MyTeam_People_Like_It}
+												</p>
+											<div id="comment_{!c.FeedId}" style="display:none;">
+												<table width="500" border="0" cellpadding="3" cellspacing="1" bgcolor="#bbbbbb">
+													<tr>
+														<td bgcolor="#FFFFFF"><apex:InputTextArea value="{!c.PrivateComment}" style="padding: 3px; margin: 3px; width: 500px;"/></td>
+													</tr>
+													<tr>
+														<td bgcolor="#FFFFFF">
+															<apex:commandButton style="float:right;" action="{!CommitComment}" status="loadStatus" oncomplete="drawchart()" rerender="formdraw,err,formdraw2,jsc" value="{!$Label.MyTeam_Comment}" />
+														</td>
+													</tr>
+												</table>
+											</div>
+											<div id="thread_comment_{!c.FeedId}" style="display:none" >
+												<apex:repeat value="{!c.FeedComments}" var="fc">
+													<div class="b-item" style="border-bottom: 0px; position:relative; left:15px;">
+														<p><strong><a href="/{!fc.CreatedById}">{!fc.Name}</a></strong> {!fc.Body}</p>
+														<p class="m-add-info"><apex:outputText value="{0,date, EEEE, MMMM dd, yyyy HH:mm}"><apex:param value="{!fc.CreatedDt}" /> </apex:outputText></p>
+													</div>
+												</apex:repeat>
+											</div>
+										</td>
+									</tr>
+								</table>
+							</div>
+						</apex:repeat>
+						<br/>
+						<apex:outputpanel layout="block" rendered="{!ChatterRec.size > ChatterPageSize}">
+							<a href="JavaScript:void(0);" id="showmorelink" onclick="ShowMoreComments()">{!$Label.MyTeam_View_More_Updates}</a>
+						</apex:outputpanel>
+						</div>
+						<br/>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</apex:outputPanel>
+
+
+<div id="dialog-modal" title="{!$Label.MyTraining_Send_Message}" style="display:none;">
+	<table width="218" border="0" cellpadding="5" cellspacing="5">
+		<tr>
+			<td width="62">&nbsp;</td>
+			<td width="146">&nbsp;</td>
+		</tr>
+		<tr>
+			<td width="62" valign="top"><strong><p style="font-size: 0.9em;">{!$Label.MyTeam_To}</p></strong></td>
+			<td>
+				<div style="border: 1px solid #959595;" id="frombox">
+
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td width="62" valign="top"><strong><p style="font-size: 0.9em;">{!$Label.MyTeam_Message}</p></strong></td>
+			<td>
+				<div style="border: 1px solid #959595;">
+					<textarea style="border: 0 none; width: 400px; height: 80px;" maxlength="512" id="scm"></textarea>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td width="62">&nbsp;</td>
+			<td align="center">
+				<input type="button" onclick="send_comment()" title=" {!$Label.MyTeam_Send} " style="font-size: 0.86em;" value=" {!$Label.MyTeam_Send} " class="btn" />
+				<input type="button" onclick="close_comment()" title=" {!$Label.MyTeam_Cancel} " style="font-size: 0.86em;" value=" {!$Label.MyTeam_Cancel} " class="btn" />
+			</td>
+		</tr>
+	</table>
+</div>
+
+
+
+<apex:outputpanel layout="none" id="formdraw2">
+	<div id="dialog-modal2" title="{!$Label.MyTeam_User_Assignments}" style="display:none;">
+	</div>
+</apex:outputpanel>
+
+<apex:outputpanel layout="none" id="formdraw3">
+	<div id="dialog-modal3" title="{!$Label.MyTeam_Assign_Training}" style="display:none;">
+	</div>
+</apex:outputpanel>
+</apex:form>
+
+
+</apex:page>

@@ -1,0 +1,2311 @@
+<apex:component allowDML="true" access="global" controller="zqu.SelectProductController" extensions="zqu.JsRemoteController" >
+  <apex:attribute name="options" access="global" assignTo="{!theOptions}" type="zqu.SelectProductComponentOptions" description="The configuration options for the component" />
+  
+  <c:StatusModal />
+  
+  <apex:includeScript value="{!$Page.zqu__ResourceJS}"/>
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery-ui-1.10.3.custom-compressed.js')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, 'jquery-ui-1103.css')}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_JSON}" />
+  <apex:includeScript value="{!$Resource.zqu__jshashtable}" />
+  <apex:includeScript value="{!$Resource.zqu__jquerynumberformat}" />
+  <apex:includeScript value="{!$Resource.zqu__alertify}" />
+  <apex:styleSheet value="{!$Resource.zqu__alertify_default}" />
+  <apex:styleSheet value="{!$Resource.zqu__alertify_core}" />
+  <apex:styleSheet value="{!$Resource.zqu__alertify_bootstrap}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_DataTables}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery_jeditable-compressed.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery.multiselect-compressed.js')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/jquery.multiselect-min.css')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/FormatObject-compressed.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/DataList-compressed.js')}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_JSON}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/ProductSelector-min.css')}"/>
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/SelectProduct-min.css')}"/>
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/ProductSelector-compressed.js')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/Notification-min.css')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/postmessage-compressed.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/ZSet-compressed.js')}" />
+  
+  <!-- Used for formatting displayed field -->
+  <apex:outputPanel html-data-id="format_date" style="display:none;"><apex:outputField value="{!formatObject.zqu__Format_Date__c}"/></apex:outputPanel>
+  <apex:outputPanel html-data-id="format_currency" style="display:none;"><apex:outputField value="{!formatObject.zqu__Format_Currency__c}"/></apex:outputPanel>
+  <apex:outputPanel html-data-id="format_number" style="display:none;"><apex:outputField value="{!formatObject.zqu__Format_Number__c}"/></apex:outputPanel>
+  
+  <script>
+    
+    //Global tiers table identifier.
+    var iTableCounter = 1;
+    
+    String.prototype.format = function(){
+      var args = arguments;
+      return this.replace(/\{(\d+)\}/g,                
+        function(m,i){
+            return args[i];
+        });
+    }
+    var $jq = jQuery.noConflict();
+    function displayAlertModal(){
+      $jq('#z-modal-overlay').addClass('popup-overlay');
+      $jq('#z-modal-alert').addClass('config-box')
+      $jq('#z-modal-alert').css('display', 'block');
+      $jq('#z-modal-overlay').css('display', 'block');
+    }
+    
+    function cancelSelectProduct(){
+      if({!isInQuoteWizard} === true){
+        displayAlertModal();
+      }
+      else {
+        displayStatusModal();
+        directCancel();       
+      }
+    }
+    
+    function cancelAction(yesOrNo){
+      $jq('#z-modal-alert').css('display', 'none');
+      $jq('#z-modal-overlay').css('display', 'none');
+      if(yesOrNo === true){
+        displayStatusModal();
+        cont();
+      }
+    }
+        
+    var updateDiscount = {};
+    updateDiscount.showChangeDiscountForm = function(psId, rowNum, isCreate){
+      if(!$jq('#' + psId + '_ratePlanChargeTable').length || (typeof rowNum != 'number') || rowNum < 0){
+        return;
+      }
+      updateDiscount.psId = psId;
+      updateDiscount.rowNum = rowNum;
+      updateDiscount.isCreate = isCreate;
+      if(updateDiscount.zqcharge){
+        var id = updateDiscount.zqcharge.zqc.sfdcMapId, upToPeriods = updateDiscount.zqcharge.zqc.qcharge['{!namespace}upto_how_many_periods__c'],
+            dlevel = updateDiscount.zqcharge.zqc.qcharge['{!namespace}discount_level__c'], price=updateDiscount.zqcharge.zqc.qcharge['{!namespace}effectiveprice__c'],
+            model = updateDiscount.zqcharge.zqc.qcharge['{!namespace}model__c'];
+        if(upToPeriods != null && !((typeof upToPeriods) == 'number' && (typeof dlevel) == 'string'))
+          return;
+        if(id != null && !((typeof id) == 'string')){
+          return;
+        }
+        $jq("#zqcid").val(id);
+        if(upToPeriods)
+          $jq('#upToPeriods').val(upToPeriods);
+        if(dlevel)
+          $jq('#level').val(dlevel);
+        if(price)
+          $jq('#dceffectivePrice').val(price);
+        var priceLabel = (model == 'Discount-Percentage') ? '{!$Label.CHARGE_MODEL_DISCOUNT_PERCENT_PRICE}' : '{!$Label.CHARGE_MODEL_DISCOUNT_FIXEDAMOUNT_PRICE}';
+        $jq('#dcep-label').html(priceLabel);
+        if({!isDiscountingDisabled} === true){
+          $jq('#dceffectivePrice').prop('readonly', 'readonly').addClass('readonly');
+        }
+        else{
+          $jq('#dceffectivePrice').removeProp('readonly').removeClass('readonly');
+        }
+        $jq('#div-update-discount').dialog('open');
+      }
+    }
+
+updateDiscount.FormValidator = {
+  validateInt: function(val){
+    if((typeof val) == 'undefined' || val == null){
+      return false;
+    }
+    try{
+      if(!isNaN(val) && (/^\d+$/g).test(val.replace(/,/g, ''))){
+        if(parseInt(val).toString() == val){
+          if(parseInt(val) > 0)
+            return true;
+        }
+      }
+    } catch (ex){
+      return false;
+    }
+  },
+  validateDecimal: function(val){
+    if((typeof val) == 'undefined' || val == null){
+      return false;
+    }
+    try{
+      if(!isNaN(val) && (/^(\d+)(\.\d+){0,1}$/g).test(val.replace(/,/g, ''))){
+        if(parseFloat(val).toString() == val){
+          if(parseFloat(val) > 0)
+            return true;
+        }
+      }
+    } catch (ex){
+      return false;
+    }
+  }
+};
+updateDiscount.addMsg = function(msg){
+  $jq('#updc-error-msg').html(msg).addClass('msg-failure').show();
+}
+
+updateDiscount.refreshCharge = function(){
+  updateDiscount.zqcharge.EFFECTIVE_PRICE = updateDiscount.zqcharge.zqc.d_EffectivePrice;
+  if(updateDiscount.psId){
+    var settings = $jq('#' + updateDiscount.psId + '_ratePlanChargeTable').dataTable().fnSettings();
+    if(settings && settings.aoColumns){
+      for(var c = 1; c < settings.aoColumns.length; c++){
+        $jq('#' + updateDiscount.psId + '_ratePlanChargeTable').dataTable().fnUpdate(updateDiscount.zqcharge[settings.aoColumns[c].fieldName], updateDiscount.rowNum, c);
+      }
+    }
+    var zchargeModel = updateDiscount.zqcharge.MODEL;
+    var labelForDiscount = (zchargeModel == 'Discount-Percentage') ? '{!$Label.CHARGE_MODEL_DISCOUNT_PERCENT_DESC}' : '{!$Label.CHARGE_MODEL_DISCOUNT_FIXEDAMOUNT_DESC}';
+    var displayLabel;
+    if(isNaN(updateDiscount.zqcharge.zqc.qcharge['{!namespace}upto_how_many_periods__c'])){
+      displayLabel = labelForDiscount.format(updateDiscount.zqcharge.zqc.qcharge['{!namespace}effectiveprice__c'], updateDiscount.zqcharge.zqc.qcharge['{!namespace}discount_level__c'], '') + '{!$Label.END_OF_TERM}'.toLowerCase();
+    }
+    else{
+      displayLabel = labelForDiscount.format(updateDiscount.zqcharge.zqc.qcharge['{!namespace}effectiveprice__c'], updateDiscount.zqcharge.zqc.qcharge['{!namespace}discount_level__c'], updateDiscount.zqcharge.zqc.qcharge['{!namespace}upto_how_many_periods__c']) + ' {!$Label.BILLING_PERIODS}'.toLowerCase();
+    }
+    if(updateDiscount.zqcharge.zqc.sfdcMapId){
+      $jq('#' + updateDiscount.zqcharge.zqc.sfdcMapId + '-editbtn').parent('td').parent('tr').siblings().children('td').html(displayLabel);
+    }
+    else if(updateDiscount.zqcharge.zqc.Id){
+      $jq('#' + updateDiscount.zqcharge.zqc.Id + '-neditbtn').parent('td').parent('tr').siblings().children('td').html(displayLabel);
+    }
+  }
+}
+
+updateDiscount.submit = function(){
+  $jq('#updc-error-msg').text('').removeClass('msg-failure').hide();
+  var upTo = $jq('#upToPeriods').val();
+  var dlevel = $jq('#level').val();
+  var eprice = $jq('#dceffectivePrice').val();
+  var zqcid = $jq('#zqcid').val();
+  var msg = '';
+  if((typeof upTo) != 'number' && !upTo){
+    upTo = null;
+  }
+  if(upTo != null && !this.FormValidator.validateInt(upTo)){
+    msg = '<p>{!$Label.UPDATE_DISCOUNT_UPTO_PERIODS_VALIDATION_MSG}</p>';
+  }
+  if(!this.FormValidator.validateDecimal(eprice)){
+    msg = '<p>Effective Price invalid</p>';
+  }
+  if((typeof dlevel) == 'undefined' || (dlevel == null) || dlevel.trim() == ''){
+    msg = msg + '<p>{!$Label.UPDATE_DISCOUNT_LEVEL_VALIDATION_MSG}</p>';
+  }
+  if(!((typeof msg) == 'undefined' || (msg == null) || msg.trim() == '')){
+    this.addMsg(msg);
+    return;
+  }
+  else{
+    if(updateDiscount.isCreate === true){
+      productSelectorsAllData[updateDiscount.psId].modified = true;
+      updateDiscount.zqcharge.zqc.qcharge['{!namespace}upto_how_many_periods__c'] = parseInt(upTo);
+      updateDiscount.zqcharge.zqc.qcharge['{!namespace}effectiveprice__c'] = parseFloat(eprice);
+      updateDiscount.zqcharge.zqc.qcharge['{!namespace}discount_level__c'] = dlevel;
+      updateDiscount.zqcharge.zqc.d_EffectivePrice = eprice;
+      updateDiscount.zqcharge.zqc.upToPeriods = upTo;
+      updateDiscount.zqcharge.zqc.discountLevel = dlevel;
+      $jq('#div-update-discount').dialog('close');
+      updateDiscount.refreshCharge();
+    }
+    else {
+      displayStatusModal();
+      Visualforce.remoting.Manager
+          .invokeAction(
+              '{!$RemoteAction.JsRemoteController.updateDiscountCharge}',
+              zqcid,
+              eprice,
+              upTo,
+              dlevel,
+              function(result, event) {
+                closeStatusModal();
+                if(event.status){
+                  if(result.success){
+                    updateDiscount.zqcharge.zqc.qcharge['{!namespace}upto_how_many_periods__c'] = parseInt(upTo);
+                    updateDiscount.zqcharge.zqc.qcharge['{!namespace}effectiveprice__c'] = parseFloat(eprice);
+                    updateDiscount.zqcharge.zqc.qcharge['{!namespace}discount_level__c'] = dlevel;
+                    updateDiscount.zqcharge.zqc.d_EffectivePrice = eprice;
+                    $jq('#div-update-discount').dialog('close');
+                    updateDiscount.refreshCharge();
+                  }
+                  else{
+                    updateDiscount.addMsg(result.errorMsg);
+                  }
+                }
+                else{
+                  if(event.message){
+                    updateDiscount.addMsg(event.message);
+                  }
+                  else {
+                    updateDiscount.addMsg('Unexpected error');
+                  }
+                }
+              });
+    }
+  }
+}
+    $jq(function(){
+      
+      // Initialize field to scale js object
+      var scalesByFieldName = {
+        'CHARGE' : {},
+        'TIER' : {}
+      };
+      <apex:repeat value="{!scalesByFieldName}" var="objectName" >
+        <apex:repeat value="{!scalesByFieldName[objectName]}" var="fieldName" >
+          scalesByFieldName['{!objectName}']['{!fieldName}'] = "{!scalesByFieldName[objectName][fieldName]}";
+        </apex:repeat>
+      </apex:repeat>
+      ProductSelector.setFieldScaleMap(scalesByFieldName);
+
+      $jq('#div-update-discount').dialog({
+        autoOpen: false,
+        height:   250,
+        width:    500,
+        modal:    true,
+        dialogClass: 'zqu-widgent-content',
+        title:    '{!$Label.UPDATE_DISCOUNT_CHARGE_TITLE}',
+        buttons:  {
+          '{!$Label.BUTTON_SAVE}':  function(){
+            updateDiscount.submit();
+          },
+          '{!$Label.BUTTON_CANCEL}':  function(){
+            $jq(this).dialog( 'close' );
+          }
+        }
+       });
+     });
+    
+    /* Store all product feature data*/
+    var productFeaturesAllData = {};
+    
+    /* Store all rate plan charge data*/
+    var productSelectorsAllData = {};
+    productSelectorsAllData.removedData = [];
+    productSelectorsAllData.undoData = {};
+    
+    /* Store column metadata */
+    var ratePlanChargeFieldGroup = {};
+    ratePlanChargeFieldGroup.columns = [];
+    ratePlanChargeFieldGroup.tierColumns = [];
+    
+    /* Retrieve column metadada before page loaded */
+    function retrieveColumnMetadada(){
+      var fg = $jq.evalJSON('{!ratePlanChargeFieldGroup}');
+      
+      for(var index=0; index<fg[0].length; index++){
+      
+        var r = fg[0][index];
+        var column = { 
+                        "sTitle": r.label,
+                        "mData": r.mData,
+                        "mDataLevel": r.mDataLevel,
+                        "fieldName": r.name,
+                        "fieldEditable": r.editable,
+                        "sClass": r.name,
+                        "sDefaultContent": r.isCustomField ? "" : "-",
+                        "fieldType": r.type,
+                        "isCustomField": r.isCustomField,
+                        "isFormula":r.isFormula
+                     };
+        if(r.type == 'select' || r.type == 'multiselect'){
+          column.pickListValues = r.pickListValues;
+          column.pickListKeys = r.pickListKeys;
+        }
+        ratePlanChargeFieldGroup[r.name] = column;
+        ratePlanChargeFieldGroup.columns.push(column);
+      }
+      
+      for(var index=0; index<fg[1].length; index++){
+        var r = fg[1][index];                     
+        var column = { 
+                        "sTitle": r.label, 
+                        "mData": r.name, 
+                        "fieldEditable": r.editable,
+                        //"sType": r.type,
+                        "sClass": r.name,
+                        "sDefaultContent": ""
+                     };
+        ratePlanChargeFieldGroup.tierColumns.push(column);
+        ratePlanChargeFieldGroup.tierColumns[r.name] = column;
+      }
+    }
+    
+    retrieveColumnMetadada();
+    
+    // Format Obejct : used for formatting displayed field
+    // Initialize the formatted sfdc displayed fields
+    FormatObject.date = $jq("span[data-id='format_date']").children()[0].innerHTML.replace('1960', 'year').replace('12', 'month').replace('10', 'day');
+    FormatObject.currency = $jq('<div/>').html($jq("span[data-id='format_currency']").children()[0].innerHTML).text();
+    FormatObject.number = $jq('<div/>').html($jq("span[data-id='format_number']").children()[0].innerHTML).text();
+    
+    // JSRemoting to get formatted datetime field
+    FormatObject.formatDatetime = function (datetime, node, settings) {
+      if(settings != undefined && settings.valueBeforeUpdate == datetime){
+        node.innerHTML = settings.valueBeforeUpdate;
+        node.editing = false;
+        return;
+      }
+      
+      // Get Product Selector Id
+      var productSelectorId = '';
+      if($jq(node).closest('table').length > 0){
+        var chargeTableId = $jq(node).closest('table')[0].id;
+        productSelectorId = chargeTableId.substring(0, chargeTableId.indexOf('_'));
+        
+        if(productSelectorId != ''){
+          // Show loading icon
+          var loadingIcon = $jq("img[id='" + productSelectorId + "_loading']");
+          loadingIcon.removeClass();
+          loadingIcon.addClass('showSaveIndicator');
+        }
+      }
+      
+      // Disable buttons
+      ProductSelector.disableButtons();
+      
+      Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.SelectProductController.formatDatetime}',
+                datetime,
+                function(result, event){
+                  if (event.status) {
+                    if(settings != undefined)
+                      settings.target.apply(node, [result, settings]);
+                    node.innerHTML = result;
+                    node.editing = false;
+                    
+                    if(productSelectorId != ''){
+                      // Hide loading icon
+                      var loadingIcon = $jq("img[id='" + productSelectorId + "_loading']");
+                      loadingIcon.removeClass();
+                      loadingIcon.addClass('hideSaveIndicator');
+                    }
+                  }
+                  else{
+                    alertify.alert(event.message);
+                    node.innerHTML = settings.valueBeforeUpdate;
+                    node.editing = false;
+                    
+                    if(productSelectorId != ''){
+                      // Hide loading icon
+                      var loadingIcon = $jq("img[id='" + productSelectorId + "_loading']");
+                      loadingIcon.removeClass();
+                      loadingIcon.addClass('hideSaveIndicator');
+                    }
+                  }
+                  
+                  // Enable buttons
+                  ProductSelector.enableButtons();
+                });
+    }
+    
+    function showProductFeature(productSelectorId, editable){
+      //Get product Id
+      var productId;
+      if(productFeaturesAllData[productSelectorId] != undefined)
+        productId = productFeaturesAllData[productSelectorId].productId;
+      
+      var expandFeature = $jq("div[id='"+ productSelectorId + "_expandFeature']");
+      expandFeature.css("display", "none");
+      var collapseFeature = $jq("div[id='"+ productSelectorId + "_collapseFeature']");
+      collapseFeature.css("display", "inline");
+      
+      if(productId == undefined || productId == ''){
+        var message = $jq("div[id='"+ productSelectorId + "_message']");
+        message.css("display", "block");
+        return;
+      }
+      else{
+        if(productFeaturesAllData[productSelectorId].productFeaturesLoaded){
+          var featureList = $jq("div[id='"+ productSelectorId + "_featureList']");
+          featureList.css("display", "block");
+          
+          return;
+        }
+      }
+      
+      displayStatusModal();
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.SelectProductController.getProductFeatureListResult}',
+        productId,
+        function(result, event){
+          if (event.status) {
+            var featureList = $jq("div[id='"+ productSelectorId + "_featureList']");
+            featureList.css("display", "block");
+            
+            var productFeatures = [];
+            for(var index=0; index<result.length; index++){
+                var jsonString = result[index];
+                // Replace '&quot;' to '"'
+                var decoded = $jq('<div/>').html(jsonString).text();
+                var productFeature = $jq.evalJSON(decoded);
+                productFeatures.push(productFeature);
+            }
+            
+            // Store loaded product features
+            productFeaturesAllData[productSelectorId].productFeatures = productFeatures;
+            productFeaturesAllData[productSelectorId].productFeaturesLoaded = true;
+            ProductSelector.initFeatureDataTable(productSelectorId, productFeaturesAllData[productSelectorId].productFeatures, editable, productFeaturesAllData[productSelectorId].allowFeatureChanges);
+            
+          }
+          else{
+            alertify.alert(event.message);
+          }
+          closeStatusModal(); 
+        }
+      )
+    }
+  </script>
+  
+  <apex:sectionHeader rendered="{!IF(theOptions.mode == 'edit', true, false)}" title="{!theOptions.title}"
+    subtitle="{!theOptions.subTitle}"
+    id="selectProductsTitle" />
+  
+    <apex:pageBlock >
+      <apex:outputPanel styleClass="messageCls" rendered="{!IF(message != null && message != '', true, false)}">{!message}</apex:outputPanel>
+      <apex:outputPanel id="addProductButtonPanel" layout="block" styleClass="backgroundPanel" rendered="{!IF(AND(NOT(isGuidedSellingEnabled), theOptions.mode == 'edit'), true, false)}">
+        <button id="addProduct" onclick="addNewProduct(); return false;">{!$Label.SELECT_PRODUCT_ADD_NEW_PRODUCT}</button>
+        <button id="addMoreProducts" style="display:none;" onclick="confirmAddMoreProducts(this);return false;">{!$Label.SELECT_PRODUCT_SAVE_AND_ADD_MORE_PRODUCTS}</button>
+      </apex:outputPanel>
+      <apex:outputPanel id="addProductButtonPanelForGS" layout="block" styleClass="backgroundPanel" rendered="{!IF(AND(isGuidedSellingEnabled, theOptions.mode == 'edit'), true, false)}">
+        <c:ButtonBar options="{!barOptions}" />
+      </apex:outputPanel>
+      
+    <apex:outputPanel id="productSelectorPanels" html-data-id="productSelectorPanels">
+      <apex:outputPanel id="productSelectorInitialPanels" html-data-id="productSelectorInitialPanels">
+        <apex:repeat value="{!initialProductSelectors}" var="productSelector">
+          <c:ProductSelector injectedController="{!productSelector}" display="{!IF(theOptions.mode == 'edit', false, true)}"/>
+        </apex:repeat>
+      </apex:outputPanel>
+      
+      <apex:outputPanel id="productSelectorAddedPanels" html-data-id="productSelectorAddedPanels">
+        <apex:repeat value="{!addedProductSelectors}" var="productSelector">
+          <c:ProductSelector injectedController="{!productSelector}" display="true"/>
+        </apex:repeat>
+      </apex:outputPanel>
+      
+      <apex:outputPanel id="productSelectorRemovedPanels" html-data-id="productSelectorRemovedPanels">
+        <apex:repeat value="{!removedProductSelectors}" var="productSelector">
+          <c:ProductSelector injectedController="{!productSelector}" display="true"/>
+        </apex:repeat>
+      </apex:outputPanel>
+      
+      <apex:outputPanel id="productSelectorUpdatedPanels" html-data-id="productSelectorUpdatedPanels">
+        <apex:repeat value="{!updatedProductSelectors}" var="productSelector">
+          <c:ProductSelector injectedController="{!productSelector}" display="true"/>
+        </apex:repeat>
+      </apex:outputPanel>
+      
+      <apex:outputPanel id="productSelectorOriginalPanels" html-data-id="productSelectorOriginalPanels">
+        <apex:repeat value="{!originalProductSelectors}" var="productSelector">
+          <c:ProductSelector injectedController="{!productSelector}" display="true"/>
+        </apex:repeat>
+      </apex:outputPanel>
+      
+    </apex:outputPanel>
+    
+    <apex:outputPanel styleClass="logDetails" style="{!IF(logDetails != null && logDetails != '', 'display:block;', 'display:none')}">
+      <apex:outputPanel styleClass="logDetailTitle">{!$Label.CHANGES_VS_ORIGINAL}</apex:outputPanel>
+      <apex:outputPanel >
+        <ul id="logDetailInfo">
+          <apex:repeat value="{!logDetails}" var="log">
+            <li>{!log}</li>
+          </apex:repeat>
+        </ul>
+      </apex:outputPanel>
+    </apex:outputPanel>
+    
+    <apex:outputPanel styleClass="logDetails" rendered="{!AND(isRulesEngineEnabled, displayRulesEngineChangeLogs, theOptions.mode == 'edit')}" style="display: block;">
+      <apex:outputPanel styleClass="logDetailTitle">Rules Engine Logs</apex:outputPanel>
+      <apex:outputPanel >
+        <ul id="rulesEngineLogDetailInfo">
+        </ul>
+      </apex:outputPanel>
+    </apex:outputPanel>
+    
+    <apex:outputPanel layout="block" styleClass="buttonPanel" rendered="{!IF(theOptions.mode == 'edit', true, false)}" >
+      <apex:commandButton value="{!backButtonText}" rendered="{!renderBackButton}" action="{!previous}" immediate="true"/>
+      <apex:commandButton value="{!$Label.BUTTON_SAVE}" id="saveChanges" html-data-id="saveChanges" onclick="saveProducts(this); return false;"/>
+      <apex:commandButton value="{!nextButtonText}" id="saveAndNext" html-data-id="saveAndNext" onclick="saveProducts(this); return false;"/>
+      <apex:commandButton value="{!$Label.BUTTON_CANCEL}" onclick="cancelSelectProduct();return false;"/>
+      <apex:commandButton value="Calculate" html-data-id="calculate" onclick="recalculateRatePlans();return false;" rendered="{!isRulesEngineEnabled}"/>
+      <apex:actionFunction name="goToNextPage" action="{!save}"/>
+    </apex:outputPanel>
+    
+    <!-- Only render notification for popup modal -->
+    <apex:outputPanel id="notificationPanel" >
+      <c:Notification options="{!notificationOptions}" rendered="{!theOptions.mode == 'edit'}" />
+    </apex:outputPanel>
+  
+    <apex:actionFunction name="back" action="{!back}" immediate="true" rerender="notificationPanel" oncomplete="closeStatusModal();" />
+    <apex:actionFunction name="cont" action="{!cont}" immediate="true" oncomplete="closeStatusModal();" />
+    <apex:actionFunction name="directCancel" action="{!cancelPage}" immediate="true" />
+    
+    </apex:pageBlock>
+    
+    <apex:actionFunction name="reloadPage" action="{!reloadPage}"/>
+  
+  
+  <apex:outputPanel rendered="{!IF(theOptions.mode == 'edit', true, false)}">
+  <script>
+    
+    
+    
+    $jq(function(){
+
+      if({!NOT(isGuidedSellingEnabled)}){
+        // Add one product selector panel when page loaded.
+        addNewProduct();
+      }
+      
+      if({!isRulesEngineEnabled}){
+        // Display status modal
+        displayStatusModal();
+        
+        // Get all existing zChargeGroup json data
+        existingDataJSONArray = [];
+        for(key in productSelectorsAllData){
+          if(key != 'removedData' && key != 'undoData'){
+            if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+              existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+            }
+          }
+        }
+        
+        // Run all rules when page first loaded
+        runAllRules(existingDataJSONArray, true, null);
+        
+      }
+      else if({!isRatePlanCustomizationEnabled}){
+        // Get all customized quote product features
+        refreshCustomizedRatePlans();
+      }
+    })
+    
+    function makeFieldEditable(fieldName, fieldData, nRow, zCharges, productSelectorId, quoteId, quoteType, ratePlanId, aoColumns, dataTable){
+
+      var tdNode = $jq("." + fieldName, nRow);
+      tdNode.addClass('editableCell');
+      tdNode.addClass('zChargeEditableCell');
+      
+      // Change the field displayed style for Rules Engine
+      if(fieldData.fieldsChangedInRulesEngine){
+        for(var index=0; index<fieldData.fieldsChangedInRulesEngine.length; index++){
+          if(fieldData.fieldsChangedInRulesEngine[index].toLowerCase() == fieldName.toLowerCase()){
+            tdNode.addClass('changedInRulesEngine');
+          }
+        }
+      }
+      
+      tdNode.editable(
+
+          // Submit function
+          function(value, settings) { 
+             
+             if(settings.type == 'date'){
+               if(value.split('-').length == 3){
+                 var formattedDate = FormatObject.formatDate(value);
+                 if(formattedDate == settings.valueBeforeUpdate){
+                   return(settings.valueBeforeUpdate);
+                 }
+               }
+             }
+             else if(settings.type == 'currency' || settings.type == 'percent' || settings.type == 'number' || settings.type == 'integer'){
+               if(isNaN(value))
+                 return(settings.valueBeforeUpdate);
+               if(value === '')
+                 value = null;
+               if(value != null && settings.type == 'integer')
+                 value = parseInt(value);
+             }
+             else{
+               if(value == settings.valueBeforeUpdate)
+                 return(settings.valueBeforeUpdate);
+             }
+             
+             if(ratePlanChargeFieldGroup[fieldName].isCustomField){
+               
+               // Validation for Billing Cycle Day
+               if(settings.name == "{!namespace}billcycleday__c" && value != null){
+                 if(value < 1 || value > 31){
+                   alertify.alert("Please specify an integer between 1 and 31.");
+                   return(settings.valueBeforeUpdate);
+                 }
+               }
+               
+               //Store value for custom field
+               settings.submitdata[settings.row].chargeObject[settings.name] = value;
+               
+               productSelectorsAllData[productSelectorId].modified = true;
+               
+               if(productSelectorsAllData[productSelectorId].saved){
+                          
+                 var saveOkIcon = $jq("img[id='" + productSelectorId + "_saveOk']");
+                 saveOkIcon.removeClass();
+                 saveOkIcon.addClass('hideSaveIndicator');
+                 
+                 var saveAlertIcon = $jq("img[id='" + productSelectorId + "_saveAlert']");
+                 saveAlertIcon.removeClass();
+                 saveAlertIcon.addClass('showSaveIndicator');
+               }
+             }
+             else if(settings.name == "DisplayIncludedUnits"){
+               
+               if(isNaN(value))
+                 return(settings.valueBeforeUpdate);
+
+               var zUom = zCharges[settings.row].zqc.zcharge["{!namespace}ZUnitOfMeasure__r"];
+
+               //Store value for Included Units
+               value = ProductSelector.validateDecimal(value, zUom["{!namespace}Uom_precision__c"], zUom["{!namespace}Uom_rounding_mode__c"]);
+               settings.submitdata[settings.row].zqc[settings.name] = value;
+               
+               productSelectorsAllData[productSelectorId].modified = true;
+               
+               if(productSelectorsAllData[productSelectorId].saved){
+                          
+                 var saveOkIcon = $jq("img[id='" + productSelectorId + "_saveOk']");
+                 saveOkIcon.removeClass();
+                 saveOkIcon.addClass('hideSaveIndicator');
+                 
+                 var saveAlertIcon = $jq("img[id='" + productSelectorId + "_saveAlert']");
+                 saveAlertIcon.removeClass();
+                 saveAlertIcon.addClass('showSaveIndicator');
+               }
+             }
+             else{
+               
+               // For standard fields, all the editable fields are number type.
+               if(isNaN(value))
+                 return(settings.valueBeforeUpdate);
+             
+             // Recalculate rate plan charge
+             var currentCharge = settings.submitdata[settings.row];
+             
+             if(currentCharge['hasCustomTiers'] == false && (currentCharge['MODEL'] == 'Tiered Pricing' || currentCharge['MODEL'] == 'Tiered with Overage Pricing' || currentCharge['MODEL'] == 'Volume Pricing')){
+               currentCharge['hasCustomTiers'] = true;
+               var hasCustomTierIcon = $jq(this).closest('tr').find('#hasCustomTiers');
+               hasCustomTierIcon.removeClass('hideIcon');
+             }
+             
+             // Validate quantity for charges with custom tiers first
+             if(currentCharge['hasCustomTiers'] == true){
+               if( settings.name == 'QUANTITY' ) {
+                 var quantityExceedError = validateQuantityForChargeWithCustomTiers(currentCharge, value);
+                 if(quantityExceedError != ''){
+                   alertify.alert(quantityExceedError);
+                   return(settings.valueBeforeUpdate);
+                 }
+               }
+             }
+             
+             // Disable editable during calculation
+             var tds = $jq('.zChargeEditableCell', dataTable);
+             tds.off("click");
+             
+               // Store value for standard field
+             settings.submitdata[settings.row][settings.name] = value;
+             productSelectorsAllData[productSelectorId].modified = true;
+             
+             if( currentCharge['hasCustomTiers'] == true ){
+             
+
+              if(currentCharge['MODEL'] != 'Tiered with Overage Pricing'){
+              //TODO the calculation is wrong for tier charge. We can only change "quantity" right now. TODO we need handle discount later.
+               //settings.submitdata[settings.row]['TOTAL'] = settings.submitdata[settings.row]['TOTAL'] * ( value / settings.valueBeforeUpdate ); 
+               if( settings.name != 'DISCOUNT'){
+
+                 //COM-5619 - tiered/volume charges with custom tiers should validate the quantity field based on UOM
+                 if( settings.name == 'QUANTITY' ) {
+                   currentCharge['QUANTITY'] = ProductSelector.validateDecimal(currentCharge['QUANTITY'], currentCharge.zqc.zcharge["{!namespace}ZUnitOfMeasure__r"]["{!namespace}Uom_precision__c"], currentCharge.zqc.zcharge["{!namespace}ZUnitOfMeasure__r"]["{!namespace}Uom_rounding_mode__c"]);
+                   value = currentCharge['QUANTITY'];
+
+                   currentCharge.zqc.d_Quantity = currentCharge['QUANTITY'];
+                   currentCharge['TOTAL'] = ProductSelector.calculateAndRefreshCharge('{!namespace}',currentCharge,null);
+                 }
+
+                 // COM-8622 - Recalculation for TOTAL
+                 if(settings.name == 'TOTAL') {
+                  // Validate total scale and push to UI
+                  currentCharge['TOTAL'] = ProductSelector.validateDecimal(currentCharge['TOTAL'], ProductSelector.getFieldScale('CHARGE', 'Total'));
+                  value = currentCharge['TOTAL'];
+
+                  // Push new value to zqc
+                  currentCharge.zqc.d_Total = currentCharge['TOTAL'];
+
+                  // Recalculate
+                  if (currentCharge.zqc.d_listtotal != null && currentCharge.zqc.d_listtotal != 0) {
+                    currentCharge.zqc.d_Discount = (1 - currentCharge.zqc.d_Total / currentCharge.zqc.d_listtotal) * 100;
+                  }
+                  else {
+                    currentCharge.zqc.d_Discount = 0;
+                  }
+
+                  // Push the new charge-level discount to the UI (after validating based on CHARGE discount scale)
+                  currentCharge['DISCOUNT'] = ProductSelector.validateDecimal(currentCharge.zqc.d_Discount, ProductSelector.getFieldScale('CHARGE', 'Discount'));
+
+                  // updateEffectivePrice()
+                  if(currentCharge.zqc.d_listprice == 0 && currentCharge.zqc.chargeType != 'Usage') {
+                    if(currentCharge.zqc.chargeModel == 'Volume Pricing') {
+                      if(currentCharge.zqc.feeType == 'Flat Fee') {
+                        currentCharge.zqc.d_EffectivePrice = currentCharge.zqc.d_Total;
+                      }
+                      else {
+                        if(currentCharge.zqc.d_Quantity != 0) {
+                          currentCharge.zqc.d_EffectivePrice = currentCharge.zqc.d_Total / currentCharge.zqc.d_Quantity;
+                        }
+                      }
+                    }
+                    else if(currentCharge.zqc.chargeModel == 'Tiered Pricing') {
+                      currentCharge.zqc.d_EffectivePrice = currentCharge.zqc.d_Total;
+                    }
+                  }
+
+                  else if(currentCharge.zqc.d_listprice != null) {
+                    currentCharge.zqc.d_EffectivePrice = (1 - currentCharge.zqc.d_Discount / 100) * currentCharge.zqc.d_listprice;
+                  }
+
+                  if(!isNaN(parseFloat(currentCharge.zqc.d_EffectivePrice) ) ) {
+                    currentCharge.zqc.DisplayEffectivePrice = ProductSelector.validateDecimal(currentCharge.zqc.d_EffectivePrice, ProductSelector.getFieldScale('CHARGE', 'Effective Price'));
+                    currentCharge['EFFECTIVE_PRICE'] = currentCharge.zqc.DisplayEffectivePrice;
+                  }
+
+                  // setBlendedPrice()
+                  if(currentCharge.zqc.zcharge['{!namespace}Type__c'] != 'Usage' && currentCharge.zqc.zcharge['{!namespace}Model__c'] == 'Tiered Pricing') {
+                    if(ZConfig.useBlendedEffectivePrice) {
+                      currentCharge.zqc.d_EffectivePrice = (currentCharge.zqc.d_Quantity == 0 || currentCharge.zqc.d_Total == null) ? 0 : currentCharge.zqc.d_Total / currentCharge.zqc.d_Quantity;
+                      currentCharge.zqc.DisplayEffectivePrice = ProductSelector.validateDecimal(currentCharge.zqc.d_EffectivePrice, ProductSelector.getFieldScale('CHARGE', 'Effective Price'));
+
+                      currentCharge.zqc.d_listprice = (currentCharge.zqc.d_Quantity == 0 || currentCharge.zqc.d_listtotal == null) ? 0 : currentCharge.zqc.d_listtotal / currentCharge.zqc.d_Quantity;
+                      currentCharge.zqc.DisplayListPrice = ProductSelector.validateDecimal(currentCharge.zqc.d_listprice, ProductSelector.getFieldScale('CHARGE', 'List Price'));
+                    }
+                    else {
+                      currentCharge.zqc.d_EffectivePrice = (currentCharge.zqc.d_Quantity == 0 || currentCharge.zqc.d_Total == null) ? 0 : currentCharge.zqc.d_Total / currentCharge.zqc.d_Quantity;
+                      currentCharge.zqc.d_listprice = (currentCharge.zqc.d_Quantity == 0 || currentCharge.zqc.d_listtotal == null) ? 0 : currentCharge.zqc.d_listtotal / currentCharge.zqc.d_Quantity;
+                    }
+                  }
+
+
+                  // afterCalculation()
+                  currentCharge.zqc.qcharge['{!namespace}Discount__c'] = currentCharge.zqc.d_Discount;
+                  currentCharge.zqc.qcharge['{!namespace}EffectivePrice__c'] = currentCharge.zqc.d_EffectivePrice;
+                  currentCharge.zqc.qcharge['{!namespace}Total__c'] = currentCharge.zqc.d_Total;
+                  currentCharge.zqc.qcharge['{!namespace}Quantity__c'] = currentCharge.zqc.d_Quantity;
+                  currentCharge.zqc.qcharge['{!namespace}ListPrice__c'] = currentCharge.zqc.d_listprice;
+                  currentCharge.zqc.qcharge['{!namespace}ListTotal__c'] = currentCharge.zqc.d_listtotal;
+                  if(currentCharge.zqc.feeType != undefined) currentCharge.zqc.qcharge['{!namespace}FeeType__c'] = currentCharge.zqc.qcharge['{!namespace}FeeType__c'];
+                  if(currentCharge.zqc.zcharge['{!namespace}Type__c'] == 'Recurring' && currentCharge.zqc.zcharge['{!namespace}Model__c'] == 'Volume Pricing' && (currentCharge.zqc.AddUnitStatus == 1 || currentCharge.zqc.AddUnitStatus == 2)) {
+                    currentCharge.zqc.DisplayListPrice = 'Varies';
+                    currentCharge.zqc.DisplayEffectivePrice = 'Varies';
+                    currentCharge.zqc.EffectivePriceEditable = true;
+                  }
+
+                  // COM-8622 Update discount of all tiers
+                  var customedTiers = currentCharge.zqc.chargetiers;
+                  for(var count=0; count < customedTiers.length; count++){
+                     var currentTier = customedTiers[count];
+                     currentTier.{!namespace}Discount__c = currentCharge.zqc.d_Discount;
+                     currentTier.{!namespace}Effective_Price__c = currentTier.{!namespace}Price__c * (100-currentTier.{!namespace}Discount__c)/100;
+                     if(currentCharge['isTiersOpen'] != undefined && currentCharge['isTiersOpen'] == true && currentCharge.oInnerTable != undefined){
+                      currentCharge.oInnerTable.fnUpdate( currentTier["{!namespace}Discount__c"], count, 4);
+                      currentCharge.oInnerTable.fnUpdate( currentTier["{!namespace}Effective_Price__c"], count, 5);
+                    }
+                   }
+                 }
+                
+               }
+               else {
+                 //COM-5619 - tiered/volume charges with custom tiers should round the discount field to the appropriate number of decimal places
+                 currentCharge['DISCOUNT'] = ProductSelector.validateDecimal(currentCharge['DISCOUNT'], ProductSelector.getFieldScale('CHARGE', 'Discount'));
+                 value = currentCharge['DISCOUNT'];
+                 currentCharge.zqc.d_Discount = currentCharge['DISCOUNT'];
+
+                
+                //COM-5761:Quantity field is set to 1 after updating List Price field (When we update discount, we need reset d_Quantity since the initial quantity is always 1)
+                currentCharge.zqc.d_Quantity = currentCharge['QUANTITY'];
+               
+                // Update Effective Price
+                if(!isNaN(currentCharge['LIST_PRICE']) && currentCharge['LIST_PRICE'] !=''){
+                  currentCharge['EFFECTIVE_PRICE'] = (currentCharge['LIST_PRICE']*(100-currentCharge['DISCOUNT'])/100).toFixed(ProductSelector.getFieldScale('CHARGE', 'Effective Price'));
+                  currentCharge.zqc.d_EffectivePrice = currentCharge['EFFECTIVE_PRICE'];
+                }
+                
+                //If we change discount we need refresh innerTable to reset discount.
+                currentCharge['TOTAL'] = (currentCharge['LIST_TOTAL']*(100-currentCharge['DISCOUNT'])/100).toFixed(ProductSelector.getFieldScale('CHARGE', 'Total'));
+                currentCharge.zqc.d_Total = currentCharge['TOTAL'];
+
+                // Update discount of all tiers
+                var customedTiers = currentCharge.zqc.chargetiers;
+                for(var count=0; count < customedTiers.length; count++){
+                   var currentTier = customedTiers[count];
+                   currentTier.{!namespace}Discount__c = currentCharge['DISCOUNT'];
+                   currentTier.{!namespace}Effective_Price__c = currentTier.{!namespace}Price__c * (100-currentTier.{!namespace}Discount__c)/100;
+                   if(currentCharge['isTiersOpen'] != undefined && currentCharge['isTiersOpen'] == true && currentCharge.oInnerTable != undefined){
+                    currentCharge.oInnerTable.fnUpdate( currentTier["{!namespace}Discount__c"], count, 4);
+                    currentCharge.oInnerTable.fnUpdate( currentTier["{!namespace}Effective_Price__c"], count, 5);
+                  }
+                 }
+               }
+             
+              }
+               else{
+                 // Handle 'Tiered with Overage Pricing', only Effective Price can be editable
+                 if( settings.name == 'EFFECTIVE_PRICE' ) {
+                   value = ProductSelector.validateDecimal(currentCharge['EFFECTIVE_PRICE'], ProductSelector.getFieldScale('CHARGE', 'Effective Price'));
+                 }
+                 currentCharge.zqc.d_EffectivePrice = currentCharge['EFFECTIVE_PRICE'];
+               }
+             
+               for(var count = 0; count < aoColumns.length; count++) {
+                 //we don't refresh the first colune which will make the img status is incorrect and we need register event against the new img again
+                 if( count != 0){
+                    
+                    if(aoColumns[count].mDataLevel == 'zqc')
+                      dataTable.customFnUpdate( settings.submitdata[settings.row].zqc[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                    else if(aoColumns[count].mDataLevel == 'chargeObejct')
+                      dataTable.customFnUpdate( settings.submitdata[settings.row].chargeObject[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                    else if(aoColumns[count].mDataLevel == 'zqc.qcharge')
+                      dataTable.customFnUpdate( settings.submitdata[settings.row].zqc.qcharge[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                    else
+                      dataTable.customFnUpdate( settings.submitdata[settings.row][aoColumns[count].mData], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                  
+                 }
+               }
+               
+               if(productSelectorsAllData[productSelectorId].saved){
+                 
+                 var saveOkIcon = $jq("img[id='" + productSelectorId + "_saveOk']");
+                 saveOkIcon.removeClass();
+                 saveOkIcon.addClass('hideSaveIndicator');
+                 
+                 var saveAlertIcon = $jq("img[id='" + productSelectorId + "_saveAlert']");
+                 saveAlertIcon.removeClass();
+                 saveAlertIcon.addClass('showSaveIndicator');
+                 
+               }
+             }
+             else{
+             
+                 //Generate correct json data.
+                 var productSelectorData = settings.submitdata[settings.row];
+                 var zChargeData = {};
+
+                 for(k in productSelectorData){
+                   if(k == 'zqc'){
+                     var tiers = productSelectorData[k].chargetiers;
+
+                     zChargeData[k] = {};
+                     zChargeData[k]['uomPrecision'] = productSelectorData.zqc['uomPrecision'];
+                     zChargeData[k]['chargetiers'] = [];
+
+                     // Add the decimal fields to zChargeData.zqc
+                     zChargeData[k]['d_Discount'] = productSelectorData.zqc['d_Discount'];
+                     zChargeData[k]['d_EffectivePrice'] = productSelectorData.zqc['d_EffectivePrice'];
+                     zChargeData[k]['d_Quantity'] = productSelectorData.zqc['d_Quantity'];
+                     zChargeData[k]['d_Total'] = productSelectorData.zqc['d_Total'];
+                     zChargeData[k]['d_ListTotal'] = productSelectorData.zqc['d_ListTotal'];
+
+                     for(var count =0; count < tiers.length; count ++ ){
+                       var tier ={};
+
+                       for( l in tiers[count]) {
+                         if( typeof l != 'string' || l == 'attributes')
+                           continue;
+                         var position = l.indexOf('__c');
+
+                         if(position >= 0 ) {
+                           if( l == '{!namespace}Currency__c'){
+                             tier.TierCurrency = tiers[count][l];
+                           }else{
+                             tier[l.substring(0, position).replace('{!namespace}', '')] = tiers[count][l];
+                           }
+                         }
+                         else {
+                           tier[l] = tiers[count][l];
+                         }
+                       }
+                       zChargeData[k]['chargetiers'].push( tier );
+                     }    
+                     
+                     // Add Included Unit field
+                     zChargeData[k].DisplayIncludedUnits = productSelectorData[k].DisplayIncludedUnits;
+                     if(productSelectorData[k].qcharge){
+                       zChargeData.DISCOUNT_LEVEL = productSelectorData[k].qcharge['{!namespace}discount_level__c'];
+                       zChargeData.UPTO_HOW_MANY_PERIODS = productSelectorData[k].qcharge['{!namespace}upto_how_many_periods__c'];
+                     }
+                   }
+                   else{
+                     zChargeData[k] = productSelectorData[k];
+                   }
+                 }
+                 
+                 //Store value for custom field
+                 if(zChargeData.customfieldNameValueMap != null){
+                   zChargeData.CUSTOM_FIELDS = {};
+                   for(k in zChargeData.customfieldNameValueMap){
+                     zChargeData.CUSTOM_FIELDS[k] = zChargeData.chargeObject[k];
+                   }
+                 }
+                 
+             //When isCustomerdTiers is false and customer change the discount. we should clean those unnecessary fields.
+             zChargeData.isTiersOpen = undefined;
+             zChargeData.oInnerTable = undefined;
+             zChargeData.chargeTiersObjects = undefined;
+             
+             // Show loading icon
+             var loadingIcon = $jq("img[id='" + productSelectorId + "_loading']");
+             loadingIcon.removeClass();
+             loadingIcon.addClass('showSaveIndicator');
+             
+             // Disable buttons
+             ProductSelector.disableButtons();
+             
+             // Javascript remoting to recalculate rate plan charge
+             Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.SelectProductController.recalculateRatePlanChargeList}',
+                quoteId,
+                quoteType,
+                ratePlanId,
+                settings.name,
+                settings.valueBeforeUpdate,
+                
+                $jq.toJSON(zChargeData),
+                    //$jq.toJSON(settings.submitdata[settings.row]),
+                function(result, event){
+                  if (event.status) {
+                        
+                        // Replace '&quot;' to '"'
+                        var decoded = $jq('<div/>').html(result).text();
+                        var zc = $jq.evalJSON(decoded);
+                        
+                          // Make zqc.qcharge field name to lower case
+                          if(zc.zqc.qcharge != null){
+                            var qcharge = {};
+                            for(key in zc.zqc.qcharge){
+                              qcharge[key.toLowerCase()] = zc.zqc.qcharge[key];
+                            }
+                            zc.zqc.qcharge = qcharge;
+                          }
+                      
+                        //COM-5573 We have to get the status value from old charge.
+                        zc['isTiersOpen'] = zCharges[nRow._DT_RowIndex]['isTiersOpen'];
+                        zc.oInnerTable = zCharges[nRow._DT_RowIndex].oInnerTable;
+                        
+                        // Use the previous stored chargeObject to update custom fields, since read-only fields won't be returned after re-calculation
+                        zc.chargeObject = zCharges[nRow._DT_RowIndex].chargeObject;
+                        
+                        zCharges[nRow._DT_RowIndex] = zc;
+                        
+                        //COM-5760:Effective Price is set to "0E-7" after updating Quantity field and removing a tier at the same time
+                        //When we call remote calculation, the hasCustomTiers has to be false
+                        for(var count = 0; count < zc.zqc.chargetiers.length; count++ ){
+                           if( zc.hasCustomTiers == false ){
+                             if( zc.zqc.chargetiers[count].{!namespace}Effective_Price__c == null || zc.zqc.chargetiers[count].{!namespace}Effective_Price__c == undefined ) {
+                                  zc.zqc.chargetiers[count].{!namespace}Effective_Price__c = zc.zqc.chargetiers[count].{!namespace}Price__c;
+                                  zc.zqc.chargetiers[count].{!namespace}Discount__c = 0;
+                             }
+                           }
+                        }
+                        
+                        
+                        if( zc.hasCustomTiers == false  && zc.MODEL == 'Tiered with Overage Pricing' ){
+                          zc.zqc.chargetiers.pop();
+                        }
+                        
+                        for(var count = 0; count < aoColumns.length; count++) {
+                          //we don't refresh the first colune which will make the img status is incorrect and we need register event against the new img again
+                          if( count != 0){
+                          
+                            if(aoColumns[count].mDataLevel == 'zqc')
+                              dataTable.customFnUpdate( zc.zqc[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                            else if(aoColumns[count].mDataLevel == 'chargeObejct')
+                              dataTable.customFnUpdate( zc.chargeObject[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                            else if(aoColumns[count].mDataLevel == 'zqc.qcharge')
+                              dataTable.customFnUpdate( zc.zqc.qcharge[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                            else
+                              dataTable.customFnUpdate( zc[aoColumns[count].mData], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                          
+                          }
+                        }
+                        
+                        // Hide loading icon
+                        var loadingIcon = $jq("img[id='" + productSelectorId + "_loading']");
+                        loadingIcon.removeClass();
+                        loadingIcon.addClass('hideSaveIndicator');
+                          
+                        if(productSelectorsAllData[productSelectorId].saved){
+                          
+                          var saveOkIcon = $jq("img[id='" + productSelectorId + "_saveOk']");
+                          saveOkIcon.removeClass();
+                          saveOkIcon.addClass('hideSaveIndicator');
+                          
+                          var saveAlertIcon = $jq("img[id='" + productSelectorId + "_saveAlert']");
+                          saveAlertIcon.removeClass();
+                          saveAlertIcon.addClass('showSaveIndicator');
+                          
+                        }
+                      }
+                      else{
+                        alertify.alert(event.message);
+                        
+                        // Enable cell editable if error happens during calculation
+                        var storedZCharge = settings.submitdata[settings.row];
+                        storedZCharge[settings.name] = settings.valueBeforeUpdate;
+                        
+                        for(var count = 0; count < aoColumns.length; count++) {
+                          //we don't refresh the first colune which will make the img status is incorrect and we need register event against the new img again
+                          if( count != 0){
+                          
+                            if(aoColumns[count].mDataLevel == 'zqc')
+                              dataTable.customFnUpdate( storedZCharge.zqc[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                            else if(aoColumns[count].mDataLevel == 'chargeObejct')
+                              dataTable.customFnUpdate( storedZCharge.chargeObject[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                            else if(aoColumns[count].mDataLevel == 'zqc.qcharge')
+                              dataTable.customFnUpdate( storedZCharge.zqc.qcharge[aoColumns[count].fieldName], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                            else
+                              dataTable.customFnUpdate( storedZCharge[aoColumns[count].mData], nRow._DT_RowIndex,count, aoColumns[count].fieldType );
+                          }
+                        }
+                        
+                        // Hide loading icon
+                        var loadingIcon = $jq("img[id='" + productSelectorId + "_loading']");
+                        loadingIcon.removeClass();
+                        loadingIcon.addClass('hideSaveIndicator');
+                      }
+                      
+                      // Enable buttons
+                      ProductSelector.enableButtons();
+                    }
+                  )
+               }
+             }
+             
+             if(productSelectorsAllData[productSelectorId].status == 'original'){
+               productSelectorsAllData[productSelectorId].status = 'updated';
+             }
+             
+             // Hide the warning message panel
+             var messagePanel = $jq('#'+ productSelectorId +'_message');
+             messagePanel.css('display', 'none');
+             
+             return(value);
+          },
+          
+          // Config options
+          { 
+             type : ratePlanChargeFieldGroup[fieldName].fieldType,
+             height : 'none',
+             width : 'auto',
+             onblur: 'submit',
+             name : fieldName,
+             id : fieldData.PRODUCT_RATE_PLAN_CHARGE_SFDC_ID,
+             loaddata : fieldData,
+             //submitdata : zCharges[nRow._DT_RowIndex],
+             submitdata : zCharges,
+             row : nRow._DT_RowIndex,
+             valueBeforeUpdate : '',
+             data: function(value, settings) {
+                      settings.valueBeforeUpdate = value;
+                      if( settings.type == 'select') {
+                        var options = {};
+                        var pickListKeys = ratePlanChargeFieldGroup[fieldName].pickListKeys;
+                        var pickListValues = ratePlanChargeFieldGroup[fieldName].pickListValues;
+                        for(var k=0; k<pickListKeys.length; k++){
+                          var key = pickListKeys[k];
+                          options[key] = pickListValues[key];
+                          if(value == pickListValues[key])
+                            options.selected = key;
+                        }
+                        return $jq.toJSON(options);
+                      }
+                      else if(settings.type == 'multiselect') {
+                        var valueArray = value.split(';');
+                        var options = {};
+                        options.selected = [];
+                        var pickListKeys = ratePlanChargeFieldGroup[fieldName].pickListKeys;
+                        var pickListValues = ratePlanChargeFieldGroup[fieldName].pickListValues;
+                        for(var k=0; k<pickListKeys.length; k++){
+                          var key = pickListKeys[k];
+                          options[key] = pickListValues[key];
+                          if(valueArray.indexOf(pickListValues[key]) != -1)
+                            options.selected.push(key);
+                        }
+                        return $jq.toJSON(options);
+                      }
+                      else{
+                        return(value);
+                      }
+                    }
+          },
+          
+          // Call back after submit
+          function(value, settings){
+            return(value);
+          }
+        );
+    }
+    
+    function showAvailableNewFeatures(productSelectorId){
+      
+      if(productFeaturesAllData[productSelectorId].productFeatures.length >= 100){
+        alertify.alert("You can add no more than 100 features.");
+        return;
+      }
+      
+      // Get features already associated with current product
+      var existingProductFeatureIds = "";
+      if(productFeaturesAllData[productSelectorId].productFeatures.length > 0){
+        for(var i=0; i<productFeaturesAllData[productSelectorId].productFeatures.length; i++){
+          var productFeature = productFeaturesAllData[productSelectorId].productFeatures[i];
+          existingProductFeatureIds += productFeature.featureId + ',';
+        }
+        existingProductFeatureIds = existingProductFeatureIds.substring(0, existingProductFeatureIds.length-1);
+      }
+      
+      // Add receiveMessage callback method
+      ZXD.receiveMessage(addNewFeatures, '{!$CurrentPage.URL}', '{!namespaceWithNoUnderscore}');
+      var url = "/apex/{!namespace}PopupWindow?pageType=addFeatures&featureIds=" + existingProductFeatureIds + "&productSelectorId=" + productSelectorId;
+      var newWin = window.open(url, 'Popup', 'height=600,width=600,left=200,top=100,resizable=no,scrollbars=yes,toolbar=no,status=no');
+      if (window.focus) {
+        newWin.focus();
+      }
+      return false;
+    }
+    
+    function addNewFeatures(event){
+      if ( typeof String.prototype.startsWith != 'function' ) {
+          String.prototype.startsWith = function( str ) {
+          return this.substring( 0, str.length ) == str;
+        }
+      };
+      var data;
+      // Remove Sandbox or Production namespace from url
+      if(event.origin){
+        var urlArray = event.origin.split('--');
+        var urlWithOnlyZuoraNamespace;
+        if(urlArray.length > 1){
+          var http = urlArray[0].substring(0, urlArray[0].indexOf("//") + 2);
+          urlWithOnlyZuoraNamespace = http + urlArray[urlArray.length-1];
+        }
+        else
+          urlWithOnlyZuoraNamespace = urlArray[urlArray.length-1];
+      
+        if(urlWithOnlyZuoraNamespace == null)
+          urlWithOnlyZuoraNamespace = event.origin;
+      
+        if((urlWithOnlyZuoraNamespace.startsWith("http://{!namespaceWithNoUnderscore}") || urlWithOnlyZuoraNamespace.startsWith("https://{!namespaceWithNoUnderscore}"))){
+          data = event.data;
+        }
+      }
+      else {
+        data = $jq.parseJSON(event.data);
+      }
+      
+      if(data){
+        var productSelectorId = data.productSelectorId;
+        
+        displayStatusModal();
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SelectProductController.getAddedFeatureListResult}',
+          data.selectedIds.toString(),
+          function(result, event){
+            if (event.status) {
+              var totalFeatures = productFeaturesAllData[productSelectorId].productFeatures.length + result.length
+              if(totalFeatures > 100){
+                alertify.alert("You can add no more than 100 features.");
+                closeStatusModal();
+                return;
+              }
+              
+              for(var index=0; index<result.length; index++){
+                var jsonString = result[index];
+                // Replace '&quot;' to '"'
+                var decoded = $jq('<div/>').html(jsonString).text();
+                var productFeature = $jq.evalJSON(decoded);
+                productFeaturesAllData[productSelectorId].productFeatures.push(productFeature);
+              }
+              ProductSelector.initFeatureDataTable(productSelectorId, productFeaturesAllData[productSelectorId].productFeatures, true, productFeaturesAllData[productSelectorId].allowFeatureChanges);
+              
+              productSelectorsAllData[productSelectorId].modified = true
+              if(productSelectorsAllData[productSelectorId].status == 'original'){
+                productSelectorsAllData[productSelectorId].status = 'updated';
+              }
+              if(productSelectorsAllData[productSelectorId].saved){
+                var saveOkIcon = $jq("img[id='" + productSelectorId + "_saveOk']");
+                saveOkIcon.removeClass();
+                saveOkIcon.addClass('hideSaveIndicator');
+                
+                var saveAlertIcon = $jq("img[id='" + productSelectorId + "_saveAlert']");
+                saveAlertIcon.removeClass();
+                saveAlertIcon.addClass('showSaveIndicator');
+              }
+            }
+            else{
+              alertify.alert(event.message);
+            }
+            closeStatusModal(); 
+          }
+        )
+      }
+    }
+    
+    function addRatePlans(ratePlanIds, callback, callbackContext){
+        // Disable buttons
+        ProductSelector.disableButtons();
+        
+        displayStatusModal();
+        
+        var availableProductSelectorPanels = ProductSelector.getAvailableProductSelectorPanels();
+        if(availableProductSelectorPanels.length < ratePlanIds.length){
+          alertify.alert('You can add ' + availableProductSelectorPanels.length + ' more rate plans');
+          // Enable buttons
+          ProductSelector.enableButtons();
+          // Close status modal
+          closeStatusModal();
+          return;
+        }
+        
+        existingDataJSONArray = [];
+        for(key in productSelectorsAllData){
+          if(key != 'removedData' && key != 'undoData'){
+            if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+              existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+            }
+          }
+        }
+        
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SelectProductController.getRatePlanCharges}',
+          '{!quote.Id}',
+          '{!quoteType}',
+          '',
+          ratePlanIds,
+          $jq.toJSON(existingDataJSONArray),
+          function(result, event){
+            if (event.status) {
+              if(result.hasError){
+                // Display error
+                ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+              }
+              else{
+                // Guided Selling callback
+                if(callbackContext && $jq.isFunction(callback)){
+                  callback.call(callbackContext);
+                }
+                // Remove rate plans
+                ProductSelector.autoRemoveRatePlans(result.ratePlanMap, result.relatedRatePlans, {!isGuidedSellingEnabled});
+                // Add rate plans
+                ProductSelector.autoAddRatePlansOnGSProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                
+                // Refresh existing quote product features
+                if({!isFeatureEnabled}){
+                  ProductSelector.refreshAllExistingQuoteProductFeatures(result.existingProductFeatures);
+                }
+                
+                // Display rules engine change logs
+                ProductSelector.displayRulesEngineChangeLogs(result.changeLogs, 'ProductRuleLog');
+              }
+            }
+            else{
+              alertify.alert(event.message);
+            }
+            // Enable buttons
+            ProductSelector.enableButtons();
+            
+            closeStatusModal(); 
+          }
+        )
+      }
+    
+    function changeRatePlan(productSelectorId, ratePlanId, isEditMode, status, previousSelection){
+        
+        // Display status modal if rules engine enabled
+        if({!isRulesEngineEnabled}){
+          displayStatusModal();
+        }
+        // Disable buttons
+        ProductSelector.disableButtons();
+        
+        ratePlanIds = [ratePlanId];
+        existingDataJSONArray = [];
+        for(key in productSelectorsAllData){
+          if(key != 'removedData' && key != 'undoData'){
+            if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+              existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+            }
+          }
+        }
+        
+        Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SelectProductController.getRatePlanCharges}',
+          '{!quote.Id}',
+          '{!quoteType}',
+          previousSelection.value,
+          ratePlanIds,
+          $jq.toJSON(existingDataJSONArray),
+          function(result, event){
+            if (event.status) {
+              
+              if(result.hasError){
+                // Display error
+                ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+                // Rollback changes for rate plan lookup
+                ProductSelector.rollBackLookupValues('ChangeRatePlan', null, productSelectorId, previousSelection);
+              }
+              else{
+                //Hide 'Expand All' & 'Collapse All' buttons
+                var expandCollapseAllButtons = $jq('.' + productSelectorId + 'TierTree');
+                expandCollapseAllButtons.css("display", "none");
+                // Add selected rate plan
+                ProductSelector.showRatePlanChargeList('{!namespace}', productSelectorId, ratePlanId, result.ratePlanCharges[0], true, isEditMode, '{!quote.Id}', '{!quoteType}', {!hasPermissionForCustomTier}, status);
+                // Remove current added rate plan charges
+                result.ratePlanCharges.shift();
+                
+                if({!isFeatureEnabled}){
+                  // Refresh quote product features
+                  ProductSelector.refreshQuoteProductFeatures(productSelectorId, result.productFeatures[0]);
+                  // Remove current added quote product features
+                  result.productFeatures.shift();
+                }
+                
+                // Remove automatically removed rate plans from rules engine
+                ProductSelector.autoRemoveRatePlans(result.ratePlanMap, result.relatedRatePlans, {!isGuidedSellingEnabled});
+                
+                // Add automatically added rate plans from rules engine
+                ProductSelector.autoAddRatePlansOnProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', true, {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                
+                // Refresh existing quote product features
+                if({!isFeatureEnabled}){
+                  ProductSelector.refreshAllExistingQuoteProductFeatures(result.existingProductFeatures);
+                }
+                
+                // Display rules engine change logs
+                ProductSelector.displayRulesEngineChangeLogs(result.changeLogs, 'ProductRuleLog');
+              }
+            }
+            else{
+              alertify.alert(event.message);
+            }
+            // Enable buttons
+            ProductSelector.enableButtons();
+            // Close status modal
+            if({!isRulesEngineEnabled}){
+              closeStatusModal();
+            }
+          }
+        )
+      }
+    
+    function validateRemoveProduct(btn, productSelectorId, isGuidedSellingEnabled, hasMessage){
+      
+      // Get remove type
+      var type = ProductSelector.getRemoveProductType(btn, productSelectorId);
+      
+      // 1. Remove product selector panel directly if rules engine is not enabled
+      // 2. Remove empty product selector panel directly
+      // 3. Remove product selector panel directly if undo updated product
+      if( (!{!isRulesEngineEnabled} && !{!isRatePlanCustomizationEnabled}) ||
+          productSelectorsAllData[productSelectorId] == undefined ||
+          productSelectorsAllData[productSelectorId].ratePlanId == undefined ||
+          type == 'UndoUpdatedProduct'
+        ){
+        ProductSelector.removeProductSelectorPanel(type, btn, productSelectorId, isGuidedSellingEnabled, hasMessage);
+        return;
+      }
+      
+      // Display status modal
+      displayStatusModal();
+      
+      var removedRatePlanId = '';
+      existingDataJSONArray = [];
+      for(key in productSelectorsAllData){
+        if(key != 'removedData' && key != 'undoData'){
+          
+          if(key == productSelectorId){
+            if(type == 'UndoRemovedProduct'){
+              existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+            }
+            else{
+              removedRatePlanId = productSelectorsAllData[key].ratePlanId;
+            }
+          }
+          else{
+            if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+              existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+            }
+          }
+        }
+      }
+      
+      Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SelectProductController.getRatePlanCharges}',
+          '{!quote.Id}',
+          '{!quoteType}',
+          removedRatePlanId,
+          [],
+          $jq.toJSON(existingDataJSONArray),
+          function(result, event){
+            if (event.status) {
+              if(result.hasError){
+                // Display error
+                ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+                
+                // Roll back product/rate plan lookup values
+                ProductSelector.rollBackLookupValues(type, btn, productSelectorId);
+              }
+              else{
+                if(productSelectorsAllData[productSelectorId].status == 'removed' && 
+                   result.relatedRatePlans.RemovedEnabled != undefined && 
+                   result.relatedRatePlans.RemovedEnabled.indexOf(productSelectorsAllData[productSelectorId].ratePlanId) != -1){
+                  // Do not execute undo action for Removed rate plan if the rate plan will be removed by product rules
+                }
+                else{
+                  // Remove current product selector panel if the rate plan can be removed
+                  ProductSelector.removeProductSelectorPanel(type, btn, productSelectorId, isGuidedSellingEnabled, hasMessage);
+                }
+                
+                // Automatically remove rate plans
+                ProductSelector.autoRemoveRatePlans(result.ratePlanMap, result.relatedRatePlans, {!isGuidedSellingEnabled});
+                
+                // Add automatically added rate plans from rules engine
+                // For Guided Selling Product Selector
+                if({!isGuidedSellingEnabled}){
+                  ProductSelector.autoAddRatePlansOnGSProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                }
+                // For Original Product Selector
+                else{
+                  ProductSelector.autoAddRatePlansOnProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', true, {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                }
+                
+                // Refresh existing quote product features
+                if({!isFeatureEnabled}){
+                  ProductSelector.refreshAllExistingQuoteProductFeatures(result.existingProductFeatures);
+                }
+                
+                // Display rules engine change logs
+                ProductSelector.displayRulesEngineChangeLogs(result.changeLogs, 'ProductRuleLog');
+              }
+            }
+            else{
+              alertify.alert(event.message);
+            }
+            // Close status modal
+            closeStatusModal();
+          }
+        )
+    }
+    
+    function recalculateRatePlans(validate, saveBtn){
+      // Display status modal
+      displayStatusModal();
+      
+      existingDataJSONArray = [];
+      for(key in productSelectorsAllData){
+        if(key != 'removedData' && key != 'undoData'){
+          if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+            // Do not recalculate undo data
+            if(productSelectorsAllData[key].status == 'original' && productSelectorsAllData.undoData[key] != undefined){
+              continue;
+            }
+            existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+          }
+        }
+      }
+      
+      Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SelectProductController.recalculateRatePlans}',
+          '{!quote.Id}',
+          '{!quoteType}',
+          $jq.toJSON(existingDataJSONArray),
+          function(result, event){
+            if (event.status) {
+              
+              if(result.hasError){
+                // Display error
+                ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+              }
+              else{
+                for(productSelectorId in result.recalculatedRatePlanCharges){
+                  
+                  // Refresh the recalculated rate plan charges
+                  ProductSelector.showRatePlanChargeList('{!namespace}', productSelectorId, productSelectorsAllData[productSelectorId].ratePlanId, result.recalculatedRatePlanCharges[productSelectorId], true, true, '{!quote.Id}', '{!quoteType}', {!hasPermissionForCustomTier}, productSelectorsAllData[productSelectorId].status);
+                  if(productSelectorsAllData[productSelectorId].status == 'original')
+                    productSelectorsAllData[productSelectorId].status = 'updated';
+                  productSelectorsAllData[productSelectorId].modified = true;
+                  
+                  // Reset save icon
+                  saveOkIcon = $jq("img[id='" + productSelectorId + "_saveOk']");
+                  if(saveOkIcon.css('display') != 'none'){
+                    saveOkIcon.removeClass();
+                    saveOkIcon.addClass('hideSaveIndicator');
+                    
+                    var saveAlertIcon = $jq("img[id='" + productSelectorId + "_saveAlert']");
+                    saveAlertIcon.removeClass();
+                    saveAlertIcon.addClass('showSaveIndicator');
+                  }
+                }
+                
+                // Display rules engine change logs
+                ProductSelector.displayRulesEngineChangeLogs(result.changeLogs, 'PriceRuleLog');
+                
+                if(validate){
+                  // Run validation rules
+                  validateRatePlans(saveBtn);
+                }
+              }
+            }
+            else{
+              alertify.alert(event.message);
+            }
+            // Enable buttons
+            ProductSelector.enableButtons();
+            // Close status modal
+            closeStatusModal(); 
+          }
+        )
+    }
+    
+    function validateRatePlans(saveBtn){
+      // Display status modal
+      displayStatusModal();
+      
+      existingDataJSONArray = [];
+      for(key in productSelectorsAllData){
+        if(key != 'removedData' && key != 'undoData'){
+          if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+            // Do not recalculate undo data
+            if(productSelectorsAllData[key].status == 'original' && productSelectorsAllData.undoData[key] != undefined){
+              continue;
+            }
+            existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+          }
+        }
+      }
+      
+      Visualforce.remoting.Manager.invokeAction(
+          '{!$RemoteAction.SelectProductController.validateRatePlans}',
+          '{!quote.Id}',
+          '{!quoteType}',
+          $jq.toJSON(existingDataJSONArray),
+          function(result, event){
+            if (event.status) {
+              
+              if(result.hasError){
+                // Display error
+                ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+              }
+              else{
+                if(saveBtn){
+                  saveCurrentChanges(saveBtn);
+                }
+              }
+            }
+            else{
+              alertify.alert(event.message);
+            }
+            // Enable buttons
+            ProductSelector.enableButtons();
+            // Close status modal
+            closeStatusModal(); 
+          }
+        )
+    }
+    
+    function runAllRules(existingDataJSONArray, validate, saveBtn){
+        if({!isForceRecalculationEnabled}){
+          Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SelectProductController.getRatePlans}',
+            '{!quote.Id}',
+            '{!quoteType}',
+            $jq.toJSON(existingDataJSONArray),
+            function(result, event){
+              if (event.status) {
+                if(result.hasError){
+                  // Display error
+                  ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+                }
+                else{
+                  // Automatically remove rate plans
+                  ProductSelector.autoRemoveRatePlans(result.ratePlanMap, result.relatedRatePlans, {!isGuidedSellingEnabled});
+                  
+                  // Add automatically added rate plans from rules engine
+                  // For Guided Selling Product Selector
+                  if({!isGuidedSellingEnabled}){
+                    ProductSelector.autoAddRatePlansOnGSProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                  }
+                  // For Original Product Selector
+                  else{
+                    ProductSelector.autoAddRatePlansOnProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', true, {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                  }
+                  
+                  // Refresh existing quote product features
+                  if({!isFeatureEnabled}){
+                    ProductSelector.refreshAllExistingQuoteProductFeatures(result.existingProductFeatures);
+                  }
+                  
+                  // Display rules engine change logs
+                  ProductSelector.displayRulesEngineChangeLogs(result.changeLogs, 'ProductRuleLog');
+                  
+                  // Recalculate rate plans
+                  recalculateRatePlans(validate, saveBtn);
+                }
+              }
+              else{
+                alertify.alert(event.message);
+              }
+              // Close status modal
+              closeStatusModal();
+            }
+          )
+        }
+        else{
+          Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SelectProductController.getRatePlanCharges}',
+            '{!quote.Id}',
+            '{!quoteType}',
+            '',
+            [],
+            $jq.toJSON(existingDataJSONArray),
+            function(result, event){
+              if (event.status) {
+                if(result.hasError){
+                  // Display error
+                  ProductSelector.displayRulesEngineErrorLogs(result.changeLogs);
+                }
+                else{
+                  
+                  // Automatically remove rate plans
+                  ProductSelector.autoRemoveRatePlans(result.ratePlanMap, result.relatedRatePlans, {!isGuidedSellingEnabled});
+                  
+                  // Add automatically added rate plans from rules engine
+                  // For Guided Selling Product Selector
+                  if({!isGuidedSellingEnabled}){
+                    ProductSelector.autoAddRatePlansOnGSProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                  }
+                  // For Original Product Selector
+                  else{
+                    ProductSelector.autoAddRatePlansOnProductSelector(result.ratePlanCharges, '{!namespace}', '{!quote.Id}', '{!quoteType}', true, {!hasPermissionForCustomTier}, {!isFeatureEnabled}, result.productFeatures);
+                  }
+                  
+                  // Refresh existing quote product features
+                  if({!isFeatureEnabled} && !saveBtn){
+                    ProductSelector.refreshAllExistingQuoteProductFeatures(result.existingProductFeatures);
+                  }
+                  
+                  // Display rules engine change logs
+                  ProductSelector.displayRulesEngineChangeLogs(result.changeLogs, 'ProductRuleLog');
+                  
+                  // Save current changes
+                  if(saveBtn){
+                    saveCurrentChanges(saveBtn);
+                  }
+                }
+              }
+              else{
+                alertify.alert(event.message);
+              }
+              // Close status modal
+              closeStatusModal();
+            }
+          )
+        }
+    }
+    
+    function refreshCustomizedRatePlans(){
+      
+      // Display status modal
+      displayStatusModal();
+      
+      // Get all existing zChargeGroup json data
+      existingDataJSONArray = [];
+      for(key in productSelectorsAllData){
+        if(key != 'removedData' && key != 'undoData'){
+          if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+            existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+          }
+        }
+      }
+      
+      Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.SelectProductController.getRatePlanCharges}',
+            '{!quote.Id}',
+            '{!quoteType}',
+            '',
+            [],
+            $jq.toJSON(existingDataJSONArray),
+            function(result, event){
+              if (event.status) {
+                // Refresh existing quote product features
+                if({!isFeatureEnabled}){
+                  ProductSelector.refreshAllExistingQuoteProductFeatures(result.existingProductFeatures);
+                }
+              }
+              else{
+                alertify.alert(event.message);
+              }
+              // Close status modal
+              closeStatusModal();
+            }
+          )
+    }
+    
+    function addNewProduct(){
+      var productSelectorInitialPanels = $jq("span[data-id='productSelectorInitialPanels']");
+      var children = productSelectorInitialPanels.children();
+      
+      var addedNewProductSelector = false;
+      var addedAllProductSelectors = true;
+      
+      for(var i=0; i<children.length; i++){
+        
+        // Show a new product selector panel
+        var productSelectorPanel = $jq(children[i]).find("span[data-id='productSelectorPanel']");
+        if(addedNewProductSelector == false){
+          if(productSelectorPanel.length > 0 && productSelectorPanel.css("display") == "none"){
+            productSelectorPanel.css("display", "block");
+            $jq(children[i]).prependTo(productSelectorInitialPanels);
+            addedNewProductSelector = true;
+          }
+        }
+        else{
+          if(productSelectorPanel.length > 0 && productSelectorPanel.css("display") == "none"){
+            addedAllProductSelectors = false;
+          }
+        }
+        
+      }
+      
+      // Hide 'Add New Product' button
+      // Show 'Save and Add More Products' button
+      if(addedAllProductSelectors == true){
+        var addNewProductBtn = document.getElementById('addProduct');
+        addNewProductBtn.style.display = 'none';
+        
+        var addMoreProductsBtn = document.getElementById('addMoreProducts');
+        addMoreProductsBtn.style.display = 'inline-block';
+      }
+    }
+    
+    // Called when the 'Remove' button is clicked on each product selector panel
+    function showAddNewProductBtn(){
+      var addNewProductBtn = document.getElementById('addProduct');
+      addNewProductBtn.style.display = 'inline-block';
+      
+      var addMoreProductsBtn = document.getElementById('addMoreProducts');
+      addMoreProductsBtn.style.display = 'none';
+    }
+    
+    function confirmAddMoreProducts(btn){
+      var r = window.confirm("{!$Label.SELECT_PRODUCT_SAVE_AND_ADD_MORE_PRODUCTS_WARNING}");
+      if (r == true){
+        saveCurrentChanges(btn);
+      }
+    }
+    
+    function validateTiers(){
+      for(var count=0; productSelectorsAllData[count] != undefined; count++ ){
+        if( productSelectorsAllData[count].data != undefined ) {
+          for(var dataCount=0; dataCount <productSelectorsAllData[count].data.length; dataCount++ ){
+            var charge = productSelectorsAllData[count].data[dataCount];
+            var chargeName = productSelectorsAllData[count].data[dataCount].NAME;
+            if( charge.hasCustomTiers == true ){
+              var chargeModel = charge.zqc.chargeModel;
+              var tiers = charge.zqc.chargetiers;
+              for( var i = 0 ; i < tiers.length; i++ ){
+                var endingUnit = tiers[i].{!namespace}EndingUnit__c;
+                var startingUnit = tiers[i].{!namespace}StartingUnit__c;
+                var price = tiers[i].{!namespace}Price__c;
+                var tierLayer = parseInt(i) + 1;
+                if( endingUnit != undefined && endingUnit !='' && parseFloat(endingUnit) < parseFloat(startingUnit) ){
+                  return parseInt(count) +1 + ' Rate Plan: ' + chargeName + ': '  + tierLayer + ' Tier: the value of To field should be greater than the value of From field';
+                }
+                if( price == undefined ){
+                  return  parseInt(count) +1 + ' Rate Plan: ' + chargeName + ': ' + tierLayer + ' Tier: the value of List Price field should not be null';
+                }             
+                if( i==tiers.length - 1 && chargeModel=='Tiered with Overage Pricing' && (isNaN(endingUnit) || endingUnit == null || endingUnit == '') ){
+                  return parseInt(count)+1 + ' Rate Plan: ' + chargeName + ': ' + tierLayer + ' Tier: To field must be required';
+                }
+              }
+            }
+          }
+        }
+      }
+      return '';
+    }
+    
+    validateQuantityForChargeWithCustomTiers = function(currentCharge, quantity){
+      var validationError = '';
+      if(quantity == '' || isNaN(quantity)){
+        validationError = 'Error on zCharge: ' + currentCharge.NAME + ', Details: For an editable QUANTITY, it should be a number, but actually is ' + quantity;
+        return validationError;
+      }
+      else{
+        quantity = parseFloat(quantity);
+      }
+      var tiers = currentCharge.zqc.chargetiers;
+      var startingUnit;
+      var endingUnit;
+      for( var i = 0 ; i < tiers.length; i++ ){
+        if(tiers[i].{!namespace}Tier__c == 1){
+          startingUnit = parseFloat(tiers[i].{!namespace}StartingUnit__c);
+        }
+        if(tiers[i].{!namespace}Tier__c == tiers.length){
+          if(tiers[i].{!namespace}EndingUnit__c != undefined && tiers[i].{!namespace}EndingUnit__c !=''){
+            endingUnit = parseFloat(tiers[i].{!namespace}EndingUnit__c);
+          }
+        }
+      }
+      
+      if(startingUnit != undefined && quantity < startingUnit){
+        validationError = 'Error on zCharge: ' + currentCharge.NAME + ', Details: Quantity exceeds the charge\'s min quantity ' + startingUnit;
+      }
+      if(endingUnit != undefined && quantity > endingUnit){
+        validationError = 'Error on zCharge: ' + currentCharge.NAME + ', Details: Quantity exceeds the charge\'s max quantity ' + endingUnit;
+      }
+      return validationError;
+    }
+    
+    function saveProducts(btn){
+      
+      var errorString =  validateTiers();
+      if( errorString != ''){
+        alertify.alert(errorString);
+        return false;
+      }
+      
+      if(!{!isRulesEngineEnabled}){
+        saveCurrentChanges(btn);
+        return;
+      }
+      
+      // Display status modal
+      displayStatusModal();
+      
+      existingDataJSONArray = [];
+      for(key in productSelectorsAllData){
+        if(key != 'removedData' && key != 'undoData'){
+          if(productSelectorsAllData[key].status != undefined && productSelectorsAllData[key].status != 'removed'){
+            existingDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+          }
+        }
+      }
+      
+      runAllRules(existingDataJSONArray, true, btn);
+      
+    }
+    
+    function saveCurrentChanges(btn){
+      
+      displayStatusModal();
+      
+      var updatedDataJSONArray = [];
+      var removedZChargeGroupIds = [];
+      var undoZChargeGroupMap = {};
+      
+      for(key in productSelectorsAllData){
+        
+        if(key == 'removedData'){
+          if(productSelectorsAllData.removedData != undefined && productSelectorsAllData.removedData.length > 0){
+            for(var index=0; index<productSelectorsAllData.removedData.length; index++){
+              removedZChargeGroupIds.push(productSelectorsAllData.removedData[index].zChargeGroupId);
+            }
+          }
+        }
+        else if(key == 'undoData'){
+          if(productSelectorsAllData.undoData != undefined){
+            for(productSelectorId in productSelectorsAllData.undoData){
+              undoZChargeGroupMap[productSelectorsAllData.undoData[productSelectorId].zChargeGroupId] = productSelectorId;
+            }
+          }
+        }
+        else{
+            if(productSelectorsAllData[key].status != undefined){
+              
+              var backgroundPanel = $jq("div[data-id='" + key + "_productSelectorPanel']");
+              var statusPanel = $jq("span[id='" + key + "_status']");
+              
+              var backgroundPanelClass = "";
+              var statusPanelClass = "";
+              var statusLabel = "";
+              var productSelectorDisplayPanel;
+              
+              if(productSelectorsAllData[key].status == "added"){
+                backgroundPanelClass = "backgroundPanelAdded";
+                statusPanelClass = "panelStatusAdded";
+                statusLabel = "added";
+                productSelectorDisplayPanel = $jq("span[data-id='productSelectorAddedPanels']");
+                
+                var removeBtn = $jq("button[id='" + key + "_remove_btn']");
+                removeBtn.css("display", "inline-block");
+                var removeBtnForOriginal = $jq("button[id='" + key + "_remove_btn_for_original']");
+                removeBtnForOriginal.css("display", "none");
+                var undoBtn = $jq("button[id='" + key + "_undo_btn']");
+                undoBtn.css("display", "none");
+              }
+              else if(productSelectorsAllData[key].status == "removed"){
+                backgroundPanelClass = "backgroundPanelRemoved";
+                statusPanelClass = "panelStatusRemoved";
+                statusLabel = "removed";
+                productSelectorDisplayPanel = $jq("span[data-id='productSelectorRemovedPanels']");
+                
+                var removeBtn = $jq("button[id='" + key + "_remove_btn']");
+                removeBtn.css("display", "none");
+                var removeBtnForOriginal = $jq("button[id='" + key + "_remove_btn_for_original']");
+                removeBtnForOriginal.css("display", "none");
+                var undoBtn = $jq("button[id='" + key + "_undo_btn']");
+                undoBtn.css("display", "inline-block");
+              }
+              else if(productSelectorsAllData[key].status == "updated"){
+                backgroundPanelClass = "backgroundPanelUpdated";
+                statusPanelClass = "panelStatusUpdated";
+                statusLabel = "updated";
+                productSelectorDisplayPanel = $jq("span[data-id='productSelectorUpdatedPanels']");
+                
+                var removeBtn = $jq("button[id='" + key + "_remove_btn']");
+                removeBtn.css("display", "none");
+                var removeBtnForOriginal = $jq("button[id='" + key + "_remove_btn_for_original']");
+                removeBtnForOriginal.css("display", "none");
+                var undoBtn = $jq("button[id='" + key + "_undo_btn']");
+                undoBtn.css("display", "inline-block");
+              }
+              else if(productSelectorsAllData[key].status == "original"){
+                backgroundPanelClass = "backgroundPanelOriginal";
+                statusPanelClass = "panelStatusOriginal";
+                statusLabel = "original";
+                productSelectorDisplayPanel = $jq("span[data-id='productSelectorOriginalPanels']");
+                
+                var removeBtn = $jq("button[id='" + key + "_remove_btn']");
+                removeBtn.css("display", "none");
+                var removeBtnForOriginal = $jq("button[id='" + key + "_remove_btn_for_original']");
+                removeBtnForOriginal.css("display", "inline-block");
+                var undoBtn = $jq("button[id='" + key + "_undo_btn']");
+                undoBtn.css("display", "none");
+              }
+              else{
+                backgroundPanelClass = "backgroundPanelInitial";
+                statusPanelClass = "panelStatusInitial";
+                statusLabel = "";
+                productSelectorDisplayPanel = $jq("span[data-id='productSelectorInitialPanels']");
+                
+                var removeBtn = $jq("button[id='" + key + "_remove_btn']");
+                removeBtn.css("display", "inline-block");
+                var removeBtnForOriginal = $jq("button[id='" + key + "_remove_btn_for_original']");
+                removeBtnForOriginal.css("display", "none");
+                var undoBtn = $jq("button[id='" + key + "_undo_btn']");
+                undoBtn.css("display", "none");
+              }
+              
+              // Change product selector panel background css
+              backgroundPanel.removeClass();
+              backgroundPanel.addClass(backgroundPanelClass);
+              
+              // Change product selector panel status css
+              statusPanel.removeClass();
+              statusPanel.addClass(statusPanelClass);
+              statusPanel[0].innerHTML = statusLabel;
+              
+              // Move product selector panel into its display panel
+              backgroundPanel.parent().parent().prependTo(productSelectorDisplayPanel);
+              
+              if(productSelectorsAllData[key].saved == false || productSelectorsAllData[key].modified == true){
+                //if(productSelectorsAllData[key].data.length > 0){
+                if(productSelectorsAllData.undoData[key] == undefined){
+                  updatedDataJSONArray.push(ProductSelector.constructProductSelectorJSONObject(key, '{!quote.Id}', {!isFeatureEnabled}));
+                }
+              }
+            }
+            else{
+              var backgroundPanel = $jq("div[data-id='" + key + "_productSelectorPanel']");
+              backgroundPanel.removeClass();
+              backgroundPanel.addClass("backgroundPanelInitial");
+              
+              var statusPanel = $jq("span[id='" + key + "_status']");
+              statusPanel.removeClass();
+              statusPanel.addClass("panelStatusInitial");
+              statusPanel[0].innerHTML="";
+              
+              var saveOkIcon = $jq("img[id='" + key + "_saveOk']");
+              saveOkIcon.removeClass();
+              saveOkIcon.addClass('hideSaveIndicator');
+              
+              var saveAlertIcon = $jq("img[id='" + key + "_saveAlert']");
+              saveAlertIcon.removeClass();
+              saveAlertIcon.addClass('hideSaveIndicator');
+              
+              // Move back to productSelectorInitialPanels
+              var productSelectorInitialPanels = $jq("span[data-id='productSelectorInitialPanels']");
+              backgroundPanel.parent().parent().appendTo(productSelectorInitialPanels);
+              
+            }
+          }
+      }
+      
+      // Save the changes
+      Visualforce.remoting.Manager.invokeAction(
+                        '{!$RemoteAction.SelectProductController.saveChanges}',
+                        '{!quote.Id}',
+                        '{!quoteType}',
+                        $jq.toJSON(updatedDataJSONArray),
+                        removedZChargeGroupIds,
+                        undoZChargeGroupMap,
+                        function(jsResult, event){
+                          if (event.status) {
+                            if(jsResult.success === true){
+                            var logDetails = [];
+                            var result = jsResult.saveResult;
+                            for(psId in result){
+                              // Add change log for Amendment and Renewal
+                              if(psId.indexOf('logDetail') != -1){
+                                logDetails.push(result[psId]);
+                                continue;
+                              }
+                              // Re-render undo charge list
+                              if(productSelectorsAllData.undoData[psId] != undefined){
+                                // Replace '&quot;' to '"'
+                                var decoded = $jq('<div/>').html(result[psId]).text();
+                                var undoReturnData = $jq.evalJSON(decoded);
+                                var zcg = undoReturnData.zcg;
+                                
+                                // Show original rate plan charge list
+                                var editable = true;
+                                if(productSelectorsAllData[psId].status == 'removed')
+                                  editable = false;
+                                ProductSelector.showRatePlanChargeList('{!namespace}', psId, productSelectorsAllData[psId].ratePlanId, zcg.zCharges, false, editable, '{!quote.Id}', '{!quoteType}' , {!hasPermissionForCustomTier}, 'original');
+                                
+                                // Show original quote product feature
+                                if({!isFeatureEnabled}){
+                                  var originalFeatures = [];
+                                  if(undoReturnData.productFeatureJsonObjectList){
+                                    for(var featureIndex = 0; featureIndex < undoReturnData.productFeatureJsonObjectList.length; featureIndex++){
+                                      originalFeatures.push($jq.evalJSON(undoReturnData.productFeatureJsonObjectList[featureIndex]));
+                                    }
+                                  }
+                                  productFeaturesAllData[psId].productFeatures = originalFeatures;
+                                  productFeaturesAllData[psId].productFeaturesLoaded = true;
+                                  
+                                  ProductSelector.initFeatureDataTable(psId, productFeaturesAllData[psId].productFeatures, editable, productFeaturesAllData[psId].allowFeatureChanges);
+                                  
+                                }
+                                
+                                // Make text strikethrough for removed rate plan panel
+                                if(productSelectorsAllData[psId].status == 'removed'){
+                                  $jq('.displayedText',$jq("div[data-id='"+ psId +"_productSelectorPanel']")).addClass('strikethrough');
+                                }
+                                else{
+                                  $jq('.displayedText',$jq("div[data-id='"+ psId +"_productSelectorPanel']")).removeClass('strikethrough');
+                                }
+                                
+                                var productSelectorPanel = $jq("div[data-id='" + psId + "_productSelectorPanel']").parent();
+                                productSelectorPanel.css("display", "block");
+                              }
+                              // Set group id for new and updated charge group
+                              else{
+                                // Replace '&quot;' to '"'
+                                var decoded = $jq('<div/>').html(result[psId]).text();
+                                var returnObject = $jq.evalJSON(decoded);
+                                
+                                // Update zChargeGroupId to productSelectorsAllData
+                                productSelectorsAllData[psId].zChargeGroupId = returnObject.groupId;
+                                
+                                // Get dataTable settings
+                                var dataTableSetting;
+                                for(var dataTableSettingIndex=0; dataTableSettingIndex < productSelectorsAllData[psId].ratePlanChargeTable.dataTableSettings.length; dataTableSettingIndex++){
+                                  var sTableId = psId+'_ratePlanChargeTable';
+                                  if(productSelectorsAllData[psId].ratePlanChargeTable.dataTableSettings[dataTableSettingIndex].sTableId == sTableId){
+                                    dataTableSetting = productSelectorsAllData[psId].ratePlanChargeTable.dataTableSettings[dataTableSettingIndex];
+                                    break;
+                                  }
+                                }
+                                
+                                // Render formula and auto-number fields
+                                for(var columnIndex=0; columnIndex < dataTableSetting.aoColumns.length; columnIndex++){
+                                  var column = dataTableSetting.aoColumns[columnIndex];
+                                  if(column.isCustomField && column.isFormula){
+                                    
+                                    for(var aoDataIndex=0; aoDataIndex < dataTableSetting.aoData.length; aoDataIndex++){
+                                      var aoData = dataTableSetting.aoData[aoDataIndex];
+                                      var zCharge = aoData._aData;
+                                      var rowIndex = aoData.nTr._DT_RowIndex;
+                                      
+                                      var zChargeWithQueriedFields = returnObject.zChargeWithQueriedFields[zCharge.PRODUCT_RATE_PLAN_CHARGE_SFDC_ID];
+                                      
+                                      // Get current charge object in productSelectorsAllData
+                                      var currentChargeInProductSelectorsAllData;
+                                      for(var productSelectorDataIndex=0; productSelectorDataIndex < productSelectorsAllData[psId].data.length; productSelectorDataIndex++){
+                                        if(productSelectorsAllData[psId].data[productSelectorDataIndex].PRODUCT_RATE_PLAN_CHARGE_SFDC_ID == zCharge.PRODUCT_RATE_PLAN_CHARGE_SFDC_ID){
+                                          currentChargeInProductSelectorsAllData = productSelectorsAllData[psId].data[productSelectorDataIndex];
+                                        }
+                                      }
+                                      
+                                      for(fieldName in zChargeWithQueriedFields){
+                                        // Updaet charge Id
+                                        if(fieldName == 'Id'){
+                                          currentChargeInProductSelectorsAllData.Id = zChargeWithQueriedFields.Id;
+                                          continue;
+                                        }
+                                        
+                                        if(fieldName.toLowerCase() == column.fieldName){
+                                          // Render formula and auto-number field
+                                          var value = zChargeWithQueriedFields[fieldName];
+                                          if(column.fieldType != 'datetime'){
+                                            productSelectorsAllData[psId].ratePlanChargeTable.customFnUpdate(value, rowIndex, columnIndex, column.fieldType);
+                                          }
+                                          else{
+                                            // JSRemote method to render datetime field
+                                            var nTd = aoData.nTr.children[columnIndex];
+                                            FormatObject.formatDatetime(value, nTd);
+                                          }
+                                          // Update formula and auto-number field values in productSelectorsAllData
+                                          currentChargeInProductSelectorsAllData.chargeObject[column.fieldName] = value;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                                
+                              }
+                              
+                              productSelectorsAllData[psId].saved = true;
+                              productSelectorsAllData[psId].modified = false;
+                              
+                              var saveOkIcon = $jq("img[id='" + psId + "_saveOk']");
+                              saveOkIcon.removeClass();
+                              saveOkIcon.addClass('showSaveIndicator');
+                              
+                              var saveAlertIcon = $jq("img[id='" + psId + "_saveAlert']");
+                              saveAlertIcon.removeClass();
+                              saveAlertIcon.addClass('hideSaveIndicator');
+                              
+                            }
+                            
+                            if(logDetails.length > 0){
+                              $jq('li', $jq('#logDetailInfo')).remove();
+                              while(logDetails.length > 0){
+                                $jq("<li>" + logDetails.pop() + "</li>").appendTo($jq('#logDetailInfo'));
+                              }
+                            }
+                            
+                            productSelectorsAllData.removedData = [];
+                            productSelectorsAllData.undoData = [];
+                            
+                            if(btn.id.indexOf('saveAndNext') != -1){
+                              goToNextPage();
+                            }
+                            else if(btn.id.indexOf('addMoreProducts') != -1){
+                              reloadPage();
+                            }
+                            }
+                            else {
+                              if(jsResult.message){
+                                // Replace '&quot;' to '"'
+                                var decoded = $jq('<div/>').html(jsResult.message).text();
+                                var messageList = $jq.evalJSON(decoded);
+                                var displayedMessage = '';
+                                for(var i=0; i<messageList.length; i++){
+                                  displayedMessage += messageList[i] + '<br/>';
+                                }
+                                alertify.alert(displayedMessage);
+                              }
+                              else{
+                                alertify.alert('Unhandled exception happened when saving the records.');
+                              }
+                            }
+                          }
+                          else{
+                            alertify.alert(event.message);
+                          }
+                          closeStatusModal(); 
+                        }
+                      )
+    }
+    
+  </script>
+  </apex:outputPanel>
+  <div id="z-modal-overlay" style="display:none" />
+  <div id="z-modal-alert" style="display: none">
+    <div id="z-modal-alert-msg" class="msg-container">
+      <div class="msg-content">
+        <div class="header">{!$Label.Warning}</div>
+        <div class="messageBody">{!$Label.CANCEL_QUOTE_WIZARD_WARNING}</div>
+      </div>
+    </div>
+    <div class="bar"></div>
+    <div class="msg-actions" style="text-align: center; width: 10%;">
+      <div class="btn" onclick="cancelAction(true);"
+        style="padding: 6px 3px; position: relative; top: 10px;">{!$Label.BUTTON_YES}</div>
+      <div class="btn" onclick="cancelAction(false);"
+        style="padding: 6px 3px; position: relative; top: 10px;">{!$Label.BUTTON_NO}</div>
+    </div>
+  </div>
+  <div id="div-update-discount" style="display:none">
+    <div id="updc-error-msg" style="display:none"/>
+    <div id="edit-discount-charge">
+        <div style="margin: 20px">
+            <table>
+                <tr>
+                    <td><span id="dcep-label"></span></td>
+                    <td>
+                      <input type="text" name="dceffectivePrice" id="dceffectivePrice" style="width: 50px" class="text ui-widget-content ui-corner-all"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>{!$ObjectType.QuoteCharge__c.fields.Upto_How_Many_Periods__c.Label}</td>
+                    <td>
+                      <input type="text" name="upToPeriods" id="upToPeriods" onchange="" class="text ui-widget-content ui-corner-all" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>{!$ObjectType.QuoteCharge__c.fields.Discount_Level__c.Label}</td>
+                    <td>
+                        <select name="level" id="level">
+                          <option value="RatePlan">RatePlan</option>
+                          <option value="Subscription">Subscription</option>
+                          <option value="Account">Account</option>
+                        </select>
+                    </td>
+                </tr>
+                
+            </table>
+            <input type="hidden" id="zqcid" value=""/>
+        </div>
+    </div>
+  </div>
+    <apex:actionRegion >
+  <apex:outputPanel id="gsPanel" rendered="{!gsOptionsList != null}">
+      <apex:outputPanel id="gsCompPanel">
+        <c:Modal name="{!selectedGsOptions.guidedFlowId}_gs">
+          <c:GuidedSelling options="{!selectedGsOptions}" quoteIdParam="{!theOptions.quoteId}"
+            compId="{!selectedGsOptions.guidedFlowId}" />
+        </c:Modal>
+      </apex:outputPanel>
+      <apex:actionFunction name="AF_selectGuidedSellingStep"
+        action="{!selectGuidedSellingStep}" rerender="gsCompPanel" 
+        oncomplete="openGuidedSellingModal('{!selectedGuidedFlowId}')"
+        status="modalStatus">
+        <apex:param name="selectedGuidedStep"
+          assignTo="{!selectedGuidedStepId}" value="" />
+        <apex:param name="selectedGuidedFlow"
+          assignTo="{!selectedGuidedFlowId}" value="" />
+      </apex:actionFunction>
+      <apex:actionStatus id="modalStatus" onstart="displayStatusModal();"
+        onstop="closeStatusModal();" />
+      <script>
+        function ps_selectGuidedStep(selectOptions, mutton){
+          if(selectOptions.value && mutton.instanceName){
+            var gstepId = selectOptions.value;
+            var gflowId = mutton.instanceName;
+            AF_selectGuidedSellingStep(gstepId, gflowId);
+          }
+          return 1;
+        }
+        function openGuidedSellingModal(flowId){
+          if(window[flowId + '_gs']){
+            window[flowId + '_gs'].open();
+            GuidedSelling.resetProgressBar();
+          }
+          window[flowId + '_gs'].closeCallback = function(){
+            AF_clear();
+          }
+        }
+      </script>
+  </apex:outputPanel>
+    </apex:actionRegion>
+</apex:component>

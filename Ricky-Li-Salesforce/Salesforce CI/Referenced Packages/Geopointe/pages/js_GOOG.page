@@ -1,0 +1,69 @@
+<apex:page controller="geopointe.Map_Controller" showheader="false" sidebar="false" standardStylesheets="false">
+	
+	<!-- Contains Google specific functions -->
+	<script type="text/javascript">
+		
+		function gp_AffectMapTimer(){
+			var t = setTimeout("gp_AffectMap()",100);
+		}
+		
+		function gp_AffectMap(){
+			try{
+				
+				// Load data from controller into JS object
+				var jsAction = {!jsActionJSON};
+				jsAction.searchType = '{!JSENCODE(searchType)}';
+				jsAction.writeBackEnabled = {!writeBackEnabled};
+				jsAction.writeBackLookupObject = '{!JSENCODE(writeBackLookupObject)}';
+				jsAction.writeBackButtonText = '{!JSENCODE(writeBackButtonText)}';
+				jsAction.searchNearbyDriveCalc = {!searchNearbyDriveCalc};
+				jsAction.searchNearbyShowOverlay = {!searchNearbyShowOverlay};
+				
+				// init objects
+				gp_initJSObjects();
+ 				
+			 	// Clear the hidden data so we don't keep sending it to server
+				gp_clearHiddenFields();
+			 	
+				/***  MAP CONSTRUCTOR ***/
+				gp_mapConstructor(jsAction);
+	 			
+				/*** POINTS OF INTEREST ***/
+				if(jsAction.poiCollections){
+					gp_poiCollections(jsAction);
+				}
+	 			
+				/*** ROUTING ***/
+				jQuery("#routeNarrativeDIV").html('');
+
+				gp_addToRouteFromRPOIs(jsAction.routingPOIs); // If there are rPOIs to process, put them into the Data Table
+ 				
+				gp_routeRequest(jsAction);
+				
+				
+			} catch (e) {
+				alert(e);
+				geopointeAjaxEnd();
+			}
+			
+			geopointeAjaxEnd();
+			
+			// Auto run a search nearby if necessary
+			if (typeof(jsAction.mapConstructor.radialSearchAutoRun) != 'undefined'){
+				if (jsAction.mapConstructor.radialSearchAutoRun){
+					//var t = setTimeout("gp_searchNearbyRecordsWrapper()",100);
+					//Click the radial search button
+					setTimeout(function(){ 
+						jQuery("#buttonSearchNearbyRemote").click();
+					}, 100);
+				}else{
+					isRadialSearchAutoRun = false;
+				}
+			}else{
+				isRadialSearchAutoRun = false;
+			}
+   		}
+		
+    </script>
+    
+</apex:page>

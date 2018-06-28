@@ -1,0 +1,433 @@
+<apex:page controller="dsfs.DocuSignSetupController"
+	action="{!initConfiguration}" tabstyle="DocuSign_Admin__tab">
+
+	<style>
+.ds_button_wrapper {
+	padding: 10px;
+	layout: block;
+	text-align: left;
+}
+
+.ds_setuptext {
+	padding: 10px;
+	text-align: left;
+}
+</style>
+	<apex:form >
+		<input type="hidden" id="hdnIpRangeUrl" name="hdnIpRangeUrl"
+			value="{!SetupIpRangeUrl}" />
+		<script>
+function SetTrustedNetwork()
+{
+    var url = document.getElementById("hdnIpRangeUrl").value;
+    url = unescape(url);
+    window.open(url, "SFNetworkAddress", "height=600, width=950,scrollbars=1,resizable=1");
+}
+</script>
+		<apex:pageMessages />
+		<apex:pageBlock title="DocuSign For Salesforce"
+			tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='ALREADYCONFIGURED'}">
+    Your Account is already configured. Please click the button below to go to the DocuSign Admin page<br />
+			<apex:outputPanel styleclass="ds_button_wrapper" layout="block">
+				<apex:commandButton action="{!ReturnToDocuSignAdmin}"
+					value="DocuSign Admin" />
+			</apex:outputPanel>
+		</apex:pageBlock>
+		<!-- START MESSAGE -->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='START'}">
+    Configuring DocuSign for Salesforce is quick and easy.<br /> To begin the process click the <b>Start
+				Set Up</b> button below.
+    <br />
+			<br />
+			<apex:outputLink target="DocuSignAbout" value="http://docusign.com/">About DocuSign</apex:outputLink>
+			<br />
+			<br />
+			<font style="font-weight: bold">Step 1:&nbsp;&nbsp;Get your
+				Send with DocuSign Button and Real Time Visibility</font>
+			<div style="padding-left: 20px">Create a Free DocuSign Trial
+				Account or link an existing account</div>
+			<br />
+			<font style="font-weight: bold">Step 2:&nbsp;&nbsp;Start
+				DocuSigning!</font>
+			<div style="padding-left: 20px">Enable DocuSign to send
+				real-time data and documents to Salesforce</div>
+			<br />
+			<br />
+			<apex:commandButton action="{!Next}" value="Start Set Up" />
+		</apex:pageBlock>
+		<!-- ACCOUNT START -->
+		<apex:pageBlock title="Step 1: Set up Connection to your DocuSign Account"
+			tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='ACCOUNT' && ACCOUNTSETUPMODESTRING=='START'}">
+			<apex:outputpanel >
+				<div style="padding-top: 20px; width: 500px; text-align: left">
+					In this step, you must either create a new DocuSign account, or use
+					an existing account you already have established.</div>
+				<div style="padding-top: 10px; width: 500px; text-align: center">
+					<apex:commandButton action="{!NewAccount}"
+						value="I need a DocuSign Account" />
+				</div>
+				<div style="padding-top: 10px; width: 500px; text-align: center">
+					Or</div>
+				<div style="padding-top: 10px; width: 500px; text-align: center">
+					<apex:commandButton action="{!LinkAccount}"
+						value="I have a DocuSign Account" />
+				</div>
+			</apex:outputpanel>
+			</apex:pageblock>
+			<!--  LINK EXISTING DOCUSIGN ACCOUNT -->
+			<apex:pageBlock title="Authenticate your DocuSign Account"
+				tabstyle="DocuSign_Admin__tab"
+				rendered="{!PageDisplayModeString=='ACCOUNT' && (ACCOUNTSETUPMODESTRING=='LINK' || ACCOUNTSETUPMODESTRING=='EMAILLINK')}">
+				<apex:outputPanel styleclass="ds_setuptext" layout="block"
+					rendered="{!ACCOUNTSETUPMODESTRING=='LINK'}">
+    Please enter the email address and password for your existing DocuSign account, and then click the 'Link Account' button. 
+    </apex:outputPanel>
+				<apex:outputPanel styleclass="ds_setuptext" layout="block"
+					rendered="{!ACCOUNTSETUPMODESTRING=='EMAILLINK'}">
+    Please check your email and create a DocuSign password and return to this page.
+    <br />
+					<br />
+    Please enter the email address and password for your DocuSign account, and then click the 'Link Account' button. 
+    </apex:outputPanel>
+				<apex:outputPanel >
+					<table cellspacing="0" cellpadding="4" border="0"
+						style="margin-top: 10px; margin-bottom: 5px; margin-left: 10px">
+						<tr>
+							<td style="font-weight: bold" align="right">DocuSign Email
+								Address</td>
+							<td><apex:inputText style="width: 180px"
+									value="{!DocuSignEmail}" id="docusignAccountEmail" /></td>
+						</tr>
+						<tr>
+							<td style="font-weight: bold" align="right">DocuSign
+								Password</td>
+							<td><apex:inputSecret style="width: 180px"
+									value="{!DocuSignPassword}" id="docusignAccountPassword" /></td>
+						</tr>
+					</table>
+				</apex:outputPanel>
+				<apex:outputPanel id="DocuSignRequestAccount" layout="block">
+        &nbsp;&nbsp;
+        <apex:outputPanel styleclass="ds_button_wrapper" layout="block">
+						<apex:commandButton action="{!RequestAccount}"
+							id="dsxRequestAccountButton" value="Link Account" />
+						<apex:commandButton action="{!ReturnToAccountType}"
+							id="dsxCancelRequestAccountButton" value="Cancel" />
+					</apex:outputPanel>
+				</apex:outputPanel>
+			</apex:pageBlock>
+			<!--  CREATE NEW DOCUSIGN ACCOUNT -->
+			<apex:pageBlock title="Setup Your DocuSign Account"
+				tabstyle="DocuSign_Admin__tab"
+				rendered="{!PageDisplayModeString=='ACCOUNT' && ACCOUNTSETUPMODESTRING=='CREATE'}">
+				<apex:outputPanel styleclass="ds_setuptext" layout="block">
+    Please fill out the form below and click the 'Create My Account' button to setup your new DocuSign account.
+    <br />
+					<br />
+    If you already have an account with DocuSign, and you wish to use it, <apex:commandLink action="{!ToggleAccountMode}" value="click here" />.
+    </apex:outputPanel>
+				<apex:pageBlockSection title="Account Information" columns="1">
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="memberUserName">
+            Your Name (as you sign it) <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberUserName}"
+							id="memberUserName_validation" style="width:200px;" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="memberEmailAddress">
+            Email Address <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberEmailAddress}"
+							id="memberEmailAddress" style="width:200px;" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!DocuSignProvisioningInfo.passwordSetupRequired}">
+						<apex:outputLabel for="memberPassword">
+            Password <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputSecret value="{!SetupCreateAccountFormInfo.MemberPassword}"
+							id="memberPassword" style="width:200px;" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!DocuSignProvisioningInfo.passwordSetupRequired}">
+						<apex:outputLabel for="memberPasswordConfirm">
+            Confirm Password <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputSecret value="{!MemberPasswordConfirm}"
+							id="memberPasswordConfirm" style="width:200px;" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!DocuSignProvisioningInfo.passwordSetupRequired}">
+						<apex:outputLabel value="Forgotten Password Question"
+							for="memberForgottenPasswordQuestion" />
+						<apex:selectList value="{!SetupCreateAccountFormInfo.MemberForgottenPasswordQuestion}"
+							id="memberForgottenPasswordQuestion" multiselect="false" size="1">
+							<apex:selectOptions value="{!ForgottenPasswordQuestionList}" />
+						</apex:selectList>
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem rendered="{!DocuSignProvisioningInfo.passwordSetupRequired}">
+						<apex:outputLabel for="memberForgottenPasswordAnswer">
+            Forgotten Password Answer <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberForgottenPasswordAnswer}"
+							id="memberForgottenPasswordAnswer" style="width:200px;" />
+					</apex:pageBlockSectionItem>
+				</apex:pageBlockSection>
+				<apex:pageBlockSection title="Personal Information" columns="1">
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Title" for="MemberTitle" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberTitle}"
+							id="MemberTitle" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="First Name" for="MemberFirstName" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberFirstName}"
+							id="MemberFirstName" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Middle Name" for="MemberMiddleName" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberMiddleName}"
+							id="MemberMiddleName" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Last Name" for="MemberLastName" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberLastName}"
+							id="MemberLastName" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Suffix" for="MemberSuffix" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.MemberSuffix}"
+							id="MemberSuffix" />
+					</apex:pageBlockSectionItem>
+				</apex:pageBlockSection>
+				<apex:pageBlockSection title="Address" columns="1">
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Company Name" for="companyName" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.AccountName}"
+							id="companyName" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="address1">
+            Address Line 1 <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.Address1}"
+							id="address1" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Address Line 2" for="address2" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.Address2}"
+							id="address2" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="city">
+            City <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.City}"
+							id="city" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="state">
+            State <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.State}"
+							id="state" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="zip">
+            Zip <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.Zip}" id="zip" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Phone Number" for="phonenumber" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.Phone}"
+							id="phonenumber" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Fax" for="fax" />
+						<apex:inputText value="{!SetupCreateAccountFormInfo.Fax}" id="fax" />
+					</apex:pageBlockSectionItem>
+				</apex:pageBlockSection>
+				<apex:pageBlockSection title="Credit Card Information"
+					rendered="{!SetupCreateAccountFormInfo.PaymentMethod=='creditcard'}">
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="ccUserName">
+            Name on Card <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.CreditCardNameOnCard}"
+							id="ccUserName" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="ccType">
+            Type <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:selectList id="ccType"
+							value="{!SetupCreateAccountFormInfo.CreditCardType}"
+							multiselect="false" size="1">
+							<apex:selectOptions value="{!ccTypeList}" />
+						</apex:selectList>
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="ccNumber">
+            Account Number <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.CreditCardNumber}"
+							id="ccNumber" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="ccCVV2">
+            CVV2 <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:inputText value="{!SetupCreateAccountFormInfo.CreditCardCVV2}" id="ccCVV2" />
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="ccExpMonth">
+            Expiration Month <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:selectList id="ccExpMonth"
+							value="{!SetupCreateAccountFormInfo.CreditCardExpirationMonth}"
+							multiselect="false" size="1">
+							<apex:selectOptions value="{!ccExpMonthList}" />
+						</apex:selectList>
+					</apex:pageBlockSectionItem>
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel for="ccExpYear">
+            Expiration Year <font style="color: red">*</font>
+						</apex:outputLabel>
+						<apex:selectList id="ccExpYear"
+							value="{!SetupCreateAccountFormInfo.CreditCardExpirationYear}"
+							multiselect="false" size="1">
+							<apex:selectOptions value="{!ccExpYearList}" />
+						</apex:selectList>
+					</apex:pageBlockSectionItem>
+				</apex:pageBlockSection>
+				<apex:pageBlockSection columns="1" title="Confirm">
+					<apex:outputText >
+						<apex:inputCheckbox id="chkAgreeToTerms" value="{!AgreeToTerms}">
+						</apex:inputCheckbox>
+						<apex:outputText >I agree to the&nbsp;
+        <apex:outputLink target="new"
+								value="http://www.docusign.com/terms_and_conditions.php">DocuSign Terms and Conditions</apex:outputLink>
+        &nbsp;(available at http://www.docusign.com/terms_and_conditions.php).</apex:outputText>
+					</apex:outputText>
+					<br />
+					<apex:outputPanel styleclass="ds_button_wrapper" layout="block">
+						<apex:commandButton value="Create My Account"
+							Action="{!CreateAccount}" />
+						<apex:commandButton value="Cancel" Action="{!ReturnToAccountType}" />
+					</apex:outputPanel>
+				</apex:pageBlockSection>
+			</apex:pageBlock>
+			<!--  CONNECT USER -->
+			<apex:pageBlock title="Step 2: Connect DocuSign to Salesforce"
+				tabstyle="DocuSign_Admin__tab"
+				rendered="{!PageDisplayModeString=='CONNECT'}">
+				<apex:pageBlockSection columns="1" title="" collapsible="false">
+					<apex:outputPanel styleclass="ds_setuptext" layout="block">
+        DocuSign has the ability to push information into Salesforce in real-time driving status, documents, and data into the objects you use. 
+        To do this DocuSign needs to login to Salesforce. 
+        <table cellpadding="4" cellspacing="0" border="0"
+							style="padding-top: 20px; padding-bottom: 20px;">
+							<tr>
+								<td style="white-space: nowrap;" align="right"><apex:outputLabel value="Salesforce User" /></td>
+								<td style="white-space: nowrap;"><apex:inputField style="width: 200px;"
+										value="{!dummyRecordForUserLookup.dsfs__LookupUser__c}"
+										id="connectUsernameEdit" />
+								</td>
+							</tr>
+							<tr>
+								<td style="white-space: nowrap;" align="right"><apex:outputLabel value="Salesforce Password" />
+								</td>
+								<td style="white-space: nowrap;"><apex:inputSecret value="{!ConnectPassword}" id="connectPasswordEdit"
+										style="width: 200px;" /></td>
+							</tr>
+							<tr>
+								<td style="white-space: nowrap;" align="right">&nbsp;</td>
+								<td style="white-space: nowrap;">
+									<table cellpadding="0" cellspacing="0" border="0">
+										<tr>
+											<td align="center" style="white-space: nowrap;"
+												valign="bottom"><input type="button" class="btn"
+												onclick="SetTrustedNetwork()" id="btnTrustedNetwork"
+												value="Add DocuSign as a Trusted Network" /> <br />(close
+												pop-up after complete)</td>
+											<td style="padding-left: 10px; padding-right: 10px"
+												valign="top"><apex:outputText >Or</apex:outputText>
+											</td>
+											<td style="white-space: nowrap;" valign="top">
+												Salesforce Token&nbsp;<apex:inputSecret value="{!ConnectSecurityToken}" id="connectSecurityToken"
+													style="width: 200px;" />
+											</td>
+										</tr>
+									</table>
+								</td>
+							</tr>
+							<tr>
+								<td style="white-space: nowrap; padding-top: 30px" align="right"><apex:outputLabel value="Salesforce Environment" for="sfEnv" /></td>
+								<td style="white-space: nowrap; padding-top: 30px"><apex:selectList id="sfEnv" value="{!SalesforceEnvironmentForConnect}"
+										multiselect="false" size="1" style="width: 200px;">
+										<apex:selectOptions value="{!SalesforceEnvironmentForConnectList}" />
+									</apex:selectList>
+								</td>
+							</tr>
+						</table>
+						<apex:commandButton action="{!SaveConnect}" id="dsxConnectSave"
+							value="Next" />
+        &nbsp;&nbsp;&nbsp;<apex:outputText value="{!ConnectErrorMessage}" id="connectErrorMessageDisplay"
+							style="color: red" />
+						<br />
+        (This information can be updated in the console on the DocuSign Admin Tab)<br />
+					</apex:outputPanel>
+				</apex:pageBlockSection>
+
+			</apex:pageBlock>
+
+			<!--  COMPLETE  -->
+			<apex:pageBlock title="DocuSign for Salesforce setup is Complete"
+				tabstyle="DocuSign_Admin__tab"
+				rendered="{!PageDisplayModeString=='FINISH'}">
+				<apex:outputPanel styleclass="ds_setuptext" layout="block">
+       DocuSign has been successfully configured to work together with Salesforce. 
+       All of your account and user management can now be completed from the DocuSign Admin Tab.
+       <br />
+					<br />
+       The most common next step is to configure your page layouts to include a “Send with DocuSign” 
+       button so that users can send with DocuSign just like sending a Salesforce email. 
+       <br />
+					<br />
+       After this, you may setup specific users in your Salesforce Account to use DocuSign for Salesforce.
+       <br />
+					<br />
+       Where would you like to start?<br />
+					<br />
+					<li><apex:commandButton action="{!ReturnToDocuSignAdmin}"
+							value="Account Management" style="width: 150px" /> (Edit Page
+						Layouts)</li>
+					<br />
+					<li><apex:commandButton action="{!ReturnToActivateMembers}"
+							value="Activate Members" style="width: 150px" />
+					</li>
+				</apex:outputPanel>
+			</apex:pageBlock>
+			<!--  ERROR  -->
+			<apex:pageBlock title="Setup Error" tabstyle="DocuSign_Admin__tab"
+				rendered="{!PageDisplayModeString=='ERROR'}">
+				<apex:outputPanel styleclass="ds_setuptext" layout="block">
+        We're sorry, but we've encountered an error. There may be network issues affecting the connection to DocuSign, 
+        and retrying your request may succeed.<br />
+        If it doesn't work, please contact us at our&nbsp;
+        <apex:outputLink target="DocuSignSupport"
+						value="http://docusign.com/support/">support site</apex:outputLink> 
+        or email us at&nbsp;
+        <apex:outputLink value="mailto:service@docusign.com?subject=DocuSign For Salesforce Setup Error&Body=DisplayMode={!PageDisplayModeString}%0DErrorMessage={!DocuSignErrorMessages}%0D">service@docusign.com</apex:outputLink>.<br />
+        Our apologies for the error. You can click the button below to return the Admin page and start over. 
+    </apex:outputPanel>
+				<apex:outputPanel styleclass="ds_button_wrapper" layout="block">
+					<apex:commandButton action="{!ReturnToDocuSignAdmin}"
+						value="DocuSign Admin" />
+				</apex:outputPanel>
+			</apex:pageBlock>
+	</apex:form>
+</apex:page>

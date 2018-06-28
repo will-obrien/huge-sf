@@ -1,0 +1,56 @@
+<apex:page controller="AccountListController" >
+    <apex:form title="Accounts">
+        <h1>Account List</h1><br /><br />
+        <apex:outputpanel layout="block" >
+            <apex:pageBlock id="list" title="List">
+                <apex:inputText id="SearchKey" value="{!searchKey}" onKeyPress="getKeyPressed(event)" />
+                <apex:commandButton value="Search" action="{!searchAccounts}" reRender="showmsg,AccountList" />
+                <apex:pageMessages id="showmsg" />
+                <apex:commandLink value="Clear Results" action="{!clearList}" reRender="AccountList,SearchKey,showmsg" />
+                <apex:pageblockTable id="AccountList" value="{!listAccount}" var="accList" width="90%">
+                    <apex:column headerValue="Name">
+                        <apex:outputLink value="/{!accList.Id}" >{!accList.name}</apex:outputLink>
+                    </apex:column>
+                    <apex:column value="{!accList.website}" headerValue="Website"/>
+                    <apex:column value="{!accList.phone}" headerValue="Phone"/>
+                    <apex:column value="{!accList.Email_Address__c}" headerValue="Email"/>
+                    <apex:column headervalue="Manage">
+                        <apex:commandButton value="Manage Contacts" action="{!redirectToContacts}" reRender="block" >
+                            <apex:param name="aid" value="{!accList.id}" />
+                            <apex:param name="an" value="{!accList.Name}" />
+                        </apex:commandButton>
+                    </apex:column>
+                    <apex:facet name="header" >
+                        Total records similar to {!searchKey} : {!listAccount.size}
+                    </apex:facet>
+                </apex:pageblockTable>
+            </apex:pageBlock>
+        </apex:outputpanel>
+    </apex:form>
+    
+    <script>
+    function getKeyPressed(event) {
+        var x = event.which || event.keyCode;
+        if(x == 13) {
+            alert(x);
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.AccountListController.searchAccounts}',
+                function(result, event) {
+                alert('Check');
+                console.log('Check');
+                    if(event.type === 'exception'){
+                        console.log("exception");
+                        alert('Exception check');
+                        console.log(event);
+                    }else if(event.status){
+                        alert('Status check');
+                    }else{
+                        console.log(event.message);
+                        alert('Last Else');
+                    }
+                }
+            );
+        }
+    }
+    </script>
+</apex:page>

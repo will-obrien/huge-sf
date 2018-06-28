@@ -1,0 +1,54 @@
+<apex:page controller="zqu.PopupWindowController" sidebar="false" showheader="false">
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/postmessage-compressed.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/json2-compressed.js')}" />
+  <style>
+    .listComponentPanel .innerTable, .listComponentPanel .outerTable {
+      width:100%;
+    }
+    
+    .bPageBlock .pbTitle {
+      width:50%;
+    }
+    
+  </style>
+  
+  <script>
+    
+    submitSelectedRecords = function(){
+      if({!listOptions.instanceName}_selectedIds != undefined && {!listOptions.instanceName}_selectedIds.length > 0){
+        var winMain = window.opener; 
+        if ( winMain == null ) winMain = window.parent.opener; 
+        var ua = navigator.userAgent.toLowerCase();
+        var ieVer;
+        if(window.ActiveXObject){
+          ieVer = ua.match(/msie ([\d.]+)/)[1];
+        }
+        var data = {"selectedIds":{!listOptions.instanceName}_selectedIds, "productSelectorId":"{!JSENCODE($CurrentPage.parameters.productSelectorId)}"};
+        if(ieVer && parseInt(ieVer) < 10){
+          data = JSON.stringify(data);
+          var src = window.parent.opener.location.href + '#' + encodeURIComponent(document.location.href);
+          ZXD.postMessage(data, src, winMain);
+        }
+        else {
+          ZXD.postMessage(data, '*', winMain);
+        }
+      }
+      window.close();
+    }
+    
+  </script>
+
+  <!-- List Component -->
+  <apex:form >
+    <apex:pageBlock title="{!popupWindowTitle}">
+      <apex:outputPanel id="notificationPanel">
+        <c:Notification />
+      </apex:outputPanel>
+      <apex:outputPanel rendered="{!IF(listOptions != null, true, false)}">
+        <c:ListComponent options="{!listOptions}"></c:ListComponent>
+        <apex:commandButton value="{!$Label.BUTTON_ADD}" onclick="submitSelectedRecords();return false;"/>
+        <apex:commandButton value="{!$Label.BUTTON_CANCEL}" onclick="window.close();return false;"/>
+      </apex:outputPanel>
+    </apex:pageBlock>
+  </apex:form>
+</apex:page>

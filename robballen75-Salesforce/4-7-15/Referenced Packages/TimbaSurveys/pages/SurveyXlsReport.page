@@ -1,0 +1,112 @@
+<apex:page controller="TIMBASURVEYS.SurveyAnalyzeController" contentType="application/vnd.ms-excel#SurveyXlsReport.xls" action="{!initGraphics}" cache="true">
+ 	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+	</head>
+    <table>
+        <!-- Header -->
+        <tr>
+            <td colspan="6" bgcolor="#EEEEEE">
+                <font size="4"><apex:outputText value="{!survey.Name}" /></font>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="6" >
+                <apex:outputText value="{!IF(!ISNULL(survey.TIMBASURVEYS__Description__c) && ISNULL(survey.TIMBASURVEYS__Description2__c), survey.TIMBASURVEYS__Description__c, survey.TIMBASURVEYS__Description2__c)}" />
+            </td>
+        </tr>
+        <tr >
+            <td colspan="2"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Created_On} :"/></td>
+            <td align="right">
+            	<apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+            		<apex:param value="{!survey.CreatedDate}" />
+            	</apex:outputText>
+            </td>
+            <td colspan="2"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Collecting_Since}: " /></td>
+            <td align="right">
+            	<apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+            		<apex:param value="{!survey.LastModifiedDate}"/>
+            	</apex:outputText>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Responses}:"/></td>
+            <td align="right"><apex:outputText value="{!numberOfRecipients}"/></td>
+            <td colspan="2"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Collecting_Data}:"/></td>
+            <td align="right"><apex:outputText value="{!IF(survey.TIMBASURVEYS__CollectingData__c,$Label.timbasurveys__timbasurvey_surveylist_yes,$Label.timbasurveys__timbasurvey_surveylist_no)}"/></td>
+        </tr>
+        <tr><td colspan="6"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_page} {!CurrentPageNumber} {!$Label.timbasurveys__timbasurveys_Survey_of} {!TotalPageNumber}" /></td></tr>
+        <!-- Data -->
+        <tr><td colspan="6"></td></tr>  
+        <tr><td colspan="6"></td></tr>  
+        <!-- Pagination Iteration -->
+        
+            <apex:repeat value="{!SurveyAnalyzeItems}" var="surveyItem">
+                <tr>
+                    <!-- Question Title *** -->
+                    <td colspan="6" bgcolor="#EEEEEE" class="questionTitle">
+                    	<b><apex:outputtext value="{!surveyItem.Question}" /></b>
+                    </td>
+                	<apex:outputPanel rendered="{!IF(surveyItem.IsWeightManaged, true, false)}">                    
+                        <td align="right" colspan="1" bgcolor="#EEEEEE" class="questionTitle"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_value}" /></td>
+                        <td align="right" colspan="1" bgcolor="#EEEEEE" class="questionTitle"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_hits}"/></td>
+                        <td align="right" colspan="1" bgcolor="#EEEEEE" class="questionTitle"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_total}"/></td>
+                	</apex:outputPanel> 
+                </tr>
+				<!-- Question Data -->                            
+                <apex:outputPanel rendered="{!!surveyItem.HasChild}">
+                    <!-- Response Grid  -->
+                    <apex:outputPanel layout="block" rendered="{!!surveyItem.renderCharts}">      
+							<apex:repeat value="{!surveyItem.StringResponses}" var="sr" rendered="{!IF(surveyItem.responsesSize > 0, true, false)}"> 
+								<tr> 
+									<td colspan="3">                                                 
+										<apex:outputText value="{!IF(LEN(sr.Recipient) <= 0, $Label.timbasurveys__timbasurvey_Analyze_Anonymous , sr.Recipient)}" /> 
+									</td> 
+									<td class="response" align="right" colspan="3">                                                 
+										{!sr.Response}                                                                        
+									</td>                                
+								</tr> 
+							</apex:repeat>
+							<apex:outputPanel rendered="{!IF(surveyItem.responsesSize > 0, false, true)}" layout="block">
+	                            <tr>
+	                                <td><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_No_answers_yet}"/></td>
+	                            </tr>
+                         </apex:outputPanel>                                                                    
+                    </apex:outputPanel>
+                </apex:outputPanel>
+                <!-- End Single Question panel -->                                                    
+                <apex:outputPanel styleclass="chartsAndInfo" layout="block" rendered="{!surveyItem.renderCharts}">                        
+                     <apex:repeat value="{!surveyItem.OptionsData}" var="od">
+                        <tr>
+                            <td class="answerOption" colspan="3" align="left"><apex:outputText value="{!od.Option}"/></td>                                            
+                            <td align="right" colspan="3"><apex:outputText value="{!od.Percent}" /></td>
+                            <td align="right"><apex:outputText escape="false" value="{!od.Weight}" rendered="{!IF(surveyItem.IsWeightManaged, true, false)}"/></td>
+                            <td align="right"><apex:outputText escape="false" value="{!od.totalHits}" rendered="{!IF(surveyItem.IsWeightManaged, true, false)}"/></td>
+                            <td align="right"><apex:outputText escape="false" value="{!od.TotalWeight}" rendered="{!IF(surveyItem.IsWeightManaged, true, false)}"/></td>
+                        </tr>
+                     </apex:repeat>                                                       
+                </apex:outputPanel>                                                           
+                <!-- Start Multiple Child Question panel -->
+                <apex:repeat value="{!surveyItem.ChildAnalyzeItems}" var="childSurveyItem" >                                
+                    <!--Subquestion Name --> 
+                    <tr>
+                        <td colspan="6" class="childQuestionTitle">
+                            <b><apex:outputtext value="{!childSurveyItem.Question}" /></b>
+                        </td>
+                    </tr>
+                    <apex:outputPanel styleclass="chartsAndInfo" layout="block" rendered="{!childSurveyItem.renderCharts}">
+                     <apex:repeat value="{!childSurveyItem.OptionsData}" var="od">
+                        <tr>                                           
+                            <td class="answerOption" colspan="3" align="left"><apex:outputText value="{!od.Option}"/></td>
+                            <td align="right" colspan="3"><apex:outputText value="{!od.Percent}" /></td>
+                            <td align="right"><apex:outputText escape="false" value="{!od.Weight}" rendered="{!IF(surveyItem.IsWeightManaged, true, false)}"/></td>
+                            <td align="right"><apex:outputText escape="false" value="{!od.totalHits}" rendered="{!IF(surveyItem.IsWeightManaged, true, false)}"/></td>
+                            <td align="right"><apex:outputText escape="false" value="{!od.TotalWeight}" rendered="{!IF(surveyItem.IsWeightManaged, true, false)}"/></td>
+                            
+                        </tr>
+                     </apex:repeat>                                                                                                       
+                    </apex:outputPanel>                            
+                </apex:repeat>
+            </apex:repeat>
+        <!-- Pagination Iteration Ends-->
+        </table>
+</apex:page>

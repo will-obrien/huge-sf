@@ -1,0 +1,377 @@
+<apex:page tabStyle="lmscons__LMS_Consumer_Settings__c" controller="lmscons.ConsumerUserController" id="LearningUserPageId" Action="{!init}">
+
+    <script type="text/javascript">
+      window.onkeypress = handleKeyPress;
+      function handleKeyPress(e){
+        var eventInstance = window.event ? event : e;
+        //alert('entering key enter');
+        var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+        if (keyCode == 13){
+            afdoSearch();
+            return false;
+        }
+      }
+    </script>
+
+<style>
+    .selectButtons {
+        text-align:center;
+        margin-bottom: 1em;
+    }
+</style>
+
+    <script>
+        var intSelectedItemsCount = 0;
+    </script>
+
+<apex:sectionHeader title="{!$Label.ConsumerUser_title_LMS_Consumer_Users}" subtitle="{!$Label.ConsumerUser_subtitle_Register_new_Consumer_Users}" />
+
+<apex:form id="LearningUserFormId">
+
+    <div class="bOverviewSearch">
+        <div class="view">{!$Label.ConsumerUser_dV_Enter_key} </div>
+        <div class="messages"></div>
+    </div>
+
+    <apex:outputPanel id="pageMessages">
+        <apex:pageMessages />
+    </apex:outputPanel>
+
+    <apex:actionFunction name="changePagesize" action="{!changePagesize}" rerender="Results" status="sortStatus"/>
+    <apex:actionfunction name="afdoSearch" action="{!refreshConsumerUsers}" status="busyStatus" reRender="Results,pageMessages" />
+    <apex:actionfunction name="previousCall" action="{!previous}" status="busyStatus" />    <!-- oncomplete="intSelectedItemsCount=0;return true;" -->
+    <apex:actionfunction name="nextCall" action="{!next}" status="busyStatus" />        <!-- oncomplete="intSelectedItemsCount=0;return true;" -->
+
+    <apex:actionStatus id="sortStatus">
+        <apex:facet name="start">
+            <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+                            borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif"
+                            Message="{!$Label.ConsumerUser_Message_Processing}" messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+        </apex:facet>
+        <apex:facet name="stop">
+        </apex:facet>
+    </apex:actionStatus>
+
+
+    <apex:actionStatus startText=""  id="busyStatus"
+            onStart="document.body.style.cursor = 'wait';return true;"
+            onStop="document.body.style.cursor = 'default';return true;" >
+    </apex:actionStatus>
+
+    <center>
+        <apex:outputPanel rendered="{!NOT(hasConsumerUsers)}"
+            layout="block"
+            styleClass="required centerText">
+        <h4>{!$Label.ConsumerUser_Error}<br/>{!$Label.ConsumerUser_ErrorMsg}</h4><br/><br/>
+        <apex:commandButton action="{!cancel}" value="{!$Label.ConsumerUser_value_Cancel}" styleClass="btnImportant" status="busyStatus"/>
+       </apex:outputPanel>
+   </center>
+
+    <apex:outputPanel rendered="{!AND(hasConsumerUsers,isAdmin)}" id="outputpanelId">
+    <apex:pageBlock title="{!$Label.ConsumerUser_sP_Find_Users} [{!searchResultsSize}]" mode="edit" >
+        <div class="pbHeader" id="pnlsearch">
+            <table >
+                <tbody>
+                    <tr>
+                        <td class="pbHelp">
+                           <span >
+                           <div style="display:none">
+                               <b>{!$Label.ConsumerUser_b_Records}</b> &nbsp;
+
+                               <!-- <apex:selectList id="chooseSize" value="{!pageSize}" size="1" onchange="javascript: return fillCurrentPage('changepageNumber');" style="font-size:8pt">
+                                    <apex:selectOption itemValue="1" itemLabel="1"/>
+                                    <apex:selectOption itemValue="2" itemLabel="2"/>
+                                    <apex:selectOption itemValue="10" itemLabel="10"/>
+                                    <apex:selectOption itemValue="25" itemLabel="25"/>
+                                    <apex:selectOption itemValue="50" itemLabel="50"/>
+                                    <apex:selectOption itemValue="100" itemLabel="100"/>
+                                    <apex:selectOption itemValue="200" itemLabel="200"/>
+                                    <apex:selectOption itemValue="500" itemLabel="500"/>
+                               </apex:selectList>-->
+                           </div>
+                           </span>
+                        </td>
+                    </tr>
+
+                    <tr >
+                        <td >
+                            <table>
+                            <tbody>
+
+                            <!-- First Line  -->
+                            <tr>
+
+                                <td width="35%" style="text-align:right;">  <!-- class="keywordElement"  style=width:40%; -->
+
+                                    <br/>
+                                    <!--  <span class="inputTitle">{!$Label.ConsumerUser_sP_By_Keyword}</span>  -->
+
+
+                                      <span id="bySearchKeyWord" >      <!-- style="text-align:center;" -->
+                                        <apex:inputText id="SearchKeyWord" value="{!searchKeyWord}" maxlength="200" style="width:200px;font-size:8pt" onkeypress="return handleKeyPress(event)"></apex:inputText> <!-- onblur="javascript:CheckLength(this)" -->
+                                        &nbsp;
+                                        <apex:commandButton value="{!$Label.ConsumerUser_value_Search}" action="{!refreshConsumerUsers}" id="go"  status="busyStatus" reRender="Results,pageMessages"/>
+                                      </span>
+
+                                </td>
+
+                                <td width="35%">&nbsp;</td>
+                                <td width="30%">&nbsp;</td>
+                              </tr>
+
+                            </tbody>
+                            </table>
+
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="noGrid2" style="display:none">{!$Label.ConsumerUser_dV_No_records}</div>
+    </apex:pageBlock>
+    </apex:outputPanel>
+
+	<apex:outputPanel id="Results"  rendered="{!AND(hasConsumerUsers,isAdmin)}"  layout="block" style="{!hasConsumerUsers}">
+	<apex:pageBlock title="{!$Label.ConsumerUser_sP_Find_Users} [{!searchResultsSize}]" mode="edit" >
+		<apex:pageBlockButtons location="both">
+			<apex:commandButton value="{!$Label.ConsumerUser_value_Cancel}" action="{!cancel}" status="busyStatus" styleClass="btnImportant" />
+			<apex:commandButton value="{!$Label.ConsumerUser_value_Save}" action="{!saveAndRegister}" status="busyStatus"/>
+		</apex:pageBlockButtons>
+
+            <div class="relatedListsearchHeader">
+                <div class="pSearchShowMore">
+                  <apex:outputPanel id="opPrevNextup">
+                      <table width="100%" id="tablePrevNextup" >
+                          <tr >
+                             <td width="50%" align="center" >
+
+                                <font style="font-size:8.5pt">
+                                <apex:image url="/img/search_prevarrow.gif" styleClass="prevArrow" rendered="{!(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:image url="/img/search_prevarrow_disabled.gif" styleClass="prevArrow" rendered="{!NOT(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:outputlink onclick="javascript: return fillCurrentPage('prev');" disabled="{!NOT(hasPrevious)}" title="{!$Label.ConsumerUser_title_Previous_Page}" style="color:{!If(hasPrevious,'#000000','#999999')}" >{!$Label.ConsumerUser_oT_Previous_Page}</apex:outputlink>&nbsp;&nbsp;({!PageStartIndex}-{!PageStopIndex})&nbsp;&nbsp;<apex:outputlink onclick="javascript:return fillCurrentPage('next');" disabled="{!NOT(hasNext)}" title="{!$Label.ConsumerUser_title_Next_Page}" style="color:{!If(hasNext,'#000000','#999999')}">{!$Label.ConsumerUser_oT_Next_Page}</apex:outputlink>
+                                <apex:image url="/img/search_nextarrow_disabled.gif" styleClass="nextArrow" rendered="{!NOT(hasNext)}" alt="{!$Label.ConsumerUser_oT_No_Next_Page}" title="{!$Label.ConsumerUser_oT_No_Next_Page}"/>
+                                <apex:image url="/img/search_nextarrow.gif" styleClass="nextArrow" rendered="{!(hasNext)}" alt="{!$Label.ConsumerUser_oT_Next_Page}" title="{!$Label.ConsumerUser_oT_Next_Page}"/>
+                                </font>
+
+                              </td>
+                          </tr>
+                      </table>
+                  </apex:outputpanel>
+                 </div>
+            </div>
+
+             <apex:dataTable width="100%" value="{!ConsumerUsers}" var="u" id="resultsDataTable" cellspacing="0" cellpadding="0" border="0" styleClass="list" rowClasses="dataRow even, dataRow odd" headerClass="headerRow"
+                onrowmouseout="if (window.hiOff){hiOff(this);}"
+                onrowmouseover="if (window.hiOn){hiOn(this);}">
+                    <apex:column width="10">
+                        <apex:facet name="header" >
+                            <apex:inputCheckbox id="selectall" selected="false" onclick="javascript:selectAllOrNoneByCheckbox(document.forms['LearningUserPageId:LearningUserFormId'], this);"/>
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!u.checked}" id="selected" onclick="javascript:CheckUncheckFacet(this); checkSecond(this)"/>
+                    </apex:column>
+                    <apex:column width="10" style="text-align:center;">
+                        <apex:facet name="header" >
+                            <div>{!$Label.ConsumerUser_dV_Admin}</div>
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!u.csuserIsAdmin}" style="text-align:center;" onclick="checkFirst(this)"/>
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="{!$Label.ConsumerUser_value_User_Name}" action="{!doSort}" rerender="Results" status="sortStatus" oncomplete="intSelectedItemsCount=0;return true;">
+                                <apex:image url="/img/sort_desc_arrow.gif" rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='Name',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}"/>
+                                <apex:image url="/img/sort_asc_arrow.gif"  rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='Name',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}"/>
+                                <apex:image url="/s.gif" rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='Name',true,false))}" styleClass="sortDesc" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}" />
+                                <apex:image url="/s.gif"  rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='Name',true,false))}" styleClass="sortAsc" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}" />
+                                <apex:param name="sortField" value="Name" assignTo="{!sortField}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        <apex:OutputLink target="_blank" value="/{!u.sfuser.Id}">{!u.sfuser.Name}</apex:OutputLink>
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="{!$Label.ConsumerUser_value_Profile}" action="{!doSort}" rerender="Results" status="sortStatus" oncomplete="intSelectedItemsCount=0;return true;">
+                                <apex:image url="/img/sort_desc_arrow.gif" rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='User.Profile.Name',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}"/>
+                                <apex:image url="/img/sort_asc_arrow.gif"  rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='User.Profile.Name',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Ascending}"/>
+                                <apex:image url="/s.gif" rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='User.Profile.Name',true,false))}" styleClass="sortDesc" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}" />
+                                <apex:image url="/s.gif"  rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='User.Profile.Name',true,false))}" styleClass="sortAsc" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Ascending}" />
+                                <apex:param name="sortField" value="User.Profile.Name" assignTo="{!sortField}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        <apex:OutputLink target="_blank" value="/{!u.sfuser.ProfileId}">{!u.sfuser.Profile.Name}</apex:OutputLink>
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="{!$Label.ConsumerUser_value_Role}" action="{!doSort}" rerender="Results" status="sortStatus" oncomplete="intSelectedItemsCount=0;return true;">
+                                <apex:image url="/img/sort_desc_arrow.gif" rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='UserRole.Name',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}"/>
+                                <apex:image url="/img/sort_asc_arrow.gif"  rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='UserRole.Name',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Ascending}"/>
+                                <apex:image url="/s.gif" rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='UserRole.Name',true,false))}" styleClass="sortDesc" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}" />
+                                <apex:image url="/s.gif"  rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='UserRole.Name',true,false))}" styleClass="sortAsc" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Ascending}" />
+                                <apex:param name="sortField" value="UserRole.Name" assignTo="{!sortField}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        <apex:OutputLink target="_blank" value="/{!u.sfuser.UserRoleId}">{!u.sfuser.UserRole.Name}</apex:OutputLink>
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="{!$Label.ConsumerUser_value_Email}" action="{!doSort}" rerender="Results" status="sortStatus" oncomplete="intSelectedItemsCount=0;return true;">
+                                <apex:image url="/img/sort_desc_arrow.gif" rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='Email',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}"/>
+                                <apex:image url="/img/sort_asc_arrow.gif"  rendered="{!AND(IF($User.UIThemeDisplayed != 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='Email',true,false))}" width="21" height="12" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Ascending}"/>
+                                <apex:image url="/s.gif" rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved=='desc',true,false),IF(sortField=='Email',true,false))}" styleClass="sortDesc" title="{!$Label.ConsumerUser_alt_Sorted_Descending}" alt="{!$Label.ConsumerUser_alt_Sorted_Descending}" />
+                                <apex:image url="/s.gif"  rendered="{!AND(IF($User.UIThemeDisplayed == 'Theme3',true,false),IF(sortOrderSaved!='desc',true,false),IF(sortField=='Email',true,false))}" styleClass="sortAsc" title="{!$Label.ConsumerUser_alt_Sorted_Ascending}" alt="{!$Label.ConsumerUser_alt_Sorted_Ascending}" />
+                                <apex:param name="sortField" value="Email" assignTo="{!sortField}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputText ></apex:outputText>
+                    </apex:column>
+        </apex:dataTable>
+
+
+            <div class="pbInnerFooter">
+               <div class="relatedListsearchFooter">
+               <div class="pSearchShowMore">
+                <apex:outputPanel id="opPrevNext">
+
+                    <table width="100%" id="tablePrevNext" style="font-family:Arial;vertical-align:middle;text-align:left;font-size:8pt;" >
+                        <tr >
+                           <td width="50%" align="center" >
+                                <font style="font-size:8.5pt">
+                                <apex:image url="/img/search_prevarrow.gif" styleClass="prevArrow" rendered="{!(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:image url="/img/search_prevarrow_disabled.gif" styleClass="prevArrow" rendered="{!NOT(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+                                <apex:outputlink onclick="javascript: return fillCurrentPage('prev');" disabled="{!NOT(hasPrevious)}" title="{!$Label.ConsumerUser_title_Previous_Page}" style="color:{!If(hasPrevious,'#000000','#999999')}" >{!$Label.ConsumerUser_oT_Previous_Page}</apex:outputlink>&nbsp;&nbsp;({!PageStartIndex}-{!PageStopIndex})&nbsp;&nbsp;<apex:outputlink onclick="javascript:return fillCurrentPage('next');" disabled="{!NOT(hasNext)}" title="{!$Label.ConsumerUser_title_Next_Page}" style="color:{!If(hasNext,'#000000','#999999')}">{!$Label.ConsumerUser_oT_Next_Page}</apex:outputlink>
+                                <apex:image url="/img/search_nextarrow_disabled.gif" styleClass="nextArrow" rendered="{!NOT(hasNext)}" alt="{!$Label.ConsumerUser_oT_No_Next_Page}" title="{!$Label.ConsumerUser_oT_No_Next_Page}"/>
+                                <apex:image url="/img/search_nextarrow.gif" styleClass="nextArrow" rendered="{!(hasNext)}" alt="{!$Label.ConsumerUser_oT_Next_Page}" title="{!$Label.ConsumerUser_oT_Next_Page}"/>
+                                </font>
+                            </td>
+                        </tr>
+                    </table>
+
+                </apex:outputpanel>
+                </div>
+                </div>
+            </div>
+
+    </apex:pageBlock>
+    </apex:outputPanel>
+
+</apex:form>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/jquery-1.6.4.js')}"/>
+<script>
+	jQuery.noConflict();
+	function checkFirst(o) {
+		var attr;
+
+		if (jQuery(o).attr('checked') == 'checked') {
+			attr = 'checked';
+		} else {
+			attr = '';
+		}
+		if(jQuery(o).attr('checked') == 'checked') {
+			jQuery(o).parent().parent().find(':checkbox').eq(0).attr('checked', attr);
+		}
+	}
+	function checkSecond(o) {
+
+	}
+</script>
+
+    <!-- ********* JAVASCRIPT  ************ -->
+    <script type="text/javascript" src="/js/prototype-1.6.0.2.js"></script>
+    <script  type="text/javascript">
+
+    function checkUserSelection() {
+        if (intSelectedItemsCount > 0) {
+            if (confirm('{!$Label.ConsumerUser_js_1}')) {
+                //selectunSelectHeaderCheckbox(false);
+                intSelectedItemsCount=0;
+                //alert(' before first afdoSearch ');
+                afdoSearch();
+                return true;
+            }
+            //alert(' returning true');
+            return false;
+        }
+        //alert(' before final afdoSearch ');
+        afdoSearch();
+        return true;
+    }
+
+    function fillCurrentPage(btnClicked)
+    {
+
+        //alert(' btnClicked ' + btnClicked);
+
+        var blnProceed = true;
+        if(intSelectedItemsCount!=0) {
+            if (confirm('{!$Label.ConsumerUser_js_1}'))
+                blnProceed = true;
+            else
+                blnProceed = false;
+        }
+
+        if (blnProceed) {
+            intSelectedItemsCount = 0;
+           // document.getElementById('LearningUserPageId:LearningUserFormId:resultsDataTable:selectall').checked = false;
+            if(btnClicked == 'prev' )
+            {
+                //intGlobalPageCounter--;
+                previousCall();
+                //setHeaderCheckBox();
+                return false;
+            }
+            else if (btnClicked == 'next' )
+            {
+                //intGlobalPageCounter++;
+                //alert(' calling nextCall ');
+                nextCall();
+                //setHeaderCheckBox();
+                return false;
+            }
+            else {
+                changepagesize();
+            }
+        }
+        return false;
+    }
+
+    function CheckUncheckFacet(obj)
+    {
+        //document.getElementById('LearningUserPageId:LearningUserFormId:LearningUserPageBlockId:LearningUserPageBlockSectionId:pageBlockTable:selectall').checked = false;
+        //document.getElementById('LearningUserPageId:LearningUserFormId:resultsDataTable:selectall').checked = false;
+        if(obj.checked)
+            intSelectedItemsCount = intSelectedItemsCount + 1;
+        else
+            intSelectedItemsCount = intSelectedItemsCount - 1;
+
+        //get the page size
+/*
+        if (intSelectedItemsCount == 2)
+            document.getElementById('LearningUserPageId:LearningUserFormId:resultsDataTable:selectall').checked = true;
+        else
+            document.getElementById('LearningUserPageId:LearningUserFormId:resultsDataTable:selectall').checked = false;
+*/
+    }
+
+    function selectChecked(form, value)
+    {
+        var i = 0;
+        for (i = 0; i < form.elements.length; i++) {
+            if (form.elements[i].name.search('selected') > 0 && form.elements[i].disabled == false) {
+                if (form.elements[i].checked != value){
+                    if (value)
+                        intSelectedItemsCount = intSelectedItemsCount + 1;
+                    else
+                        intSelectedItemsCount = intSelectedItemsCount - 1;
+                }
+                form.elements[i].checked = value;
+            }
+        }
+    }
+
+    function selectAllOrNoneByCheckbox(form, control)
+    {
+       selectChecked(form, control.checked);
+    }
+    //document.getElementById('LearningUserPageId:LearningUserFormId:j_id49:j_id53:pageBlockTable:selectall').checked = false;
+    </script>
+
+</apex:page>

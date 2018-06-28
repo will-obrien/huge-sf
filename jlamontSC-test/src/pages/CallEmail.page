@@ -1,0 +1,218 @@
+<apex:page standardController="Task" extensions="CallEmailExtension">
+<link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.tagItNew, 'css/tagit-simple-blue.css')}"/> 
+                <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+                <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+                <script src="{!URLFOR($Resource.tagItNew, 'js/tagit.js')}"
+                                type="text/javascript" charset="utf-8"></script>
+                <script>
+                var autoCompleteResult =[];
+                  $(document).ready(
+                                                            function () {
+                                                                jQuery("#composeTo").tagit({
+                          allowNewTags : true,
+                          highlightOnExistColor : true,
+                                                                    allowSpaces: false,
+                                                                    minLength: 2,
+                                                                    removeConfirmation: false, 
+                                                                    tagSource: function (request, response) {
+                                                                        //console.log("1"); 
+                                                                        Visualforce.remoting.Manager
+                                                                            .invokeAction(
+                                                                                '{!$RemoteAction.CallEmailExtension.fetchListOfTags}',
+                                                                                request.term,
+                                                                                function (
+                                                                                    result,
+                                                                                    event) {
+                                                                                    if (event.status) {
+                                                                                        response($.map(result, function (item) {
+                                                                                        autoCompleteResult[item.Id] = item.Label;
+                                                                                                return {
+                                                                                                    label: item.Label,
+                                                                                                    value: item.Id
+                                                                                                }
+                                                                                            }));
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                        });
+                                                                        
+                                                                        jQuery("#composeCC").tagit({
+                          allowNewTags : true,
+                          highlightOnExistColor : true,
+                                                                    allowSpaces: false,
+                                                                    minLength: 2,
+                                                                    removeConfirmation: false,
+                                                                    tagSource: function (request, response) {
+                                                                        //console.log("1"); 
+                                                                        Visualforce.remoting.Manager
+                                                                            .invokeAction(
+                                                                                '{!$RemoteAction.CallEmailExtension.fetchListOfTags}',
+                                                                                request.term,
+                                                                                function (
+                                                                                    result,
+                                                                                    event) {
+                                                                                    if (event.status) {
+                                                                                        response($.map(result, function (item) {
+                                                                                        autoCompleteResult[item.Id] = item.Label;
+                                                                                                return {
+                                                                                                    label: item.Label,
+                                                                                                    value: item.Id
+                                                                                                }
+                                                                                            }));
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                        });
+                                                                        
+                                                                        jQuery("#composeBCC").tagit({
+                          allowNewTags : true,
+                          highlightOnExistColor : true,
+                                                                    allowSpaces: false,
+                                                                    minLength: 2,
+                                                                    removeConfirmation: false,
+                                                                    tagSource: function (request, response) {
+                                                                        //console.log("1"); 
+                                                                        Visualforce.remoting.Manager
+                                                                            .invokeAction(
+                                                                                '{!$RemoteAction.CallEmailExtension.fetchListOfTags}',
+                                                                                request.term,
+                                                                                function (
+                                                                                    result,
+                                                                                    event) {
+                                                                                    if (event.status) {
+                                                                                        response($.map(result, function (item) {
+                                                                                        autoCompleteResult[item.Id] = item.Label;
+                                                                                                return {
+                                                                                                    label: item.Label,
+                                                                                                    value: item.Id
+                                                                                                }
+                                                                                            }));
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                        });
+                                                         
+                                                                });
+                                                                
+        function sendMessage() {
+           var toEmails = [];
+           var ccEmails = [];
+           var bccEmails = [];
+           
+           var tags = $('#composeTo').tagit('tags');
+           for (var i in tags) {
+                   toEmails.push(tags[i].value);
+           }
+           
+           tags = $('#composeCC').tagit('tags');
+           for (var i in tags) {
+                   ccEmails.push(tags[i].value);
+           }
+           
+           tags = $('#composeBCC').tagit('tags');
+           for (var i in tags) {
+                   bccEmails.push(tags[i].value);
+           }
+          
+           if (ccEmails.length > 0 || toEmails.length > 0 || bccEmails.length > 0) {
+            sendEmail(toEmails.join(','), ccEmails.join(','), bccEmails.join(','));
+           } else {
+                alert('Please select at least one Recipient');
+                return false;
+           }
+        }
+        </script>
+<style type="text/css">
+         ul.tagit li.tagit-choice{
+                        height: 23px;
+   }
+   .ui-autocomplete .ui-menu-item a {
+      line-height: 23px;
+   }
+   ul.ui-autocomplete li {
+      float: none !Important;
+      z-index:999;
+   }
+   ul.ui-autocomplete li:hover {
+      color:#000;
+      background-color: #eeedd1; 
+   }
+   ul.ui-autocomplete li:active, ul.ui-autocomplete li:focus {
+      color:#000;
+      background-color: #eeedd1;
+   }
+   .ui-helper-hidden-accessible {
+      display:none;
+   }
+   ul.tagit{
+                  width: 100%;
+   }
+    .boxsizingBorder {
+        width: 360px;
+        height: 90px;
+    }
+    .overview{
+        width: 255px;
+    }
+    .email{
+        width: 360px;
+        height: 10px;
+</style>
+    <apex:form id="frm1">
+    <apex:actionfunction name="sendEmail" action="{!doSendEmail}" rerender="frm1" oncomplete="window.location.href='{!URLFOR($Action.Task.View, t.Id)}'">
+        <apex:param id="toAdd" name="toAdd" value="" assignto="{!toAddress}"/>
+        <apex:param id="ccAdd" name="ccAdd" value="" assignto="{!ccAddress}"/>
+        <apex:param id="bccAdd" name="bccAdd" value="" assignto="{!bccAddress}"/>
+    </apex:actionfunction>
+        <apex:sectionHeader title="Send an Email" subtitle="{!t.Subject}"></apex:sectionHeader>
+        <apex:pageBlock title="Task Edit" id="thePageBlock" mode="edit">
+            <apex:pageMessages />
+            <apex:pageBlockButtons location="both">
+                <apex:commandButton value="Send Email" onclick="sendMessage();"/>
+                <apex:commandButton value="Cancel" action="{!cancel}"/>
+            </apex:pageBlockButtons>
+            <apex:pageblockSection title="Recipient(s)">
+                To : <ul id="composeTo"></ul>
+                CC : <ul id="composeCC"></ul>
+                BCC : <ul id="composeBCC"></ul>
+           </apex:pageblockSection>
+            <apex:pageblockSection title="Task Information">
+                <apex:outputField value="{!t.OwnerID}" />
+                <apex:outputField id="task__relatedto" value="{!t.WhatId}"/>
+                <apex:outputField id="task__subject" value="{!t.Subject}" />
+                <apex:outputField id="task__name" value="{!t.WhoId}" />
+                <apex:outputField id="task__activitydate" value="{!t.ActivityDate}" label="{!$Label.Completed_Date}"/>
+                <apex:inputhidden id="blank1" />
+                <apex:outputField id="task_overview" value="{!t.Overview__c}" styleclass="overview"/>
+                <apex:inputHidden id="blank2" />               
+           </apex:pageblockSection>
+           <apex:pageBlockSection title="Additional Information">
+           <apex:outputField value="{!t.status}" />
+           <apex:outputField value="{!t.priority}" />
+           </apex:pageBlockSection>
+           <apex:pageBlockSection title="Call Type">
+           <apex:outputField id="call_type" value="{!call.Call_Type__c}"/>
+           </apex:pageBlockSection>
+           <apex:outputPanel id="MyPanel">
+           <apex:pageblockSection title="Additional Report Information" columns="1" rendered="{!call.Call_Type__c =='Major Giving'}">
+           <apex:outputField id="MG_501c3" value="{!call.X501_c_3_Discussion__c}" styleclass="boxsizingBorder"/>
+           <apex:outputField id="MG_501c4" value="{!call.X501_c_4_Discussion__c}" styleClass="boxsizingBorder"/>
+           <apex:outputField id="MG_527Voter" value="{!call.X527_Voter_Education_Discussion__c}" styleClass="boxsizingBorder"/>
+           <apex:outputField id="MG_sciaDiscussion" value="{!call.SCIA_Discussion__c}" styleclass="boxsizingBorder" />
+           <apex:outputField id="MG_scpcDiscsussion" value="{!call.SCPC_Pol_Cmte_Discussion__c}" styleclass="boxsizingBorder"/>
+           <apex:outputField id="task_comments" value="{!t.Description}" styleclass="boxsizingBorder"/>
+           <apex:outputField id="next_steps" value="{!call.Next_Steps__c}" styleclass="boxsizingBorder"/>
+           </apex:pageblockSection>
+           <apex:pageblockSection title="Additional Information" columns="1" rendered="{!call.Call_Type__c =='Planned Giving'}">
+           <apex:outputField id="PG_donorBackground" value="{!call.Donor_Background__c}" styleclass="boxsizingBorder" />
+           <apex:outputField id="PG_Assets" value="{!call.Assets__c}" styleclass="boxsizingBorder" />
+           <apex:outputField id="PG_philanthropy" value="{!call.Philanthropic_Goals__c}" styleclass="boxsizingBorder" />
+           <apex:outputField id="PG_giftFinalcialPlanning" value="{!call.Gift_and_Financial_Planning__c}" styleclass="boxsizingBorder" />
+           <apex:outputField id="task_comments" value="{!t.Description}" styleclass="boxsizingBorder"/>
+           <apex:outputField id="next_steps" value="{!call.Next_Steps__c}" styleclass="boxsizingBorder"/>
+           </apex:pageblockSection>
+            </apex:outputPanel>
+        </apex:pageBlock>
+    </apex:form>
+
+</apex:page>

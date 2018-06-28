@@ -1,0 +1,101 @@
+<apex:page controller="LookupPopupController" sidebar="false" showheader="false">
+<script language="javascript">
+   window.onload = new function() 
+   { 
+      // bring popup window to front
+      window.focus(); 
+      var ele=document.getElementById('{!$Component.form.block.section.query}');
+      if (ele)
+      {
+         ele.focus();
+      }
+   }
+   
+   function fillIn(name, id)
+   {
+      var winMain=window.opener;
+      if (null==winMain)
+      {
+         winMain=window.parent.opener;
+      }
+      var ele=winMain.document.getElementById('{!$CurrentPage.parameters.namefield}');
+      ele.value=name;
+      SaveName(ele.value);
+      ele=winMain.document.getElementById('{!$CurrentPage.parameters.idfield}');
+      ele.value=id;
+      
+      setTimeout("closeWindow()", 1000);
+   }
+   
+   function closeWindow(){
+       CloseWindow();
+   }
+   
+   
+   function CloseWindow()
+   {
+      var winMain=window.opener;
+      if (null==winMain)
+      {
+         winMain=window.parent.opener;
+      }
+      winMain.closeLookupPopup();
+   }
+   
+</script>
+
+<STYLE type="text/css">
+       body .x-btn button, body .btn, body .btnImportant, body .btnDisabled, body .btnCancel, body .menuButton .menuButtonButton, body .menuButton .menuButtonMenu a, body .menuButton .menuButtonMenu input.theOption, h1, h2, h3, h4, h5, h6, select, label { font-family: 'helvetica neue', arial;}
+       h1, h2, h3, h4, h5, h6 { display: block;}
+       h1 { display: block; font-size: 4em; text-transform: uppercase; color: #5a4099;}
+       h2.gold {font-size: 3em; color: #e1bf00; margin-bottom: 40px; font-weight: 400; text-transform: uppercase}
+       h3 { color: #5a4099; font-weight: 400; font-size: 1.6em;}
+       div.goleft {text-align:left}
+       div.gocenter {text-align:center}
+       span.important {color:red; font-size:15px}
+       span.padding {padding-left:30px; font-style:normal;font-size:12px;font-weight:bold;}
+       span.paddingright {padding-right:300px;font-style:Italic;font-size:12px;}
+       span.gobold {font-weight:700;}
+       span.question { font-size: 1.2em; color: #5C5C5C; font-weight: bold; }
+       label {color: #5c5c5c; font-size: 1.1em;}
+       .mainTitle { font-size: 2.2em!important; text-transform: uppercase; color: #5a4099!important; text-shadow: 0px -1px 0px rgba(0, 0, 0, .4);}
+       select { color: #5c5c5c; font-size: 1.1em; width: 200px; padding: 10px;}
+       .bPageBlock { border-top: 4px solid #5a4099!important;}
+   </STYLE>
+
+  <apex:messages />
+  <apex:form id="form" >  
+<!--<apex:inputHidden value="{!RoomieName}" id="inptHdn"/>-->
+
+<apex:actionFunction name="SaveName" action="{!SaveRoomieName}" reRender="view">
+     <apex:param id="aname" name="RoomieName" value=""/>
+</apex:actionFunction>
+
+     <div style="width 100%">
+        <apex:pageBlock title="Lookup" id="block"><br/>
+        
+        
+           
+          <apex:pageBlockSection id="section">
+              <span class="question">Enter the Name and click Go</span><br/>
+              <apex:inputText value="{!query}" id="query"/> 
+              <apex:commandButton value="Go" action="{!runQuery}"/><br/>
+             
+          </apex:pageBlockSection>
+        </apex:pageBlock>
+         <apex:pageBlock >
+         <strong>NOTE: While we'll do our best accommodate your roomie requests, there are no guarantees and some changes may be required.</strong><br/>
+         </apex:pageBlock>   
+        <apex:pageBlock >
+          <apex:pageBlockSection columns="1">
+              <apex:pageBlockTable value="{!accounts}" var="account">
+                <apex:column headerValue="Name">
+                  <apex:outputLink value="#" onclick="fillIn('{!account.Name}', '{!account.id}')">{!account.Name}</apex:outputLink>       
+                </apex:column>
+              </apex:pageBlockTable>    
+          </apex:pageBlockSection>
+        </apex:pageBlock>
+        <button type="button" onclick="CloseWindow();">Close Window</button>
+     </div>
+   </apex:form>
+</apex:page>

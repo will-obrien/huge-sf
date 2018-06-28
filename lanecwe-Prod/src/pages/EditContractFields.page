@@ -1,0 +1,245 @@
+<apex:page standardController="Quote" extensions="PGINewQuoteController" id="page">
+	<apex:pagemessages />
+	<script type="text/javascript"> 
+        var QuoteType= "{!Quote.Quote_Type__c}";
+        function changeQuoteType(quote_type)
+        {
+          QuoteType = quote_type;
+        }
+        function openLookup(baseURL, width, modified, searchParam)
+        {  
+            var originalbaseURL = baseURL;
+            var originalwidth = width;
+            var originalmodified = modified;
+            var originalsearchParam = searchParam;            
+            var lookupType = baseURL.substr(baseURL.length-3, 3);
+            if (modified == '1') baseURL = baseURL + searchParam;
+            var isCustomLookup = false;      
+            var baseContractURL=baseURL;
+            var baseContactURL = baseURL;  
+            var baseBillingContactURL= baseURL;
+             
+            if(lookupType == "{!teslaComapnyObjectPrefix}" || lookupType == "%5D" )
+            {
+               
+                var urlArr = baseURL.split("&");
+                var txtId = '';
+                if(urlArr.length > 2) 
+                {
+                        urlArr = urlArr[1].split('=');
+                        txtId = urlArr[1];
+                }
+    
+                baseURL = "/apex/PGITeslaCompanySearch?txt=" + txtId + '&accountId=' +"{!Quote.Opportunity.Account.id}" + '&quoteType=' +QuoteType  ;
+                
+                baseURL = baseURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                if (modified == '1') 
+                {
+                        baseURL = baseURL + "&lksearch=" + searchParam;
+                }
+                 
+                if(txtId.indexOf('Company') > -1 )
+                {
+                        isCustomLookup = true;
+                }
+                 
+            } 
+            
+            if(isCustomLookup == false){              
+                if(lookupType == "{!masterContractObjectPrefix}" || lookupType == "%5D" )
+                {
+                    var urlArr = baseContractURL.split("&");
+                    var txtId = '';
+                    if(urlArr.length > 2) 
+                    {
+                            urlArr = urlArr[1].split('=');
+                            txtId = urlArr[1];
+                    }
+                        baseContractURL = "/apex/PGIMasterContractSearch?txt=" + txtId + '&accountId=' +"{!Quote.Opportunity.Account.id}" + '&quoteType=' + QuoteType ; 
+                        baseContractURL = baseContractURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                    if (modified == '1') 
+                    {
+                            baseContractURL = baseContractURL + "&lksearch=" + searchParam;
+                    }
+         
+                    if( txtId.indexOf('Contract') > -1 )
+                    {
+                            isCustomLookup = true;
+                    }
+                   baseURL ='';
+                   baseURL = baseContractURL ;
+                }
+            }
+              
+            if(isCustomLookup == false){    
+                if( lookupType == "{!contactObjectPrefix}" || lookupType == "%5D"  )
+                {
+                    var urlArr = baseContactURL.split("&");
+                    var txtId = '';
+                    if(urlArr.length > 2) 
+                    {
+                            urlArr = urlArr[1].split('=');
+                            txtId = urlArr[1];
+                    }
+                    
+                    baseContactURL = "/apex/PGIContactSearch?txt=" + txtId + '&accountId=' +"{!Quote.Opportunity.Account.id}" ;
+                    baseContactURL = baseContactURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                    if (modified == '1') 
+                    {
+                            baseContactURL = baseContactURL + "&lksearch=" + searchParam;
+                    }
+                     
+                   // if(txtId.indexOf('Contact') > -1 )
+                    if(txtId.indexOf('adminContact') > -1 )
+                    {
+                            isCustomLookup = true;
+                    }
+                      baseURL ='';
+                      baseURL = baseContactURL ;
+                } 
+                 
+             } 
+          
+          //Custom look up for Billing Contact
+          
+            if(isCustomLookup == false){     
+                
+                if( lookupType == "{!contactObjectPrefix}" || lookupType == "%5D"  )
+                {
+   
+                    var urlArr = baseBillingContactURL.split("&");
+                    var txtId = '';
+                    
+                    if(urlArr.length > 2) 
+                    {
+                            urlArr = urlArr[1].split('=');
+                            txtId = urlArr[1];
+                    }
+                    
+                    baseBillingContactURL = "/apex/PGIContactSearch?txt=" + txtId + '&accountId=' +"{!Quote.Opportunity.Account.id}" ;
+                    baseBillingContactURL = baseBillingContactURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                    if (modified == '1') 
+                    {
+                            baseBillingContactURL = baseBillingContactURL + "&lksearch=" + searchParam;
+                    }
+                    
+                    if(txtId.indexOf('Contact') > -1 )
+                    {
+                            isCustomLookup = true;
+                    }
+                       baseURL ='';
+                       baseURL = baseBillingContactURL;
+                       
+                } 
+            }
+           
+            if(isCustomLookup == true)
+            {
+                openPopup(baseURL, "lookup", 350, 480, "width="+width+",height=480,toolbar=no,status=no,directories=no,menubar=no,resizable=yes,scrollable=no", true);
+            }
+            else {
+                if (modified == '1') originalbaseURL = originalbaseURL + originalsearchParam;
+                openPopup(originalbaseURL, "lookup", 350, 480, "width="+originalwidth+",height=480,toolbar=no,status=no,directories=no,menubar=no,resizable=yes,scrollable=no", true);
+            } 
+        }
+      </script>
+	<script>
+      var QuoteStatus = '{!quote.Status}';
+      var deleteNotAllowedStatuses = '{!deleteNotAllowedQuoteStatus}';
+      if(deleteNotAllowedStatuses.indexOf(QuoteStatus) != -1){
+	     alert('Record cannot be edited since its in {!quote.Status} status!');
+	     window.parent.location.href ='/{!quote.Id}';
+      }
+     </script>
+	<apex:form id="myForm">
+		<apex:pageblock title="Edit Required Contract Fields" mode="edit"
+			id="PageBlock">
+			<apex:pageBlockButtons >
+				<apex:commandButton action="{!onSave}" value="Save" id="save" />
+				<apex:commandButton action="{!Cancel}" value="Cancel" />
+			</apex:pageBlockButtons>
+			<apex:PageBlockSection title="Contract Fields" columns="1"
+				id="quoteInfo">
+				<script>
+                   function setFocusOnLoad() {}
+            </script>
+				<apex:pageBlockSectionItem >
+				</apex:pageBlockSectionItem>
+				<apex:outputField value="{!Quote.OpportunityID}" />
+				<apex:outputField value="{!Quote.Opportunity.Account.Name}" styleClass="customerName" />
+				
+				 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.BillingName.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.BillingName}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+            	 
+            	 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.BillingStreet.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.BillingStreet}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+				
+				 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.BillingCity.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.BillingCity}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+				
+				 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.BillingState.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.BillingState}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+				
+				 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.BillingPostalCode.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.BillingPostalCode}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+				
+				 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.BillingCountry.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.BillingCountry}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+            	 
+            	 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.Phone.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.Phone}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+				
+				<apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.ContactID.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField id="Contact" value="{!Quote.ContactID}" />
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+					
+				 <apex:pageBlockSectionItem >
+				    <apex:outputLabel value="{!$ObjectType.Quote.fields.Sales_Rep_Id__c.label}"/>
+				    <apex:outputPanel styleClass="requiredInput" layout="block">
+            	 		<div class="requiredBlock"></div>
+						<apex:inputField value="{!Quote.Sales_Rep_Id__c}"/>
+					</apex:outputPanel>
+            	 </apex:pageBlockSectionItem>
+			</apex:PageBlockSection>
+		</apex:pageblock>
+	</apex:form>
+</apex:page>

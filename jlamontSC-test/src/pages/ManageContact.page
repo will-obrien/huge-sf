@@ -1,0 +1,268 @@
+<apex:page sidebar="false" standardcontroller="Account" extensions="ManageContactController">
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" 
+    integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous" />
+
+<script>
+    function toggleEnhancedSearch() {
+      $('#campaignSearchModal').modal('toggle');
+    }
+    
+    $(document).keypress(function(e) {
+        if (window.event && window.event.keyCode == 13 || e.which == 13) {
+            return false;
+         } else {
+            return true;
+         }
+    });
+</script>
+
+<apex:form id="theForm">
+
+<apex:outputPanel id="dupPanel"
+    rendered="{!hasDups}"
+>
+<div>
+    The following Contacts may be Duplicates
+</div>
+<apex:dataTable id="dupList"
+    value="{!dupList}"
+    var="dup"
+    cellSpacing="8px"
+>
+    <apex:column >
+        <apex:facet name="header">Account</apex:facet>
+        <apex:outputLink value="/{!dup.AccountId}" target="_blank">
+            {!dup.Account.Name}
+        </apex:outputLink>
+    </apex:column>
+    <apex:column >
+        <apex:facet name="header">First Name</apex:facet>
+        <apex:outputLink value="/{!dup.Id}" target="_blank">
+            {!dup.FirstName}
+        </apex:outputLink>
+    </apex:column>
+    <apex:column >
+        <apex:facet name="header">Last Name</apex:facet>
+        <apex:outputLink value="/{!dup.Id}" target="_blank">
+            {!dup.LastName}
+        </apex:outputLink>
+    </apex:column>
+    <apex:column >
+        <apex:facet name="header">Address</apex:facet>
+        {!dup.MailingStreet}<br/> 
+        {!dup.MailingCity} {!dup.MailingState} {!dup.MailingPostalCode}
+    </apex:column>
+    <apex:column >
+        <apex:facet name="header">Phone</apex:facet>
+        {!dup.Phone}
+    </apex:column>
+    <apex:column >
+        <apex:facet name="header">Email</apex:facet>
+        {!dup.Email}
+    </apex:column>
+    <apex:column >
+        <apex:facet name="header">External Id</apex:facet>
+        {!dup.External_ID__c}
+    </apex:column>
+</apex:dataTable>
+<apex:commandButton value="Ignore possible Duplicates - Save anyway"
+    action="{!acceptDups}"
+/>
+</apex:outputPanel>
+
+<apex:pageMessages id="pgMSgContact" />
+
+<apex:outputPanel id="hiddenfieldsforcontroller" rendered="FALSE">
+  <apex:outputField value="{!Account.rC_Bios__Preferred_Billing_Address__c}"/> 
+  <apex:outputField value="{!Account.rC_Bios__Preferred_Shipping_Address__c}"/> 
+</apex:outputPanel>
+
+
+<apex:pageBlock title="Contact Information">
+    <apex:pageBlockButtons location="both">
+        <apex:commandButton value="Save" action="{!saveAndClose}" onclick="return validatePhone();"/>
+        <!-- <apex:commandButton value="Save & Close" action="{!saveAndClose}"  status="saveProcess" rerender="pgMSgContact"/>
+        <apex:commandButton value="Save & New Account" action="{!saveAndNewAccount}" status="saveProcess"  rerender="pgMSgContact"/>
+         -->
+        <apex:commandButton value="Cancel" action="{!cancelNewAccount}" />
+        <apex:actionStatus id="saveProcess">
+              <apex:facet name="start">
+                  <apex:image value="/img/loading.gif" style="vertical-align: middle;" >Saving...</apex:image>
+              </apex:facet>
+        </apex:actionStatus>
+  </apex:pageBlockButtons>
+    <apex:pageBlockSection columns="2">
+                        <apex:pageBlockSectionItem >
+                        <!-- 
+                        <apex:outputText value=" Number of contacts to create" />
+                            <apex:outPutPanel >
+                                <apex:selectList styleClass="NumberOfContacts" id="contactToCreate" value="{!noOfContacts}" size="1" style="width: 45px;"  onchange="ReRenderContact(this.value)">
+                                    <apex:selectOption itemValue="0" itemLabel="0" rendered="{!!contactRequired}"/>
+                                    <apex:selectOption itemValue="1" itemLabel="1" />
+                                    <apex:selectOption itemValue="2" itemLabel="2" />
+                                    <apex:selectOption itemValue="3" itemLabel="3" />
+                                    <apex:selectOption itemValue="4" itemLabel="4" />
+                                </apex:selectList>     
+                            </apex:outPutPanel>
+                             -->
+                         </apex:pageBlockSectionItem>
+     </apex:pageBlockSection>
+         <apex:actionFunction name="ReRenderContact" action="{!contactsToCreate}" rerender="contactsListPanel" status="contactLoad" immediate="true" >
+            <apex:param name="firstParam" assignTo="{!noOfContacts}" value="" />        
+        </apex:actionFunction>
+        <apex:actionStatus id="contactLoad">
+          <apex:facet name="start">
+              <apex:image value="/img/loading.gif" style="vertical-align: middle;" >Loading...</apex:image>
+          </apex:facet>
+        </apex:actionStatus>
+             <apex:outputPanel layout="block" styleClass="contactBlockSection" id="contactsListPanel" >
+                <apex:repeat var="contact" value="{!contactWrapperList}" id="contactNewList">
+                      <apex:outputPanel layout="block" id="bVAL"  rendered="{!NOT(contact.isExisting) || (contact.isExisting && NOT(isHideExistinContacts))}" >
+                            <apex:actionRegion >
+                                <apex:pageBlockSection title="-- New Contact --" columns="1" collapsible="false" >
+                                     <apex:pageBlockSectionItem >
+                                           <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Preferred_Contact__c'].Label}</apex:outputLabel>
+                                           <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Preferred_Contact__c']}"/>
+                                     </apex:pageBlockSectionItem>
+                                                
+                                     <apex:pageBlockSectionItem rendered="{!!contactRequired}">
+                                                   <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Secondary_Contact__c'].Label}</apex:outputLabel>
+                                                   <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Secondary_Contact__c']}"/>
+                                     </apex:pageBlockSectionItem>
+                                     
+                              <apex:pageBlockSectionItem >
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['Salutation'].Label}</apex:outputLabel>
+                                <apex:inputField required="false" value="{!contact.contactRec['Salutation']}"/>
+                             </apex:pageBlockSectionItem>
+                             
+                              <apex:pageBlockSectionItem >
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['FirstName'].Label}</apex:outputLabel>
+                                <apex:outputPanel styleClass="requiredInput">
+                                    <div class="requiredInput">
+                                        <div class="requiredBlock"></div>
+                                        <apex:inputText value="{!contact.contactRec['FirstName']}" required="false" size="25" maxLength="20" />
+                                      </div>
+                                </apex:outputPanel>
+                             </apex:pageBlockSectionItem>
+                             
+                             <apex:pageBlockSectionItem >
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['LastName'].Label}</apex:outputLabel>
+                                <apex:outputPanel styleClass="requiredInput">
+                                   <div class="requiredInput">
+                                        <div class="requiredBlock"></div>
+                                        <apex:inputText value="{!contact.contactRec['LastName']}" required="false" size="25" maxLength="22" />
+                                    </div>  
+                                 </apex:outputPanel>    
+                             </apex:pageBlockSectionItem>
+                             
+                             <apex:pageBlockSectionItem >
+                                <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Preferred_Email__c'].Label}</apex:outputLabel>
+                                    <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Preferred_Email__c']}" styleClass="preferredEmail_{!contact.contactRec['Random_Number__c']}">
+                                        <apex:actionSupport event="onchange" action="{!updatePreferred}"  rerender="{!$Component.bVal}" status="updatePreferredPhone" oncomplete="setFocusToField(this, 'Email_');"/>
+                                        <apex:actionStatus id="updatePreferredPhone">
+                                          <apex:facet name="start">
+                                            <apex:image value="/img/loading.gif" style="vertical-align: middle;" >Loading...</apex:image>
+                                         </apex:facet>
+                                        </apex:actionStatus>
+                                    </apex:inputField>
+                             </apex:pageBlockSectionItem>
+                             
+                             
+                             <apex:pageBlockSectionItem rendered="{!IF(contact.contactRec['rC_Bios__Preferred_Email__c'] == 'Home','true','false')}">
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Home_Email__c'].Label}</apex:outputLabel>
+                               <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Home_Email__c']}" styleClass="HomeEmail_{!contact.contactRec['Random_Number__c']}"/>
+                             </apex:pageBlockSectionItem>
+                             
+                              <apex:pageBlockSectionItem rendered="{!IF(contact.contactRec['rC_Bios__Preferred_Email__c'] == 'Work','true','false')}">
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Work_Email__c'].Label}</apex:outputLabel>
+                               <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Work_Email__c']}" styleClass="WorkEmail_{!contact.contactRec['Random_Number__c']}"/>
+                             </apex:pageBlockSectionItem>
+                             
+                              <apex:pageBlockSectionItem >
+                              
+                                <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Preferred_Phone__c'].Label}</apex:outputLabel>
+                                    <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Preferred_Phone__c']}" styleClass="preferred_{!contact.contactRec['Random_Number__c']}">
+                                        <apex:actionSupport event="onchange" action="{!updatePreferred}"  rerender="{!$Component.bVal}" status="updatePreferred" oncomplete="setFocusToField(this, 'Phone_')"/>
+                                        <apex:actionStatus id="updatePreferred">
+                                          <apex:facet name="start">
+                                            <apex:image value="/img/loading.gif" style="vertical-align: middle;" >Loading...</apex:image>
+                                         </apex:facet>
+                                        </apex:actionStatus>
+                                    </apex:inputField>
+                             </apex:pageBlockSectionItem>
+                             
+                             <apex:pageBlockSectionItem rendered="{!IF(contact.contactRec['rC_Bios__Preferred_Phone__c'] == 'Mobile','true','false')}">
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['MobilePhone'].Label}</apex:outputLabel>
+                               <apex:inputField required="false" value="{!contact.contactRec['MobilePhone']}" styleClass="MobilePhone_{!contact.contactRec['Random_Number__c']}"/>
+                             </apex:pageBlockSectionItem>
+                             
+                              <apex:pageBlockSectionItem rendered="{!IF(contact.contactRec['rC_Bios__Preferred_Phone__c'] == 'Home','true','false')}">
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['HomePhone'].Label}</apex:outputLabel>
+                               <apex:inputField required="false" value="{!contact.contactRec['HomePhone']}" styleClass="HomePhone_{!contact.contactRec['Random_Number__c']}"/>
+                             </apex:pageBlockSectionItem>
+                             
+                             <apex:pageBlockSectionItem rendered="{!IF(contact.contactRec['rC_Bios__Preferred_Phone__c'] == 'Work','true','false')}">
+                               <apex:outputLabel >{!$ObjectType.Contact.fields['rC_Bios__Work_Phone__c'].Label}</apex:outputLabel>
+                               <apex:inputField required="false" value="{!contact.contactRec['rC_Bios__Work_Phone__c']}" styleClass="WorkPhone_{!contact.contactRec['Random_Number__c']}"/>
+                             </apex:pageBlockSectionItem>
+
+                              <apex:inputField id="originalCampaign" value="{!contact.contactRec.Original_Campaign__c}" >
+                                  <apex:commandButton value="Enhanced Search" onClick="toggleEnhancedSearch();return false"/>
+                              </apex:inputField>
+                             
+                                </apex:pageBlockSection>
+                            </apex:actionRegion>    
+                    </apex:outputPanel>
+                    
+                </apex:repeat>
+             </apex:outputPanel>
+                </apex:pageBlock>
+
+            <div class="modal fade" id="campaignSearchModal" role="dialog">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                          <h4 class="modal-title" id="myLeaderModalLabel">Campaign Search</h4>
+                        </div>
+                        <div class="modal-body center">
+                            <apex:outputPanel id="campaignSearchPanel">
+                                <c:CampaignSearch pgController="{!this}"/>
+                            </apex:outputPanel>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </apex:form>
+        
+        <script>
+            function setFocusToField(obj, type) {
+                var selectedEmailType =  $(obj).val();
+                var count = $(obj).attr('class');
+                count = count.substring(count.indexOf('_') + 1);
+                var fieldClassName = selectedEmailType + type + count;
+                //alert(fieldClassName);
+                setTimeout(function(){$('.'+ fieldClassName).focus();},1);
+            }
+            
+            function validatePhone() {
+                returnType = true;
+                var regexObj = /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/;
+                $("[class*='Phone_']").each(function(){
+                var a = $(this).val();
+                    if (regexObj.test(a)) {
+                        $(this).attr('val', a.replace(regexObj, "($1) $2-$3"));//var formattedPhoneNumber = a.replace(regexObj, "($1) $2-$3");
+                } else {
+                    returnType = false;
+                }
+                });
+                if(returnType == false){
+                    alert('Please Enter valid Phone Number');
+                }
+                return returnType;
+            }
+        </script>
+</apex:page>

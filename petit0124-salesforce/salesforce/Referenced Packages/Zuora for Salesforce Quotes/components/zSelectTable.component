@@ -1,0 +1,130 @@
+<apex:component access="global"
+	controller="zqu.zSelectTableComponentController">
+	<apex:includeScript value="{!$Resource.zqu__JQuery142}" />
+	<style>
+		.left-title {
+			font-size: 16px;
+			font-weight: bold;
+			float: left;
+		}
+
+		.left-element {
+			float: left;
+		}
+		
+		.right-element {
+			float: right;
+		}
+    </style>
+
+	<script>
+        var j$ = jQuery.noConflict();    
+        // Redraw the radio button to uncheck if it was check already.               
+        function onSelectItem(radioIcon) {  
+            var exp = '[id$="' + radioIcon.id + '"]';
+            var parenttable = j$(exp).parents('[id$="datalist_table"]'); 
+            var options = parenttable.find('span[id$="selector_status"]');
+            
+            for(var i = 0; i < options.size(); i++){
+                if(radioIcon.parentNode.parentNode.parentNode.id != options.eq(i).attr("id")){
+                    var img = options.eq(i).find('span[id$="selector_panel_stop"]').find('img');
+                    img.attr('src',img.attr('src').replace(/radioBtnChk/, "radioBtnUnChk"));
+                    options.eq(i).find('[onclick]').removeAttr("onclick");
+                }
+            }
+                
+        }
+    </script>
+
+	<apex:attribute name="title" type="String"
+		access="global"
+		description="The text to display the description of this list table." />
+
+	<apex:attribute name="setControllerShare" type="zqu.zComponentDataShare"
+		assignTo="{!setControllerShare}" access="global" required="true"
+		description="The setcontroller provider of the records set that displayed in the list table" />
+
+	<apex:attribute name="fieldNames" type="String[]"
+		assignTo="{!fieldNames}" access="global" required="true"
+		description="The fieldName as column name which are going to display in the table, case senstive." />
+
+	<apex:attribute name="selectRowShare" type="zqu.zComponentDataShare"
+		assignTo="{!selectRowShare}" access="global" required="true"
+		description="The selected result(ID) which will be used for page controller." />
+
+	<apex:attribute name="rerenderIDs" type="String"
+	    access="global"
+		description="The components ids need to be rerendered when selecting event happened." />
+
+	<apex:outputPanel id="listtable_panel">
+		<apex:pageBlock id="listtable_pageblock" mode="maindetail">
+			<apex:outputPanel id="selector_panel">
+				<apex:panelGrid columns="2" width="100%">
+					<apex:outputText styleClass="left-title" value="{!title}" />
+					<apex:outputPanel styleClass="right-element">
+						<apex:ComponentBody />
+					</apex:outputPanel>
+				</apex:panelGrid>
+				
+				<apex:pageblockTable value="{!dataList}" var="dataRow"
+					id="datalist_table">
+					<apex:column id="listtable_column" width="3%">
+						<apex:facet name="header"></apex:facet>
+						<apex:actionStatus id="selector_status">
+							<apex:facet name="start">
+								<apex:outputPanel id="selector_panel_start">
+									<apex:image url="{!$Resource.zqu__ajaxLoading}" width="18"
+										height="18" />
+								</apex:outputPanel>
+							</apex:facet>
+							<apex:facet name="stop">
+								<apex:outputPanel id="selector_panel_stop">
+									<apex:image id="imgRadioBtnChk"
+										rendered="{!AND(!selectRowShare.isDataObjectNull, dataRow['id'] == selectRowShare.dataObject)}"
+										url="{!$Resource.zqu__radioBtnChk}" width="18" height="18" />
+									<apex:image id="imgRadioBtnUnchk"
+										rendered="{!OR(selectRowShare.isDataObjectNull, NOT(dataRow['id'] == selectRowShare.dataObject))}"
+										url="{!$Resource.zqu__radioBtnUnChk}" width="18" height="18"
+										onclick="onSelectItem(this);" />
+									<apex:actionSupport status="selector_status" event="onclick"
+										reRender="selector_panel, {!rerenderIDs}"
+										action="{!onSelectItem}">
+										<apex:param assignTo="{!selectRowShare.dataObject}"
+											name="dataObject" value="{!dataRow['id']}" />
+										<apex:param assignTo="{!selectRowShare.componentActionFlag}"
+											name="componentActionFlag" value="true" />
+									</apex:actionSupport>
+								</apex:outputPanel>
+							</apex:facet>
+						</apex:actionStatus>
+					</apex:column>
+
+					<apex:repeat value="{!fieldNames}" var="fieldname" id="colvalues">
+						<apex:column value="{!dataRow[fieldname]}" />
+					</apex:repeat>
+				</apex:pageblockTable>
+
+				<apex:panelGrid columns="2" width="100%">
+					<apex:outputLabel styleClass="left-element" rendered="{!dataList.size !=0}" id="lblInfo"
+						value="{!itemInfo}" />
+					<apex:outputPanel styleClass="right-element">
+						<apex:commandLink action="{!prevPage}"
+							rendered="{!AND(hasPrevious, NOT(navDisabled))}"
+							reRender="selector_panel, {!rerenderIDs}">
+							<apex:image value="{!$Resource.zqu__back_enabled}" />
+						</apex:commandlink>
+						<apex:image value="{!$Resource.zqu__back_disabled}"
+								rendered="{!OR(NOT(hasPrevious), navDisabled)}" />
+						<apex:commandLink action="{!nextPage}"
+							rendered="{!AND(hasNext, NOT(navDisabled))}"
+							reRender="selector_panel, {!rerenderIDs}">
+							<apex:image value="{!$Resource.zqu__forward_enabled}" />
+						</apex:commandlink>
+						<apex:image value="{!$Resource.zqu__forward_disabled}"
+								rendered="{!OR(NOT(hasNext), navDisabled)}" />
+					</apex:outputPanel>
+				</apex:panelGrid>
+			</apex:outputPanel>
+		</apex:pageBlock>
+	</apex:outputPanel>
+</apex:component>

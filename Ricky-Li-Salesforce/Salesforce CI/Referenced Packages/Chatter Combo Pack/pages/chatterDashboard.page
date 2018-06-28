@@ -1,0 +1,460 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com - 2/24/2010 -->
+<apex:page controller="ComboPack.chatterDashboard2" tabstyle="Chatter_Dashboard__tab" action="{!doSubmit}">
+    
+    <script>function setFocusOnLoad() {}</script>
+    
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterDashboard, 'jquery.min.js' )}" />
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterDashboard, 'highcharts.js' )}" />
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterDashboard, 'exporting.js' )}" />
+    <apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterDashboard, 'styles.css' )}" />
+    
+    <!--[if IE]>
+       <script src="{!URLFOR( $Resource.chatterDashboard, 'excanvas.compiled.js' )}" type="text/javascript"></script>
+    <![endif]-->
+
+<apex:sectionheader title="Chatter Dashboard" />
+
+<apex:form id="theform">
+    <apex:actionFunction name="doSubmitAF" action="{!doSubmit}" rerender="theform,JSdata" />
+
+        <script type="text/javascript">
+        	jQuery.noConflict();
+        
+            function noenter(ev)  {
+            if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+                doSubmitAF();
+                return false;
+                }else{
+                  return true;
+             }
+           }
+        </script>
+		
+    <apex:pageblock >
+        <apex:pageblocksection showheader="false" columns="5">
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="uid" value="Show Statistics For" />
+                <apex:inputfield id="uid" value="{!ulookup.ownerid}" onkeypress="return noenter(event);" />
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem >
+                <apex:commandbutton value="Submit" action="{!doSubmit}" rerender="theform,JSdata" />
+                <apex:commandbutton value="Reset" action="{!doReset}" rerender="theform,JSdata" immediate="true" />
+            </apex:pageblocksectionitem>
+        </apex:pageblocksection>
+        
+        <apex:pageblocksection title="User Relationships" columns="2">
+            <apex:outputpanel rendered="{!followercount > 0}">
+                <p>{!ulookupname} has <span class="bigFont">{!followercount}</span> follower{!if( followercount > 1, 's', '' )}. <apex:outputtext value=" Here's a few of them." rendered="{!followercount > MAX_ICONS}"/></p>
+                <apex:repeat value="{!allfollowers}" var="u" rows="{!MAX_ICONS}">
+                    <div class="userIcon">
+                        <c:userPhoto uid="{!u.uid}" photoStr="{!u.photoURL}" height="32" width="32" styleclass="results_user_pic" title="{!u.uname}" linked="true" />
+                    </div>
+                </apex:repeat>
+            </apex:outputpanel>
+            <apex:outputpanel rendered="{!followercount = 0}">
+                <p>{!ulookupname} has <span class="bigFont">0</span> followers. Woah.</p>
+            </apex:outputpanel>             
+            
+            <apex:outputpanel rendered="{!followingcount > 0}">
+                <p>{!ulookupname} is following <span class="bigFont">{!followingcount}</span>{!if( followingcount > 1, ' people', ' person' )}. <apex:outputtext value=" Here's a few of them." rendered="{!followingcount > MAX_ICONS}"/></p>
+                <apex:repeat value="{!allfollowing}" var="u" rows="{!MAX_ICONS}">
+                    <div class="userIcon">
+                        <c:userPhoto uid="{!u.uid}" photoStr="{!u.photoURL}" height="32" width="32" styleclass="results_user_pic" title="{!u.uname}" linked="true" />
+                    </div>
+                </apex:repeat>
+            </apex:outputpanel>
+            <apex:outputpanel rendered="{!followingcount = 0}">
+                <p>{!ulookupname} isn't following anyone. Woah.</p>
+            </apex:outputpanel>
+            
+            <apex:outputpanel rendered="{!notfollowingthem.size > 0}">
+                <p><span class="bigFont">{!notfollowingthem.size}</span> {!if( notfollowingthem.size > 1, 'people are', 'person is' )} following {!ulookupname}, but {!ulookupname} isn't following back.</p>
+                <apex:repeat value="{!notfollowingthem}" var="u" >
+                    <div class="userIcon">
+                        <c:userPhoto uid="{!u.uid}" photoStr="{!u.photoURL}" height="32" width="32" styleclass="results_user_pic" title="{!u.uname}" linked="true" />
+                    </div>
+                </apex:repeat>
+            </apex:outputpanel>
+            <apex:outputpanel rendered="{!notfollowingthem.size = 0}">
+                <p><span class="bigFont">Everyone</span> following {!ulookupname} is being followed back. Woah.</p>
+            </apex:outputpanel>
+            
+            <apex:outputpanel rendered="{!notfollowingme.size > 0}">
+                <p>{!ulookupname} is following <span class="bigFont">{!notfollowingme.size}</span>{!if( notfollowingme.size > 1, " people who are not", " person who is not" )} following back.</p>
+                <apex:repeat value="{!notfollowingme}" var="u" >
+                    <div class="userIcon">
+                        <c:userPhoto uid="{!u.uid}" photoStr="{!u.photoURL}" height="32" width="32" styleclass="results_user_pic" title="{!u.uname}" linked="true" />
+                    </div>
+                </apex:repeat>
+            </apex:outputpanel>
+            <apex:outputpanel rendered="{!notfollowingme.size = 0}">
+                <p><span class="bigFont">Everyone</span> {!ulookupname} is following is following back. Woah.</p>
+            </apex:outputpanel>
+            
+            <apex:outputpanel rendered="{!mutualFriends.size > 0}">
+                <p>{!ulookupname} has <span class="bigFont">{!mutualFriends.size}</span> mutual friend{!if( mutualFriends.size > 1, 's', '')}.</p>
+                <apex:repeat value="{!mutualFriends}" var="u" >
+                    <div class="userIcon">
+                        <c:userPhoto uid="{!u.uid}" photoStr="{!u.photoURL}" height="32" width="32" styleclass="results_user_pic" title="{!u.uname}" linked="true" />           
+                    </div>
+                </apex:repeat>
+            </apex:outputpanel>
+            <apex:outputpanel rendered="{!mutualFriends.size = 0}">
+                <p>{!ulookupname} has <span class="bigFont">0</span> mutual friends. Woah.</p>
+            </apex:outputpanel>
+        
+        </apex:pageblocksection>
+        <apex:pageblocksection title="Status Updates" columns="2">
+        	<p>Records you are following are rendered with an <strong>asterisk*</strong>.</p>
+        	<apex:pageblocksectionitem />
+            <apex:outputpanel >
+                <div id="chatter-status-updates" style="width: 525px; height: 400px"></div>
+            </apex:outputpanel>
+            
+            <apex:outputpanel >
+                <div id="all-status-updates" style="width: 525px; height: 400px"></div>
+            </apex:outputpanel>
+                        
+            <apex:outputpanel >
+                <div id="top-chatter-accounts" style="width: 525px; height: 400px"></div>
+            </apex:outputpanel>
+
+            <apex:outputpanel >
+                <div id="top-chatter-oppties" style="width: 525px; height: 400px"></div>
+            </apex:outputpanel>
+            
+            <apex:outputpanel >
+                <div id="top-chatter-cases" style="width: 525px; height: 400px"></div>
+            </apex:outputpanel>
+            
+            <apex:outputpanel >
+                <div id="top-chatter-contacts" style="width: 525px; height: 400px"></div>
+            </apex:outputpanel>
+        
+        </apex:pageblocksection>
+    
+        </apex:pageblock>
+    </apex:form>
+    
+<apex:outputpanel id="JSdata">  
+    <script type="text/javascript">
+    jQuery(function() {
+	 try {
+      var chart1 = new Highcharts.Chart({
+         chart: {
+            renderTo: 'chatter-status-updates',
+            defaultSeriesType: 'column',
+            margin: [50, 0, 30, 60]
+         },
+         title: {
+            text: '{!JSINHTMLENCODE(ulookupname)}\'s Status Updates by Day'
+         },
+         subtitle: {
+			text: 'Last 7 Days'
+		 },
+         xAxis: {
+            categories: [
+                <apex:repeat value="{!mychats}" var="c">
+                    '{!JSINHTMLENCODE(c.key)}',
+                </apex:repeat>            
+            ]
+         },
+         legend: { enabled: false },
+         credits: { enabled: false },
+         tooltip: {
+                    formatter: function() {
+                        return '<b>'+ this.x +'</b>: '+ this.y +' updates';
+                    }
+         },
+         yAxis: {
+            title: {
+               text: '# Updates'
+            }
+         },
+         series: [{
+            name: '{!JSINHTMLENCODE(ulookupname)}',
+            data: [
+                <apex:repeat value="{!mychats}" var="c">
+                    {!JSINHTMLENCODE(c.val)},
+                </apex:repeat>
+            ]
+         }]
+      });
+  
+      var chart2 = new Highcharts.Chart({
+                chart: {
+                    renderTo: 'all-status-updates',
+                    defaultSeriesType: 'column',
+                    margin: [50, 0, 90, 60]
+                },
+                title: {
+                    text: 'Top Users by Chatter Updates'
+                },
+                subtitle: {
+					text: 'Last 7 Days'
+				 },
+                xAxis: {
+                    categories: [
+                        <apex:repeat value="{!allchats}" var="c">
+                            '{!JSINHTMLENCODE(c.key) & if( c.following, "*", "" )}',
+                        </apex:repeat>            
+                    ],
+                    labels: {
+                         rotation: -45,
+                         align: 'right',
+                         style: {
+                             font: 'normal 12px Verdana, sans-serif'
+                         }
+                      }             
+                },
+                yAxis: {
+		            title: {
+		               text: '# Updates'
+		            }
+		        },
+                tooltip: {
+                    formatter: function() {
+                        return '<b>'+ this.x +'</b>: '+ this.y +' updates';
+                    }
+                },
+                plotOptions: {
+                    column: {
+                        events: {
+                            click: function(e) { 
+                                window.location = '/'+ e.point.options.recID;
+                            }
+                        }
+                    }
+                },
+                credits: { enabled: false },
+                legend: { enabled: false },
+                series: [{
+                    name: 'Chatter Updates',
+                    data: [
+                        <apex:repeat value="{!allchats}" var="c">
+                            { y: {!JSINHTMLENCODE(c.val)}, recID: '{!JSINHTMLENCODE(c.recID)}' },
+                        </apex:repeat>
+                    ]
+                }]
+            });
+
+      var chart3 = new Highcharts.Chart({
+         chart: {
+            renderTo: 'top-chatter-accounts',
+            defaultSeriesType: 'column',
+            margin: [40, 30, 90, 60]
+         },
+         title: {
+            text: 'Most Active Accounts This Week'
+         },
+         credits: { enabled: false },
+         legend: { enabled: false },
+         xAxis: {
+            categories: [
+                <apex:repeat value="{!topaccts}" var="c">
+                      '{!JSINHTMLENCODE(c.key) & if( c.following, "*", "" )}',
+                </apex:repeat>            
+            ],
+            labels: {
+                         rotation: -45,
+                         align: 'right',
+                         style: {
+                             font: 'normal 12px Verdana, sans-serif'
+                         }
+            }   
+         },
+         tooltip: {
+                    formatter: function() {
+                        return '<b>'+ this.x +'</b>: '+ this.y +' updates';
+                    }
+         },
+         plotOptions: {
+                            column: {
+                                events: {
+                                    click: function(e) { 
+                                        window.location = '/'+ e.point.options.recID;
+                                    }
+                                }
+                            }
+         },
+         yAxis: {
+            title: {
+               text: '# Updates'
+            }
+         },
+         series: [{
+            name: 'Status Updates',
+            data: [
+                <apex:repeat value="{!topaccts}" var="c">
+                    { y: {!JSINHTMLENCODE(c.val)}, recID: '{!JSINHTMLENCODE(c.recID)}' },
+                </apex:repeat>
+            ]
+         }]
+      });
+
+      var chart4 = new Highcharts.Chart({
+         chart: {
+            renderTo: 'top-chatter-oppties',
+            defaultSeriesType: 'column',
+            margin: [40, 30, 90, 60]
+         },
+         title: {
+            text: 'Most Active Opportunities This Week'
+         },
+         credits: { enabled: false },
+         legend: { enabled: false },
+         tooltip: {
+                    formatter: function() {
+                        return '<b>'+ this.x +'</b>: '+ this.y +' updates';
+                    }
+         },
+         xAxis: {
+            categories: [
+                <apex:repeat value="{!topoppties}" var="c">
+                     '{!JSINHTMLENCODE(c.key) & if( c.following, "*", "" )}',
+                </apex:repeat>            
+            ],
+            labels: {
+                         rotation: -45,
+                         align: 'right',
+                         style: {
+                             font: 'normal 12px Verdana, sans-serif'
+                         }
+            }   
+         },
+         plotOptions: {
+                            column: {
+                                events: {
+                                    click: function(e) { 
+                                        window.location = '/'+ e.point.options.recID;
+                                    }
+                                }
+                            }
+         },
+         yAxis: {
+            title: {
+               text: '# Updates'
+            }
+         },
+         series: [{
+            name: 'Status Updates',
+            data: [
+                <apex:repeat value="{!topoppties}" var="c">
+                    { y: {!JSINHTMLENCODE(c.val)}, recID: '{!JSINHTMLENCODE(c.recID)}' },
+                </apex:repeat>
+            ]
+         }]
+      });
+
+      var chart5 = new Highcharts.Chart({
+         chart: {
+            renderTo: 'top-chatter-cases',
+            defaultSeriesType: 'column',
+            margin: [40, 30, 90, 60]
+         },
+         credits: { enabled: false },
+         legend: { enabled: false },
+         title: {
+            text: 'Most Active Cases This Week'
+         },
+         xAxis: {
+            categories: [
+                <apex:repeat value="{!topcases}" var="c">
+                     '{!JSINHTMLENCODE(c.key) & if( c.following, "*", "" )}',
+                </apex:repeat>            
+            ],
+            labels: {
+                         rotation: -45,
+                         align: 'right',
+                         style: {
+                             font: 'normal 12px Verdana, sans-serif'
+                         }
+            }   
+         },
+         tooltip: {
+                    formatter: function() {
+                        return '<b>'+ this.x +'</b>: '+ this.y +' updates';
+                    }
+         },
+         plotOptions: {
+                            column: {
+                                events: {
+                                    click: function(e) { 
+                                        window.location = '/'+ e.point.options.recID;
+                                    }
+                                }
+                            }
+         },
+         yAxis: {
+            title: {
+               text: '# Updates'
+            }
+         },
+         series: [{
+            name: 'Status Updates',
+            data: [
+                <apex:repeat value="{!topcases}" var="c">
+                    { y: {!JSINHTMLENCODE(c.val)}, recID: '{!JSINHTMLENCODE(c.recID)}' },
+                </apex:repeat>
+            ]
+         }]
+      });
+
+      var chart6 = new Highcharts.Chart({
+         chart: {
+            renderTo: 'top-chatter-contacts',
+            defaultSeriesType: 'column',
+            margin: [40, 30, 90, 60]
+         },
+         credits: { enabled: false },
+         legend: { enabled: false },
+         title: {
+            text: 'Most Active Contacts This Week'
+         },
+         xAxis: {
+            categories: [
+                <apex:repeat value="{!topcontacts}" var="c">
+                     '{!JSINHTMLENCODE(c.key) & if( c.following, "*", "" )}',
+                </apex:repeat>            
+            ],
+            labels: {
+                         rotation: -45,
+                         align: 'right',
+                         style: {
+                             font: 'normal 12px Verdana, sans-serif'
+                         }
+            }   
+         },
+         tooltip: {
+                    formatter: function() {
+                        return '<b>'+ this.x +'</b>: '+ this.y +' updates';
+                    }
+         },
+         plotOptions: {
+                            column: {
+                                events: {
+                                    click: function(e) { 
+                                        window.location = '/'+ e.point.options.recID;
+                                    }
+                                }
+                            }
+         },
+         yAxis: {
+            title: {
+               text: '# Updates'
+            }
+         },
+         series: [{
+            name: 'Status Updates',
+            data: [
+                <apex:repeat value="{!topcontacts}" var="c">
+                    { y: {!JSINHTMLENCODE(c.val)}, recID: '{!JSINHTMLENCODE(c.recID)}' },
+                </apex:repeat>
+            ]
+         }]
+      }); 
+     } catch( err ) {}
+   });
+   </script>
+</apex:outputpanel>
+</apex:page>

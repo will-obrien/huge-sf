@@ -1,0 +1,233 @@
+<apex:page standardController="zqu__Quote__c" extensions="zqu.ZuoraContactUpdateController" >
+  <c:StatusModal />
+
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+   <script type='text/javascript'> 
+    var $jq = jQuery.noConflict(); 
+   </script>
+  <apex:includeScript value="{!$Resource.zqu__JQuery_JSON}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/ZNotify-compressed.js')}" />
+  <apex:stylesheet value="{!$Resource.zqu__zforcecss}" />
+  <!-- Display discrepancies in each field of the property components -->
+  <script>
+    //Init notification message panel
+  	var msgPanel = new ZNotify({eleId : "msg-panel"});
+
+  	$jq(function(){
+      displayInitializationErrors();
+
+  	  if({!initSuccess}) {
+  	    initializeDiscrepancies();
+  	  }
+  	});
+
+  	function displayInitializationErrors() {
+  	  //Get initialization errors from the controller
+  	  var initErrors = $jq.evalJSON('{!JSENCODE(initErrorsJson)}');
+
+  	  //If any errors were encountered, display them and return false
+  	  if(initErrors.length) {
+  	  	msgPanel.showErrorMessage('{!$Label.Error_Page_Submission}', initErrors);
+  	  }
+  	}
+
+  	function initializeDiscrepancies() {
+  	  //Determine IDs of all Zuora-side account-related objects from hidden inputs
+  	  var zAccountId = $jq("input[data-id='zAccountId']").val();
+	  var zBillToContactId = $jq("input[data-id='zBillToContactId']").val();
+	  var zSoldToContactId = $jq("input[data-id='zSoldToContactId']").val();
+
+	  //Get initial diffs as Json from the controller
+      var diffMap = {!initDiffsJson};
+
+	  for (objectName in diffMap) {
+	  	//Retrieve the corresponding diffs from the map by objectName
+	  	var diffs = diffMap[objectName];
+
+        //Get property component as context
+        var objectPropertyComponent = $jq("span[data-id='" + objectName + "PropertyComponent']");
+
+        //Set Update button action
+        var updateButtons = $jq("input[type='button']", objectPropertyComponent);
+        if(updateButtons.length) {
+
+          //Create a new button node
+          var newUpdateButton = document.createElement("input");
+          newUpdateButton.setAttribute("class", "btn");
+          newUpdateButton.setAttribute("value", "{!$Label.AMENDMENT_PREVIEW_UPDATE_ZUORA_DATA}");
+          newUpdateButton.setAttribute("type", "button");
+
+          //Create a jquery object out of the new update button
+          var newUpdateButtonJq = $jq(newUpdateButton);
+
+          objectPropertyComponent.on(
+          	"click", 
+          	"input[value='{!$Label.AMENDMENT_PREVIEW_UPDATE_ZUORA_DATA}']", 
+          	{
+          	  "quoteId" : "{!Quote__c.Id}",
+          	  "zContactId" : objectName === 'billToContact' ? zBillToContactId : zSoldToContactId,
+          	  "diffsJson" : $jq.toJSON(diffs),
+          	  "objectName" : objectName
+          	},
+          	updateZuoraObject
+          );
+
+          //Prepend the "replacement" Update button
+          $jq(updateButtons[0]).parent().prepend(newUpdateButtonJq);
+          $jq(updateButtons[0]).remove();
+
+          //Remove the bottom button bar
+          $jq(updateButtons[2]).parent().parent().parent().parent().parent().remove();
+
+        }
+
+        //Show the diffs for this object
+	    showDiffs(objectPropertyComponent, diffs);
+	  }
+	}
+
+	function updateZuoraObject(event) {
+	  //Empty the msgPanel
+	  clearMsgPanel();
+
+	  //Start status modal
+	  displayStatusModal();
+
+	  var objectName = event.data.objectName;
+
+	  if(objectName === 'account') {
+	  	//Call controller remote action method to update account
+	  	Visualforce.remoting.Manager.invokeAction(
+	  	  '{!$RemoteAction.ZuoraContactUpdateController.updateAccountRemote}',
+	  	  event.data.quoteId,
+	  	  event.data.diffsJson,
+	  	  function(result, event) {
+	  	  	processRemoteUpdateResult(result, event, 'account');
+
+	  	  	//Close the status modal once the result has been processed
+	        closeStatusModal();
+	  	  }
+	  	);
+	  }
+	  else {
+	    //Call controller remote action method to update contact
+	    Visualforce.remoting.Manager.invokeAction(
+	      '{!$RemoteAction.ZuoraContactUpdateController.updateContactRemote}',
+	      event.data.quoteId,
+	      event.data.zContactId,
+	      event.data.diffsJson,
+	      event.data.objectName,
+	      function(result, event) {
+	        processRemoteUpdateResult(result, event, objectName);
+
+	        //Close the status modal once the result has been processed
+	        closeStatusModal();
+	      }
+	    );
+  	  }
+	}
+
+	//Function to show the diffs for an object. Takes in the property component and list of diffs
+	function showDiffs(objectPropertyComponent, diffs) {
+	  //Display discrepancies
+      for (var i = 0; i < diffs.length; i++) {
+        var diff = diffs[i];
+
+      //Get the hidden input holding the SFDC field name
+      var sInputMarker = $jq("span[data-field-name='" + diff["sFieldName"] + "']", objectPropertyComponent);
+
+      //If the node was found, add the appropriate diff visual indicator to it
+      if (sInputMarker.length) {
+
+          //Assemble the new node
+          var zValueDisplay = document.createElement("span");
+          zValueDisplay.setAttribute("class", "inlineEditModified");
+          zValueDisplay.setAttribute("title", "{!$Label.QUOTE_SUBMIT_UPDATE_ZUORA_DATA_MESSAGE}");
+
+        //Add the field value as a text node
+        var fieldValue = document.createTextNode(" [" + diff['zFieldValue'] + "]");
+        zValueDisplay.appendChild(fieldValue);
+
+        //Append the node
+        sInputMarker.parent().append(zValueDisplay);
+      }
+    }
+	}
+
+	//Function to REMOVE the diffs for an object. Takes in the object name of property component
+	//This method should NOT be called if errors were encountered
+	function removeDiffs(objectName) {
+	  //Get the property component by objectName for context
+	  var objectPropertyComponent = $jq("span[data-id='" + objectName + "PropertyComponent']");
+
+	  //Get all diffs that are currently displayed
+	  $jq("span.inlineEditModified", objectPropertyComponent).remove();
+
+	  //Remove buttons from property component
+	  $jq("input[type='button']", objectPropertyComponent).remove();
+	}
+
+	//Function to clear out any current messages displayed in msgPanel
+	function clearMsgPanel() {
+	  $jq("#msg-panel").empty();
+	}
+
+	//Function to process the results of a JS remote call to update Zuora
+	function processRemoteUpdateResult(result, event, objectName) {
+	  //Check if the call was successfull
+	  if(event.status) {
+      	//The result is error messages, so if any exist display error messages
+      	if(result) {
+      	  msgPanel.showErrorMessage('{!$Label.Error_Page_Submission}', result);
+      	}
+      	//If there were no results, the operation was successfull. Display the success message and remove all diffs from the corresponding object
+      	else {
+      	  var objectSuccessMessage = objectName == 'account' ? '{!$Label.ACCOUNT_UPDATE_SUCCESS}' : (objectName == 'billToContact' ? '{!$Label.CONTACT_BILL_TO_UPDATE_SUCCESS}' : '{!$Label.CONTACT_SOLD_TO_UPDATE_SUCCESS}');
+      	  msgPanel.showInfoMessage('{!$Label.Confirmation}', objectSuccessMessage);
+      	  removeDiffs(objectName);
+      	}
+      }
+      //If the call was NOT successful, display the errors to the screen
+      else {
+      	msgPanel.showErrorMessage('{!$Label.Error_Page_Submission}', event.message);
+      }
+	}
+  </script>
+
+  <script>
+    
+  </script>
+
+	<apex:form id="theForm" >
+	  <!-- Section Header -->
+	  <apex:sectionHeader title="{!$Label.ACCOUNT_DETAILS}" subtitle="{!$Label.ACCOUNT_DETAIL_SUBTITLE}" id="updateContactTitle">
+    	<apex:commandButton style="margin-bottom: 5px;" value="{!$Label.BUTTON_BACK}" action="{!goBack}" />
+	  </apex:sectionHeader>
+
+      <!-- Notification -->
+      <div id="msg-panel" />
+
+      <apex:outputPanel rendered="{!initSuccess}" >
+        <!--hidden inputs for easy access to object Ids -->
+        <apex:inputHidden value="{!quote.zqu__ZuoraAccountID__c}" html-data-id="zAccountId" />
+        <apex:inputHidden value="{!zBillToId}" html-data-id="zBillToContactId" />
+        <apex:inputHidden value="{!zSoldToId}" html-data-id="zSoldToContactId" />
+
+        <!-- Bill To Contact -->
+        <apex:outputPanel html-data-id="billToContactPropertyComponent" rendered="{!renderBillTo}" >
+          <c:PropertyComponent options="{!billToOptions}" saveButtonLabel="{!$Label.AMENDMENT_PREVIEW_UPDATE_ZUORA_DATA}" cancelButtonLabel="{!$Label.QUOTE_SUBMIT_EDIT_SF_CONTACT}" />
+        </apex:outputPanel>
+
+        <!-- Sold To Contact -->
+        <apex:outputPanel html-data-id="soldToContactPropertyComponent" rendered="{!renderSoldTo}" >
+          <c:PropertyComponent options="{!soldToOptions}" saveButtonLabel="{!$Label.AMENDMENT_PREVIEW_UPDATE_ZUORA_DATA}" cancelButtonLabel="{!$Label.QUOTE_SUBMIT_EDIT_SF_CONTACT}" />
+        </apex:outputPanel>
+
+        <!-- Account -->
+        <apex:outputPanel html-data-id="accountPropertyComponent" >
+          <c:PropertyComponent options="{!accountOptions}" saveButtonLabel="{!$Label.AMENDMENT_PREVIEW_UPDATE_ZUORA_DATA}" cancelButtonLabel="{!$Label.EDIT_SF_ACCOUNT}" />
+        </apex:outputPanel>
+      </apex:outputPanel>
+
+	</apex:form>
+</apex:page>

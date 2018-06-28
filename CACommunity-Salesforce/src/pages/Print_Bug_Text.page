@@ -1,0 +1,84 @@
+<apex:page standardController="Case" 
+   showHeader="false" readOnly="true" sidebar="false" cache="false" tabStyle="Case" standardStylesheets="true">
+
+      <table width="98%" border="0" cellpadding="0" cellspacing="0">
+          <tr><td align="right"><a href="javascript:window.print();">Print this page</a></td></tr>   
+      </table>
+      
+      <apex:sectionHeader title="" subtitle="CA Program - NSS/PSM Bug Request" />
+      
+      <!-- Display error message, if the case is not approved -->
+ 
+      <apex:pageBlock rendered="{!(AND (Case.Request_Status__c != 'Approved, Pending Inclusion', Case.Request_Status__c != 'Approved, Pending Inclusion and EV'))}">
+          <apex:pageMessage summary="Inclusion request not yet approved!! Do not create bug request." severity="error" strength="3" />
+      </apex:pageBlock>
+      
+      <!-- Get the count of records for related list -->   
+      
+      <apex:variable value="{!0}" var="TotalRec"/> 
+             
+      <apex:repeat value="{!Case.Root_Cases__r}"  var="root">                           
+          <apex:variable var="TotalRec" value="{!TotalRec + 1}"/> 
+      </apex:repeat>
+                           
+      <!-- Display all child records from related list -->              
+   
+       <apex:pageBlock title="Request to include Root Certificate(s) owned by '{!Case.Account.Name}' in NSS"> 
+           
+          <apex:variable value="{!1}" var="Counter"/> 
+             
+          <apex:repeat value="{!Case.Root_Cases__r}" var="r">  
+                          
+             <apex:pageBlock title="Root Certificate {!Counter} of {!TotalRec} ">       
+                <apex:pageBlockSection columns="1">                       
+                    <apex:outputField label="Friendly Name: " value="{!r.Root_Certificate_Name__c}"/> 
+                    <apex:outputField label="Cert Location: " value="{!r.Root_Certificate_Download_URL__c}"/>                  
+                    <apex:outputField label="SHA-1 Fingerprint: " value="{!r.SHA_1_Fingerprint__c}"/>  
+                    <apex:outputField label="Trust Flags: " value="{!r.Trust_Bits__c}"/>   
+                    <apex:outputField label="Test URL or Example Cert: " value="{!r.Test_Website_URL_SSL_or_Example_Cert__c}"/>                         
+                 </apex:pageBlockSection>                 
+               </apex:pageBlock>              
+               <apex:variable var="Counter" value="{!Counter + 1}"/>                                                  
+           </apex:repeat>
+           
+           <apex:pageBlock >
+              <apex:outputText value="This CA has been assessed in accordance with the Mozilla project guidelines, and the certificates approved for inclusion in bug '{!Case.Link_to_Bugzilla_Bug__c}' "/>
+              <apex:outputText value="The next steps are as follows:"/><br />
+              <apex:outputText value="1) A representative of the CA must confirm that all the data in this bug is correct, and that the correct certificates have been attached."/><br />
+              <apex:outputText value="2) A Mozilla representative creates a patch with the new certificates, and provides a special test version of Firefox."/><br />
+              <apex:outputText value="3) A representative of the CA uses the test version of Firefox to confirm (by adding a comment in this bug) that the certificates have been correctly imported and that websites work correctly."/><br />
+              <apex:outputText value="4) The Mozilla representative requests that another Mozilla representative review the patch."/><br />
+              <apex:outputText value="5) The Mozilla representative adds (commits) the patch to NSS, then closes this bug as RESOLVED FIXED."/><br />
+              <apex:outputText value="6) At some time after that, various Mozilla products will move to using a version of NSS which contains the certificates. This process is mostly under the control of the release drivers for those products."/><br />          
+           </apex:pageBlock>
+     </apex:pageblock> 
+       
+     <apex:pageBlock title="Request to Enable EV Treatment for Root Certificate(s) owned by '{!Case.Account.Name}' to PSM">
+      
+      <apex:pageBlock >
+            <apex:outputText value="Per bug '{!Case.Link_to_Bugzilla_Bug__c}' the request from '{!Case.Account.Name}' has been "/>
+            <apex:outputText value="approved to enable the following root certificates for EV use. Please make the corresponding "/> 
+            <apex:outputText value="changes to PSM. The relevant information is as follows."/>
+      </apex:pageBlock>
+      
+          <apex:variable value="{!1}" var="Counter"/> 
+             
+          <apex:repeat value="{!Case.Root_Cases__r}" var="r">               
+             <apex:pageBlock title="Root Certificate {!Counter} of {!TotalRec}">         
+                <apex:pageBlockSection columns="1">                               
+                    <apex:outputField label="Friendly Name: " value="{!r.Root_Certificate_Name__c}"/>                                                      
+                    <apex:outputField label="SHA-1 Fingerprint: " value="{!r.SHA_1_Fingerprint__c}"/>
+                    <apex:outputField label="EV Policy OID(s): " value="{!r.EV_Policy_OID_s__c  }"/>                  
+                    <apex:outputField label="Test URL or Example Cert: " value="{!r.Test_Website_URL_SSL_or_Example_Cert__c}"/>                         
+                 </apex:pageBlockSection>                 
+               </apex:pageBlock>              
+               <apex:variable var="Counter" value="{!Counter + 1}"/>                                                  
+           </apex:repeat>   
+           
+       </apex:pageBlock>           
+       
+      <style type="text/css">
+         .pbTitle {width: 100px;white-space: nowrap;}    
+      </style>             
+        
+</apex:page>

@@ -1,0 +1,183 @@
+<apex:component controller="zqu.ZQExistingQuoteChargeCompController" allowDML="true">  
+  
+     <script>
+        // Confirmation message on Delete action
+        function showConfirmationMessage( productName, ratePlanName ) {
+          
+            var productName = productName.toString();
+            var ratePlanName = ratePlanName.toString();
+            if ( productName != null && ratePlanName != null ) {
+                var answer = confirm ("Are you sure you want to delete "+ productName +"-"+ratePlanName+" ?");
+                if (answer) {   return true; }
+                else{ return false; }
+            }
+            
+        }
+        //Disabling all input fields
+     	function disableAllFields(){
+			
+			var inputF = document.getElementsByTagName('input');
+			for(var i=0;i<inputF.length;i++){
+				if(inputF[i].getAttribute('type')=='text'){
+					inputF[i].setAttribute('disabled',true);
+				}
+			}
+		}
+     </script>
+    <apex:attribute name="quoteID" description="Quote ID from Product Selector Page" type="String" required="required" assignTo="{!quoteID}"/>
+    <apex:attribute name="from" description="Idnetifying from where this component is invoked" type="String" required="required" assignTo="{!fromName}"/>
+    <c:Notification />
+    <apex:form rendered="{!isChargeExist}" >
+            <apex:pageBlock rendered="{!AND(OR(fromName = 'QuoteDetailPage',fromName = 'AddProductPage'), ISNULL(timeProductID))}">
+                     <apex:outputPanel rendered="{!NOT(userMessage = '')}">
+                     		<div align="center"><font color="#610B0B" size="2px">* Product Catalog sync is required. The charges below may be inaccurate.</font></div>
+                     </apex:outputPanel>
+                     <apex:dataTable value="{!listOfWrapperHeaders}" var="wh" columns="1" width="100%">
+                           <apex:column width="100%">
+                                 <apex:outputPanel rendered="{!fromName = 'QuoteDetailPage'}">
+                                         <table width="100%" >
+                                              <tr>
+                                                 <td align="left"><font size="2"><b>{!wh.headerProductName} &nbsp;&nbsp; : &nbsp;&nbsp;{!wh.headerProductRatePlanName}</b></font></td>
+                                                 <td align="right">
+                                                 		<apex:outputPanel rendered="{!AND(readOnlyValue,userMessage = '')}">
+		                                                     <apex:commandLink value="Edit" styleClass="btn" action="{!showEditSection}" >
+		                                                         <apex:param name="timeProductID" assignTo="{!timeProductID}" value="{!wh.timeProductId}" />
+		                                                     </apex:commandLink>    
+		                                                     &nbsp;&nbsp;
+		                                                     <apex:commandLink value="Delete" styleClass="btn" action="{!deleteProduct}" 
+		                                                                                      onClick=" var v = showConfirmationMessage ( '{!JSENCODE(wh.headerProductName)}', '{!JSENCODE(wh.headerProductRatePlanName)}' ); return v;" target="_top" >
+		                                                        <apex:param name="timeProductID" assignTo="{!timeProductID}" value="{!wh.timeProductId}" /> 
+		                                                     </apex:commandLink>
+		                                              </apex:outputPanel>      
+                                                 </td>
+                                              </tr>
+                                         </table>
+                                 </apex:outputPanel>
+                                 <apex:outputPanel rendered="{!fromName = 'AddProductPage'}">
+                                 			<table width="100%" >
+                                              <tr>
+                                                 <td align="left"><font size="2"><b>{!wh.headerProductName} &nbsp;&nbsp; : &nbsp;&nbsp;{!wh.headerProductRatePlanName}</b></font></td>
+                                              </tr>
+                                          </table>       
+                                 </apex:outputPanel>
+                                 <apex:pageBlockTable value="{!wh.wZQuoteCharges4NS}" var="zqc">
+                                        <apex:column headerValue="Charge Name" value="{!zqc.qcharge.Name}"/>
+                                        <apex:column headerValue="Type" value="{!zqc.qcharge.zqu__ChargeType__c}"/>
+                                        <apex:column headerValue="Model" value="{!zqc.qcharge.zqu__Model__c}"/>
+                                        <apex:column headerValue="List Price" value="{!zqc.DisplayListPrice}"/>
+                                        <apex:column headerValue="Discount">
+                                            <apex:outputText value="{!zqc.DisplayDiscount}"/>
+                                            <apex:outputText value="%" rendered="{!zqc.DiscountEditable}" />
+                                        </apex:column>
+                                        <apex:column headerValue="Effective Price">
+                                        		{!zqc.DisplayEffectivePrice} <apex:outputText value="%" rendered="{!(zqc.qcharge.zqu__Model__c == 'Discount-Percentage')}" />
+                                        </apex:column>
+                                        <apex:column headerValue="Quantity" value="{!zqc.DisplayQuantity}"/>
+                                        <apex:column headerValue="Include Units" value="{!zqc.DisplayIncludedUnits}"/>
+                                        <apex:column headerValue="UOM" value="{!zqc.DisplayUOM}"/>
+                                        <apex:column headerValue="Period" value="{!zqc.DisplayRecurringPeriod}"/>
+                                        <apex:column headerValue="List Total" value="{!zqc.DisplayListTotal}"/>
+                                        <apex:column headerValue="Total" >
+										   <apex:outputText value="{!zqc.DisplayTotal}"/>	
+									   </apex:column>	   
+                                 </apex:pageBlockTable>
+                                 <table width="100%" >
+                                      <tr><td><hr size="1" width="100%" color="#610B0B"/></td></tr>
+                                 </table>             
+                           </apex:column>
+                     </apex:dataTable>
+            </apex:pageBlock>
+            <apex:actionRegion >
+            <apex:outputPanel id="pEditBlock">
+                        <apex:pageBlock rendered="{!AND(fromName = 'QuoteDetailPage',NOT(ISNULL(timeProductID)))}"  >
+                        <apex:pageMessage rendered="{!isQuoteChargeError}" summary="{!quoteChargeError}" severity="error" strength="1" />
+                             <apex:dataTable value="{!listOfEditableWrapperHeaders}" var="wh" columns="1" width="100%" >
+                                   <apex:column width="100%">
+                                         <table width="100%" >
+                                              <tr><td align="left"><font size="2"><b>{!wh.headerProductName} &nbsp;&nbsp; : &nbsp;&nbsp;{!wh.headerProductRatePlanName}</b></font></td></tr>
+                                         </table>
+                                                 <apex:pageBlockTable value="{!wh.wZQuoteCharges4NS}" var="zqc">
+                                                        <apex:column headerValue="Charge Name" value="{!zqc.qcharge.Name}"/>
+                                                        <apex:column headerValue="Type" value="{!zqc.qcharge.zqu__ChargeType__c}"/>
+                                                        <apex:column headerValue="Model" value="{!zqc.qcharge.zqu__Model__c}"/>
+                                                        <apex:column headerValue="List Price" value="{!zqc.DisplayListPrice}"/>
+                                                        <apex:column headerValue="Discount" >
+                                                                <apex:outputPanel rendered="{!zqc.DiscountEditable}">
+                                                                    <apex:inputField id="dis" value="{!zqc.qcharge.zqu__Discount__c}" style="width:70%;font-weight:bold">
+                                                                            <apex:actionSupport action="{!discountChangeAction}" event="onchange" reRender="pEditBlock" status="changeStatus">
+                                                                                <apex:param name="qchargeID" assignTo="{!qchargeID}" value="{!zqc.sfdcMapId}" />
+                                                                            </apex:actionSupport>
+                                                                    </apex:inputField>
+                                                                </apex:outputPanel>
+                                                                <apex:outputText value="{!zqc.DisplayDiscount}" rendered="{!!zqc.DiscountEditable}" />
+                                                                <apex:outputText value="%" rendered="{!zqc.DiscountEditable}" />
+                                                        </apex:column>
+                                                         
+                                                        <apex:column headerValue="Effective Price" >
+                                                                 <apex:outputPanel rendered="{!zqc.EffectivePriceEditable}">
+                                                                         <apex:inputField id="ePrice" value="{!zqc.qcharge.zqu__EffectivePrice__c}" style="width:80%;font-weight:bold" >
+                                                                                <apex:actionSupport action="{!effPriceChangeAction}" event="onchange" reRender="pEditBlock" status="changeStatus">
+                                                                                    <apex:param name="qchargeID" assignTo="{!qchargeID}" value="{!zqc.sfdcMapId}" />
+                                                                                </apex:actionSupport>
+                                                                         </apex:inputField>
+                                                                         <apex:outputText value="%" rendered="{!(zqc.qcharge.zqu__Model__c == 'Discount-Percentage')}" />
+                                                                 </apex:outputPanel>
+                                                                 <apex:outputText value="{!zqc.DisplayEffectivePrice}" rendered="{!!zqc.EffectivePriceEditable }" />   
+                                                        </apex:column>
+                                                        <apex:column headerValue="Quantity" >
+                                                                 <apex:outputPanel rendered="{!zqc.QuantityEditable}">
+                                                                         <apex:inputField id="qnt" value="{!zqc.qcharge.zqu__Quantity__c}" style="width:80%;font-weight:bold">
+                                                                                <apex:actionSupport action="{!qntChangeAction}" event="onchange" reRender="pEditBlock" status="changeStatus">
+                                                                                    <apex:param name="qchargeID" assignTo="{!qchargeID}" value="{!zqc.sfdcMapId}" />
+                                                                                </apex:actionSupport>
+                                                                        </apex:inputField>
+                                                                </apex:outputPanel> 
+                                                                <apex:outputText value="{!zqc.DisplayQuantity}" rendered="{!!zqc.QuantityEditable }" />
+                                                            </apex:column>
+                                                        <apex:column headerValue="Included Units">
+															<apex:outputPanel rendered="{!zqc.IncludedUnitsEditable}">
+                                                                         <apex:inputField id="includedUnitInput" value="{!zqc.qcharge.zqu__IncludedUnits__c}" style="width:80%;font-weight:bold">
+                                                                                <apex:actionSupport action="{!includedUnitsChangeAction}" event="onchange" reRender="pEditBlock" status="changeStatus">
+                                                                                    <apex:param name="qchargeID" assignTo="{!qchargeID}" value="{!zqc.sfdcMapId}" />
+                                                                                </apex:actionSupport>
+                                                                        </apex:inputField>
+                                                            </apex:outputPanel> 
+															<apex:outputText value="{!zqc.DisplayIncludedUnits}"
+																rendered="{!!zqc.IncludedUnitsEditable}" />
+														</apex:column>
+                                                        <apex:column headerValue="UOM" value="{!zqc.DisplayUOM}"/>
+                                                        <apex:column headerValue="Period" value="{!zqc.DisplayRecurringPeriod}"/>
+                                                        <apex:column headerValue="List Total" value="{!zqc.DisplayListTotal}"/>
+                                                        
+                                                        <apex:column headerValue="Total" >
+                                                                 <apex:outputPanel rendered="{!zqc.TotalEditable}">
+                                                                         <apex:inputField id="tot" value="{!zqc.qcharge.zqu__Total__c}" style="width:80%;font-weight:bold">
+                                                                                    <apex:actionSupport action="{!totalChangeAction}" event="onchange" reRender="pEditBlock" status="changeStatus">
+                                                                                            <apex:param name="qchargeID" assignTo="{!qchargeID}" value="{!zqc.sfdcMapId}" />
+                                                                                    </apex:actionSupport>
+                                                                         </apex:inputField>
+                                                                 </apex:outputPanel>
+                                                                 <apex:outputText value="{!zqc.DisplayTotal}" rendered="{!NOT(zqc.TotalEditable) }" />
+                                                         </apex:column>
+                                                 </apex:pageBlockTable>
+                                   </apex:column>
+                             </apex:dataTable>
+                            <font color="#610B0B" size="1px">* To see the changes reflected, click outside the text area after entering input.</font>
+                            <br/>
+                             <div align="center">
+				                <apex:actionStatus id="changeStatus" onstart="disableAllFields();" >
+									<apex:facet name="start">
+										<apex:commandButton value="Applying..." disabled="true" />
+									</apex:facet>
+									<apex:facet name="stop">
+										<apex:commandLink value="Update" action="{!saveProduct}" target="_top" styleClass="btn"/>
+									</apex:facet>
+								</apex:actionStatus>
+								<apex:commandLink value="Cancel" action="{!cancelProduct}" styleClass="btn" immediate="true"/>
+			                </div>
+                    </apex:pageBlock>
+              </apex:outputPanel>      
+              </apex:actionRegion>
+    </apex:form>
+   
+</apex:component>

@@ -1,0 +1,775 @@
+<apex:page controller="dsfs.DocuSignSetupStandardController"
+	action="{!initConfiguration}" tabstyle="DocuSign_Admin__tab">
+	<style type="text/css">
+.progressStyle {
+	width: 87%;
+	cellspacing: 0;
+	frame: void;
+}
+
+.divStyle {
+	border: medium solid #00AEEF;
+	background-color: white;
+	border-radius: 6px;
+	width: 606px;
+}
+
+.createAccountDivStyle {
+	border: solid #00AEEF 3px;
+	background-color: white;
+	border-radius: 6px;
+	width: 400px;
+}
+
+.headerTextStyle {
+	color: #00AEEF;
+	font: bold 14px arial;
+}
+
+.inputTextStyle {
+	border-style: inset;
+	border-width: thin;
+	border-radius: 6px;
+	width: 275px;
+}
+
+.selectStateStyle {
+	border-style: inset;
+	border-width: thin;
+	border-radius: 6px;
+}
+
+.phoneExtensionStyle {
+	border-style: inset;
+	border-width: thin;
+	border-radius: 6px;
+	margin-left: 10px;
+}
+
+.sectionStyle {
+	cellspacing: 4px;
+}
+
+.centeredOutputText {
+	text-align: center;
+	text-color: red;
+}
+
+.headerTableStyle {
+	padding: 0px 0px 20px 40px;
+}
+
+.subHeaderTextStyle {
+	padding: 10px 10px 5px 20px;
+}
+
+.offsetTableStyle {
+	padding: 0px 0px 0px 40px;
+	width: 646px;
+}
+
+.backNextTableStyle {
+	padding: 0px 0px 0px 40px;
+	width: 646px;
+}
+
+.addButtonsTableStyle {
+	padding: 20px 0px 20px 0px;
+	width: 606px;
+}
+
+.addButtonsCellStyle {
+	width: 20%;
+	text-align: center;
+	padding: 0px 0px 10px 0px;
+}
+
+.backButtonStyle {
+	width: 50%;
+	text-align: right;
+	padding: 0px 25px 0px 0px;
+}
+
+.nextButtonStyle {
+	width: 50%;
+	text-align: left;
+	padding: 0px 0px 0px 25px;
+}
+
+.mainDocuSignButton {
+	background: #fcb034;
+	background: -moz-linear-gradient(top, #ffc423 25%, #fcb034 99%);
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(25%, #fcb034),
+		color-stop(99%, #ffc423) );
+	background: -webkit-linear-gradient(top, #ffc423 25%, #fcb034 99%);
+	background: -o-linear-gradient(top, #ffc423 25%, #fcb034 99%);
+	background: -ms-linear-gradient(top, #ffc423 25%, #fcb034 99%);
+	background: linear-gradient(top, #ffc423 25%, #fcb034 99%);
+	filter: progid : DXImageTransform.Microsoft.gradient (   startColorstr =
+		'#ffc423', endColorstr = '#fcb034', GradientType = 0 );
+	border: none;
+	cursor: pointer;
+	-webkit-border-radius: 6px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+	padding: 5px 20px;
+	color: #303030;
+	font-family: AvenirMedium, Verdana, Tahoma, "DejaVu Sans", sans-serif;
+	font-size: 0.85em;
+	font-weight: bold;
+	text-decoration: none;
+	-webkit-box-shadow: inset 0px 1px 1px #c08628;
+	-moz-box-shadow: inset 0px 1px 1px #c08628;
+	box-shadow: inset 0px 1px 1px #c08628;
+}
+
+.mainDocuSignButton:hover {
+	-webkit-box-shadow: 1px 0px 1px 0px #562502;
+	-moz-box-shadow: 1px 0px 1px 0px #562502;
+	box-shadow: 1px 0px 1px 0px #562502;
+	text-decoration: none;
+}
+
+.mainDocuSignButton:active {
+	background: #fcb034;
+	background: -moz-linear-gradient(top, #fdbd0e 25%, #f9a927 99%);
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(25%, #fdbd0e),
+		color-stop(99%, #f9a927) );
+	background: -webkit-linear-gradient(top, #fdbd0e 25%, #f9a927 99%);
+	background: -o-linear-gradient(top, #fdbd0e 25%, #f9a927 99%);
+	background: -ms-linear-gradient(top, #fdbd0e 25%, #f9a927 99%);
+	background: linear-gradient(top, #fdbd0e 25%, #f9a927 99%);
+	filter: progid : DXImageTransform.Microsoft.gradient (   startColorstr =
+		'#fdbd0e', endColorstr = '#f9a927', GradientType = 0 );
+	-moz-box-shadow: none;
+	box-shadow: none;
+	text-decoration: none;
+}
+</style>
+
+
+	<script>
+function OpenURL(name, url, style)
+{
+    url = unescape(url);
+    window.open(url, name, style);
+}
+
+</script>
+	<apex:pageMessages />
+
+	<apex:form rendered="{!hasCRUDErrors == false}">
+		<apex:actionFunction action="{!Back}" name="DocuSignBack" />
+		<apex:actionFunction action="{!CreateAccount}"
+			name="DocuSignCreateAccount" />
+		<apex:actionFunction action="{!SelectAccount}"
+			name="DocuSignSelectAccount" />
+		<apex:actionFunction action="{!NewAccount}" name="DocuSignNewAccount" />
+		<apex:actionFunction action="{!SetNewAccountPassword}"
+			name="DocuSignSetNewAccountPassword" />
+		<apex:actionFunction action="{!ConnectDocuSignToSalesforce}"
+			name="DocuSignConnectToSalesforce" />
+		<apex:actionFunction action="{!LoginToExistingAccount}"
+			name="DocuSignLoginToExistingAccount" />
+		<apex:actionFunction action="{!UpdateAccountSettings}"
+			name="DocuSignUpdateAccountSettings" />
+		<apex:actionFunction action="{!GoToDocuSignAdmin}"
+			name="DocuSignGoTodminPage" />
+
+		<!-- START ACCOUNT CONFIGURATION -->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			id="AccountConfiguration" mode="edit" tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='ACCOUNT'}" helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__CreateAccountHeader}" /></td>
+				</tr>
+			</table>
+			<apex:outputPanel layout="block">
+				<table style="padding: 0px 0px 0px 15px;">
+					<tr>
+						<td><apex:pageBlockSection columns="2">
+								<apex:outputPanel layout="block"
+									styleClass="createAccountDivStyle">
+									<table class="subHeaderTextStyle">
+										<tr>
+											<td><apex:outputText escape="false"
+													styleClass="headerTextStyle"
+													value="<b>Log in</b> to your existing DocuSign account" />
+											</td>
+										</tr>
+									</table>
+									<apex:pageBlockSection columns="1">
+										<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 5px 0px;"
+											dataStyle="padding: 10px 0px 5px 0px;">
+											<apex:outputLabel value="Email" for="ExistingEmail" />
+											<apex:inputText value="{!DocuSignEmail}" id="ExistingEmail"
+												size="40" styleClass="inputTextStyle" />
+										</apex:pageBlockSectionItem>
+										<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 5px 0px;"
+											dataStyle="padding: 10px 0px 5px 0px;">
+											<apex:outputLabel value="Password" for="ExistingPassword" />
+											<apex:inputSecret value="{!DocuSignPassword}"
+												id="ExistingPassword" size="40" styleClass="inputTextStyle" />
+										</apex:pageBlockSectionItem>
+										<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 5px 0px;"
+											dataStyle="padding: 10px 0px 5px 0px;">
+											<apex:outputLabel value="Environment" for="listDSEnvironment" />
+											<apex:selectList value="{!DocuSignEnvironment}"
+												multiselect="false" size="1" id="listDSEnvironment"
+												styleClass="inputTextStyle" label="Environment">
+												<apex:selectOptions value="{!DocuSignEnvironments}"></apex:selectOptions>
+											</apex:selectList>
+										</apex:pageBlockSectionItem>
+										<apex:pageBlockSectionItem labelStyle="padding: 20px 10px 5px 0px;"
+											dataStyle="padding: 20px 0px 5px 0px;"
+											rendered="{!ShowDocuSignErrorMessages == true && useExistingAccount}">
+											<apex:outputText value="" />
+											<apex:outputText style="color: red" escape="true"
+												value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+										</apex:pageBlockSectionItem>
+									</apex:pageBlockSection>
+									<table width="100%" style="padding: 20px 0px 20px 0px;">
+										<tr>
+											<td style="text-align: center; padding: 0px 0px 20px 0px;">
+												<apex:commandlink action="{!LoginToExistingAccount}"
+													styleClass="mainDocuSignButton">Log in</apex:commandlink>
+											</td>
+										</tr>
+										<tr>
+											<td style="text-align: center; padding: 0px 0px 20px 0px;">
+												<apex:commandLink target="_blank"
+													action="{!getDocuSignForgotPasswordURL}"
+													value="Forgot Password?" /></td>
+										</tr>
+									</table>
+								</apex:outputPanel>
+								<apex:outputPanel layout="block"
+									styleClass="createAccountDivStyle">
+									<table class="subHeaderTextStyle">
+										<tr>
+											<td><apex:outputText escape="false"
+													styleClass="headerTextStyle"
+													value="<b>Sign up</b> for a Free DocuSign Trial" /></td>
+										</tr>
+									</table>
+
+									<apex:pageBlockSection columns="1">
+										<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 5px 0px;"
+											dataStyle="padding: 10px 0px 5px 0px;">
+											<apex:outputLabel value="Email" for="NewAccountEmail" />
+											<apex:inputText value="{!DocuSignNewAccountEmail}"
+												id="NewAccountEmail" size="40" styleClass="inputTextStyle" />
+										</apex:pageBlockSectionItem>
+										<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 10px 0px;"
+											dataStyle="padding: 10px 0px 10px 0px;">
+											<apex:outputText escape="false" value="&nbsp;" />
+											<apex:outputText escape="false" value="&nbsp;" />
+										</apex:pageBlockSectionItem>
+										<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 5px 0px;"
+											dataStyle="padding: 10px 0px 5px 0px;">
+											<apex:inputCheckbox id="chkAgreeToTerms"
+												value="{!AgreeToTerms}"></apex:inputCheckbox>
+											<apex:outputText >I agree to the&nbsp;
+                                      <apex:outputLink target="new"
+													value="http://www.docusign.com/terms_and_conditions.php">DocuSign Terms and Conditions</apex:outputLink>
+											</apex:outputText>
+										</apex:pageBlockSectionItem>
+										<apex:pageBlockSectionItem labelStyle="padding: 20px 10px 5px 0px;"
+											dataStyle="padding: 20px 0px 5px 0px;"
+											rendered="{!ShowDocuSignErrorMessages == true && !useExistingAccount}">
+											<apex:outputText value="" />
+											<apex:outputText style="color: red" escape="true"
+												value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+										</apex:pageBlockSectionItem>
+									</apex:pageBlockSection>
+									<table width="100%" style="padding: 20px 0px 20px 0px;">
+										<tr>
+											<td style="text-align: center; padding: 0px 0px 20px 0px;">
+												<apex:commandlink action="{!CreateAccount}"
+													styleClass="mainDocuSignButton">Create Account</apex:commandlink>
+											</td>
+										</tr>
+										<tr>
+											<td style="text-align: center; padding: 0px 0px 20px 0px;">&nbsp;</td>
+										</tr>
+									</table>
+								</apex:outputPanel>
+							</apex:pageBlockSection></td>
+					</tr>
+				</table>
+			</apex:outputPanel>
+		</apex:pageBlock>
+
+
+		<!-- START SELECT ACCOUNT -->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			id="SelectAccount" tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='SELECTACCOUNT'}"
+			helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__CreateAccountHeader}" /></td>
+				</tr>
+			</table>
+			<table class="offsetTableStyle">
+				<tr>
+					<td><apex:outputPanel layout="block" styleClass="divStyle">
+							<table class="subHeaderTextStyle">
+								<tr>
+									<td><apex:outputText styleClass="headerTextStyle"
+											value="You have multiple DocuSign accounts associated to this email.  Select the account you would like to use with Salesforce:" />
+									</td>
+								</tr>
+							</table>
+							<apex:selectRadio style="padding: 0px 0px 20px 40px;"
+								value="{!DocuSignSelectedAccount}" layout="pageDirection">
+								<apex:selectOptions value="{!DocuSignAccountList}" />
+							</apex:selectRadio>
+							<apex:outputPanel layout="block"
+								style="padding: 0px 0px 20px 0px;"
+								rendered="{!NumAccountSettingsRetrieved < NumAccountSettings}">
+								<apex:commandlink style="padding: 0px 0px 0px 30px;"
+									action="{!RetrieveMoreAccountSettings}"
+									value="See more accounts" reRender="SelectAccount" />
+								<apex:outputText style="padding: 0px 0px 0px 20px;"
+									value="Displaying {0} of {1} accounts.">
+									<apex:param value="{!NumAccountSettingsRetrieved}" />
+									<apex:param value="{!NumAccountSettings}" />
+								</apex:outputText>
+							</apex:outputPanel>
+							<apex:outputPanel title="Error Messages" layout="block"
+								style="padding: 0px 100px 20px 100px;"
+								rendered="{!ShowDocuSignErrorMessages == true}">
+								<apex:outputText style="color: red" escape="false" value="</p>" />
+								<apex:outputText style="color: red" escape="true"
+									value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+							</apex:outputPanel>
+						</apex:outputPanel></td>
+				</tr>
+			</table>
+			<table class="backNextTableStyle">
+				<tr>
+					<td class="backButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignBackButton}" onclick="DocuSignBack();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignBackButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignBackButton}';" /></td>
+					<td class="nextButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignNextButton}"
+							onclick="DocuSignSelectAccount();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignNextButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignNextButton}';" /></td>
+				</tr>
+			</table>
+		</apex:pageBlock>
+
+		<!-- START UPDATE ACCOUNT SETTINGS -->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			mode="edit" id="updateAccountSettings" tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='UPDATEACCOUNT'}"
+			helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__CreateAccountHeader}" /></td>
+				</tr>
+			</table>
+			<table style="padding: 0px 0px 0px 40px;">
+				<tr>
+					<td><apex:outputPanel layout="block" styleClass="divStyle">
+							<table class="subHeaderTextStyle">
+								<tr>
+									<td><apex:outputText styleClass="headerTextStyle"
+											value="Update DocuSign Account Settings" /></td>
+								</tr>
+							</table>
+							<apex:pageBlockSection columns="1">
+                           Your account is valid but is missing some required settings to be used as the primary account for DocuSign for Salesforce.
+                           <apex:outputText value="{0}">
+									<apex:param value="{!DocuSignMissingSettings}" />
+								</apex:outputText>
+								<p>Select Next to add the settings to your account or select
+									Back to choose another account.</p>
+								<p />
+							</apex:pageBlockSection>
+							<apex:outputPanel title="Error Messages" layout="block"
+								style="padding: 0px 100px 20px 100px;"
+								rendered="{!ShowDocuSignErrorMessages == true}">
+								<apex:outputText style="color: red" escape="false" value="</p>" />
+								<apex:outputText style="color: red" escape="true"
+									value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+							</apex:outputPanel>
+						</apex:outputPanel></td>
+				</tr>
+			</table>
+			<table class="backNextTableStyle">
+				<tr>
+					<td class="backButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignBackButton}" onclick="DocuSignBack();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignBackButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignBackButton}';" /></td>
+					<td class="nextButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignNextButton}"
+							onclick="DocuSignUpdateAccountSettings();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignNextButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignNextButton}';" /></td>
+				</tr>
+			</table>
+		</apex:pageBlock>
+
+		<!-- START NEW ACCOUNT CONFIGURATION-->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			mode="edit" id="newAccountConfiguration"
+			tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='NEWACCOUNT'}"
+			helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__CreateAccountHeader}" /></td>
+				</tr>
+			</table>
+			<table style="padding: 0px 0px 0px 40px;">
+				<tr>
+					<td><apex:outputPanel layout="block" styleClass="divStyle">
+							<table class="subHeaderTextStyle">
+								<tr>
+									<td><apex:outputText styleClass="headerTextStyle"
+											value="Sign up for a Free DocuSign Trial" /></td>
+								</tr>
+							</table>
+							<table style="padding: 10px 0px 20px 40px;">
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 15px;">Name</td>
+									<td><apex:inputText value="{!SetupCreateAccountFormInfo.MemberUserName}"
+											id="UserName" size="40" styleClass="inputTextStyle" /></td>
+									<td>&nbsp;</td>
+								</tr>
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 15px;">Phone
+										Number</td>
+									<td><apex:selectList value="{!CustomerPhoneCountry}"
+											multiselect="false" size="1" id="listPhoneCountry"
+											styleClass="selectStateStyle">
+											<apex:selectOptions value="{!PhoneCountries}"></apex:selectOptions>
+											<apex:actionSupport event="onchange"
+												rerender="newAccountConfiguration" />
+										</apex:selectList> <apex:inputText value="{!SetupCreateAccountFormInfo.Phone}"
+											id="CustomerPhone" size="15" styleClass="selectStateStyle" />
+									</td>
+									<td>Ext. <apex:inputText value="{!CustomerPhoneExt}"
+											id="CustomerPhoneExt" size="10"
+											styleClass="phoneExtensionStyle" /></td>
+								</tr>
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 15px;">Company
+										Name</td>
+									<td><apex:inputText value="{!SetupCreateAccountFormInfo.AccountName}"
+											id="CompanyName" size="40" styleClass="inputTextStyle" /></td>
+									<td>&nbsp;</td>
+								</tr>
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 15px;">Country</td>
+									<td><apex:selectList value="{!SetupCreateAccountFormInfo.Country}"
+											multiselect="false" size="1" id="listCountry"
+											styleClass="inputTextStyle">
+											<apex:selectOptions value="{!Countries}"></apex:selectOptions>
+											<apex:actionSupport event="onchange"
+												rerender="newAccountConfiguration" />
+										</apex:selectList></td>
+									<td>&nbsp;</td>
+								</tr>
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 15px;">Street
+										Address</td>
+									<td><apex:inputText value="{!SetupCreateAccountFormInfo.Address1}"
+											id="StreetAddress" styleClass="inputTextStyle" /></td>
+									<td>&nbsp;</td>
+								</tr>
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 15px;">City</td>
+									<td><apex:inputText value="{!SetupCreateAccountFormInfo.City}" id="City"
+											styleClass="inputTextStyle" /></td>
+									<td>&nbsp;</td>
+								</tr>
+								<tr>
+									<td
+										style="text-align: right; padding-right: 10px; padding-bottom: 5px;">
+										<apex:outputText value="State"
+											rendered="{!SetupCreateAccountFormInfo.Country == 'United States'}" />
+										<apex:outputText value="Region"
+											rendered="{!SetupCreateAccountFormInfo.Country != 'United States'}" />
+									</td>
+									<td style="margin-left: 60px">
+										<table>
+											<tr>
+												<td><apex:selectList value="{!SetupCreateAccountFormInfo.State}"
+														rendered="{!SetupCreateAccountFormInfo.Country == 'United States'}"
+														multiselect="false" size="1" id="listUSStates"
+														styleClass="selectStateStyle">
+														<apex:selectOptions value="{!USStates}"></apex:selectOptions>
+													</apex:selectList> <apex:inputText value="{!SetupCreateAccountFormInfo.State}"
+														rendered="{!SetupCreateAccountFormInfo.Country != 'United States'}"
+														styleClass="inputTextStyle" /></td>
+												<td style="text-align: right; padding-left: 10px;"><apex:outputText value="Zip"
+														rendered="{!SetupCreateAccountFormInfo.Country == 'United States'}" />
+													<apex:inputText style="margin-left: 10px"
+														value="{!SetupCreateAccountFormInfo.Zip}"
+														rendered="{!SetupCreateAccountFormInfo.Country == 'United States'}"
+														id="Zip" size="10" styleClass="selectStateStyle" /></td>
+											</tr>
+										</table></td>
+									<td><apex:outputText value="Post Code"
+											rendered="{!SetupCreateAccountFormInfo.Country != 'United States'}" />
+										<apex:inputText style="margin-left: 10px"
+											value="{!SetupCreateAccountFormInfo.Zip}"
+											rendered="{!SetupCreateAccountFormInfo.Country != 'United States'}"
+											id="PostCode" size="10" styleClass="selectStateStyle" /></td>
+								</tr>
+							</table>
+							<apex:outputPanel title="Error Messages" layout="block"
+								style="padding: 0px 100px 20px 100px;"
+								rendered="{!ShowDocuSignErrorMessages == true}">
+								<apex:outputText style="color: red" escape="false" value="</p>" />
+								<apex:outputText style="color: red" escape="true"
+									value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+							</apex:outputPanel>
+						</apex:outputPanel></td>
+				</tr>
+			</table>
+			<table class="backNextTableStyle">
+				<tr>
+					<td class="backButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignBackButton}" onclick="DocuSignBack();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignBackButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignBackButton}';" /></td>
+					<td class="nextButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignNextButton}"
+							onclick="DocuSignNewAccount();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignNextButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignNextButton}';" /></td>
+				</tr>
+			</table>
+		</apex:pageBlock>
+
+
+		<!-- START PASSWORD CONFIRMATION-->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			mode="edit" id="passwordConfirmation" tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='PASSWORDCONFIRMATION'}"
+			helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__CreateAccountHeader}" /></td>
+				</tr>
+			</table>
+			<table style="padding: 0px 0px 0px 40px;">
+				<tr>
+					<td><apex:outputPanel layout="block" styleClass="divStyle">
+							<table class="subHeaderTextStyle">
+								<tr>
+									<td><apex:outputText styleClass="headerTextStyle"
+											value="Sign up for a Free DocuSign Trial" /></td>
+								</tr>
+							</table>
+							<apex:pageBlockSection columns="1">
+								<apex:pageBlockSectionItem >
+									<apex:outputText value="A confirmation email was sent to {0}.  Enter your DocuSign password after activation.">
+										<apex:param value="{!SetupCreateAccountFormInfo.MemberEmailAddress}" />
+									</apex:outputText>
+								</apex:pageBlockSectionItem>
+								<apex:pageBlockSectionItem >
+									<apex:outputText value="DocuSign Password  " />
+									<apex:inputSecret value="{!DocuSignPassword}"
+										id="NewAccountPassword" size="40" styleClass="inputTextStyle" />
+								</apex:pageBlockSectionItem>
+							</apex:pageBlockSection>
+							<apex:outputPanel title="Error Messages" layout="block"
+								style="padding: 0px 100px 20px 100px;"
+								rendered="{!ShowDocuSignErrorMessages == true}">
+								<apex:outputText style="color: red" escape="false" value="</p>" />
+								<apex:outputText style="color: red" escape="true"
+									value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+							</apex:outputPanel>
+						</apex:outputPanel></td>
+				</tr>
+			</table>
+			<table class="backNextTableStyle">
+				<tr>
+					<td class="backButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignBackButton}" onclick="DocuSignBack();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignBackButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignBackButton}';" /></td>
+					<td class="nextButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignNextButton}"
+							onclick="DocuSignSetNewAccountPassword();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignNextButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignNextButton}';" /></td>
+				</tr>
+			</table>
+		</apex:pageBlock>
+
+
+		<!-- START TRUSTED NETWORK CONFIGURATION -->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			mode="edit" id="trustedNetworkConfiguration"
+			tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='NETWORK'}" helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__TrustedNetworkHeader}" />
+					</td>
+				</tr>
+			</table>
+			<table style="padding: 0px 0px 0px 40px;">
+				<tr>
+					<td><apex:outputPanel layout="block" styleClass="divStyle">
+							<table class="subHeaderTextStyle">
+								<tr>
+									<td><apex:image url="{!$Resource.dsfs__DocuSignOne}" /> <apex:outputText styleClass="headerTextStyle"
+											value="Add DocuSign as a trusted network to Salesforce >"
+											style="padding: 0px 20px 0px 10px" /> <a
+										onclick="OpenURL('SFNetworkAddress', '{!DocuSignSetupIPRangeURL}', 'height=600, width=950,scrollbars=1,resizable=1')"
+										class="mainDocuSignButton">Add</a></td>
+								</tr>
+								<tr>
+									<td><apex:image url="{!$Resource.dsfs__DocuSignAlert}"
+											style="padding: 0px 0px 0px 40px" /> <apex:outputText value="Close pop-up after complete"
+											style="padding: 0px 10px 0px 10px" /></td>
+								</tr>
+							</table>
+							<table style="padding: 30px 10px 5px 20px;">
+								<tr>
+									<td><apex:image url="{!$Resource.dsfs__DocuSignTwo}" /> <apex:outputText styleClass="headerTextStyle"
+											value="Connect DocuSign to Salesforce"
+											style="padding: 0px 20px 0px 10px" /></td>
+								</tr>
+							</table>
+							<apex:pageBlockSection columns="1">
+								<apex:pageBlockSectionItem labelStyle="padding: 0px 10px 5px 0px; width:200px"
+									dataStyle="padding: 0px 0px 5px 0px;">
+									<apex:outputLabel value="Salesforce User Name"
+										for="ConnectUserName" />
+									<apex:inputText value="{!ConnectUsername}" id="ConnectUserName"
+										size="40" styleClass="inputTextStyle" />
+								</apex:pageBlockSectionItem>
+								<apex:pageBlockSectionItem labelStyle="padding: 20px 10px 5px 0px; width:200px"
+									dataStyle="padding: 20px 0px 5px 0px;">
+									<apex:outputLabel value="Salesforce Password"
+										for="ConnectPassword" />
+									<apex:inputSecret value="{!ConnectPassword}"
+										id="ConnectPassword" size="40" styleClass="inputTextStyle" />
+								</apex:pageBlockSectionItem>
+								<apex:pageBlockSectionItem labelStyle="padding: 10px 10px 5px 0px;"
+									dataStyle="padding: 10px 0px 5px 0px;">
+									<apex:outputLabel value="Salesforce Environment"
+										for="listSFEnvironment" />
+									<apex:selectList value="{!SalesforceEnvironmentForConnect}"
+										multiselect="false" size="1" id="listSFEnvironment"
+										styleClass="inputTextStyle" label="Environment">
+										<apex:selectOptions value="{!SalesforceEnvironmentForConnectList}"></apex:selectOptions>
+									</apex:selectList>
+								</apex:pageBlockSectionItem>
+							</apex:pageBlockSection>
+							<p>&nbsp;</p>
+							<apex:outputPanel title="Error Messages" layout="block"
+								style="padding: 0px 100px 20px 100px;"
+								rendered="{!ShowDocuSignErrorMessages == true}">
+								<apex:outputText style="color: red" escape="false" value="</p>" />
+								<apex:outputText style="color: red" escape="true"
+									value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+							</apex:outputPanel>
+						</apex:outputPanel></td>
+				</tr>
+			</table>
+			<table class="backNextTableStyle">
+				<tr>
+					<td class="backButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignBackButton}" onclick="DocuSignBack();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignBackButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignBackButton}';" /></td>
+					<td class="nextButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignNextButton}"
+							onclick="DocuSignConnectToSalesforce();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignNextButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignNextButton}';" /></td>
+				</tr>
+			</table>
+		</apex:pageBlock>
+
+		<!-- START FINAL STEPS -->
+		<apex:pageBlock title="Configuring DocuSign For Salesforce"
+			mode="edit" id="finalSteps" tabstyle="DocuSign_Admin__tab"
+			rendered="{!PageDisplayModeString=='FINISH'}" helpTitle="Learn more"
+			helpUrl="http://www.docusign.com/sites/default/files/Install%20and%20Configure%20DocuSign%20for%20Salesforce.pdf">
+
+			<table class="headerTableStyle">
+				<tr>
+					<td><apex:image url="{!$Resource.dsfs__FinalStepsHeader}" /></td>
+				</tr>
+			</table>
+			<table style="padding: 0px 0px 0px 40px;">
+				<tr>
+					<td><apex:outputPanel layout="block" styleClass="divStyle">
+							<table class="subHeaderTextStyle">
+								<tr>
+									<td><apex:outputText styleClass="headerTextStyle"
+											value="Add DocuSign buttons to Salesforce layout" /></td>
+								</tr>
+							</table>
+							<table class="addButtonsTableStyle">
+								<tr>
+									<td class="addButtonsCellStyle">Opportunity</td>
+									<td class="addButtonsCellStyle">Account</td>
+									<td class="addButtonsCellStyle">Contact</td>
+									<td class="addButtonsCellStyle">Lead</td>
+									<td class="addButtonsCellStyle">Contract</td>
+								</tr>
+								<tr>
+									<td class="addButtonsCellStyle"><a
+										onclick="OpenURL('AddButton', '/ui/setup/layout/PageLayouts?type=Opportunity&setupid=OpportunityLayouts', 'height=600, width=950,scrollbars=1,resizable=1')"
+										class="mainDocuSignButton">Add Button</a></td>
+									<td class="addButtonsCellStyle"><a
+										onclick="OpenURL('AddButton', '/ui/setup/layout/PageLayouts?type=Account&setupid=AccountLayouts', 'height=600, width=950,scrollbars=1,resizable=1')"
+										class="mainDocuSignButton">Add Button</a></td>
+									<td class="addButtonsCellStyle"><a
+										onclick="OpenURL('AddButton', '/ui/setup/layout/PageLayouts?type=Contact&setupid=ContactLayouts', 'height=600, width=950,scrollbars=1,resizable=1')"
+										class="mainDocuSignButton">Add Button</a></td>
+									<td class="addButtonsCellStyle"><a
+										onclick="OpenURL('AddButton', '/ui/setup/layout/PageLayouts?type=Lead&setupid=LeadLayouts', 'height=600, width=950,scrollbars=1,resizable=1')"
+										class="mainDocuSignButton">Add Button</a></td>
+									<td class="addButtonsCellStyle"><a
+										onclick="OpenURL('AddButton', '/ui/setup/layout/PageLayouts?type=Contract&setupid=ContractLayouts', 'height=600, width=950,scrollbars=1,resizable=1')"
+										class="mainDocuSignButton">Add Button</a></td>
+								</tr>
+							</table>
+							<apex:outputPanel title="Error Messages" layout="block"
+								style="padding: 0px 100px 20px 100px;"
+								rendered="{!ShowDocuSignErrorMessages == true}">
+								<apex:outputText style="color: red" escape="false" value="</p>" />
+								<apex:outputText style="color: red" escape="true"
+									value="{!HTMLENCODE(DocuSignErrorMessages)}" id="docusignErrorMessages" />
+							</apex:outputPanel>
+						</apex:outputPanel></td>
+				</tr>
+			</table>
+			<table class="backNextTableStyle">
+				<tr>
+					<td class="backButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignBackButton}" onclick="DocuSignBack();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignBackButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignBackButton}';" /></td>
+					<td class="nextButtonStyle"><apex:image url="{!$Resource.dsfs__DocuSignDoneButton}"
+							onclick="DocuSignGoTodminPage();"
+							onmouseover="this.src='{!$Resource.dsfs__DocuSignDoneButtonHover}';"
+							onmouseout="this.src='{!$Resource.dsfs__DocuSignDoneButton}';" /></td>
+				</tr>
+			</table>
+		</apex:pageBlock>
+
+	</apex:form>
+</apex:page>

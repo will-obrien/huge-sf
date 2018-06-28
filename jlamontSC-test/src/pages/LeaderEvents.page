@@ -1,0 +1,237 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="LeaderEventsController" applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>My Event Attendance</title>
+    </apex:define> 
+    
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+      <div class="row">
+        <div class="col-xs-12">
+          <ul class="breadcrumb">
+            <li><a href="{!pageBase}clubeventlist">Events Home</a></li>
+            <li class="active"><strong>My Event Attendance</strong></li>
+          </ul>
+        </div>  
+      </div>
+      <!--
+      <div class="row">
+        <h3 class="col-xs-12">My Event Attendance</h3>
+      </div>
+      -->
+        <apex:form id="theForm" html-novalidate="novalidate">
+          
+            <div class="well well-sm">
+              <strong>Events starting on or before</strong> 
+              <apex:outputText value="{0, date, MMMM d', ' yyyy}">
+                <apex:param value="{!dtBegin}"/>
+              </apex:outputText>
+              <br />
+              <apex:outputText id="rowMessage" value="{!rowMessage}"/>
+            </div>
+          
+          
+          
+          
+          
+          <apex:outputPanel id="eventList">
+    
+            <apex:repeat value="{!eventList}"
+                         var="evnt"
+            >
+                <div class="row">
+                  <p class="col-xs-12">
+                    <strong>
+                      <apex:outputText value="{0, date, MMMM d', ' yyyy}">
+                        <apex:param value="{!evnt.Club_Event__r.Date_Begin__c}"/>
+                      </apex:outputText>
+                    </strong>  
+                    <br />
+                    {!evnt.Club_Event__r.Event_Title__c}
+                    <br />
+                    {!evnt.Club_Event__r.Club_Entity__r.Name}
+                    <br />
+                    {!evnt.Club_Event__r.Status__c}
+                  </p>
+                </div>
+                <div class="row">
+                    <apex:outputPanel rendered="{!evnt.Club_Event__r.Can_Take_Attendance__c}">
+                        <div class="col-xs-12 col-sm-6 col-md-4 form-group">
+                            <apex:commandButton styleClass="btn btn-primary btn-block" 
+                                value="Take Attendance"
+                                action="{!takeAttendance}" reRender="hiddenBlock"
+                            >
+                                <apex:param name="selectedEventId" value="{!evnt.Club_Event__r.Id}" assignTo="{!selectedEventId}"/>
+                            </apex:commandButton>
+                        </div>
+                    </apex:outputPanel> 
+                    <div class="col-xs-12 col-sm-6 col-md-4 form-group">
+                        <apex:commandButton styleClass="btn btn-info btn-block" 
+                            value="View Participant List"
+                            action="{!participantList}" reRender="hiddenBlock"
+                        >
+                            <apex:param name="selectedEventId" value="{!evnt.Club_Event__r.Id}" assignTo="{!selectedEventId}"/>
+                        </apex:commandButton>
+                    </div>  
+                    <apex:outputPanel rendered="{!evnt.Club_Event__r.Can_Take_Attendance__c}">
+                        <div class="col-xs-12 col-sm-12 col-md-4 form-group">
+                            <apex:commandButton styleClass="btn btn-success btn-block" 
+                                value="Attendance Complete"
+                                oncomplete="openAttendanceCompleteModal()"
+                                reRender="selectedEventDetails"
+                            >
+                                <apex:param name="selectedEventId" value="{!evnt.Club_Event__r.Id}" assignTo="{!selectedEventId}"/>
+                            </apex:commandButton>                           
+                        </div>
+                    </apex:outputPanel> 
+                </div>
+                <hr/>
+            </apex:repeat>
+            
+        <apex:pageBlock id="hiddenBlock" rendered="false"></apex:pageBlock>
+        </apex:outputPanel>
+
+        <div class="row">
+          <apex:outputPanel id="moreButton">
+        
+            <div class="col-xs-12 col-sm-6 col-md-4 form-group">
+                <apex:commandButton value="Show Earlier Events"
+                                    styleClass="btn btn-default btn-block"
+                                    rendered="{!moreRows}"
+                                    action="{!getMore}"
+                                    reRender="eventList, moreButton, lessButton, rowMessage"
+            />
+          </div>
+            <!--
+            <div class="col-xs-12 form-group">
+              <apex:outputText value="No more events"
+                               rendered="{!  ! moreRows}"
+              />
+            </div>
+            -->
+        
+          </apex:outputPanel>
+        </div>
+          
+
+        <div class="row">
+        
+        <apex:outputPanel id="lessButton">
+          <div class="col-xs-12 col-sm-6 col-md-4 form-group">
+            <apex:commandButton value="Show Later Events"
+                                styleClass="btn btn-default btn-block"
+                                rendered="{!lessRows}"
+                                action="{!getLess}"
+                                reRender="eventList, lessButton, moreButton, rowMessage"
+            />
+          </div>
+        </apex:outputPanel>
+        </div>
+
+        <div class="modal fade" id="attendanceCompleteModal" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content alignCenter">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">
+                  Mark Attendance Complete
+                </h4>
+              </div>
+              <div class="modal-body">
+                <apex:outputPanel id="selectedEventDetails">
+                  <div>
+                    <p>
+                      <apex:outputText value="{0, date, MMMM d', ' yyyy}">
+                        <apex:param value="{!selectedEvent.Club_Event__r.Date_Begin__c}"/>
+                      </apex:outputText>
+                      <br/>
+                      {!selectedEvent.Club_Event__r.Event_Title__c}
+                      <br/>
+                      {!selectedEvent.Club_Event__r.Club_Entity__r.Name}
+                    </p>
+                  </div>
+                </apex:outputPanel>             
+                <div class="alert alert-warning" id="attendanceHelpText">
+                  <i aria-hidden="true" class="fa fa-exclamation-triangle fa-2x pull-left"></i>
+                  Marking Attendance Complete will mark as "No Show" any remaining participants not already marked "Attended" or "Cancelled."
+                </div>
+                <apex:actionRegion id="attendanceCompleteRegion">
+                <div id="attendanceCompleteButtons" class="centered">
+                    <div class="row"> 
+                        <div class="col-xs-6 col-sm-6 col-md-6 form-group">
+                            <apex:commandButton styleClass="btn btn-primary btn-block" 
+                                value="Proceed"
+                                onclick="hideAttendanceCompleteButtons()"
+                                action="{!attendanceComplete}"
+                                oncomplete=""
+                            />
+                        </div>
+                        <div class="col-xs-6 col-sm-6 col-md-6 form-group">
+                            <apex:commandButton styleClass="btn btn-default btn-block" 
+                                value="Cancel"
+                                onclick="closeAttendanceCompleteModal()"
+                                oncomplete=""
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div id="attendanceCompleted" class="centered">
+                  <div class="row">
+                    <div class="col-xs-12">
+                      <div class="alert alert-success">
+                        <i aria-hidden="true" class="fa fa-check-square fa-2x pull-left"></i>
+                        Success! Attendance for this event has been completed.
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-xs-12 form-group">
+                        <apex:commandButton styleClass="btn btn-primary btn-block" 
+                            value="OK"
+                            onclick="closeAttendanceCompleteModal()"
+                            oncomplete=""
+                        />
+                    </div>
+                  </div>
+                </div> 
+                <apex:actionStatus for="attendanceCompleteRegion">
+                  <apex:facet name="start">
+                    <c:Waiting />
+                  </apex:facet>
+                </apex:actionStatus>
+                </apex:actionRegion>
+              </div>
+             </div>
+           </div>
+         </div>
+        </apex:form>
+    </apex:define>
+    <apex:define name="footer">
+        <script type="text/javascript">
+            var j$ = jQuery.noConflict();
+            function openAttendanceCompleteModal() {
+                j$('#attendanceCompleteButtons').show();
+                j$('#attendanceCompleted').hide();
+                j$('#attendanceCompleteModal').modal('show');
+                return false;
+            }
+            function closeAttendanceCompleteModal() {
+                j$('#attendanceCompleteModal').modal('hide');
+                return false;
+            }
+            function hideAttendanceCompleteButtons() {
+                j$('#attendanceCompleteButtons').hide();
+                j$('#attendanceHelpText').hide();
+                j$('#attendanceCompleted').show();
+                return false;
+            }
+        </script>
+    </apex:define>
+</apex:composition>
+</apex:page>

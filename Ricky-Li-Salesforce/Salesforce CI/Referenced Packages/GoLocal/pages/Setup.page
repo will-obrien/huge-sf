@@ -1,0 +1,64 @@
+<apex:page setup="true" controller="GLOC.SetupCtl" title="GoLocal Setup">
+
+	<script src="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/jquery-1.6.1.min.js')}"></script>
+	
+	<script src="{!URLFOR($Resource.GoLocalRes, 'JS/Setup.js')}"></script>
+
+    <apex:outputPanel rendered="{!IsAdmin}">
+    	<apex:sectionHeader title="GoLocal Setup" subtitle="App Settings"/>
+		<apex:form >
+        <apex:pageBlock title="CronTZ Database" id="dbPBK">
+            <apex:outputPanel rendered="{!currentVersion>0}">
+	            Current database version: {!currentVersion} <br/>
+	            Latest database version: {!newVersion}
+	            <br/><br/>
+	            <apex:commandButton value="Upgrade Database" action="{!InitDB}" disabled="{!InitDisabled}"
+	            		status="uStatus" rerender="dbPBK" styleClass="dbBtn" oncomplete="EnableSave();"/>
+           			
+				<apex:actionStatus id="uStatus">
+	                	<apex:facet name="start">
+	                		&nbsp;Upgrading database (this might take up to a minute), please wait...
+	                	</apex:facet>
+	                	<apex:facet name="stop">&nbsp;</apex:facet>
+	            </apex:actionStatus>		            		
+            </apex:outputPanel>
+            
+            <apex:outputPanel rendered="{!NOT(currentVersion>0)}">
+            	Before GoLocal can identify time zones and locations for your Accounts, Contacts and Leads,
+            	the CronTZ database must be initialized. Click the button below to initialize the database.
+            	<br/><br/>
+	            <apex:commandButton value="Initialize Database" action="{!InitDB}" disabled="{!InitDisabled}"
+	            		status="iStatus" styleClass="dbBtn" oncomplete="EnableSave();"/>
+           			
+				<apex:actionStatus id="iStatus">
+	                	<apex:facet name="start">
+	                		&nbsp;Initializing database (this might take up to a minute), please wait...
+	                	</apex:facet>
+	                	<apex:facet name="stop">&nbsp;</apex:facet>
+	            </apex:actionStatus>
+            </apex:outputPanel>
+        </apex:pageBlock>
+        
+        <apex:pageblock title="Location Defaults" rendered="{!currentVersion>0}" mode="edit" id="locPBK">
+        	<apex:pageBlockButtons location="bottom">
+        		<apex:commandButton value="Save" style="width:60px" styleClass="saveBtn" action="{!SaveSetting}"/>
+        	</apex:pageBlockButtons>
+        	<apex:pageBlockSection title="Default Country Prefix" columns="1">
+        		GoLocal will use the default country dialing prefix to determine locations for local phone numbers. For example, the local number (212) 123-4567 will we treated as a US phone number if ‘US (1)’ is specified as the default prefix.
+				<apex:pageBlockSectionItem />
+        		<apex:pageBlockSectionItem >
+        			<apex:selectList size="1" value="{!DefPrefix}" onchange="EnableSave();">
+        				<apex:selectOptions value="{!prefixes}" />
+        			</apex:selectList>
+        		</apex:pageBlockSectionItem>
+        	</apex:pageBlockSection>
+        </apex:pageblock>
+	    </apex:form>
+	</apex:outputPanel>
+	
+	<apex:outputPanel rendered="{!NOT(IsAdmin)}">
+		<apex:sectionHeader subtitle="Insufficient Privileges"/>
+		You do not have the level of access necessary to access this page. Please contact your administrator if access is necessary.
+	</apex:outputPanel>
+	
+</apex:page>

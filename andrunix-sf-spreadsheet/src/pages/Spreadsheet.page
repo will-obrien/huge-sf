@@ -1,0 +1,1009 @@
+<apex:page showHeader="true" sidebar="false" controller="BulkUploadController">
+
+	<style>
+		#drop {
+			border:2px dashed #bbb;
+			-moz-border-radius:5px;
+			-webkit-border-radius:5px;
+			border-radius:5px;
+			padding:25px;
+			text-align:center;
+			font: 16pt bold Arial, Helvetica, sans-serif;
+			color: #44BEEE;
+			width: 90%;
+		}
+
+		.counts {
+			float: left;
+			color: #666;
+			padding: 4px;
+			font-size: 75%;
+		}
+		#totalCount {
+			font-size: 120%;
+			font-weight: bold;
+			color: black;
+		}
+		#unchangedCount {
+			font-size: 120%;
+			font-weight: bold;
+			color: #666;
+		}
+		#newCount {
+			font-size: 120%;
+			font-weight: bold;
+			color: #6cb043;
+		}
+		#updatingCount {
+			font-size: 120%;
+			font-weight: bold;
+			color: #50AEF8;
+		}
+		#errorCount {
+			font-size: 120%;
+			font-weight: bold;
+			color: #F76577;
+		}
+		.invalidCell { }
+	</style>
+
+	<script src="{!URLFOR($Resource.bulkupload, 'jquery-1.9.1.min.js')}"></script>
+	<script src="{!URLFOR($Resource.HandsOnTable, 'jquery.handsontable.full.js')}"></script>
+	<script src="{!$Resource.spin}"></script>
+	<script src="{!$Resource.Q}"></script>
+
+	<link rel="stylesheet" media="screen" href="{!URLFOR($Resource.HandsOnTable, 'jquery.handsontable.full.css')}"></link>
+
+
+	<!-- TODO: Remove this -->
+	<!--
+	<h1>Selected Budget: { ! myBudget }</h1>
+	-->
+
+	<!-- this is the Drop target for handling XLS or CSV files -->
+	<div id="drop">
+		Drop .CSV or .XLS file here
+	</div>
+	<br />
+
+	<!-- row counts according to their status -->
+	<div>
+		<div class="counts">
+			<div id="totalCount">0</div>
+			TOTAL ROWS
+		</div>
+		<div class="counts">
+			<div id="unchangedCount">0</div>
+			UNCHANGED
+		</div>
+		<div class="counts">
+			<div id="newCount">0</div>
+			NEW
+		</div>
+		<div class="counts">
+			<div id="updatingCount">0</div>
+			UPDATED
+		</div>
+		<div class="counts">
+			<div id="errorCount">0</div>
+			REJECTED
+		</div>
+	</div>
+	<div style="clear: both;"></div>
+
+	<!-- This DIV is where the HandsOnTable grid is displayed -->
+	<div id="hotGrid" class="dataTable"></div>
+
+	<p>
+		<button name="dump" data-dump="#hotGrid" title="Export Data">
+			Download Rejected Rows
+		</button>
+
+		<button name="update" data-dump="#hotGrid" 
+			style="color: white; background: #60C360; border-color: #60C360; padding: 10px; font-size: 110%;" 
+			title="Accept New & Updated Rows">
+			Accept New &amp; Updated Rows >
+		</button>
+	</p>
+
+	<script src="{!URLFOR($Resource.bulkupload, 'shim.js')}"></script>
+	<script src="{!URLFOR($Resource.bulkupload, 'jszip.js')}"></script>
+	<script src="{!URLFOR($Resource.XLS, 'xls.min.js')}"></script>
+	<script src="{!URLFOR($Resource.XLSX, 'xlsx.min.js')}"></script>
+
+	<script>
+
+	$j = jQuery.noConflict();
+	var statusArray = [], 		// statusArray holds a status flag for each cell in the grid
+		campaignArray = [];		// campaignArray holds the id and name of each campaign
+
+	function isEmpty(val) {
+		"use strict";
+		return(!(typeof val !== "undefined" && ('' + val).trim() !== ""));
+	}
+
+	function safestr(val) {
+		"use strict";
+		if (isEmpty(val)) {
+			return '';
+		}
+		return val;
+	}
+
+	function clearStatusArray(index) {
+		"use strict";
+		statusArray[index].ID = '';
+		statusArray[index].CAMPAIGN__C = '';
+		statusArray[index].CAMPAIGN_NAME = '';
+		statusArray[index].NAME = '';
+		statusArray[index].SCOPE_STATUS__C = '';
+		statusArray[index].MEDIA_TYPE__C = '';
+		statusArray[index].MEDIA_DETAIL__C = '';
+		statusArray[index].PROJECT_TYPE__C = '';
+		statusArray[index].COMPLEXITY__C = '';
+		statusArray[index].PERCENT_COMPLETE__C = '';
+		statusArray[index].CREATIVE_ROUNDS__C = '';
+		statusArray[index].PRODUCTION_ROUNDS__C = '';
+		statusArray[index].ELEMENT_1__C = '';
+		statusArray[index].ELEMENT_2__C = '';
+		statusArray[index].VERSIONS__C = '';
+		statusArray[index].TARGET_COMPLETION__C = '';
+	}
+
+	function createCampaign(cname) {
+		var deferred = Q.defer();
+		console.log('createCampaign called with : ' + cname);
+		BulkUploadController.createCampaign(cname, /* "{ ! myBudget }", */ function(result, event) {
+			if (event.status) {
+				console.log('result: ' + result);
+				if (result !== "error") {
+					// add to the array of new campaigns
+					campaignArray.push({ name: cname, id: result });
+					deferred.resolve({ id : result, name: cname });
+				}				
+			}
+			else {
+				console.log('error received from createCampaign for : ' + cname);
+				console.log('message: ' + event.message);
+				deferred.reject("Error from Salesforce saving campaign, '" + cname + "'. Message: " + event.message);
+			}
+		},
+		function(result, event) {
+			deferred.reject("Error from Salesforce saving campaign, '" + cname + "'. Message: " + event.message);
+		});
+		return deferred.promise;
+	}
+
+	function findCampaignId(cname) {
+		"use strict";
+		for (var i = 0; i < campaignArray.length; i++) {
+			if (campaignArray[i].name === cname) {
+				return campaignArray[i].id;
+			}
+		}
+		return '';
+	}
+
+	function createDeliverable(obj) {
+		"use strict";
+
+		var ndx, row, campaign_id, row_id, deferred = Q.defer();
+
+		row = obj.row;
+		ndx = obj.index;
+
+		row_id = safestr(row.ID);
+		campaign_id = findCampaignId(row.CAMPAIGN_NAME);
+
+		BulkUploadController.createDeliverable(row_id,
+			campaign_id, 
+			safestr(row.NAME), 
+			safestr(row.SCOPE_STATUS__C),
+			safestr(row.MEDIA_TYPE__C),
+			safestr(row.MEDIA_DETAIL__C),
+			safestr(row.PROJECT_TYPE__C),
+			safestr(row.COMPLEXITY__C),
+			safestr(row.PERCENT_COMPLETE__C),
+			safestr(row.ELEMENT_1__C),
+			safestr(row.ELEMENT_2__C),
+			safestr(row.VERSIONS__C),
+			function(result, event) {
+				if (event.status) {
+					console.log('deliverable result: ' + result);
+					deferred.resolve({ id: result, name: row.NAME, index: ndx });
+				}
+				else {
+					console.log('error received from createDeliverable for : ' + row.NAME);
+					console.log('message: ' + event.message);
+					deferred.reject("Error from Salesforce saving deliverable, '" + row.NAME + "'. Message: " + event.message);
+				}
+			},
+			function(result, event) {
+				deferred.reject("Error from Salesforce saving deliverable, '" + row.NAME + "'. Messasge: " + event.message);
+			}
+		);
+		return deferred.promise;
+	}
+
+	// updateTotals
+	var updateTotals = function() {
+		"use strict";
+		var tots = 0, unchs = 0, news = 0, upds = 0, errs = 0;
+		tots = $j('#hotGrid').handsontable('countRows');
+		for (var i = 0; i < tots; i++) {
+			var status = $j('#hotGrid').handsontable('getDataAtRowProp', i, 'status');
+			switch (status) {
+				case "error":
+					errs++;
+					break;
+				case "new": 
+					news++;
+					break;
+				case "updating":
+					upds++;
+					break;
+				default:
+					unchs++;
+					break;
+			}
+		}
+		$j('#newCount').text(news);
+		$j('#errorCount').text(errs);
+		$j('#totalCount').text(tots);
+		$j('#unchangedCount').text(unchs);
+		$j('#updatingCount').text(upds);
+	};
+
+	// updateData
+	// upsert the rows that are new or updating status to Salesforce
+	//
+	var updateData = function() {
+		"use strict";
+		var goodDelivs = [], dump = $j(this).data('dump'), $container = $j(dump);
+
+		startSpinner();
+
+		// get all the rows from the grid
+		var data = $container.handsontable('getData');
+
+		var newCampaigns = [];
+		for (var i = 0; i < data.length; i++) {
+			if (statusArray[i].CAMPAIGN_NAME === 'n') {
+				if (newCampaigns.indexOf(data[i].CAMPAIGN_NAME) < 0) {
+					newCampaigns.push(data[i].CAMPAIGN_NAME);
+				}
+			}
+		}
+
+		var removeRows = [];
+		var campaignPromises = newCampaigns.map(createCampaign); // campaign promises, lol
+		Q.all(campaignPromises).then( function(ids) {
+			console.log(ids);
+
+			// build an array of good deliverables (not in error status)
+			for (var x = 0; x < data.length; x++) {
+				if (data[x].status !== 'error') {
+					goodDelivs.push({ index: x, row: data[x] });
+				}
+			}
+			// now save the deliverables!!! 
+			var deliverablePromises = goodDelivs.map(createDeliverable); 
+			Q.all(deliverablePromises).then( function ( rows ) {
+				console.log(rows);
+
+				// update the table based on 'rows'
+				for (var i = 0; i < rows.length; i++) {
+					removeRows.push(rows[i].index);
+					console.log(JSON.stringify(rows[i]));
+				}
+				alert('Successfully updated ' + rows.length + ' rows');
+			},
+			function(err) {
+				console.log('in the error handler for all deliverables: ' + err);
+				stopSpinner();
+				alert(err);
+			}).then(function() {
+				for (var i = 0; i < removeRows.length; i++) {
+					clearStatusArray(removeRows[i]);
+					$j('#hotGrid').handsontable('alter', 'remove_row', (removeRows[i] - i));
+				}
+				updateTotals(); 	// update the totals
+				stopSpinner();
+			});
+		},
+		function(err) {
+			console.log('in the error handler for all campaigns: ' + err);
+			stopSpinner();
+			alert(err);
+		});
+
+	};
+
+	// exportErrors
+	// Export error rows from HandsOnTable to a CSV file
+	var exportErrors =  function() {
+		var dump = $j(this).data('dump');
+		var $container = $j(dump);
+
+		// get all the rows from the grid
+		var data = $container.handsontable('getData');
+
+		var csvContent = "data:text/csv;charset=utf-8,";
+
+		startSpinner();
+
+		// Add header row
+		csvContent += "ID,CAMPAIGN_NAME,NAME,MEDIA_TYPE__C,MEDIA_DETAIL__C,PROJECT_TYPE__C,COMPLEXITY__C,SCOPE_STATUS__C,PERCENT_COMPLETE__C,CREATIVE_ROUNDS__C,PRODUCTION_ROUNDS__C,ELEMENT_1__C,ELEMENT_2__C,VERSIONS__C,DESCRIPTION__C,TARGET_COMPLETION__C\n";
+
+		// parse out each row (JSON) into an array and then a CSV line
+		// data.forEach(function(row, index) {
+		for (var index = 0; index < data.length; index++) {
+			row = data[index];
+			// check the status value to determine if this is an error
+			if (row.status === "error") {
+				dataArray = $j.map(row, function(el) { return el; });
+				dataString = dataArray.join(",");
+				csvContent += dataString + "\n";                
+			}
+		}
+
+		// download the data as a csv file
+		var encodedUri = encodeURI(csvContent);
+		var link = document.createElement("a");
+		link.setAttribute("href", encodedUri);
+		link.setAttribute("download", "errors.csv");
+		stopSpinner();
+		link.click();
+	};
+
+	$j(document).ready(function() {
+		// set the values of the totals
+		$j("#newCount").text("0");
+
+		// setup handler for the Export and Update buttons
+		$j('body').on('click', 'button[name=dump]', exportErrors);
+		$j('body').on('click', 'button[name=update]', updateData);
+
+	});
+
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// to_json
+	// Converts the contents of the workbook to an array of JSON objects
+	// TODO: clean this up and only return the contents of the first worksheet in the workbook
+	function to_json(workbook) {
+		"use strict";
+		var result = {}, roa;
+		workbook.SheetNames.forEach(function(sheetName) {
+			roa = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName]);
+			if(roa.length > 0){
+				result[sheetName] = roa;
+			}
+		});
+		return roa;
+	}
+
+
+	function fixdata(data) {
+		var o = "", l = 0, w = 10240;
+		for(; l<data.byteLength/w; ++l) o+=String.fromCharCode.apply(null,new Uint8Array(data.slice(l*w,l*w+w)));
+		o+=String.fromCharCode.apply(null, new Uint8Array(data.slice(l*w)));
+		return o;
+	}
+
+
+	function htmlDecode(_s) {
+		"use strict";
+		var div = document.createElement('div');
+		div.innerHTML = _s;
+		return div.firstChild.nodeValue;        
+	}
+
+
+	// validPercent
+	// This is an example of a cell validator function. Note that it receives the value
+	// of the cell to be validated and a callback function. No way to get the
+	// cell coordinates, the row or column.
+	var validPercent = function(value, callback) {
+		"use strict";
+		if (!isNaN(parseInt(value)) && parseInt(value) >= 0 && parseInt(value) <= 100) {
+			callback(true);
+		}
+		else {
+			callback(false);
+		}
+	};
+
+	// json_item
+	// Takes an array of data from a CSV file and converts to a JSON object
+	// just like we would get by calling the to_json function.
+	function json_item(row) {
+		this.ID                   = row[0];
+		//this.CAMPAIGN__C          = row[1];
+		this.CAMPAIGN_NAME        = row[1];
+		this.NAME                 = row[2];
+		this.MEDIA_TYPE__C        = row[3];
+		this.MEDIA_DETAIL__C      = row[4];
+		this.PROJECT_TYPE__C      = row[5];
+		this.COMPLEXITY__C        = row[6];
+		this.SCOPE_STATUS__C      = row[7];
+		this.PERCENT_COMPLETE__C  = row[8];
+		this.CREATIVE_ROUNDS__C   = row[9];
+		this.PRODUCTION_ROUNDS__C = row[10];
+		this.ELEMENT_1__C         = row[11];
+		this.ELEMENT_2__C         = row[12];
+		this.VERSIONS__C          = row[13];
+		this.DESCRIPTION__C       = row[14];
+		this.TARGET_COMPLETION__C = row[15];
+		console.log(this);
+	}
+
+	// array_to_json
+	// Takes an array of CSV records, splits them, and returns
+	// an array of JSON objects.
+	function array_to_json(arr) {
+		"use strict";
+		var objs = [];
+
+		for(var i = 1; i < arr.length; i++) {
+			// First row should be the headers, which we will ignore
+			var bits = arr[i].split(",");
+
+			// Right now, we are assuming the input will look like 
+			// the stock template we were supplied at design time. 
+			// This may change. Also, we are not checking the
+			// header row against what is expected.
+			if (bits.length === 16) {
+				objs.push(new json_item(bits));
+			}
+		}
+		return objs;
+	}
+
+
+	// ----------------------------------------------------------------------
+
+	function updateRowStatus(row) {
+		"use strict";
+		var container, errors = false, keys = Object.keys(statusArray[row]);
+		container = $j('#hotGrid');
+		for (var i = 0; i < keys.length; i++) {
+			if (statusArray[row][keys[i]] === "e") {
+				errors = true;
+				break;
+			}
+		}
+		if (!errors) {
+			if (container.handsontable("getDataAtRowProp", row, "ID") === undefined) {
+				// setCellAndRowStatus(row, prop, "new");
+				container.handsontable("setDataAtRowProp", row, "status", "new");
+			} else {
+				// setCellAndRowStatus(row, prop, 'updating');
+				container.handsontable("setDataAtRowProp", row, "status", "updating");
+			}
+		} else {
+			// Set the row's status to error
+			container.handsontable("setDataAtRowProp", row, "status", "error");
+		}
+		updateTotals();
+	}
+
+
+	function validateRow(row) {
+		var i, obj, deferred = Q.defer();
+
+		i = row.index;
+		obj = row.object;
+
+		if (!isEmpty(obj.ID)) {
+			BulkUploadController.validateItem(i, JSON.stringify(obj), function(result, event) {
+				debugger;
+				if (event.status) {
+					var data = JSON.parse(htmlDecode(result));
+
+					// update the statusArray with the flags we get back
+					for(var j = 0; j < data.errors.length; j++) {
+						statusArray[i][data.errors[j]] = 'e' ;
+					}
+
+					for(var j = 0; j < data.changes.length; j++) {
+						if (data.changes[j] === "CAMPAIGN_NAME") {             // if one of the fields changed is CAMPAIGN_NAME
+							if (isEmpty(data.CAMPAIGN__C)) {
+								statusArray[i][data.changes[j]] = 'n';	// it is a new campaign
+							}
+							else {
+								statusArray[i][data.changes[j]] = 'u';   // the deliverable is being reparented
+							}
+						}
+						else {
+							statusArray[i][data.changes[j]] = 'u';      // the column is a regular change
+						}
+					}
+					// set the status column according to what we got back
+					$j('#hotGrid').handsontable('setDataAtCell', i, 0, data.status);
+
+					// only add this if the name and id are populated
+					if (data.CAMPAIGN_NAME && data.CAMPAIGN__C) {
+						campaignArray.push({ name: data.CAMPAIGN_NAME, id: data.CAMPAIGN__C });
+					}
+					deferred.resolve();
+				}
+			},
+			function(err) {
+				console.log(err);
+				deferred.reject('Error validating row. ' + err);
+			});
+		}
+		else {
+			console.log('New deliverable: ' );
+			// New deliverable
+
+			if (!isEmpty(obj.CAMPAIGN_NAME)) {
+				BulkUploadController.lookupCampaignByName(obj.CAMPAIGN_NAME, i, function(result) {
+					var bits = result.split("?");
+
+					if (bits[0] === "error") {
+						statusArray[bits[1]].CAMPAIGN_NAME = 'n';
+					}
+					else {
+						statusArray[bits[1]].CAMPAIGN_NAME = '';
+						//$j('#hotGrid').handsontable('setDataAtRowProp', bits[1], 'CAMPAIGN_NAME', bits[0]);
+						campaignArray.push({ name: bits[0], id: bits[2] });
+					}
+					updateRowStatus(bits[1]);
+					// deferred.resolve();
+				},
+				function(err) {
+					console.log(err);
+					deferred.reject('Error looking up campaign name, intial load: ' + err);
+				});
+			}
+
+			// we still need to check for the required fields and set the statusArray
+			if (isEmpty(obj.CAMPAIGN_NAME)) {
+				statusArray[i]['CAMPAIGN_NAME'] = 'e';
+			}
+
+			if (isEmpty(obj.SCOPE_STATUS__C)) {
+				statusArray[i]['SCOPE_STATUS__C'] = 'e';
+			}
+			if (isEmpty(obj.MEDIA_TYPE__C)) {
+				statusArray[i]['MEDIA_TYPE__C'] = 'e';
+			}
+			if (isEmpty(obj.MEDIA_DETAIL__C)) {
+				statusArray[i]['MEDIA_DETAIL__C'] = 'e';
+			}
+			if (isEmpty(obj.PROJECT_TYPE__C)) {
+				statusArray[i]['PROJECT_TYPE__C'] = 'e';
+			}
+			if (isEmpty(obj.COMPLEXITY__C)) {
+				statusArray[i]['COMPLEXITY__C'] = 'e';
+			}
+			if (isEmpty(obj.PERCENT_COMPLETE__C)) {
+				statusArray[i]['PERCENT_COMPLETE__C'] = 'e';
+			}
+			obj.status = "new";
+
+			return deferred.resolve();
+		}
+		return deferred.promise;
+	}
+
+
+
+	//
+	// Process the workbook, converting to array of JSON objects and performing 
+	// load-time validation
+	//
+	function process_wb(wb_data) {
+		"use strict";
+		var item;
+
+		debugger;
+
+		// Create an array of arrays to hold the current status of each
+		// column in the grid. This is used to set the background of 
+		// individual cells if they are in an updated or error status.
+		// When the column is modified, we will put an 'e' or 'u' in the array
+		// to represent its status. If it is empty (''), it is unchanged.
+		var itemArray = [];
+		for (var i = 0; i < wb_data.length; i++) {
+			statusArray.push({
+				ID : '',
+				CAMPAIGN__C : '',
+				CAMPAIGN_NAME : '',
+				NAME : '',
+				SCOPE_STATUS__C : '',
+				MEDIA_TYPE__C : '',
+				MEDIA_DETAIL__C : '',
+				PROJECT_TYPE__C : '',
+				COMPLEXITY__C : '',
+				PERCENT_COMPLETE__C : '',
+				CREATIVE_ROUNDS__C : '',
+				PRODUCTION_ROUNDS__C : '',
+				ELEMENT_1__C : '',
+				ELEMENT_2__C : '',
+				VERSIONS__C : '',
+				TARGET_COMPLETION__C : ''
+			});
+
+			itemArray.push({ index: i, object: wb_data[i] });
+		}
+
+		// Values of the column headings for the grid
+		var headers = [ '', 'Deliverable Id', 'Campaign Name', 'Deliverable Name', 'Status', 'Media Type', 
+			'Detail', 'Project Type', 'Complexity', '% Complete', 'Element 1', 'Element 2', 'Versions'];
+
+		startSpinner();
+		var dataPromises = itemArray.map(validateRow); 
+		Q.all(dataPromises).then( function( ids ) { 
+			stopSpinner();
+		});
+
+
+		// statusRenderer is called to render each cell in the table
+		// Each cell is rendered based on the status of the row and the status of the cell.
+		// If the cell being rendered contains an error or has been modified, it is rendered
+		// in a color darker than the row it is on. Otherwise, the cell is rendered according
+		// to the status (new, updating, error) of the row it is on.
+		var statusRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+			"use strict";
+			Handsontable.renderers.TextRenderer.apply(this, arguments);
+
+			var cellStatus, rowStatus = value;
+
+			if (col !== 0) {
+				// if it isn't column 0, get the value of column 0
+				rowStatus = $j('#hotGrid').handsontable('getDataAtRowProp', row, 'status');
+				// rowStatus = $j('#hotGrid').handsontable('getDataAtCell', row, 0);
+
+				// check the value of the statusArray for this cell
+				cellStatus = statusArray[row][prop];
+			}
+
+			if (cellStatus === "e") {
+				td.style.background = "#F28590";
+			} else if (cellStatus === "u") {
+				td.style.background = "#5EDEF7";
+			} else if (cellStatus === "n") {
+				td.style.background = "#87DB7B";
+			} else if (rowStatus === "error") {
+				td.style.background = '#F7BAC0';
+			} else if (rowStatus === "updating") {
+				td.style.background = '#B5F3FF';
+			} else if (rowStatus === 'new') {
+				td.style.background = '#E6FAE3';
+			}
+		};
+
+
+
+		function setCellAndRowStatus(row, prop, stat) {
+			"use strict";
+			var currentStatus = container.handsontable("getDataAtRowProp", row, "status");
+			var lookupStat = (currentStatus === "") ? "unchanged" : currentStatus;
+			var oldCount, newCount, oldEl, newEl;
+
+			// Set the cell's status to "e" for error
+			switch(stat) {
+				case "error": 
+					statusArray[row][prop] = "e";
+					break;
+				case "updating":
+					statusArray[row][prop] = "u";
+					break;
+				default:
+					statusArray[row][prop] = "";
+					break;
+			}
+
+			// Set the row's status to 
+			container.handsontable("setDataAtRowProp", row, "status", stat);
+			updateTotals();
+		}
+
+		// campaignNameValidator
+		var campaignNameValidator = function(value, callback) {
+			"use strict";
+
+			var row, prop;
+			row  = this.row;
+			prop = this.prop;
+
+			if (typeof value !== 'undefined' && value !== "") {
+
+				BulkUploadController.campaignLookupByName(value, function(result) {
+
+					container.handsontable("setDataAtRowProp", row, "CAMPAIGN_ID", result);
+
+					// We got a good ID returned
+					if (result !== "") {
+						statusArray[row][prop] = '';
+						campaignArray.push({ name: value, id: result });
+
+						callback(true);
+					} 
+					else {
+						statusArray[row][prop] = 'n';
+						callback(false);
+					}
+				});
+			}
+			else {
+				callback(true);
+			}
+		};
+
+
+		//
+		// validateCell - validates the input of cells. 
+		// We can't really use a regular 'validator' as defined by HandsOnTable because
+		// those functions only get passed the value and a callback. We need to know the
+		// row being validated as well because we have to mark the "row" as error, updating, 
+		// or new. This solution does all the validation in the 'beforeChange' handler.
+		//
+		var validateCell = function (changes, source) {
+			var row, prop, newVal, rowStat, rowId;
+			if (source === "edit") {
+
+				for (var i = 0; i < changes.length; i++) {
+					row = changes[i][0];
+					prop = changes[i][1];
+					newVal = changes[i][3];
+
+					// element 0 is the row
+					// element 1 is the 'property', or Column name in the columns array given below
+					// element 2 is the old value
+					// element 3 is the new value
+
+					// var rowStat = container.handsontable("getDataAtCell", changes[i][0], 0);
+					rowStat = container.handsontable("getDataAtRowProp", changes[i][0], 'status');
+
+
+					rowId = container.handsontable("getDataAtRowProp", changes[i][0], 'ID');
+
+					switch(prop) {
+						case "ID":
+							break;
+
+						case "CAMPAIGN_NAME":
+							break;
+
+						case "SCOPE_STATUS__C":
+
+							// Check to see if the new value is part of the picklist values
+							// for Scope_Status__c. If not, clearly an error
+							if ("{!scopeStatusValues}".indexOf(newVal) == -1) {
+
+								// set the status of this cell so we know what to do when rendering
+								setCellAndRowStatus(row, prop, 'error');
+							} 
+							else {
+								console.log('setting the scope status to valid for row: ' + changes[i]);
+								// the value of THIS cell is good. 
+
+								// if this is not a new row (has an id), set the col to updated
+								if (!isEmpty(rowId)) {
+									statusArray[row][prop] = 'u';
+								}
+								else {
+									statusArray[row][prop] = '';
+								}
+
+
+							}
+							break;
+
+						// case "CAMPAIGN_ID":
+						//    break;
+
+						// Other columns to be validated...
+
+
+						// case "MEDIA_TYPE__C":
+						//    break;
+						default:
+
+							// just checking for not empty 
+							if (isEmpty(newVal)) {
+								statusArray[row][prop] = 'e';
+							}
+							else {
+								if (!isEmpty(rowId)) {
+									statusArray[row][prop] = 'u';
+								}
+								else {
+									statusArray[row][prop] = '';
+								}
+							}
+							break;
+					}
+					updateRowStatus(row);
+				}
+			}
+		};
+
+
+		// newRow - called when a new row is added to the grid
+		var newRow =  function (index, amount) {
+			"use strict";
+
+			for(var k = index, i = 0; i < amount; i++, k++) {
+				// Add an new row to the statusArray for the new row
+				// We have decided that these should all be errors if blank 
+				// when adding a new row.
+				statusArray.splice(k, 0, 
+					{
+						ID : '',					// id should not be error for new
+						CAMPAIGN__C : '',			// nor should campaign id
+						CAMPAIGN_NAME : 'e',
+						NAME : 'e',
+						SCOPE_STATUS__C : 'e',
+						MEDIA_TYPE__C : 'e',
+						MEDIA_DETAIL__C : 'e',
+						PROJECT_TYPE__C : 'e',
+						COMPLEXITY__C : 'e',
+						PERCENT_COMPLETE__C : 'e',
+						CREATIVE_ROUNDS__C : '',
+						PRODUCTION_ROUNDS__C : '',
+						ELEMENT_1__C : 'e',
+						ELEMENT_2__C : 'e',
+						VERSIONS__C : 'e',
+						TARGET_COMPLETION__C : ''
+					}
+				);
+				container.handsontable('setDataAtCell', k, 0, 'error');
+				updateTotals();
+			}
+		};
+
+		var removeRow = function(index, amount) {
+			"use strict";
+			statusArray.splice(index, amount);
+			updateTotals();
+		}
+
+		// -----------------------------------------------------------------------------------------
+
+		// Before we show the grid, hide the drop target
+		$j('#drop').hide();
+
+		// Set the displayed count of the number of rows in the spreadsheet
+		$j('#totalCount').text(wb_data.length);
+
+		// Declare the HandsOnTable grid with all the options we need
+		var container = $j("#hotGrid");
+		container.handsontable({
+			data: wb_data, 
+			rowHeaders: false,
+			colHeaders: headers,
+			contextMenu: true,
+			beforeChange: validateCell, 
+			afterCreateRow: newRow,
+			afterRemoveRow: removeRow,
+			afterLoadData: updateTotals,
+			invalidCellClassName: 'invalidCell',
+			columns: [
+				{ data: 'status', readOnly: true, renderer: statusRenderer }, 
+				{ data: 'ID', renderer: statusRenderer },
+				// { data: 'CAMPAIGN__C', renderer: statusRenderer },
+				{ data: 'CAMPAIGN_NAME', validator: campaignNameValidator, allowInvalid: true, renderer: statusRenderer }, 
+				{ data: 'NAME', renderer: statusRenderer }, 
+				{ data: 'SCOPE_STATUS__C', type: "dropdown", source: "{!scopeStatusValues}".split(","), renderer: statusRenderer },
+				{ data: 'MEDIA_TYPE__C', type: "dropdown", source: "{!mediaTypeValues}".split(","), renderer: statusRenderer   },
+				{ data: 'MEDIA_DETAIL__C', type: "dropdown", source: "{!mediaDetailValues}".split(","), renderer: statusRenderer  },
+				{ data: 'PROJECT_TYPE__C', type: 'dropdown', source: "{!projectTypeValues}".split(","), renderer: statusRenderer  },
+				{ data: 'COMPLEXITY__C', type: 'dropdown', source: "{!complexityValues}".split(","), renderer: statusRenderer  },
+				{ data: 'PERCENT_COMPLETE__C', type: 'numeric', /* validator: validPercent, allowInvalid: true, */ renderer: statusRenderer  },
+				//{ data: 'CREATIVE_ROUNDS__C' },
+				//{ data: 'PRODUCTION_ROUNDS__C' },
+				{ data: 'ELEMENT_1__C', renderer: statusRenderer  },
+				{ data: 'ELEMENT_2__C', renderer: statusRenderer  },
+				{ data: 'VERSIONS__C', renderer: statusRenderer  }
+				//{ data: 'TARGET_COMPLETION__C' }
+			]
+		});
+	}
+
+
+
+	// ----------------------------------------------------------------------
+	// Drag/Drop related code
+	var drop = document.getElementById('drop');
+	function handleDrop(e) {
+		e.stopPropagation();
+		e.preventDefault();
+
+		var files = e.dataTransfer.files;
+		var i,f;
+		for (i = 0, f = files[i]; i !== files.length; ++i) {
+			var reader = new FileReader();
+			var name = f.name;
+
+			if (name.substring(name.lastIndexOf('.')) == ".csv") {
+				reader.onload = function(e) {
+					var text = reader.result;
+					console.log(text);
+					process_wb(array_to_json(text.split("\n")));
+				};
+				reader.readAsText(f);
+			}       
+			else {
+				reader.onload = function(e) {
+					var data = e.target.result;
+					var wb;
+					var arr = fixdata(data);
+
+					if (name.substring(name.lastIndexOf('.')) == '.xls') {
+						wb = XLS.read(btoa(arr), { type: 'base64'} );
+					}
+					else if (name.substring(name.lastIndexOf('.')) == '.xlsx') {
+						wb = XLSX.read(btoa(arr), {type: 'base64'});
+					}
+					else {
+						alert("Only .xls, .xlsx, and .csv files are supported.");
+						return;
+					}
+					process_wb(to_json(wb));
+				};
+				reader.readAsArrayBuffer(f);
+			}
+		}
+	}
+
+	function handleDragover(e) {
+		e.stopPropagation();
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'copy';
+	}
+
+	if(drop.addEventListener) {
+		drop.addEventListener('dragenter', handleDragover, false);
+		drop.addEventListener('dragover', handleDragover, false);
+		drop.addEventListener('drop', handleDrop, false);
+	}
+
+	function foo() {
+		debugger;
+		$j('#hotGrid').handsontable('spliceRow', 1, 1, 1);
+	}
+	</script>
+
+
+
+	<apex:includeScript value="{!$Resource.spin}" />
+	<div id="spinnerDiv"></div>
+	<script>
+	var spinner;
+	function startSpinner() {
+		var opts = {
+		  lines: 13, // The number of lines to draw
+		  length: 20, // The length of each line
+		  width: 10, // The line thickness
+		  radius: 30, // The radius of the inner circle
+		  corners: 1, // Corner roundness (0..1)
+		  rotate: 0, // The rotation offset
+		  direction: 1, // 1: clockwise, -1: counterclockwise
+		  color: '#000', // #rgb or #rrggbb or array of colors
+		  speed: 1, // Rounds per second
+		  trail: 60, // Afterglow percentage
+		  shadow: false, // Whether to render a shadow
+		  hwaccel: false, // Whether to use hardware acceleration
+		  className: 'spinner', // The CSS class to assign to the spinner
+		  zIndex: 2e9, // The z-index (defaults to 2000000000)
+		  top: '50%', // Top position relative to parent
+		  left: '50%' // Left position relative to parent
+		};
+		var target = document.getElementById('spinnerDiv');
+		spinner = new Spinner(opts).spin(target);	
+
+	}
+
+	function stopSpinner() {
+		spinner.stop();
+	}
+
+	</script>	
+
+</apex:page>

@@ -1,0 +1,345 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com -->
+<apex:component controller="ComboPack.chatterFeed" allowDML="true" selfclosing="true" access="global" id="comp">
+   <apex:attribute name="parentIDs"
+        description="IDs of the objects to include in this feed" type="ID[]"
+        assignto="{!parentIDs}"
+        access="global"
+        required="true" />
+        
+   <apex:attribute name="postImgSize"
+        description="size of the profile picture next to feed posts" type="integer"
+        access="global"
+        required="true" />
+        
+   <apex:attribute name="commentImgSize"
+        access="global"
+        description="size of the profile picture next to comments" type="integer"
+        required="true" />
+        
+   <apex:attribute name="feedWidth"
+        access="global"
+        description="width of the feed with explicit units (e.g. 400px, 100%)" type="string"
+        required="true" />
+        
+   <apex:attribute name="hideChanges"
+        access="global"
+        description="if true, hides field updates and tracked changes in the feed." type="boolean"
+        assignto="{!hideChanges}"
+        required="false" />
+        
+   <apex:attribute name="maxPosts"
+        access="global"
+        description="number of posts per page" type="integer"
+        required="false" />
+        
+    <apex:attribute name="simpleFeed"
+        access="global"
+        description="if true, does not render reply and delete buttons on the feed, or the feed header" type="boolean"
+        required="false" />
+        
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterFeed, 'jquery_142.js' )}" />
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterFeed, 'scripts.js' )}" />
+    <apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterFeed, 'styles.css' )}" />
+	
+<script type="text/javascript">     
+	function setFocusOnLoad() {}
+	   
+    function submitComment(postId) {
+        var commentArea = '#commentFor'+ postId;
+        
+        var textArea = jQuery(commentArea).find('.cxnewcommenttext');
+        var saveCommentText = jQuery(textArea).val();
+        
+        saveCommentText = jQuery.trim(saveCommentText);
+        
+        if( saveCommentText == '' )
+            return;
+        
+        jQuery('.save_comment_text input').val(saveCommentText);
+        jQuery('.save_comment_feedid input').val(postId);
+            
+        saveCommentAF();
+        
+        var newCommentHTML = '<div class="feeditemcomment" style="display:block;">' +
+                             '<a class="navLink feeditemcommentphoto" href="/{!$User.id}" target="_top">'+
+                                '<img title="{!$User.FirstName} {!$User.LastName}" src="{!myPhotoURL}" height="{!commentImgSize}" width="{!commentImgSize}" />'+
+                             '</a>'+
+                             '<span class="feeditemcommentbody">'+
+                                '<span class="feedcommentuser"><a class="navLink" href="/{!$User.id}" target="_top">{!$User.FirstName} {!$User.LastName}</a></span>'+
+                                '<span class="feedcommenttext"> '+ saveCommentText +'</span>'+
+                                '<span class="feedcommentfooter">'+
+                                    '<span class="feeditemtimestamp"> less than a minute ago</span>'+
+                                    //'<span class="feeditemdelete"><a href="javascript:void(0)" onclick="deleteComment(\''+postId+'\',\'comment.fc.id\');return false;">[x]</a></span>'+
+                                '</span>'+
+                              '</span>'+
+                              '</div>';
+                    
+        var commentAdd = jQuery(textArea).parent().parent().parent().prev();          
+        
+        commentAdd.append(newCommentHTML);
+
+        jQuery(textArea).val('');
+        jQuery(textArea).blur();
+        
+        hideCommentBox(postId);
+    }
+</script>
+
+<style type="text/css">        
+    .commentButton input.ipad_reply_btn{
+        background: url("{!URLFOR( $Resource.chatterFeed, 'reply.png' )}") no-repeat left center !important;
+        width: 32px;
+        height: 29px;
+        display: block;
+        border: 0 !important;
+        padding: 0px;
+        -webkit-border-radius: 3px;
+        -moz-border-radius: 3px;
+    }
+
+    .chatterfeed {
+        margin-top: 10px;
+        max-width: {!feedWidth};
+    }
+    
+        .deleteButton input{
+            background: url({!URLFOR( $Resource.chatterFeed, 'delete.png' )}) no-repeat;
+            border: none;
+            height: 29px;
+            width: 29px;
+            color: transparent;
+            cursor: pointer;
+        }
+        
+        .feeditem .feeditemdelete a{
+            background: url({!URLFOR( $Resource.chatterFeed, 'delete_small.png' )}) no-repeat;
+            border: none;
+            width: 100%;
+            color: transparent !important;
+            cursor: pointer;
+            text-shadow: none !important;
+        }
+
+    
+        .feeditem{
+            background: url("/img/alohaSkin/feeds/feedbg.png") repeat-x scroll left top #FFFFFF;
+            border-top: 1px solid #555;
+            border-bottom: 1px solid #222;
+            border-top: 1px solid #fff;
+            border-bottom: 1px solid #abb1b9;
+            //border-left: 1px solid #abb1b9;
+            margin: 6px 0 !important;
+            padding: 13px 13px 13px {!postImgSize + 20}px;
+            min-height: 64px;
+            -webkit-border-radius: 6px;
+            -webkit-box-shadow: 0px 1px 4px #333;
+            -moz-border-radius: 6px;
+            -moz-box-shadow: 0px 1px 4px #333;
+        }           
+            
+                .feeditemcommentphoto{
+                    position: absolute;
+                    height: {!commentImgSize}px;
+                    width: {!commentImgSize}px;
+                }
+                
+                .feeditemcommentbody{
+                    display: block;
+                    min-height: {!commentImgSize}px;
+                    padding-left: {!commentImgSize + 10}px;
+                    padding-bottom: 10px;
+                }
+                
+                .feeditemcommentphotocontainer{
+                    display: block;
+                    width: {!commentImgSize}px;
+                    margin-right: 10px;
+                    float: left;
+                }
+                
+                .feeditemcommentnew{
+                    width: 100%;
+                    max-width: 400px !important;
+                    display: block;
+                    padding-left: {!commentImgSize + 10}px;
+                }
+</style>
+    
+    <apex:actionfunction name="saveCommentAF" action="{!addCommentToPost}" rerender="vars" oncomplete="javascript:void(0);"/>
+    <apex:actionfunction name="deleteCommentAF" action="{!deleteComment}" oncomplete="javascript:void(0);"/>
+    <apex:actionfunction name="deleteFeedAF" action="{!deleteFeed}" oncomplete="javascript:void(0);"/>
+    <apex:actionfunction name="searchFeedAF" action="{!searchFeed}" rerender="feedHeader,feedPanel,pagePanel" />
+    
+    <apex:outputpanel layout="none" id="vars">
+        <div class="save_comment_objectname">
+            <apex:inputHidden value="{!objectName}"/>
+        </div>
+        <div class="save_comment_feedid">
+            <apex:inputHidden value="{!feedID}"/>
+        </div>
+        <div class="save_comment_text">
+            <apex:inputHidden value="{!commentText}"/>
+        </div>
+        <div class="save_comment_commentid">
+            <apex:inputHidden value="{!commentID}"/>
+            <div>{!commentID}</div>
+        </div>
+    </apex:outputpanel>
+    
+    <div style="float:left">
+    <!-- <apex:outputpanel layout="none" rendered="{!!simpleFeed}">
+        <input type="button" class="btn btnPrimary" value="Show Feed" id="showfeedbutton" style="display:none;"/>
+        <input type="button" class="btn btnPrimary" value="Hide Feed" id="hidefeedbutton" />
+    </apex:outputpanel>-->
+    	<apex:outputpanel id="pagePanel">
+    	<apex:outputtext value="{!filteredFeed.size} search result{!if( filteredFeed.size != 1, 's', '')}. " rendered="{!searchText != ''}" />
+        <apex:commandbutton value="Back" action="{!prevPage}" rendered="{!first > 0}" rerender="feedHeader,feedPanel,pagePanel" />
+        <apex:outputtext value=" Page {! 1 + ( first / POSTS_PER_PAGE )} of {!TOTAL_PAGES} " rendered="{!feedsize > 0}" />
+        <apex:commandbutton value="Next" action="{!nextPage}" rerender="feedHeader,feedPanel,pagePanel" rendered="{!first + POSTS_PER_PAGE < feedsize}"  />
+        </apex:outputpanel>
+    </div>
+    
+    <div class="chatterfeed" style="float:left;width:70%">
+        <apex:outputpanel id="feedHeader" rendered="{!!simpleFeed}">
+            <apex:outputpanel layout="none" rendered="{!!hideChanges}">
+                <input id="showChanges" type="checkbox" name="showChanges" value="showChanges" checked="true" style="margin-left: 10px"/> Show Tracked Changes
+            </apex:outputpanel>
+            <apex:commandbutton value="Clear" style="float:right" action="{!clearSearch}" rendered="{!searchText != ''}" rerender="feedHeader,feedPanel,pagePanel" />
+            <apex:inputtext value="{!searchText}" id="feedsearch" size="30" style="float:right;" onkeydown="if(event.keyCode==13){this.blur();searchFeedAF();}"  />
+            <apex:image value="{!URLFOR( $Resource.ComboPack__chatterFeed, 'search.gif' )}" height="20" width="20" style="float:right" />
+        </apex:outputpanel>
+    </div>
+    
+    <div class="chatterfeed">
+    	<apex:outputpanel id="feedPanel" >
+        
+        <div style="clear:both"></div>
+    
+        <apex:outputpanel rendered="{!if( searchText != '', filteredFeed.size = 0, thefeed.size = 0)}" layout="none">
+            <div class="feeditem">
+                <div class="feeditemcontent cxfeeditemcontent">
+                    No posts! Why not be the first?
+                </div>
+            </div>
+        </apex:outputpanel>
+        
+        <div id="noResults" style="display:none">
+            No results.
+        </div>
+  
+            <apex:repeat id="repeater" value="{!if( searchText != '', filteredFeed, theFeed)}" var="post" first="{!first}" rows="{!if( maxPosts > 0, maxPosts, POSTS_PER_PAGE)}">
+                <div class="feeditem {!post.postType} feedid{!post.feedid}">
+                <span>
+                  	<c:userPhoto uid="{!post.ownerid}" photoStr="{!post.ownerPhotoURL}" height="{!postImgSize}" width="{!postImgSize}" styleclass="feeditemusericon" title="{!post.ownerName}" linked="true" target="_top" />
+                </span>
+                
+                <apex:outputpanel layout="none" rendered="{!!simpleFeed}" >
+                    <apex:outputpanel layout="none" rendered="{!AND( post.postType != 'TrackedChange', OR( post.parentID = $User.Id, post.ownerID = $User.Id ))}">
+                        <div class="deleteButton">
+                            <input type="button" title="[x]" onclick="deleteFeed('{!post.feedid}','{!post.objectName}');return false;" id="deleteLink{!post.feedid}"
+                                   name="partialContributeButton"  class=""  value="[x]"/>
+                        </div>
+                    </apex:outputpanel>                
+                    <div class="commentButton">
+                        <input type="button" title="" onclick="showCommentBox('{!post.feedid}');return false;" id="commentLink{!post.feedid}"
+                                   name="partialContributeButton"  class="ipad_reply_btn"  value=""/>
+                    </div>    
+                </apex:outputpanel>
+                            
+                <div class="feeditemcontent cxfeeditemcontent">
+                    <a class="navLink" href="/{!post.ownerID}" target="_top">{!post.ownerName}</a>
+
+                    <apex:outputpanel layout="none" rendered="{!post.postType == 'TrackedChange' }">
+                        <apex:outputpanel layout="none" rendered="{!post.ftc.fieldname == 'created'}">
+                            created a new <strong>{!post.objectName}</strong> - <a class="navLink" href="/{!post.parentID}" target="_top">{!post.parentName}</a>.
+                        </apex:outputpanel>
+                        <apex:outputpanel layout="none" rendered="{!post.ftc.fieldname != 'created'}">
+                            {!post.fieldverb} <strong>{!post.fieldname}</strong>
+                            on <a class="navLink" href="/{!post.parentID}" target="_top">{!post.parentName}</a>
+                            <apex:outputtext value="{!post.ftcString}" escape="false" />.
+                        </apex:outputpanel>
+                    </apex:outputpanel>
+                    
+                    <apex:outputpanel layout="none" rendered="{!post.postType != 'TrackedChange' }">
+                        <apex:outputpanel layout="none" rendered="{!post.fp.parentid != post.fp.createdbyid}">
+                            <apex:outputtext value=" &rarr; " escape="false" />
+                            <a class="navLink" href="/{!post.fp.parentid}" target="_top">{!post.fp.parent.name}</a>
+                        </apex:outputpanel>
+                        
+                        <span class="feeditemtext"><apex:outputtext value="{!post.Body}" escape="false" /></span>
+                        <br/>
+                    
+                        <apex:outputPanel layout="none" rendered="{!post.postType == 'ContentPost'}"> 
+                            <!-- <apex:outputPanel rendered="{!post.isImage}">-->
+                                <span><img class="publisherattachfile publisherattach" src="/s.gif"/>
+                                    <span style="margin-left: 20px">{!post.fp.ContentFileName}</span>
+                                </span>
+                                <!-- <br/>
+                                <div style="max-width:98%">
+                                    <img style="border: 1px solid gray; margin: 5px; padding: 5px;" id="{!post.attID}" onclick="viewAttachment( '{!post.attID}' );" src="/servlet/servlet.FileDownload?file={!post.attID}" width="120" />
+                                </div>-->
+                           <!--  </apex:outputPanel>-->
+                            
+                            <!-- <apex:outputPanel layout="none" rendered="{!!post.isImage}">
+                                <span>
+                                    <img class="contentPublisherTitleImage  contentPublisherTitleImageFile" style="background-position:0 -16px;" src="/s.gif"/>
+                                    <a style="margin-left:20px;" href="/servlet/servlet.FileDownload?file={!post.attID}" target="_new" >{!post.fp.ContentFileName}</a>
+                                </span>
+                            </apex:outputPanel>-->
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel layout="none" rendered="{!post.postType == 'LinkPost'}"> 
+                                <span><img class="contentPublisherTitleImage  contentPublisherTitleImageFile" style="background-position:0 0" src="/s.gif"/>
+                                <a style="margin-left:20px;" href="{!post.fp.LinkUrl}" target="_blank" >{!post.fp.Title}</a>
+                                </span>
+                        </apex:outputPanel>
+                    </apex:outputpanel>
+                    
+                    <div class="feeditemfooter">
+                        <span class="feeditemtimestamp">
+                            <apex:outputlink value="{!post.feedURL}"><apex:outputtext value="{!post.reltime}" /></apex:outputlink>
+                        </span>
+                    </div>
+                    <div class="feeditemextras">
+                        <div class="cxcomments feeditemcomments">
+                                <apex:repeat value="{!post.fc}" var="comment">
+                                    <div class="feeditemcomment comment{!comment.fc.id}" style="display:block;">
+                                        <c:userPhoto uid="{!comment.fc.createdbyid}" photoStr="{!comment.photoURL}" height="{!commentImgSize}" width="{!commentImgSize}" styleclass="feeditemcommentphoto" title="{!post.ownerName}" linked="true" target="_top" />
+                                        <span class="feeditemcommentbody">
+                                            <span class="feedcommentuser"><a class="navLink" href="/{!comment.fc.createdbyid}" target="_top">{!comment.fc.CreatedBy.Name}</a></span>
+                                            <span class="feedcommenttext"><apex:outputtext value="{!comment.Body}" escape="false" /></span>
+                                            <span class="feedcommentfooter">
+                                                <span class="feeditemtimestamp">
+                                                    <apex:outputtext value="{!comment.relTime}"/>
+                                                </span>
+                                                <apex:outputpanel layout="none" rendered="{!AND( !simpleFeed, OR( post.parentID = $User.Id, comment.fc.createdbyid = $User.Id ))}">
+                                                    <span class="feeditemdelete">
+                                                    <a href="javascript:void(0)" onclick="deleteComment('{!post.feedid}','{!comment.fc.id}','{!post.objectName}');return false;">[x]</a>
+                                                    </span>
+                                                </apex:outputpanel>
+                                            </span>
+                                        </span>
+                                    </div>
+                                </apex:repeat>
+                        </div>
+                        <div class="cxnewcomment" id="commentFor{!post.feedid}" style="display:none;margin-top: 10px;">
+                            <div class="feeditemcomment feeditemcommenttext">
+                                <div class="feeditemcommentphotocontainer">
+                                   <c:userPhoto uid="{!$User.Id}" photoStr="{!myPhotoURL}" height="{!commentImgSize}" width="{!commentImgSize}" styleclass="feeditemcommentphoto" title="{!$User.FirstName} {!$User.LastName}" linked="true" target="_top" />
+                                </div>
+                                <div class="feeditemcommentnew">
+                                    <apex:inputTextarea value="{!junk}" styleClass="foobar cxnewcommenttext cxiswired" rows="2" style="height: 32px; width: 99%"></apex:inputTextarea>
+                                    <div style="clear:both; margin-top: 10px"></div>
+                                    <input type="button" class="btn btnPrimary" onclick="hideCommentBox('{!post.feedid}');return false;" value="Cancel" />
+                                    <input style="float:right" type="button" class="btn btnPrimary cxnewcommentaction newcommentbutton" onclick="submitComment('{!post.feedId}');return false;" value="Comment" />
+                                    <div style="clear:both"></div>
+                                </div>
+                            </div>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+            </apex:repeat>
+    	</apex:outputpanel>
+    </div>
+</apex:component>

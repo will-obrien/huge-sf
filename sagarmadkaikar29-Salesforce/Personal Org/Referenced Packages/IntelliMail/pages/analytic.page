@@ -1,0 +1,149 @@
+<apex:page controller="IntelliMail.analytic">
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.1/themes/smoothness/jquery-ui.css" />
+    <apex:includeScript value="{!URLFOR($Resource.IntelliMail__jQuery, 'jquery-1.9.1.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.IntelliMail__jQuery, '/ui/ui/jquery-ui.js')}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.IntelliMail__jQuery, '/ui/themes/base/jquery-ui.css')}"/>
+  <script>
+  var j$ = jQuery.noConflict();
+  
+  j$(document).ready(function(){
+      if(typeof recipientText != 'undefined'){
+          j$(function() {
+            function split( val ) {
+              return val.split( /,\s*/ );
+            }
+            function extractLast( term ) {
+              return split( term ).pop();
+            }
+            j$(recipientText)
+              // dont navigate away from the field on tab when selecting an item
+              .bind( "keydown", function( event ) {
+                if ( event.keyCode === j$.ui.keyCode.TAB &&
+                    j$( this ).data( "ui-autocomplete" ).menu.active ) {
+                  event.preventDefault();
+                }
+              })
+              .autocomplete({
+                minLength: 2,
+                source: function( request, response ){
+                    // delegate back to autocomplete, but extract the last term
+                    //response( j$.ui.autocomplete.filter(
+                    //availableTags, extractLast( request.term ) ) );
+                    
+                    queryTerm = extractLast(request.term);
+                    Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.analytic.findRecipients}',queryTerm, 
+                    function(result, event){
+                        if(event.status){
+                            response(result);                        
+                        }
+                        else if(event.type === 'exception'){
+                            alert(event.message);
+                        }
+                    },
+                    {escape: true}
+                    );
+                    
+                },
+                focus: function() {
+                  // prevent value inserted on focus
+                  return false;
+                },
+                select: function( event, ui ) {
+                  var terms = split( this.value );
+                  // remove the current input
+                  terms.pop();
+                  // add the selected item
+                  terms.push( ui.item.value );
+                  // add placeholder to get the comma-and-space at the end
+                  terms.push( "" );
+                  this.value = terms.join( ", " );
+                  return false;
+                }
+              });
+          });
+      }
+      if(typeof singleText != 'undefined'){
+          j$(function() {
+            j$( singleText ).autocomplete({
+                minLength: 2,
+                source: function( request, response ){
+                    queryTerm = request.term;
+                    Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.analytic.findRecipients}',queryTerm, 
+                    function(result, event){
+                        if(event.status){
+                            response(result);                        
+                        }
+                        else if(event.type === 'exception'){
+                            alert(event.message);
+                        }
+                    },
+                    {escape: true}
+                    );    
+                }
+            });
+          });
+      }
+  });
+  </script>
+<apex:outputPanel style="float:right;">
+    <a href="mailto:support@aprika.com.au?subject=IntelliMail Support Request">Need Help?</a>
+</apex:outputPanel>
+<apex:pageMessages ></apex:pageMessages>
+    <apex:outputPanel id="form">
+        <apex:form >
+            <apex:selectList value="{!selectedAnalytic}" size="1">
+            <apex:outputText >Currently viewing: {!analyticType}s &nbsp;</apex:outputText>    
+            <apex:selectOptions value="{!AnalyticList}"></apex:selectOptions>
+            </apex:selectList>
+            <apex:commandButton title="Go!" value="Go!" action="{!switch}"/>
+            <apex:commandLink value="click to view Reports" action="{!chooseReport}" rendered="{!IF(analyticType = 'Dashboard', true, false)}"/>
+            <apex:commandLink value="Click to view Dashboards" action="{!chooseDashboard}" rendered="{!IF(analyticType = 'Report', true, false)}"/>
+            <apex:pageBlock title=" Analytic Management" rendered="{!IF(ISNULL(ana),false,true)}" mode="edit">
+                <apex:pageBlockSection >
+                    <apex:outputField value="{!ana.Name}"/>
+                    <Apex:outputField value="{!ana.IntelliMail__Active__c}"/>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection title="Recipients">
+                <apex:dataList var="r" value="{!recipients}">
+                   <apex:outputText > {!r.recipient__r.Email__c} &nbsp;</apex:outputText> 
+                   <apex:image value="{!IF(r.recipient__r.IntelliMail__Active__c,$Resource.IntelliMail__check,$Resource.IntelliMail__cross)}" width="15" height="15"/> 
+                    &nbsp;<apex:commandLink value="delete" action="{!deleteRecipient}" onclick="return confirm('Do you really want do delete this Recipient?')" reRender=""> 
+                    <apex:param assignTo="{!deliveryID}" value="{!r.Id}" name="delId"/>
+                    </apex:commandlink>
+                    &nbsp;<apex:commandLink value="view" action="{!recipientDetail}" reRender="">
+                    <apex:param assignTo="{!repID}" value="{!r.recipient__r.Id}" name="repId"/>
+                    </apex:commandLink>
+                </apex:dataList>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection rendered="{!showNewRecipient}">
+                    <apex:outputPanel layout="block">
+                        <apex:inputText value="{!newRecipient}" style="margin-left:50px;" id="singleText"/>
+                        <script type="text/javascript">var singleText = document.getElementById('{!$Component.singleText}');</script>
+                        <apex:commandButton value="Save" action="{!upsertRecipient}"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection rendered="{!showMultipleRecipients}" columns="1">
+                        <apex:outputLabel value="Add Multiple recipients seperated by commas (,)"/>
+                        <apex:inputTextarea value="{!newRecipientsText}" cols="40" rows="5" style="margin-left:50px;" id="recipientText"/>
+                        <apex:commandButton action="{!addNewRecipients}" value="Save" style="margin-left:50px;"/>
+                        <script type="text/javascript">var recipientText = document.getElementById('{!$Component.recipientText}');</script>
+                </apex:pageBlockSection>
+            <apex:pageBlockButtons location="top">
+            <apex:actionStatus id="saveStatus">
+                <apex:facet name="stop">
+                    <apex:commandButton value="Save Analytic" action="{!updateAnalytic}" rendered="{!IF(ISNULL(ana.Id), true, false)}" reRender="form" status="saveStatus"/>
+                </apex:facet>     
+                <apex:facet name="start">
+                    <apex:commandButton value="Save Analytic" action="{!updateAnalytic}" rendered="{!IF(ISNULL(ana.Id), true, false)}" disabled="true"/>
+                </apex:facet>
+            </apex:actionStatus>
+            <apex:commandButton value="Add Recipient" action="{!addRecipient}" rendered="{!IF(OR(ISNULL(ana.Id),numberRecipients > 99),false, true)}"/>
+            <apex:commandButton value="Add Multiple Recipients" action="{!addRecipients}" rendered="{!IF(OR(ISNULL(ana.Id),numberRecipients > 99),false, true)}"/>
+            <apex:commandButton value="Delete Analytic" action="{!deleteAnalytic}" onclick="return confirm('Do you really want do delete this Analytic?')" rendered="{!IF(ISNULL(ana.Id),false, true)}"/>
+            <apex:commandButton value="{!IF(ana.IntelliMail__Active__c = true, "Disable Analytic","Enable Analytic")}" action="{!changeAnalyticStatus}" rendered="{!IF(ISNULL(ana.Id),false, true)}"/>
+            <apex:commandButton value="View Source Analytic" rendered="{!IF(ISNULL(ana.Id),false, true)}" action="{!analyticDetail}"/>
+            </apex:pageBlockButtons>
+            </apex:pageBlock>
+        </apex:form>
+    </apex:outputPanel>
+</apex:page>

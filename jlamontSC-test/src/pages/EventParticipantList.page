@@ -1,0 +1,86 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="EventParticipantListController" applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>Participant List</title>
+    </apex:define> 
+    
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+      <div class="row">
+        <div class="col-xs-12">
+          <ul class="breadcrumb">
+            <li><a href="{!pageBase}clubeventlist">Events Home</a></li>
+            <li><a href="{!pageBase}leaderevents">My Event Attendance</a></li>
+            <li class="active"><strong>Participant List</strong></li>
+          </ul>
+        </div>
+      </div>
+        <!--
+        <div class="mainheader">
+            Participant List
+        </div>
+        -->
+      <div class="row">
+        <div class="col-xs-12">
+          <p>
+            <strong>
+              <apex:outputText value="{0, date, MMMM d', ' yyyy}">
+                <apex:param value="{!event.Date_Begin__c}"/>
+              </apex:outputText>
+            </strong>
+            <br/>
+            {!event.Event_Title__c}
+            <br/>
+            {!event.Club_Entity__r.Name}
+          </p>
+        </div>
+      </div>
+      <apex:form id="theForm" html-novalidate="novalidate">
+        <div class="row">
+          <div class="col-xs-12 col-sm-6 col-md-4 form-group">
+            <apex:outputPanel rendered="{!event.Can_Take_Attendance__c}">
+              <apex:commandButton styleClass="btn btn-primary btn-block" 
+                                    value="Take Attendance"
+                                    action="{!takeAttendance}"
+              />
+            </apex:outputPanel>    
+          </div>
+        </div>
+        <apex:outputPanel rendered="{!participantList.size == 0}">
+          <div class="row"> 
+            <div class="col-xs-12">
+              <div class="alert alert-info">
+                <i aria-hidden="true" class="fa fa-user-plus fa-lg"></i>
+                No participants are currently registered.
+              </div>
+            </div>
+          </div>
+        </apex:outputPanel> 
+        <div class="table-responsive">
+          <apex:dataTable value="{!participantList}" var="part" styleClass="table table-striped table-bordered" >
+            <apex:column >
+                {!part.Last_Name__c}, {!part.First_Name__c}
+                <br/>
+                Registration Date:
+                <apex:outputText value="{0, date, MMMM d', ' yyyy}">
+                    <apex:param value="{!event.Date_Begin__c}"/>
+                </apex:outputText>
+                <br/>
+                <apex:outputPanel rendered="{! ! ISBLANK(part.Phone__c)}">
+                    <a href="tel:1{!part.Phone__c}">{!part.Phone__c}</a> 
+                    <br/>
+                </apex:outputPanel>
+                <a href="mailto:{!part.Email__c}?Subject={!URLENCODE(event.Event_Title__c)}">{!part.Email__c}</a>               
+            </apex:column>
+          </apex:dataTable>
+        </div>
+      </apex:form>
+    </apex:define>
+</apex:composition>
+</apex:page>

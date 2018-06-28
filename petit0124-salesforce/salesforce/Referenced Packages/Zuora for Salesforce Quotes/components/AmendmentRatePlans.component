@@ -1,0 +1,192 @@
+<apex:component controller="zqu.AmendmentRatePlansController">
+	<apex:attribute name="newAmendmentQuoteFlag"
+		description="Flag of New Amendment Quote" type="Boolean"
+		required="true" assignTo="{!newAmendmentQuoteFlag}" />
+	<apex:attribute name="amendmentQuote" description="Amendment Quote"
+		type="zqu__Quote__c" required="true" assignTo="{!amendmentQuote}" />
+	<apex:form id="amendmentForm">
+		<apex:sectionHeader title="Amendment" subtitle="{!subTitle}"
+			id="amendmentTitle" rendered="{!editAction}" />
+		<apex:pageBlock id="amendmentblock">
+			<apex:pageBlockSection columns="1"
+				title="Subscription Products and Charges">
+				<apex:outputPanel id="oldquotePlanPanel">
+					<apex:repeat var="quotePlan" value="{!oldquotePlans}"
+						id="oldquotePlans_id">
+						<apex:panelBar id="oldquotePlanInfo">
+							<apex:panelBarItem label="{!quotePlan.productName} : {!quotePlan.Name}"
+								expanded="true"
+								headerStyle="{!quotePlan.background};{!quotePlan.contentStyle}">
+								<apex:pageBlockTable var="quoteCharge"
+									value="{!quotePlan.quoteCharges}" rules="rows" cellpadding="4%"
+									width="100%" id="oldquotePlan">
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Charge Name</apex:facet>
+										<apex:outputText value="{!quoteCharge.qcharge.Name}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Type</apex:facet>
+										<apex:outputText value="{!quoteCharge.qcharge.zqu__ChargeType__c}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Model</apex:facet>
+										<apex:outputText value="{!quoteCharge.qcharge.zqu__Model__c}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">List Price</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayListPrice}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Discount</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayDiscount}"
+											rendered="{!quoteCharge.DiscountEditable && !quoteCharge.EditMode}"
+											style="{!quotePlan.contentStyle}" />
+										<apex:outputText value="%"
+											rendered="{!quoteCharge.DiscountEditable}"
+											style="{!quotePlan.contentStyle}" />
+										<apex:outputText value="{!quoteCharge.DisplayDiscount}"
+											rendered="{!!quoteCharge.DiscountEditable}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Effective Price</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayEffectivePrice}"
+											rendered="{!!quoteCharge.EditMode || !quoteCharge.EffectivePriceEditable || (quoteCharge.qcharge.Model__c == 'Discount-Percentage') || (quoteCharge.qcharge.Model__c == 'Discount-Fixed Amount') }"
+											style="{!quotePlan.contentStyle}" />
+										<apex:outputText value="%"
+											rendered="{!( quoteCharge.qcharge.zqu__Model__c == 'Discount-Percentage' )}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Quantity</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayQuantity}"
+											rendered="{!!quoteCharge.EditMode || !quoteCharge.QuantityEditable }"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">UOM</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayUOM}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Period</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayRecurringPeriod}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">List Total</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayListTotal}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%" style="{!quoteCharge.contentStyle}">
+										<apex:facet name="header">Total</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayTotal}"
+											rendered="{!!quoteCharge.EditMode || !quoteCharge.TotalEditable }"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+								</apex:pageBlockTable>
+							</apex:panelBarItem>
+						</apex:panelBar>
+					</apex:repeat>
+				</apex:outputPanel>
+				<apex:outputPanel id="newquotePlanPanel">
+					<apex:repeat var="quotePlan" value="{!newquotePlans}"
+						id="newquotePlansrepeat">
+						<apex:panelBar id="quotePlaninfo">
+							<apex:panelBarItem label="{!quotePlan.productName} : {!quotePlan.Name}"
+								expanded="true"
+								headerStyle="{!quotePlan.background};{!quotePlan.contentStyle}"
+								id="newquotePlanbar">
+								<apex:pageBlockTable var="quoteCharge"
+									value="{!quotePlan.quoteCharges}" rules="rows" cellpadding="4%"
+									width="100%" id="newquotePlan">
+									<apex:column width="15%">
+										<apex:facet name="header">Charge Name</apex:facet>
+										<apex:outputText value="{!quoteCharge.zcharge.Name}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">Type</apex:facet>
+										<apex:outputText value="{!quoteCharge.zcharge.zqu__Type__c}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="10%">
+										<apex:facet name="header">Model</apex:facet>
+										<apex:outputText value="{!quoteCharge.zcharge.zqu__Model__c}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">List Price</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayListPrice}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">Discount</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayDiscount}"
+											rendered="{!quoteCharge.DiscountEditable && !quoteCharge.EditMode}"
+											style="{!quotePlan.contentStyle}" />
+										<apex:outputText value="%"
+											rendered="{!quoteCharge.DiscountEditable}" />
+										<apex:outputText value="{!quoteCharge.DisplayDiscount}"
+											rendered="{!!quoteCharge.DiscountEditable}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">Effective Price</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayEffectivePrice}"
+											rendered="{!!quoteCharge.EditMode || !quoteCharge.EffectivePriceEditable }"
+											style="{!quotePlan.contentStyle}" />
+										<apex:outputText value="%"
+											rendered="{!( quoteCharge.qcharge.zqu__Model__c == 'Discount-Percentage' )}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">Quantity</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayQuantity}"
+											rendered="{!!quoteCharge.EditMode || !quoteCharge.QuantityEditable }"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">UOM</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayUOM}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="8%">
+										<apex:facet name="header">Period</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayRecurringPeriod}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="9%">
+										<apex:facet name="header">List Total</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayListTotal}"
+											style="{!quotePlan.contentStyle}" />
+									</apex:column>
+									<apex:column width="10%">
+										<apex:facet name="header">Total</apex:facet>
+										<apex:outputText value="{!quoteCharge.DisplayTotal}" />
+									</apex:column>
+								</apex:pageBlockTable>
+							</apex:panelBarItem>
+						</apex:panelBar>
+					</apex:repeat>
+				</apex:outputPanel>
+			</apex:pageBlockSection>
+			<apex:pageBlockSection title="Changes vs. Original" id="changeLogs"
+				columns="1">
+				<apex:outputText value="No change yet."
+					rendered="{!changeLogDetails.size == 0}" />
+				<apex:pageBlockTable var="logDetail" value="{!changeLogDetails}"
+					rules="rows" width="100%" columns="3" cellpadding="3%"
+					rendered="{!changeLogDetails.size >0}">
+					<apex:column width="90%">
+						<apex:facet name="header">Description</apex:facet>
+						<apex:outputText value="{!logDetail.description}"
+							style="font-weight:bold" />
+					</apex:column>
+				</apex:pageBlockTable>
+			</apex:pageBlockSection>
+		</apex:pageBlock>
+	</apex:form>
+</apex:component>

@@ -1,0 +1,52 @@
+<apex:page controller="SDOC.SDFileList" showHeader="false" >
+
+<head>
+    <script type="text/javascript">
+function getUrlVars() {
+    var vars = [], hash;
+    var hashes = window.top.location.href.slice(window.top.location.href.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++)
+    {
+        hash = hashes[i].split('=');
+        vars.push(hash[0]);
+        vars[hash[0]] = hash[1];
+    }
+    return vars;
+}
+
+function SelectFile( fileUrl ) {
+    var CKEditorFuncNum = getUrlVars()["CKEditorFuncNum"];
+    window.top.opener.CKEDITOR.tools.callFunction(CKEditorFuncNum, fileUrl);
+    window.top.close() ;
+    }
+function selectFolder(id) {
+    document.location.search = '?folder=' + id;
+    }
+    </script>
+</head>
+<br />
+<apex:form >
+<b style="padding-right: 20px;">Folder:</b> 
+<apex:selectList styleClass="folderSelector" id="folderSelect" value="{!inFolderId}" size="1"> 
+    <apex:selectOptions value="{!myItems}"/> 
+     <apex:actionSupport event="onchange"  action="{!loadList}" rerender="pb" status="Status"/>
+</apex:selectList>
+</apex:form>
+<br/>
+<apex:pageBlock id="pb">
+    <apex:pageBlockTable value="{!files}" var="image">
+        <apex:column headerValue="Thumbnail">
+            <a href="javascript:SelectFile('{!image.url}');"><img src="{!image.url}" width="200"/></a>
+        </apex:column> 
+        <apex:column headerValue="Name">
+            <a href="javascript:SelectFile('{!image.url}');">{!image.doc.Name}</a>
+         </apex:column> 
+         <apex:column headerValue="Size">
+            {!ROUND((image.doc.BodyLength / 1000), 1)} kb
+         </apex:column> 
+         <apex:column headerValue="Type">
+            {!image.doc.ContentType}
+         </apex:column> 
+    </apex:pageBlockTable> 
+</apex:pageBlock>
+</apex:page>

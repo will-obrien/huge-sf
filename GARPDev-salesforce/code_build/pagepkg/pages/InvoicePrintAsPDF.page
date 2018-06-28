@@ -1,0 +1,339 @@
+<apex:page showHeader="false" sidebar="false" showChat="false"  standardStylesheets="false" Controller="InvoiceAsPDFController" applyhtmltag="false" applyBodyTag="false" action="{!fetchData}" renderAs="pdf">
+<apex:variable var="envPath" value="{!URLFOR($Resource.sfdcApp)}" />
+
+<head>
+    <style type="text/css" media="print">
+        .main-invoice-pdf { font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:14px; }
+        .panel-header-invoice-pdf { font-size:24px; }
+        .blue-divider-invoice-pdf { height:3px;background-color:#6699FF;margin:20px 15px; }
+        .section-box-invoice-pdf { overflow:hidden; }
+        .panel-left-invoice-pdf { float:left;width:48%; }
+        .panel-right-invoice-pdf { float:right;width:48%; }
+        .panel-table-invoice-pdf { padding:10px;width:100%; }
+        .panel-table-invoice-pdf th, .panel-table-invoice-pdf td { border-top:1px solid #ddd;border-collapse:collapse;padding:5px; }
+        .border-lbr-invoice-pdf { border:1px solid #ddd;border-top:0px; }
+        .text-right-invoice-pdf { text-align:right; }
+        .label-invoice-pdf { font-weight:bold; }       
+        @page{ 
+            @bottom-right { content:"Page " counter(page) " of " counter(pages);font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:14px; }
+            @bottom-left { content:"{!now}";font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-size:14px; } 
+        }
+    </style>
+</head>
+
+<div class="main-invoice-pdf">
+    <apex:image url="{!envPath}/img/logo.png" alt="logo" height="75px" />
+    
+    <div class="blue-divider-invoice-pdf"></div>
+    
+    <!--Section 1-->
+    <div class="section-box-invoice-pdf">
+        <div class="panel-left-invoice-pdf">
+          <strong>Global Association of Risk Professionals, Inc</strong><br/>
+          111 Town Square Place Suite, 14th Floor<br/>
+          Jersey City, NJ 07310 USA<br/>
+          Tel: +1 201.719.7210 Fax: +1 201.222.5022<br/>
+          Email: memberservices@garp.com<br/>
+          <apex:outputText value="Federal Tax ID: 02-0571-577" rendered="{!oppty.company=='GARP'}"/>
+          <apex:outputText value="Federal Tax ID: 02-3453-938" rendered="{!oppty.company=='GRA'}"/>
+        </div>
+        <div class="panel-right-invoice-pdf">
+            <apex:panelGrid columns="2" cellspacing="0" styleClass="panel-table-invoice-pdf border-lbr-invoice-pdf" width="100%">
+                <apex:outputText value="GARP ID:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{!oppty.garpMemberId}" />
+                <apex:outputText value="Date:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{!oppty.createdDateFormatted}" /> 
+                <apex:outputText value="Invoice #:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{!oppty.garpInvoiceNumber}" />
+                <apex:outputText value="Status:" styleClass="label-invoice-pdf" />
+                <apex:outputText value="{!status}" />
+                <apex:outputText value="Payment Type:" styleClass="label-invoice-pdf" rendered="{!type!=''}" />
+                <apex:outputText value="{!type}" rendered="{!type!=''}" />        
+            </apex:panelGrid>
+        </div>
+    </div>
+    
+    <div class="blue-divider-invoice-pdf"></div>   
+    
+    <!--Section 2-->
+    <div class="section-box-invoice-pdf">
+        <apex:outputPanel layout="block" rendered="{!oppty.hasBillingAddress}" styleClass="panel-left-invoice-pdf">
+            <span class="panel-header-invoice-pdf">Billing Information</span>
+            <apex:panelGrid columns="2" cellspacing="0" styleClass="panel-table-invoice-pdf" width="100%">
+                <apex:outputText value="Name:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingFirst!=null||oppty.chargentSFABillingLast!=null}" />
+                <apex:outputText value="{!oppty.chargentSFABillingFirst} {!oppty.chargentSFABillingLast}" rendered="{!oppty.chargentSFABillingFirst!=null||oppty.chargentSFABillingLast!=null}" />
+                <apex:outputText value="Company:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingCompany!=null}" />
+                <apex:outputText value="{!oppty.chargentSFABillingCompany}" rendered="{!oppty.chargentSFABillingCompany!=null}" />
+                <apex:outputText value="Address:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingAddress!=null}" />
+                <apex:outputText value="{!oppty.chargentSFABillingAddress}" rendered="{!oppty.chargentSFABillingAddress!=null}" />
+                <apex:outputText value="City/State/Zip:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingCity!=null||oppty.chargentSFABillingState!=null||oppty.chargentSFABillingZip!=null}" />
+                <apex:outputText rendered="{!oppty.chargentSFABillingCity!=null||oppty.chargentSFABillingState!=null||oppty.chargentSFABillingZip!=null}">
+                    <apex:outputText rendered="{!oppty.chargentSFABillingCity!=null}" value="{!oppty.chargentSFABillingCity} / " />
+                    <apex:outputText rendered="{!oppty.chargentSFABillingState!=null}" value="{!oppty.chargentSFABillingState} / " />
+                    <apex:outputText rendered="{!oppty.chargentSFABillingZip!=null}" value="{!oppty.chargentSFABillingZip}" />
+                </apex:outputText>
+                <apex:outputText value="Country:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingCountry!=null}" />
+                <apex:outputText value="{!oppty.chargentSFABillingCountry}" rendered="{!oppty.chargentSFABillingCountry!=null}" />
+                <apex:outputText value="Telephone:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingPhone!=null}" />
+                <apex:outputText value="{!oppty.chargentSFABillingPhone}" rendered="{!oppty.chargentSFABillingPhone!=null}" />
+                <apex:outputText value="Email:" styleClass="label-invoice-pdf" rendered="{!oppty.chargentSFABillingEmail!=null}"/>
+                <apex:outputText value="{!oppty.chargentSFABillingEmail}" rendered="{!oppty.chargentSFABillingEmail!=null}" />   
+            </apex:panelGrid>
+        </apex:outputPanel>
+        <apex:outputPanel layout="block" rendered="{!oppty.hasShippingAddress}" styleClass="panel-right-invoice-pdf">
+            <span class="panel-header-invoice-pdf">Shipping Information</span>
+            <apex:panelGrid columns="2" cellspacing="0" styleClass="panel-table-invoice-pdf" width="100%">                
+                <apex:outputText value="Name:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingFirstName!=null||oppty.shippingLastName!=null}" />
+                <apex:outputText value="{!oppty.shippingFirstName} {!oppty.shippingLastName}" rendered="{!oppty.shippingFirstName!=null||oppty.shippingLastName!=null}" />
+                <apex:outputText value="Company:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingCompanyName!=null}" />
+                <apex:outputText value="{!oppty.shippingCompanyName}" rendered="{!oppty.shippingCompanyName!=null}" />
+                <apex:outputText value="Address:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingStreet!=null}" />
+                <apex:outputText value="{!oppty.shippingStreet}" rendered="{!oppty.shippingStreet!=null}" />
+                <apex:outputText value="City/State/Zip:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingCity!=null||oppty.shippingState!=null||oppty.shippingPostalCode!=null}" />
+                <apex:outputText rendered="{!oppty.shippingCity!=null||oppty.shippingState!=null||oppty.shippingPostalCode!=null}">
+                    <apex:outputText rendered="{!oppty.shippingCity!=null}" value="{!oppty.shippingCity} / " />
+                    <apex:outputText rendered="{!oppty.shippingState!=null}" value="{!oppty.shippingState} / " />
+                    <apex:outputText rendered="{!oppty.shippingPostalCode!=null}" value="{!oppty.shippingPostalCode}" />
+                </apex:outputText>
+                <apex:outputText value="Country:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingCountry!=null}" />
+                <apex:outputText value="{!oppty.shippingCountry}" rendered="{!oppty.shippingCountry!=null}" />
+                <apex:outputText value="Telephone:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingPhoneNo!=null}" />
+                <apex:outputText value="{!oppty.shippingPhoneNo}" rendered="{!oppty.shippingPhoneNo!=null}" />
+                <apex:outputText value="Email:" styleClass="label-invoice-pdf" rendered="{!oppty.shippingEmail!=null}"/>
+                <apex:outputText value="{!oppty.shippingEmail}" rendered="{!oppty.shippingEmail!=null}" />    
+            </apex:panelGrid>
+        </apex:outputPanel>
+    </div>
+    
+    <apex:outputPanel layout="block" rendered="{!OR(oppty.hasBillingAddress,oppty.hasShippingAddress)}" styleClass="blue-divider-invoice-pdf"/>
+    
+    <!--Section 3-->
+    <apex:outputPanel layout="block" rendered="{!exam!=null}" styleClass="section-box-invoice-pdf">
+        <div class="panel-left-invoice-pdf">
+            <strong>Exam Date:</strong> {!exam.examDateFormatted}
+        </div>
+        <div class="panel-right-invoice-pdf text-right-invoice-pdf">
+            <strong>Exam Site:</strong> {!exam.examSiteName}
+        </div>
+    </apex:outputPanel>
+    
+    <apex:outputPanel layout="block" rendered="{!exam!=null}" styleClass="blue-divider-invoice-pdf"/>   
+    
+    <!--Section 4-->
+    <table cellspacing="0" class="panel-table-invoice-pdf" width="100%">
+        <tr>
+            <td><apex:outputText value="Product Information" styleClass="label-invoice-pdf"/></td>
+            <td><apex:outputText value="$US"/></td>
+        </tr>
+        <apex:repeat value="{!lineItems}" var="lineItem">
+            <tr>
+                <td>
+                    <apex:outputText value="{!lineItem.productName}"/>
+                    <apex:outputText value=" {!lineItem.description}" rendered="{!lineItem.description!=null}"/>
+                </td>
+                <td>
+                    <apex:outputText value="${0,number,###,###,##0.00}">
+                        <apex:param value="{!lineItem.totalPrice}"/>
+                    </apex:outputText>
+                </td>
+            </tr>
+        </apex:repeat>
+        <tr>   
+            <td><apex:outputText value="Total" styleClass="label-invoice-pdf"/></td>
+            <td>
+                <apex:outputText value="${0,number,###,###,##0.00}">
+                    <apex:param value="{!oppty.amount}"/>
+                </apex:outputText>  
+            </td>            
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+        </tr>
+        <apex:repeat value="{!payments}" var="payment">
+            <tr>
+                <td>
+                    <apex:outputText rendered="{!payment.chargentSFAType=='Charge'}" value="{!payment.chargentSFAType} "/>
+                    {!payment.chargentSFAPaymentMethod} {!payment.chargentSFAResponseStatus} on {!payment.chargentSFAGatewayDateFormatted}
+                </td>
+                <td>
+                    <apex:outputText value="${0,number,###,###,##0.00}">
+                        <apex:param value="{!payment.chargentSFAAmount}"/>
+                    </apex:outputText>
+                </td>            
+            </tr>
+        </apex:repeat>  
+    </table>
+    
+    <div class="blue-divider-invoice-pdf"></div>
+    
+    <!--Section 5-->
+    <apex:outputPanel layout="block" rendered="{!exam!=null}" styleClass="section-box-invoice-pdf">
+        <div class="panel-left-invoice-pdf">
+            <strong>Exam Date:</strong> {!exam.examDateFormatted}
+        </div>
+        <div class="panel-right-invoice-pdf text-right-invoice-pdf">
+            <strong>Exam Site:</strong> {!exam.examSiteName}
+        </div>
+    </apex:outputPanel>
+    
+    <apex:outputPanel layout="block" rendered="{!exam!=null}" styleClass="blue-divider-invoice-pdf"/>  
+    
+    <apex:outputPanel layout="block" id="footer" rendered="{!isPaid}">
+          
+        <apex:outputPanel layout="block" rendered="{!FRM && CC}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  Thank you for your order.</p>
+            <p><b>Membership:</b>  As a convenience to you, GARP will automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-out of this service, please contact us directly at memberservices@garp.com.  Please note that because you paid via a credit card, an email notification will be sent to you four weeks prior to your renewal date.  </p>
+            <p><b>FRM Program Enrollment:</b>  Once you have passed the FRM Part I Exam, the enrollment fee is good for 4 years.  If you still have not passed FRM Part II after 4 years, you will need to re-enroll in the program as a new candidate and re-take the FRM Part I.  </p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for either the FRM Exam registration fee or the FRM Exam enrollment fee.  Candidates cannot transfer a registration to another candidate.  Candidates do, however, have the option to defer their FRM Exam one time only to the following exam date, but they will be subject to a US$100 administration processing fee for the deferral.</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!FRM && CreditByFax}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered complete, and based on the *Early Registration rate, your payment must be received by the "Early Registration Deadline of July 31".  If your payment is received after the deadline, you will be charged the rate effective when your payment is received.  That is either the Standard or Late registration fee, in which case you will be required to make an additional payment. </p>
+            <p><b>Membership:</b>  To enroll in automatic membership renewal, please contact us directly at memberservices@garp.com.</p>
+            <p><b>FRM Program Enrollment:</b>  Once you have passed the FRM Part I Exam, the enrollment fee is good for 4 years.  If you still have not passed FRM Part II after 4 years, you will need to re-enroll in the program as a new candidate and re-take the FRM Part I again.</p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for either the FRM Exam registration fee or the FRM Exam enrollment fee.  Candidates cannot transfer a registration to another candidate.  Candidates do, however, have the option to defer their FRM Exam one time only to the following exam date, but they will be subject to a US$100 administration processing fee for the deferral.</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!FRM && Wire}">        
+            <p><b>Important Information:</b></p>
+            <p><b>By Wire Transfer: (instructions are as follows)</b></p>
+            <p>Bank Account Name:<br/>
+            Bank Name:<br/>
+            Bank Address:<br/>
+            Account Number:<br/>
+            Routing Number/Sort Code:<br/>
+            Swift Code:<br/>
+            <b>Your must quote your GARP ID number when making payment.</b></p>
+            <p><b>Payment:</b>  For your registration to be considered complete and based on the *Early Registration rate, your payment must be received by the "Early Registration Deadline of July 31".  If your payment is received after the deadline, you will be charged the Standard or Late Rate effective when your payment is received; in which case you will be required to make an additional payment.</p>
+            <p><b>Membership:</b>  As a convenience to you, GARP can automatically renew your membership every year from your initial sign-up-date.  If you would like to opt-in to this service, please contact us directly at memberservices@garp.com.</p>
+            <p><b>FRM Program Enrollment:</b>  Once you have passed the FRM Part I Exam, the enrollment fee is good for 4 years.  If you still have not passed FRM Part II after 4 years, you will need to re-enroll in the program and re-take the FRM Part I as a new candidate.</p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for either the FRM Exam registration fee or the FRM Exam enrollment fee.  Candidates cannot transfer a registration to another candidate.  Candidates do, however, have the option to defer their FRM Exam one time only to the following exam date, but they will be subject to a US$100 administration processing fee for the deferral.</p>
+            <p><b>Standard Registration blurb:</b><br/>
+            <b>Payment:</b>  In order for your registration to be considered complete and based on the *Standard Registration rate, your payment must be received by the "Standard Registration Deadline of August 31".  If your payment is received after the deadline, you will be charged the Late Rate effective when your payment is received; in which case you will be required to make an additional payment.</p>
+            <p><b>Late Registration blurb:</b><br/>
+            <b>Payment:</b>  In order for your registration to be considered complete, based on the *Late Registration rate, your payment must be received by the "Late Registration Deadline of October 15th".  If your payment is received after the registration deadline, your registration will be cancelled; as registration is closed.</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!ERP && CC}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:  Thank you for your order. </b></p>
+            <p><b>Membership:</b>  As a convenience to you, GARP will automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-out of this service, please contact us directly at memberservices@garp.com.  Please note that because you paid via a credit card, an email notification will be sent to you four weeks prior to your renewal date.</p>
+            <p><b>ERP Program Enrollment:</b>  The enrollment fee is good for 4 years.  If you still have not passed the ERP Exam after 4 years, you will need to re-enroll in the program as a new candidate and pay the enrollment fee again.  </p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for either the ERP Exam registration fee or the ERP Exam enrollment fee.  Candidates cannot transfer a registration to another candidate.  Candidates do, however, have the option to defer their ERP Exam one time only to the following exam date, but they will be subject to a US$100 administration processing fee for the deferral.</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!ERP && CreditByFax}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered complete, and based on the *Early Registration rate, your payment must be received by the "Early Registration Deadline of July 31".  If your payment is received after the end the deadline you will be charged the rate effective when your payment is received.  That is either the Standard or Late registration fee, in which case you will be required to make an additional payment.  </p>
+            <p><b>Check Payment Instructions:</b><br/>
+            CHECK payable to:<br/>
+            GARP Risk Academy<br/>
+            Newport Financial Center<br/>
+            111 Town Square Place<br/>
+            Jersey City, NJ 07310<br/>
+            USA</p>
+            <p><b>Note:</b>  GARP accepts checks drawn on US banks or foreign checks drawn on a US Intermediate Bank account.</p>           
+            <p><b>Fax Payment Instructions:</b><br/>
+            Complete the information below, sign and fax it back to us at +1.201.222.5022.
+            Circle the Credit Card Type:  AMEX / VISA / MasterCard<br/>
+            <br/>
+            Card Number:  _______________________________________<br/>
+            CVV Code:   ______    Expiration Date: _____________<br/>
+            <br/>
+            Signature of Approval:          _____________________________________<br/>
+            Print your name as it appears on your credit card:  _____________________________________</p>
+            <p><b>Membership:</b>  To enroll in automatic membership renewal, please contact us at memberservices@garp.com.</p>
+            <p><b>ERP Program Enrollment:</b>  The enrollment fee is good for 4 years.  If you still have not passed the ERP Exam after 4 years, you will need to re-enroll in the program as a new candidate and pay the enrollment fee again.</p>  
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for either the ERP Exam registration fee or the ERP Exam enrollment fee.  Candidates cannot transfer a registration to another candidate.  Candidates do, however, have the option to defer their ERP Exam one time only to the following exam date, but they will be subject to a US$100 administration processing fee for the deferral.</p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!ERP && Wire}">
+            <p><b>Important Information:</b></p>  
+            <p><b>Payment:</b>  For your registration to be considered complete and based on the *Early Registration rate, your payment must be received by the "Early Registration Deadline of July 31".  If your payment is received after the deadline, you will be charged the Standard or Late Rate effective when your payment is received; in which case you will be required to make an additional payment. </p>
+            <p><b>Wire Transfer Instructions:</b><br/>
+            Bank Account Name:  GARP Risk Academy, LLC.<br/>
+            Bank Name: Citibank, N.A.<br/>
+            Bank Address: 79 Fifth Avenue, New York, NY 10003<br/>
+            Account Number: 53544466<br/>
+            Routing Number/Sort Code: 0210000089<br/>
+            Swift Code: CITIUS33<br/>
+            Your must quote your GARP ID number when making payment.</p>
+            <p><b>Membership:</b>  As a convenience to you, GARP can automatically renew your membership every year from your initial sign-up-date.  If you would like to opt-in to this service, please contact us directly at memberservices@garp.com.  </p>
+            <p><b>ERP Program Enrollment:</b>  The enrollment fee is good for 4 years.  If you still have not passed the ERP Exam after 4 years, you will need to re-enroll in the program as a new candidate, and pay the enrollment fee again. </p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for either the ERP Exam registration fee or the ERP Exam enrollment fee.  Candidates cannot transfer a registration to another candidate.  Candidates do, however, have the option to defer their ERP Exam one time only to the following exam date, but they will be subject to a US$100 administration processing fee for the deferral.</p>
+            <p><b>Standard Registration blurb:</b>
+            Payment:  In order for your registration to be considered complete and based on the *Standard Registration rate, your payment must be received by the “Standard Registration Deadline of August 31”.  If your payment is received after the deadline, you will be charged the Late Rate effective when your payment is received; in which case you will be required to make an additional payment.  </p>
+            <p><b>Late Registration blurb:</b>
+            Payment:  In order for your registration to be considered complete, based on the *Late Registration rate, your payment must be received by the "Late Registration Deadline of October 15th".  If your payment is received after the registration deadline, your registration will be cancelled; as registration is closed.  </p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!ICBRR && CC}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered complete, please process your payment promptly. </p>
+            <p><b>Membership:</b>  If you purchase membership with your ICBRR registration, as a convenience to you, GARP will automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-out of this service, please click here or contact us directly at memberservices@garp.com.  Please note that because you paid via a credit card, an email notification will be sent to you four weeks prior to your renewal date.  </p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for the ICBRR Exam. Nor can candidates transfer a registration to another candidate.    </p>  
+        </apex:outputPanel>
+    
+        <apex:outputPanel layout="block" rendered="{!ICBRR && CreditByFax}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered complete, payment must be received within 30 days.</p>       
+            <p><b>Membership:</b>  If you purchase membership with your ICBRR registration, as a convenience to you, GARP can automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-into this service, please click here or contact us directly at memberservices@garp.com.</p>           
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for the ICBRR Exam. Nor can candidates transfer a registration to another candidate.  </p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!ICBRR && Wire}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered completed, payment must be received within 30 days.  </p>
+            <p><b>Membership:</b>  If you purchase membership with your ICBRR registration, as a convenience to you, GARP can automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-into this service, please click here or contact us directly at memberservices@garp.com.</p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for the ICBRR Exam. Nor can candidates transfer a registration to another candidate.  </p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!FBR && CC}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered complete, please process your payment promptly. </p>
+            <p><b>Membership:</b>  If you purchase membership with your FBR registration, as a convenience to you, GARP will automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-out of this service, please click here or contact us directly at memberservices@garp.com.  Please note that because you paid via a credit card, an email notification will be sent to you four weeks prior to your renewal date.</p>  
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for the FBR Exam. Nor can candidates transfer a registration to another candidate.  </p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!FBR && CreditByFax}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered complete, payment must be received within 30 days.  </p>
+            <p><b>Membership:</b>  If you purchase membership with your FRB registration, as a convenience to you, GARP will automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-into this service, please click here or contact us directly at memberservices@garp.com.</p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for the FBR Exam. Nor can candidates transfer a registration to another candidate. </p> 
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!FBR && Wire}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your registration to be considered completed, payment must be received within 30 days.  </p>
+            <p><b>Membership:</b>  If you purchase membership with your FBR registration, as a convenience to you, GARP will automatically renew this membership every year from your initial sign-up-date.  If you would like to opt-into this service, please click here or contact us directly at memberservices@garp.com.</p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances for the FBR Exam. Nor can candidates transfer a registration to another candidate. </p>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!!FRM && !ERP && !FBR && !ICBRR && Membership && CC}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your membership application to be considered complete, payment must be received within 30 days.</p> 
+            <p><b>Membership:</b>  To enroll in automatic membership renewal, log on at www.garp.org/membership and select the "Update Profile" link from the Member Resources box. From the navigation bar of your Profile you can select the "Enable" option for Automatic Renewal.</p> 
+            <p><b>Refunds:</b>  There are no membership refunds given under any circumstances after 60 days.  Nor can members transfer membership to another.</p> 
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!!FRM && !ERP && !FBR && !ICBRR && Membership && CreditByFax}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your membership application to be considered complete, payment must be received within 30 days.  </p>
+            <p><b>Membership:</b>  To enroll in automatic membership renewal, log on at www.garp.org/membership and select the "Update Profile" link from the Member Resources box. From the navigation bar of your Profile you can select the "Enable" option for Automatic Renewal.</p> 
+            <p><b>Refunds:</b>  There are no membership refunds given under any circumstances after 60 days.  Nor can members transfer membership to another.</p> 
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!!FRM && !ERP && !FBR && !ICBRR && Membership && Wire}">
+            <p><b>Important Information:</b></p>
+            <p><b>Payment:</b>  In order for your membership application to be considered complete, payment must be received within 30 days.</p>
+            <p><b>Membership:</b>  To enroll in automatic membership renewal, log on at www.garp.org/membership and select the "Update Profile" link from the Member Resources box. From the navigation bar of your Profile you can select the "Enable" option for Automatic Renewal.</p>
+            <p><b>Refunds:</b>  There are no refunds given under any circumstances after 60 days.  Nor can members transfer membership to another.</p>
+        </apex:outputPanel>
+    
+    </apex:outputPanel>
+
+</div>
+</apex:page>

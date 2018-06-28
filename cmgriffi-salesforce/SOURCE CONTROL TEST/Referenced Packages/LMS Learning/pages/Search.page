@@ -1,0 +1,149 @@
+<apex:page controller="lmscons.MyTrainingController" showHeader="false" rendered="{!lmsConfig.lmscons__Enable_Catalog_Search__c}">
+<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+<body>
+<!-- --------------------------------- -->
+    <apex:pageMessages id="pageMessages" />
+    <!-- main data -->
+    <apex:outputPanel id="rr2">
+    <apex:outputPanel rendered="{!renderPage}" id="maindata">
+    <apex:form id="f">
+
+        <apex:actionStatus id="loadStatus">
+            <apex:facet name="start">
+                <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+                                borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif"
+                                Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+            </apex:facet>
+        </apex:actionStatus>
+
+        <!-- search -->
+        <apex:outputPanel id="search_pan" rendered="{!lmsConfig.lmscons__Enable_Catalog_Search__c}">
+            <apex:pageBlock rendered="{!lmsConfig.lmscons__Enable_Catalog_Search__c}">
+                <apex:pageBlockSection Title="{!$Label.AssignTrainingContent_value_Search}" columns="1">
+                    <apex:outputText style="width:50%" value="Search for specific keywords or perform a blank search to list the entire catalog." />
+					<apex:pageBlockSectionItem >
+	                	<apex:inputText id="SearchKeyWord" value="{!searchKeyWord}" maxlength="200" style="width:400px;font-size:8pt" onkeypress="return handleKeyPress(event)"></apex:inputText>
+	                    <apex:commandButton value="{!$Label.ConsumerUser_value_Search}" action="{!SearchCoursesModules}" id="goSearch"   status="loadStatus" reRender="modules1, courses1, r1, pageMessages, search_pan, opPrevNextup, opPrevNextd"/>
+                	</apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </apex:outputPanel>
+        <!-- e search -->
+            <apex:outputPanel id="r1">
+            <apex:outputPanel id="resultsCU" rendered="{!OR( NOT(ISBLANK(ListModules)), NOT(ISBLANK(ListCourses)), NOT(ISBLANK(ListLP)), NOT(ISBLANK(ListCurr)) )}">
+            <apex:pageBlock title="Search results" rendered="true" id="pageBlock">
+                <apex:pageBlockSection Title="{!$ObjectType.lmscons__Curriculum__c.labelPlural}" columns="1" rendered="{!NOT(ISBLANK(ListCurr))}">
+                    <apex:pageBlockTable value="{!ListCurr}" var="c">
+                        <apex:column headerValue="{!$ObjectType.lmscons__Curriculum__c.fields.Name.label}">
+                            <apex:outputField value="{!c.Name}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Curriculum__c.fields.lmscons__Description__c.label}">
+                            <apex:outputField value="{!c.lmscons__Description__c}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Curriculum__c.fields.lmscons__Total_Items__c.label}">
+                            <apex:outputField value="{!c.lmscons__Total_Items__c}" />
+                        </apex:column>
+                        <apex:column headerValue="Action" style="text-align:right">
+                             <apex:commandButton value="Add to my training" action="{!addToMyTraining}" status="loadStatus" oncomplete="refreshc()" reRender="modules1, courses1,rr2, resultsCU, pageMessages, search_pan, opPrevNextup, opPrevNextd, maindata">
+                                <apex:param name="idTraining_{!c.id}" value="{!c.id}" assignTo="{!idTraining}"/>
+                             </apex:commandButton>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+
+                <apex:pageBlockSection Title="{!$ObjectType.lmscons__Learning_Path__c.labelPlural}" columns="1" rendered="{!NOT(ISBLANK(ListLP))}">
+                    <apex:pageBlockTable value="{!ListLP}" var="c">
+                        <apex:column headerValue="{!$ObjectType.lmscons__Learning_Path__c.fields.Name.label}">
+                            <apex:outputField value="{!c.Name}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Learning_Path__c.fields.lmscons__Description__c.label}">
+                            <apex:outputField value="{!c.lmscons__Description__c}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Learning_Path__c.fields.lmscons__Total_Items__c.label}">
+                            <apex:outputField value="{!c.lmscons__Total_Items__c}" />
+                        </apex:column>
+                        <apex:column headerValue="Action" style="text-align:right">
+                             <apex:commandButton value="Add to my training" action="{!addToMyTraining}" status="loadStatus" oncomplete="refreshc()" reRender="modules1, courses1,rr2, resultsCU, pageMessages, search_pan, opPrevNextup, opPrevNextd, maindata">
+                                <apex:param name="idTraining_{!c.id}" value="{!c.id}" assignTo="{!idTraining}"/>
+                             </apex:commandButton>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection Title="{!$ObjectType.lmscons__Training_Path__c.labelPlural}" columns="1" rendered="{!NOT(ISBLANK(ListCourses))}">
+                    <apex:pageBlockTable value="{!ListCourses}" var="c">
+                        <apex:column headerValue="{!$ObjectType.lmscons__Training_Path__c.fields.Name.label}">
+                            <apex:outputField value="{!c.Name}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Training_Path__c.fields.lmscons__Description__c.label}">
+                            <apex:outputField value="{!c.lmscons__Description__c}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Training_Path__c.fields.lmscons__Total_Items__c.label}">
+                            <apex:outputField value="{!c.lmscons__Total_Items__c}" />
+                        </apex:column>
+                        <apex:column headerValue="Action" style="text-align:right">
+                             <apex:commandButton value="Add to my training" action="{!addToMyTraining}" status="loadStatus" oncomplete="refreshc()" reRender="modules1, courses1,rr2, resultsCU, pageMessages, search_pan, opPrevNextup, opPrevNextd, maindata">
+                                <apex:param name="idTraining_{!c.id}" value="{!c.id}" assignTo="{!idTraining}"/>
+                             </apex:commandButton>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection Title="{!$ObjectType.lmscons__Training_Content__c.labelPlural}" columns="1" rendered="{!NOT(ISBLANK(ListModules))}">
+                    <apex:pageBlockTable value="{!ListModules}" var="m">
+                        <apex:column headerValue="{!$ObjectType.lmscons__Training_Content__c.fields.Name.label}">
+                            <apex:outputField value="{!m.Name}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Training_Content__c.fields.lmscons__Title_col__c.label}">
+                            <apex:outputText escape="false" value="{!JSENCODE(m.lmscons__Title__c)}" />
+                        </apex:column>
+                        <apex:column headerValue="{!$ObjectType.lmscons__Training_Content__c.fields.lmscons__Description__c.label}">
+                            <apex:outputField value="{!m.lmscons__Description__c}" />
+                        </apex:column>
+                        <apex:column headerValue="Action"  style="text-align:right">
+                             <apex:commandButton value="Add to my training" action="{!addToMyTraining}" status="loadStatus" oncomplete="refreshc()" reRender="modules1, courses1, rr2, resultsCU, pageMessages, search_pan, opPrevNextup, opPrevNextd, maindata">
+                                <apex:param name="idTraining_{!m.id}" value="{!m.id}" assignTo="{!idTraining}"/>
+                             </apex:commandButton>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+            </apex:outputPanel>
+            </apex:outputPanel>
+            <apex:actionFunction name="AFSearch" action="{!SearchCoursesModules}" status="loadStatus" reRender="modules1, courses1, r1, pageMessages, search_pan, opPrevNextup, opPrevNextd" />
+    </apex:form>
+    </apex:outputPanel>
+    </apex:outputPanel>
+   <script type="text/javascript">
+      window.onkeypress = handleKeyPress;
+      window.onload = AFSearch;
+      jQuery.noConflict();
+      //alert(jQuery('[id$="goSearch"]').attr('onclick'));
+      function handleKeyPress(e){
+        var eventInstance = window.event ? event : e;
+        //alert('entering key enter');
+        var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+        if (keyCode == 13){
+            //afdoSearch();
+            jQuery('[id$="goSearch"]').click();
+            return false;
+        }
+      }
+
+      function closec(){
+		window.opener.focus()
+      }
+      function refreshc(){
+      	//window.scrollBy(0,0);
+      	self.scrollTo(0, 0)
+		window.opener.redirectWindow();
+      }
+	  window.onbeforeunload = function(){
+	  	closec();
+	  }
+
+    </script>
+<!-- --------------------------------- -->
+
+<!-- <input value="Close" class="btn" name="Closec" onclick="closec()" title="Close" type="button" />-->
+
+</body>
+</apex:page>

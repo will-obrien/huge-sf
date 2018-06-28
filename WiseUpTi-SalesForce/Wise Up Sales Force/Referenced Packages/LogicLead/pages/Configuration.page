@@ -1,0 +1,322 @@
+<apex:page id="mypage" action="{!updtFieldsetName}" title="Configuration"  controller="LogicLead.clsLeadFieldList"  tabStyle="Configuration__tab" >
+<title>Lead Setup</title>
+<style>
+.message {
+   margin-left: 0px;
+   margin-right: 0px;
+}
+.dmsg{
+    background-color:#f8f8f8;
+    border-color: #DBDBDB;
+    border-style: solid;
+    border-top-color:#236FBD;
+    border-top-width:3px;
+    border-bottom-width:1px;
+    border-left-width:1px;
+    border-right-width:1px;
+    border-radius : 4px;
+    height:20px;
+    padding:10px;
+    text-align:center;
+}
+.apexp .bPageBlock.apexDefaultPageBlock .pbBody .pbSubheader {
+    color: white;
+}
+body .bRelatedList .pbTitle h3, body .bPageBlock .pbTitle h2, body .bPageBlock .pbTitle h3, body .bSubBlock h3.lbHeader {
+    font-size: 1.5em;
+}
+body .bPageBlock .pbBody .dataCol {
+    width: 100%;
+}
+.Custom24Tab .primaryPalette, .individualPalette .Custom24Block .primaryPalette {
+    background-color: #236FBD;
+    border-color: #236FBD;
+}    
+.Custom24Tab .brdPalette {
+    border-top-color: #236FBD;
+}
+.Custom24Tab .listViewport .subNav .linkBar, .Custom24Tab .mComponent .cHeader, .Custom24Tab .genericTable, .Custom24Tab .bSubBlock, .Custom24Tab .bPageBlock {
+    border-top-color: #236FBD;
+  
+}
+.Custom24Tab .tertiaryPalette, .individualPalette .Custom24Block .tertiaryPalette, .layoutEdit .individualPalette .Custom24Block .tertiaryPalette {
+    background-color: #236FBD;
+    border-color: #236FBD;
+}
+.OutputFset{
+    font-size:14px;
+    Padding-right:20px;
+}
+.Outputmsg{
+    font-size:14px;
+    font-weight:bold;
+}   
+.button{
+    text-decoration:none;
+    Padding-top:10px;
+}
+.setfont{
+    font-size:14px;
+}
+.setPadding{
+    Padding-Bottom:20px;
+}
+.selList{
+    width:200px;
+    height:200px;
+    font-size:14px;
+}
+.tdCls{
+    vertical-align: middle;
+    Padding-Bottom:5px;
+}
+.outText{
+    font-size:12px;
+    font-weight:bold;
+}
+.outmessage{
+    font-size:12px;
+    font-weight:bold;
+}
+</style>
+<script type="text/javascript">
+<!-- js for move firstlist to secondlist-->
+function firsttosecond(firstlst,secondlst,listtype){
+    
+
+    var first= document.getElementById(firstlst);
+    var second= document.getElementById(secondlst);
+    var i;
+    try{
+        if(second.options[0].text=='')
+        second.remove(0);
+    }
+    catch(err){}
+    
+    var SelID='';
+    var SelText='';
+
+    for(i=first.options.length-1;i>=0;i--){
+        if(first.options[i].selected==true){
+            SelID= first.options[i].value;
+            SelText= first.options[i].text;
+            if(listtype=='toleft' && SelID =='Name') {
+                alert("You cannot move " + SelText + " field to left. This field will display as hyperlink in listing page.");
+                return;
+            }
+        }
+    }
+    
+    for(i=first.options.length-1;i>=0;i--){
+        if(first.options[i].selected==true){
+            SelID= first.options[i].value;
+            SelText= first.options[i].text;
+            if(listtype=='toleft' && SelID =='Name') {
+                break;
+            }
+            
+            var newrow=new Option(SelText,SelID);
+            second.options[second.length] = newrow;
+            first.options[i]=null;
+            // break;     
+        }
+    }
+}
+<!-- js for move Up direction secondlist elements-->
+function listbox_move(listID, direction) {
+    var listbox = document.getElementById(listID);
+    var selIndex = listbox.selectedIndex;
+    
+    if(-1 == selIndex) {
+        alert("Please select an option to move.");
+        return;
+    }
+    var increment = -1;
+    if(direction == 'up')
+        increment = -1;
+    else
+        increment = 1;
+    
+    if((selIndex + increment) < 0 ||
+    (selIndex + increment) > (listbox.options.length-1)) {
+        return;
+    }
+    var selvalue = listbox.options[selIndex].value;
+    var selText = listbox.options[selIndex].text;
+    listbox.options[selIndex].value = listbox.options[selIndex + increment].value;
+    listbox.options[selIndex].text = listbox.options[selIndex + increment].text;
+    
+    listbox.options[selIndex + increment].value = selvalue;
+    listbox.options[selIndex + increment].text = selText;
+    
+    listbox.selectedIndex = selIndex + increment;
+
+}
+<!-- js for move Down direction secondlist elements-->
+function listbox_movedown(listID, direction) {
+    var listbox = document.getElementById(listID);
+    var selIndex = listbox.selectedIndex;
+    if(-1 == selIndex) {
+        alert("Please select an option to move.");
+        return;
+    }
+    var deincrement = 1;
+    if(direction == 'down')
+        deincrement = 1;
+    else
+        deincrement = 1;
+    if((selIndex + deincrement) > (listbox.options.length-1) ||
+    (selIndex + deincrement) < 0) {
+        return;
+    }
+    
+    var selvalue = listbox.options[selIndex].value;
+    var selText = listbox.options[selIndex].text;
+    if(selvalue=='Name') {
+        alert("You cannot move '" + selText + "' field to down. This field will display as hyperlink in listing page.");
+        return;
+    }
+    
+    listbox.options[selIndex].value = listbox.options[selIndex + deincrement].value;
+    listbox.options[selIndex].text = listbox.options[selIndex + deincrement].text;
+    
+    listbox.options[selIndex + deincrement].value = selvalue;
+    listbox.options[selIndex + deincrement].text = selText;
+    
+    listbox.selectedIndex = selIndex + deincrement;
+}
+<!-- js for insert secondlist elements-->
+function save(firstlist,listbox){
+
+    var  first=document.getElementById('{!$Component.frm.pbmain.pbsec.list1}');
+    var  second=document.getElementById('{!$Component.frm.pbmain.pbsec.list2}');   
+    var selIndex= second.selectedIndex;
+    
+    for(i=0;i<second.length;i++){
+        if(second.options[i].selected==true){
+            selIndex = -1;
+            second.options[i].selected=false;
+        } 
+    }
+    var  stringField=document.getElementById('{!$Component.frm.stringField}');    
+
+    var arrData =[];   
+    for (var i = 0; i < second.length; i++){
+        arrData[i]=(second.options[i].value);
+    }
+    
+    if(arrData!=''){
+        var s="";    
+        for (var i = 0; i < arrData.length; i++){
+        
+            if(i==0)
+                s= s + arrData[i] + ',';
+            else if(i==1)
+                s= s + arrData[i];
+            else
+                s= s + ',' + arrData[i];
+        }  
+        var stringlength;
+        stringlength= s.charAt(s.length-1);
+        if(stringlength==','){
+            s=s.replace(',','');
+        }
+       stringField.value=s;
+       myFunc();     
+    }
+    else{
+        alert('Please Select atleast one Field Name from the List');
+    } 
+ }    
+</Script>
+
+<apex:sectionHeader title="LogicLead Configuration" subtitle="Update LogicLead Configuration"  />
+<apex:form id="frm">
+    <apex:actionFunction name="myFunc" action="{!fillSecondList}" reRender="frm"  />
+    <apex:inputHidden id="stringField" value="{!stringField}"/>
+    <apex:actionStatus id="loadstatus" >
+        <apex:facet name="start">
+            <c:LoadingImageComp />
+        </apex:facet>
+    </apex:actionStatus>
+    <apex:pageMessages id="msgs" />
+    <apex:outputPanel id="opfields">
+        <apex:pageBlock id="pbMain" title="Lead Setup">
+             <apex:pageBlockButtons >
+                <apex:commandButton value="Save"  onclick="save('{!$Component.list1}','{!$Component.list2}');" status="loadstatus" reRender="dummy"  />
+             </apex:pageBlockButtons>
+            <!-- Display Fieldset Name PickList-->
+            <apex:pageBlockSection title="Converted Lead Details - Page Setup"   collapsible="false">
+                <apex:outputPanel id="oppnl" style="width:100%;" rendered="{!If(strMessage == '',true,false )}"><br/>
+                    <apex:outputText value="Select lead field set:" styleClass="OutputFset"/>
+                    <apex:selectList value="{!strSelectedFsetName}" size="1" style="width:150px;">
+                            <apex:selectOptions value="{!FieldsetName}"/>
+                    </apex:selectList><br/><br/>
+                    <apex:outputText value="(Selected field set will be used to display fields in converted lead details page.)" styleClass="outmessage" />
+                </apex:outputPanel>
+              <apex:outputPanel rendered="{!If(strMessage!='',true,false )}" style="height:10px;"><br/>
+                <div class ="dmsg">
+                   <apex:outputText value="{!strMessage}"  styleClass="Outputmsg"/>
+                </div>  
+             </apex:outputPanel>
+            </apex:pageBlockSection>
+            <!-- Display Lead Fields PickList && Selected Fields PickList -->
+           <apex:pageBlockSection title="Converted Leads - Listing Page Setup" id="pbsec"  collapsible="false" >
+             <apex:panelGroup >
+                <table>
+                    <tr>
+                        <td width="40%" align="center"  class="setPadding">
+                            <b><apex:outputLabel value="Available Fields" styleClass="setfont" /></b>
+                        </td>
+                        <td width="10%" class="setPadding">&nbsp;</td>
+                        <td width="40%" align="center" class="setPadding">
+                            <b><apex:outputLabel value="Selected Fields" styleClass="setfont" /></b>
+                        </td>
+                        <td width = "10%" class="setPadding">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td align="center" width="40%">
+                           <apex:selectList value="{!strobjfield}" id="list1" multiselect="true" styleClass="selList">
+                                <apex:selectOptions value="{!ObjField}"></apex:selectOptions>
+                            </apex:selectList>
+                        </td>
+                        <td align="center" style="vertical-align:middle;Padding-Bottom:5px;" width="10%">
+                            <apex:outputText value="Add" styleClass="setfont"/><br/>
+                            <a href="javascript:firsttosecond('{!$Component.list1}','{!$Component.list2}','toright');" styleClass="button" >
+                                <img src="/s.gif" alt="Select" class="rightArrowIcon" title="Select" status="loadstatus"/>
+                            </a><br/>
+                            <a href="javascript:firsttosecond('{!$Component.list2}','{!$Component.list1}','toleft');" styleClass="button">
+                                <img src="/s.gif" alt="Unselect" class="leftArrowIcon" title="Unselect"/>
+                            </a><br/>
+                            <apex:outputText value="Remove" styleClass="setfont"/>
+                        </td>
+                        <td width="40%" align="center">
+                            <apex:selectList multiselect="true"  id="list2" value="{!strSelectedField}" size="5" styleClass="selList">
+                                <apex:selectOptions value="{!objSelected}" ></apex:selectOptions> 
+                            </apex:selectList>                                                
+                        </td>
+                        <td  align="center" style="vertical-align: middle;" width="10%">
+                            <apex:outputText value="Up" styleClass="setfont"/><br/>
+                            <a href="javascript:listbox_move('{!$Component.list2}','up');"  id ="lnkup" styleClass="button">
+                                <img src="/s.gif" alt="Move Up" class="upArrowIcon" title="Move Up" />
+                            </a>
+                            <br/>
+                            <a href="javascript:listbox_movedown('{!$Component.list2}','down');" styleClass="button">
+                                <img src="/s.gif" alt="Move Down" class="downArrowIcon" title="Move Down" />
+                            </a>
+                            <br/>
+                            <apex:outputText value="Down" styleClass="setfont"/>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="Padding-top:20px;">
+                            <apex:outputText value="(Selected fields will be display in converted lead listing page.)" styleClass="outText" />
+                        </td>
+                   </tr>
+                </table>
+             </apex:panelGroup>
+           </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:outputPanel>
+</apex:form>
+</apex:page>

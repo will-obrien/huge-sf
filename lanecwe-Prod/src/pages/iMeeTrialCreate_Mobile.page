@@ -1,0 +1,190 @@
+<apex:page sidebar="false" showHeader="false" standardStylesheets="false" controller="iMeetTrialCreate_Remoting">
+    <!--Include this stuff as Static Resources-->
+    <!--<apex:includeScript value="https://rawgit.com/ftlabs/fastclick/master/lib/fastclick.js"/>-->
+    <!--<apex:includeScript value="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.2.min.js"/>-->
+    <apex:includeScript value="{!$Resource.Cordova}"/>
+    <apex:includeScript value="{!$Resource.notification}"/>
+    <apex:includeScript value="{!$Resource.device}"/>
+    <apex:includeScript value="{!$Resource.jquery}"/>
+    <apex:includeScript value="{!$Resource.statusbar}"/>
+    <apex:includeScript value="{!$Resource.fastclick}"/>
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet" media="screen"/>
+        
+    <style>
+        body {
+        background-color:#f9f9f9;
+        }
+        .wrapper
+        {
+        text-align : center;
+        }
+        
+        .list-group-item-heading
+        {
+        text-align : center;
+        }
+    #spinner{
+        display: none;
+        width: 180px;
+        height: 140px;
+        position: fixed;
+        top: 38.5%;
+        left: 50%;
+        text-align:center;
+        padding:10px;
+        font:normal 16px Tahoma, Geneva, sans-serif;
+        font-color: white;
+        margin-left: -100px;
+        margin-top: -100px;
+        z-index:2;
+        overflow: hidden;
+        border:0px solid #CCC;
+        background-color:black;
+        z-index:100;
+        padding:5px;
+        line-height:20px;
+     }
+     #opaque {
+         position: fixed;
+         top: 0px;
+         left: 0px;
+         width: 100%;
+         height: 100%;
+         z-index: 1;
+         display: none;
+         background-color: black;
+     }
+     * html #opaque {
+         position: absolute;
+     }
+    </style>
+    <apex:remoteObjects >
+        <!--Name the field you like to query-->
+        <apex:remoteObjectModel name="Lead" jsShorthand="lead" fields="FirstName, LastName, Status, LeadSource, Company"/>
+    </apex:remoteObjects>
+    <!-- now address you field with shorthand -->
+    <script> 
+    
+    (function () {
+        document.addEventListener('deviceready', function () {
+            FastClick.attach(document.body);
+            StatusBar.overlaysWebView( false );
+            StatusBar.backgroundColorByHexString('#ffffff');
+            StatusBar.styleDefault();
+        }, false);
+    }());
+        
+    function leadCreate() {
+        var email = document.getElementById("poo").value;
+        var firstName = document.getElementById("fn").value;
+        var lastName = document.getElementById("ln").value;
+        validateFieldEntry(email, firstName, lastName);
+        showSpinner();
+        console.log("email: " + email);
+        console.log("firstName: " + firstName);
+        console.log("LastName: " + lastName);
+        var leadDetails = {"FirstName":""+firstName+"", "LastName":""+lastName+"", "Company":"Trial Company", "LeadSource":"QuickTrial","Email":""+email+""};
+        var lead = new SObjectModel.lead();
+        lead.create(leadDetails, function(err) {
+            if(err) {
+                console.log(err);
+                alert(err.message);
+                navigateToFail();
+            }
+            else {
+                console.log(lead.log());
+                var id = lead.get('Id');
+                console.log(id);
+                createTrial(id);
+            }
+        });
+        
+        function validateFieldEntry(email, firstName, lastName) {
+            if (email == 'Email Address' || email == '') {
+                alert("Enter an email address.");
+                }
+            if (firstName == 'First Name' || firstName == '') {
+                alert("Enter a first name.");
+                }
+            if (lastName == 'Last Name' || lastName == '') {
+                alert("Enter an last name.");
+                }
+            }
+            
+        
+        function createTrial(id) {
+            console.log('id in createTrial: ' + JSON.stringify(id));
+            iMeetTrialCreate_Remoting.createiMeetTrial(
+                id,
+                function(results, event) {
+                    console.log('results: ' + results); 
+                    /*var resultsStringify = JSON.stringify(results);
+                    var resultsArray = JSON.parse(resultsStringify);
+                    console.log('resultsArray: ' + resultsArray);
+                    console.log('resultsArray.success: ' + resultsArray.success);
+                    console.log('event: ' + JSON.stringify(event)); 
+                    console.log('event.type: ' + JSON.stringify(event.type)); 
+                    console.log('event.status: ' + JSON.stringify(event.status)); 
+                    //console.log('event.result: ' + JSON.stringify(event.result));*/
+                    if(results === 'false'){
+                        console.log("exception");
+                        console.log('event: ' + event);
+                        var lead = new SObjectModel.lead();
+                        console.log(lead);
+                        lead.del(id);
+                        hideSpinner();
+                        navigateToFail();
+                    } else if(results === 'true') {
+                        console.log("Success");
+                        navigateToSuccess();
+                    } else {
+                        console.log('event.message: ' + event.message);
+                    }
+                });
+            }
+        
+        function navigateToSuccess() {
+            window.location.href = '/apex/success';    
+        }
+        function navigateToFail() {
+            window.location.href = '/apex/Fail';    
+        }
+        
+        function showSpinner() {
+           document.getElementById('opaque').style.display='block';
+           var popUp = document.getElementById('spinner');
+           popUp.style.display = 'block';
+        }
+        function hideSpinner() {
+            document.getElementById('opaque').style.display='none';
+            var popUp = document.getElementById('spinner');
+            popUp.style.display = 'none';
+        }
+    }   
+     </script>
+    <div style="padding:30px; background-image:url('/servlet/servlet.FileDownload?file=01513000003Q9X8'); text-align:center;">
+        <img src="/servlet/servlet.FileDownload?file=01513000003Q9X9" style="margin:20px 0 20px 0;" />
+        <input type="text" name="firstname" id="fn" class="form-control" value="First Name"  
+       onfocus="(this.value == 'First Name') && (this.value = '')"
+       onblur="(this.value == '') && (this.value = 'First Name')" /><br/>
+        <input type="text" name="lastname" id="ln" class="form-control" value="Last Name"  
+       onfocus="(this.value == 'Last Name') && (this.value = '')"
+       onblur="(this.value == '') && (this.value = 'Last Name')" /><br/>
+        <input type="text" name="email" id="poo" class="form-control" value="Email Address"  
+       onfocus="(this.value == 'Email Address') && (this.value = '')"
+       onblur="(this.value == '') && (this.value = 'Email Address')" /><br/>
+        <div class="wrapper">
+            <p> <button  class="btn btn-success btn-lg" onclick="leadCreate()">SUBMIT</button>
+            </p>
+        </div>
+    </div>
+    <div id="opaque"/>
+    <div class="wrapper">
+        <ul class="list-inline" id="cList">
+        </ul>
+    </div>
+       <div id="spinner">
+           <p align="center"><apex:image value="/servlet/servlet.FileDownload?file=01513000003Q9X4"/></p>
+           <p align="center"><span style="color:#858585;">CREATING TRIAL</span></p>
+   </div>
+</apex:page>

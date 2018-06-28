@@ -1,0 +1,158 @@
+<apex:page sidebar="false" showHeader="false" controller="PgiQuoteDetailsController">
+<apex:pagemessages />
+<script>
+        function onlyNumbers(evt){
+             var e = event || evt; // for trans-browser compatibility  
+             var charCode = e.which || e.keyCode;    
+             if (charCode > 31 && (charCode < 48 || charCode > 57))        
+             {
+             alert('Please enter only Number!');
+              return false;
+             }
+            else{
+            return true;
+            }
+         if (charCode == 13 ) 
+         {         
+          doSearchAF();             
+          return false;
+         }    
+            
+        }
+        function validateEstQuantity(e)
+        {
+            var minValCtrl = e.substring(0,e.length -1) + '1';
+            var maxValCtrl = e.substring(0,e.length -1) + '2';
+
+            minValCtrl = document.getElementById(minValCtrl);
+            maxValCtrl = document.getElementById(maxValCtrl);
+
+            var minVal = minValCtrl.innerHTML;
+            var maxVal = maxValCtrl.innerHTML;
+            
+            var estQuantityCtrl = document.getElementById(e);
+            var estQuantityVal = estQuantityCtrl.value;
+            
+            if( (parseFloat(estQuantityVal) > parseFloat(maxVal)) || (parseFloat(estQuantityVal) < parseFloat(minVal)) )
+            {
+                estQuantityCtrl.style.backgroundColor = '#FF0000';
+                alert("Please enter a value within the minimum and maximum range on the screen.");
+                estQuantityCtrl.value='';
+                estQuantityCtrl.focus();                 
+            }
+            else
+            {
+               estQuantityCtrl.style.backgroundColor = '#FFFFFF';
+
+            }
+        }
+        function noenter1(ev)
+        {
+        if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+        doSearchAF1();            
+        return false;
+        }
+        else
+        {
+        return true;
+        }
+        }
+        function removeSpaces(str){
+        return str.split(' ').join('');
+        }
+    </script>
+     <apex:form > 
+     <apex:pageBlock title="{!$Label.pgiTitleConfigureService}"  id="Usage">
+       <c:QuoteAccInfo ></c:QuoteAccInfo>
+                    <br/>
+                    <table align="Center" style="padding-right: 30px;">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td> <apex:commandButton value="{!$Label.pgiUpdateService}" Action="{!updateServices}"  /></td>
+                    <td></td>
+                </tr>
+                 </table> 
+                <apex:repeat value="{!ProdConfigDetails}" var="prod" id="reptProductSelection">
+                <apex:pageBlockSection columns="1">
+                <apex:pageBlockSectionItem >
+                <apex:outputlabel ><b><p style="font-size: 120%;"> {!$Label.pgiService} : {!prod.serviceName}</p></b></apex:outputlabel>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                <apex:pageBlockTable value="{!prod.productLst}" var="pu">            
+                  <apex:column ><apex:commandButton value="{!$Label.pgiDelete}" action="{!deletelineItem}" rerender="reptProductSelection,Usage" rendered="{!not(pu.isDefaultProduct)||pu.isserviceProduct}">
+                  <apex:param assignTo="{!selectedRowId}" value="{!pu.customRowId}"  name="rowId"  /> 
+                  <apex:param assignTo="{!deleteQuoteLineId}" value="{!pu.quoteLineItemId}"  name="DeleteId"  />
+                  </apex:commandButton> 
+                  </apex:column>       
+                  <apex:column headerValue="{!$Label.Quantity}"  style="{!If(pu.isServiceProduct,'background-color:#ff9f3b','')}">
+                    <apex:inputText value="{!pu.quantity}" id="value3" size="7" onblur="validateEstQuantity(this.id)" onkeypress="return onlyNumbers(event);" rendered="{!pu.isServiceProduct}"/> 
+                    </apex:column>                
+                    <apex:column headerValue="{!$Label.pgiProduct}" value="{!pu.productName}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" title="{!pu.Description}"/>
+                    <apex:column headerValue="{!$Label.pgiUnitType}" value="{!pu.unit}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                    <apex:column headerValue="{!$Label.pgiMinimumQuantity}" id="value1" value="{!pu.minQuantity}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" />
+                    <apex:column headerValue="{!$Label.pgiMaximumQuantity}"  id="value2" value="{!pu.maxQuantity}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" />
+                    
+                    <apex:column headerValue="{!$Label.Term}"  value="{!pu.termLength}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                    <apex:column headerValue="{!$Label.pgiBillingFrequency}"  value="{!pu.billingFrequency}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                    <apex:column headerValue="{!$Label.pgiListPrice}"   style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                    <apex:outputText value="{0, Number, #0.000}" ><apex:param value="{!pu.ListRate}"/></apex:outputText>           
+                    </apex:column>
+                    <apex:column headerValue="{!$Label.sellPrice}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                <apex:inputText value="{!pu.BidPrice}"  size="7" onkeypress="return noenter1(event);" onkeyup="this.value=removeSpaces(this.value);" /> 
+                </apex:column> 
+                </apex:pageBlockTable>
+                 </apex:pageBlockSectionItem>
+                 </apex:pageBlockSection> 
+                <table width="100%" style="margin-left:8px">
+               <tr>
+               <td>
+                <apex:outputLabel ><b style="vertical-align:top"> {!$Label.pgiAdditionalProducts}<font color='red'> </font></b></apex:outputLabel>
+                <apex:selectList value="{!prod.addedProducts}" multiselect="true" size="3" style="width:300px;"  >
+                <apex:selectOptions value="{!prod.productOptions}">
+                </apex:selectOptions>
+                </apex:selectList>
+                 </td>
+                 <td>
+                <apex:outputLabel ><b style="vertical-align:top"> {!$Label.pgiAncillaryProducts}<font color='red'> </font></b></apex:outputLabel>
+                <apex:selectList value="{!prod.ancillaryProducts}" multiselect="true" size="3" style="width:300px;" required="false" >
+                <apex:selectOptions value="{!prod.ancillaryOptions}">
+                </apex:selectOptions>
+                </apex:selectList>
+              </td>
+                </tr>
+                <tr>
+                <td style="padding-left: 95px;">
+                  <apex:commandButton value="{!$Label.pgiAddNewProducts}" action="{!AddAditionalProducts}" rerender="reptProductSelection,Usage" >
+                  <apex:param assignTo="{!selectedQuoteLineItemId}" value="{!prod.quoteLineItemId}"  name="AddProducts"  /> 
+                  </apex:commandButton> 
+                  </td>
+                 <td style="padding-left: 100px;">              
+                 <apex:commandButton value="{!$Label.pgiAddAncillaryProducts}" action="{!AddAncillaryProducts}" rerender="reptProductSelection,Usage" >
+                  <apex:param assignTo="{!selectedQuoteLineItemId}" value="{!prod.quoteLineItemId}"  name="AddProducts"  /> 
+                  </apex:commandButton> 
+                  </td> 
+                </tr>
+              </table>
+              </apex:repeat>
+              <br/>
+               <br/>
+                <table align="Center" style="padding-right: 30px;">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td> <apex:commandButton value="{!$Label.pgiUpdateService}" Action="{!updateServices}"  /></td>
+                    <td></td>
+                </tr>
+                 </table> 
+                <br/>
+                 <br/>
+               <apex:pageBlockSection rendered="{!isCancelled}">
+                    <script>
+                     window.top.close();
+                    </script>
+                </apex:pageBlockSection>
+              </apex:pageBlock>
+              <apex:actionFunction name="doSearchAF" action="{!updateServices}" /> 
+     </apex:form>
+</apex:page>

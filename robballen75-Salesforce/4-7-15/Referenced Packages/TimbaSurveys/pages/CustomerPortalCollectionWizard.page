@@ -1,0 +1,453 @@
+<apex:page sidebar="false" controller="TIMBASURVEYS.SurveyCollectController" tabstyle="Timba_Surveys__tab" action="{!reload}">
+
+    <!-- Dojo Framework v1.7.2 -->
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad: true"></script>
+	<script type="text/javascript">
+		// Load libraries for Dojo 1.7.2
+		dojo.require("dojo.parser");
+		dojo.require("dojox.widget.Standby");
+		dojo.require("dijit.form.Form");
+	</script>
+
+    <!-- DOJO Stylesheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />    
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Standby/Standby.css')}" />
+    <!-- Surveys Stylesheets -->
+    <apex:include pageName="TIMBASURVEYS__TimbaSurveyStyles" />
+  
+    <!-- Contact collection Wizard Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/ContactCollectionWizard.css')}" />
+    <style type="text/css">
+        
+        .helpdialogButton {
+        height:22px;
+        position:absolute;
+        right:5px;
+        top:0;
+        width:50px;
+        }
+        
+        .helpdialogButton a {
+        background:url({!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'imgs/icons/help.png')}) no-repeat center left;
+        padding-left:20px;
+        padding-top:3px;
+        height:20px;
+        text-decoration:none;
+        display:block;
+        }
+        
+        .helpdialogButton a:hover {
+        text-decoration:underline;
+        }
+        
+                
+                
+        .notcontact{
+        font-weight:bold;
+        text-align:center;
+        }   
+        .listwrapper {
+            height:300px;
+            width:500px;
+            border:1px solid black;
+            overflow-y:scroll;
+            margin:10px;            
+        }
+        
+        .listwrapper ul,.listwrapper ul li {
+            list-style:none;
+            margin:0;
+            padding:0;
+        }
+        #success {
+        margin:80px 10px;
+        text-align:center;      
+        }
+    </style>
+    <script type="text/javascript">  
+    
+    // onLoad methods of dojo 
+    var init = function () {
+
+        // Add the class to load the css styling
+        dojo.query('body').addClass('soria');
+        
+        // Remove footer
+        dojo.query('.noTableFooter')[0].style.display = 'none';
+        
+    }
+    
+    function goBack(){
+        window.location = '{!$Page.TIMBASURVEYS__SurveyCollect}?id=' + encodeURI(getURLParam('surveyid'));
+    }
+    function goCancel(){
+        window.location = '{!$Page.TIMBASURVEYS__ContactCollectionWizard}?surveyid=' + encodeURI(getURLParam('surveyid'));
+    }
+    
+    // Get url param
+    function getURLParam(strParamName) {
+        var strReturn = "";
+        var strHref = window.location.href;
+        if (strHref.indexOf("?") > -1) {
+            var strQueryString = strHref.substr(strHref.indexOf("?"));
+            var aQueryString = strQueryString.split("&");
+            for (var iParam = 0; iParam < aQueryString.length; iParam++) {
+                if (aQueryString[iParam].indexOf(strParamName.toLowerCase() + "=") > -1) {
+                    var aParam = aQueryString[iParam].split("=");
+                    strReturn = aParam[1];
+                    break;
+                }
+            }
+        }
+        return unescape(strReturn);
+    }
+    
+    // Fire events onload
+    dojo.addOnLoad(init);
+    
+    // Store all records
+    var selectedRecords = [];
+        
+    // Replace Email Templates
+    function backupTemplate() {
+        backupTemplateOperation('backupTemplate');
+    }
+    
+    // Replace Email Templates
+    function rebuildTemplate() {
+        resetEmailTemplateOperation('resetEmailTemplate', 'true');
+    }
+    function rebuildTemplateComplete(){
+        dojo.byId('contactCollectionContainer').style.display = 'none';
+        dojo.byId('success').style.display = '';
+        setTimeout('backTosurveyList()', 1500);
+        overlay.hide();
+    }
+    // Back to the survey List
+    function backTosurveyList() {
+        window.location = "{!$Page.TIMBASURVEYS__SurveyList}";
+    }
+     
+    function collectCompleteOne(success){
+        if(success == 'true'){
+            dojo.byId('contactCollectionContainer').style.display = 'none';
+            dojo.byId('success').style.display = '';
+            setTimeout('backTosurveyList()', 1500);
+            overlay.hide();
+        }
+        else{
+            overlay.hide();
+        }
+    }
+    
+    function collectCompleteTwo(success){
+        if(success == 'true'){
+            rebuildTemplate();
+        }
+        else{
+            overlay.hide();
+            alert('{!$Label.timbasurveys__timbasurveys_Collect_error_sending_invitations}');
+        }
+    }
+    
+    function updateTemplateComplete(success){
+        if(success == 'true'){
+            dojo.byId('cIds').value = selectedIdsIdString;
+            collectOperationTwo('collect', isAnonymous, enableNow, CPavailable, sendEmailNotification, dojo.byId('cIds').value);
+        }
+        else{
+            overlay.hide();
+        }
+    }
+    function backupTemplateComplete(success){
+        if(success == 'true'){
+            updateTemplateOperation('updateTemplate', 'true', type);
+        }
+        else{
+            overlay.hide();
+        }
+    }
+    /**
+    * Check the Recipient List for errors
+    */
+    function checkAndSend(type, records) {
+        
+        dojo.byId('designerFooter').style.display = 'none';
+
+        var success = dojo.byId('success');
+        var failure = dojo.byId('failure');
+
+        //var additionalOptions = '';
+        // confirmDialog.hide();
+        
+        overlay.show();
+        var selectedIdsIdString = '';
+
+        for (var r = 0; r < records.length; r++) {
+            selectedIdsIdString += records[r] + '|';
+        }
+
+        selectedIdsIdString = selectedIdsIdString.substr(0, selectedIdsIdString.length - 1);
+        //selectedIdsIdString = '&cIds=' + selectedIdsIdString;
+
+
+        var isAnonymous = dojo.byId('anonymousCollection').checked;
+        
+        /*var isAnonymousCollet = 'false';
+        if (isAnonymous) {
+            isAnonymousCollet = 'true';
+            //additionalOptions += '&isAnonymous=true';
+        }*/
+
+        var enableNow = dojo.byId('startCollectionRightNow');
+        
+        /*if (enableNow != null) {
+            if (enableNow.checked) {
+                scn = 'true';
+                //additionalOptions += '&scn=true';
+            }
+        }*/
+        
+        // Add customer portal creation.
+        //additionalOptions += '&CPavailable=true';
+        var CPavailable = 'true';
+        publish_to_customer_portal = true;
+        
+        var send_email_notification = false;
+        
+        var sendEmailNotification = 'false';
+        if(dojo.byId('SendEmailNotification') != null){
+            if(dojo.byId('SendEmailNotification').checked){
+                send_email_notification = true;
+                //additionalOptions += '&sendEmailNotification=true';
+                sendEmailNotification = 'true'; 
+            }
+        }
+
+        
+        //////////////////////////////////
+        // If the survey are going to be published only, don't send emails
+        //////////////////////////////////
+        if(publish_to_customer_portal && !send_email_notification){
+            collectOperationOne('collect', isAnonymous, enableNow, CPavailable, sendEmailNotification, dojo.byId('cIds').value);
+        } 
+        
+        if(publish_to_customer_portal && send_email_notification) {
+            
+            // Backup the email Template
+            //////////////////////////////////
+            backupTemplateOperationNotification('backupTemplate', 'true');
+    }    
+    
+    // Collect
+    function collect(records) {
+
+        // ***
+        dojo.byId('cIds').value = records;
+        rlcdOperation('rlcd',records,'');
+    }
+    
+    cercpsComplete(outputMessage){
+        if(outputMessage.length > 0){ 
+            // Ask for orders
+            var response = dojo.fromJson(outputMessage);
+                        
+            dojo.byId('contactCollectionListing').style.display = 'none';
+            dojo.byId('confirmationstep').style.display = '';
+                        
+            dojo.byId('existentRecipients').innerHTML = response.list;
+            dojo.byId('substractionIds').innerHTML = response.substraction_ids;
+                
+            overlay.hide();
+                        
+        } else if(typeof(allrecordsJson.portalUser) != 'undefined'){
+            dojo.byId('contactCollectionListing').style.display = 'none';                   
+            dojo.byId('listcontactstep').style.display = '';
+            overlay.hide();
+            dojo.byId('contactrecords').innerHTML = allrecordsJson.portalUser;                                  
+        } else{
+            overlay.hide();
+            alert('{!$Label.timbasurveys__timbasurveys_Collect_None_contacts}');
+        }
+    }
+
+    
+    function rlcCompleted(outputMessage){
+        var allrecordsJson = dojo.fromJson(outputMessage);
+        
+        if(records.length > 0){
+            overlay.show();
+            // Records to collect       
+            selectedRecords = records;  
+            var contactIdsToSend = '';
+            for (var r = 0; r < records.length; r++) {
+                contactIdsToSend += records[r] + ',';
+            }
+            contactIdsToSend = contactIdsToSend.substr(0, contactIdsToSend.length - 1);                     
+            // Check Existent Survey contacts as recipients         
+            // ***
+            dojo.byId('cIds').value = contactIdsToSend;     
+            
+            cercpsOperation('cercps', 'true', dojo.byId('cIds').value);
+                        
+        } else {
+            alert('{!$Label.timbasurveys__timbasurveys_Collect_No_Contacts_selected}.');
+        }   
+    }
+    
+    // Send Survey After confirmation if found duplicated ids   
+    function sendSurvey(mode, type){
+        overlay.show();
+        if(mode == 'all'){
+            checkAndSend('contacts', selectedRecords);
+        }
+        if(mode == 'substract'){
+            var pipedRecords = dojo.byId('substractionIds').innerHTML;
+            checkAndSend('contacts', pipedRecords.split('|'));          
+        }
+    }
+
+    </script>
+    
+    <!-- 
+        Application Styles 
+    -->
+    <!-- Common Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/common.css')}" />  
+    <!-- Section Specific styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/surveyCollection.css')}" />    
+
+    <!-- 
+        Begin Page
+     -->        
+    <!-- Section Header -->
+    
+    <div class="sectionHeader">
+        <h1 class="Collect"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Survey_Collector}"/></h1>
+        <div class="helpdialogButton">
+            <apex:outputLink value="http://survey.timbasoftware.com/modules/survey-collect/contacts" target="_blank">
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Help}" />
+            </apex:outputLink>
+        </div>   
+    </div>  
+    
+    <div id="contactCollectionContainer" style="padding:10px;padding-bottom:60px;overflow:hidden;position:relative;" >
+        
+        <!-- First Step -->
+        <div id="contactCollectionListing" style="padding:10px;">
+            <br />
+            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Select_Contacts_survey} "/></h2>
+            <br /><br />
+            <apex:enhancedList type="Contact" height="550" rowsPerPage="50" id="ContactList" customizable="False" />
+            <br />
+            <div style="display:none;">
+                <input type="checkbox" id="anonymousCollection"  />&nbsp;<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_collector_Collect_data_anonymously}"/><br />      
+            </div>
+            <br/>
+            <apex:outputpanel rendered="{!!Util.CurrentSurvey.TIMBASURVEYS__CollectingData__c}" style="display:none;">    
+                <input type="checkbox" id="startCollectionRightNow" />&nbsp;<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_collector_Start_collecting_immediately}"/>
+            </apex:outputpanel>
+        </div>
+        
+        <!-- Are you Sure Message -->
+        <div id="listcontactstep" style="display:none;">                
+            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Here_list_contacts}"/></h2><br />
+            <span style="font-style:italic;font-size:11px;">{!$Label.timbasurveys__timbasurveys_collector_Note_Only_contacts_displayed}</span><br />
+            <div id="contactrecords" class="listwrapper"></div> 
+            <br />
+            <input type="checkbox" id="SendEmailNotification" checked="checked" /> <apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Send_notification_portal}."/><br/>
+            <br />
+            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurvey('all', 'contacts');"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Publish_Customer}"/></a>
+            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="goCancel();"  >{!$Label.timbasurveys__timbasurveys_surveycollect_Cancel}</a>          
+        </div>
+        
+        <!-- Confirmation Step -->
+        <div id="confirmationstep" style="display:none;">
+            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_The_following_contacts_already}."/></h2> <br/>
+            <span style="font-style:italic;font-size:11px;"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_collector_Note_Only_contacts_displayed}"/></span><br />
+            <div id="existentRecipients" class="listwrapper" ></div>
+            <div id="substractionIds" style="display:none;" ></div>
+            <h2><apex:outputText value=" {!$Label.timbasurveys__timbasurveys_collector_Send_invitations_again} "/></h2>
+            <br /><br />
+            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurvey('all', 'contacts')">{!$Label.timbasurveys_collector_Send_Notification_Again}</a>
+            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurvey('substract', 'contacts')">{!$Label.timbasurveys_Collect_No_Send_only_uninvited}.</a> 
+            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="goCancel();"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Cancel}"/></a>     
+        </div>  
+    </div>
+        
+    <!-- Confirmation Message -->
+    <div id="success" style="display:none;">
+        <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Your_survey_has_been_sent}."/></h2>
+        <p><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Redirecting}..."/></p>
+    </div>
+        
+    <div class="FixedFooter" id="designerFooter">
+         <div class="half" > 
+           <span class="dijit dijitReset dijitLeft dijitInline dijitButton">
+                <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="goBack();"  >{!$Label.timbasurveys_Collect_Back}</a>
+           </span>
+        </div>
+    </div>
+    
+    <!--
+        Dojox StandBy Widget for lists
+    -->
+    <div data-dojo-id="overlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'contactCollectionContainer', color: 'white'"></div>    
+    
+    
+    <!-- cIds List -->
+    <div id="contactIdsList" name="contactIdsList" style="display:none;">
+        <form id="contactIdsForm" name="contactIdsForm">
+            <textarea id="cIds" name="cIds" rows="10" cols="60"></textarea>
+        </form>
+    </div>
+    
+    <apex:outputPanel id="myStateCustomerPortalCollectorWizzard" rendered="false" />
+    <apex:form id="CustomerPortalCollectorWizzardActions">
+        <apex:actionFunction name="rlcdOperation" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard" oncomplete="rlcCompleted('{!outputMessage}')">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="ContactIds" value="" assignTo="{!ContactIds}" />   
+            <apex:param name="LeadIds" value="" assignTo="{!LeadIds}" />                    
+        </apex:actionFunction>    
+        <apex:actionFunction name="backupTemplateOperation" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard" >
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />        
+        </apex:actionFunction>
+        <apex:actionFunction name="backupTemplateOperationNotification" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard" oncomplete="backupTemplateComplete({!success})">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />   
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />            
+        </apex:actionFunction>
+        <apex:actionFunction name="resetEmailTemplateOperation" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard"  oncomplete="rebuildTemplateComplete()" >
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />      
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />            
+        </apex:actionFunction>
+        <apex:actionFunction name="collectOperationOne" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard"  oncomplete="collectCompleteOne('{!success}')" >
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />      
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />     
+            <apex:param name="enableNow" value="" assignTo="{!scn}" />   
+            <apex:param name="CPavailable" value="" assignTo="{!CPavailable}" />     
+            <apex:param name="sendEmailNotification" value="" assignTo="{!sendEmailNotification}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />      
+        </apex:actionFunction>
+        <apex:actionFunction name="collectOperationTwo" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard"  oncomplete="collectCompleteTwo('{!success}')" >
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />      
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />     
+            <apex:param name="enableNow" value="" assignTo="{!scn}" />   
+            <apex:param name="CPavailable" value="" assignTo="{!CPavailable}" />     
+            <apex:param name="sendEmailNotification" value="" assignTo="{!sendEmailNotification}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />      
+        </apex:actionFunction>
+        <apex:actionFunction name="updateTemplateOperation" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard"  oncomplete="updateTemplateComplete('{!success}')" >
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />      
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />    
+            <apex:param name="typeOfCollection" value="" assignTo="{!typeOfCollection}" />      
+        </apex:actionFunction>
+        <apex:actionFunction name="cercpsOperation" action="{!doOperation}" rerender="myStateCustomerPortalCollectorWizzard"  oncomplete="cercpsComplete('{!outputMessage}')" >
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />      
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />    
+            <apex:param name="typeOfCollection" value="" assignTo="{!typeOfCollection}" />      
+        </apex:actionFunction>
+    </apex:form>
+
+</apex:page>

@@ -1,0 +1,516 @@
+<apex:component >
+
+	<!--  HOME PAGE LAYOUT -->
+	<script type="text/html" id="template-PKBhome">
+		<header id="app_header"></header>
+		<div id="content">
+			<section id="featuredSection">
+				<div id="featuredList" class="results" ></div>
+			</section>
+			<section id="popularSection">
+				<div id="popularList" class="results"></div>
+			</section>
+		</div>
+		<div id = "footer"></div>
+	</script>
+
+	<!--  Search results PAGE LAYOUT -->
+	<script type="text/html" id="template-PKBSearchResults">
+		<section id="resultsSection">
+			<span class="kavListTitle">{!$Label.PKB2_Search_Results}</span>
+			<div  id="recommendedList" class="results" > </div>
+			<div  id="resultsList" class="results" > </div>
+			<div id="noResults">
+				{!$Label.PKB2_No_Results}
+				<br/><br/>
+				{!$Label.PKB2_suggestions}
+				<ul>
+					<li>{!$Label.PKB2_sugOne}</li>
+					<li>{!$Label.PKB2_sugTwo}</li>
+					<li>{!$Label.PKB2_sugThree}</li>
+					<li>{!$Label.PKB2_sugFour}</li>
+				</ul>
+			</div>
+		</section>
+	</script>
+
+	<!-- HEADER LAYOUT  -->
+	<script type="text/html" id="template-PKBHeader">
+		<div id="searchBar" class="blueHeaderBar appheaderInPlace"></div>
+		<div id="filtersBar"></div>
+	</script>
+
+	<!-- SEARCH BAR LAYOUT  -->
+	<script type="text/html" id="template-PKBSearchBar">
+		<% if ( isSingleView == false && inContactFlow == false) {%>
+		<img class="cloudLogo" src="{!URLFOR($Resource.pkb_mobile, 'imgs/cloud-logo.png')}" />
+		<%}else if ( isSingleView == true && inContactFlow == false ){%>
+		<div class="backBtnContainer"><img class="backBtn" src="{!URLFOR($Resource.pkb_mobile, 'imgs/backBar.png')}" /></div>
+		<%}%>
+		<form id="searchForm">
+			<div class="inputWrapper">
+				<div id="inputHolder">
+					<input id="searchText" class="focus" maxlength="255" title="{!$Label.PKB2_Search_Prompt}" type="search"/>
+					<a class="button cancelBtn" id="cancelBtn" href="javascript:void(0);"><img src="{!URLFOR($Resource.pkb_mobile, 'imgs/closeSearch.png')}" /></a>
+					<a id="searchIcon" class="button searchBtn" href="javascript:void(0);"><img src="{!URLFOR($Resource.pkb_mobile, 'imgs/lookup.png')}" /></a>
+				</div>
+			</div>
+		</form>
+	</script>
+
+	<!-- FILTERS BAR LAYOUT  -->
+	<script type="text/html" id="template-PKBFiltersBar">
+		<span id="filters_label"> {!$Label.PKB2_Filters}</span>
+		<div class="filterContainer" id="wrapper">
+			<div id="scroller">
+				<ul id="selectedOptions"></ul>
+			</div>
+		</div>
+	</script>
+
+	<!-- FILTERS BAR Selected Option Item LAYOUT  -->
+	<script type="text/html" id="template-PKBSelectedFiltersOption">
+		<%= name%>
+	</script>
+
+	<!-- FILTERS PAGE LAYOUT  -->
+	<script type="text/html" id="template-PKBFiltersPage">
+		<div id="filtersBarPage">
+			<span id="filters_label">{!$Label.PKB2_Filter_Options}</span>
+			<span  id="filters_Button">
+				<a id="doneBtn" class="button filterDoneBtn" href="javascript:void(0);">
+					{!$Label.PKB2_Done}
+				</a>
+			</span>
+		</div>
+		<ul id="filters"></ul>
+	</script>
+
+	<!-- FILTER MENU ITEM PAGE LAYOUT  -->
+	<script type="text/html" id="template-filterItem">
+		<div class="menuLevel<%= depth %> <%= ( depth != '0' ) ? 'subMenu' : 'rootNode' %>" id="<%=name%>">
+			<span class="text"><%= label%></span>
+			<% if ( childs.length > 0 && depth != '0' ){ %>
+				<% if ( viewState == 'collapsed' ) { %> <img src="{!URLFOR($Resource.pkb_mobile, 'imgs/right-carrot-dark.png')}" class="selectorArrow right"> <%}%>
+				<% if ( viewState == 'expanded' ) { %><img src="{!URLFOR($Resource.pkb_mobile, 'imgs/down-carrot-dark.png')}" class="selectorArrow down"> <%}%>
+			<% } %>
+		</div>
+
+		<% if ( viewState == 'collapsed' ) { %> <div class="childs" style="display:none;"></div> <%}%>
+		<% if ( viewState == 'expanded' ) { %> <div class="childs" style="display:inline;"></div> <%}%>
+
+	</script>
+
+	<!-- FILTER MENU ITEM PAGE LAYOUT  -->
+	<script type="text/html" id="template-filterItemRoot">
+		<div class="menuLevel<%= depth %> <%= ( depth != '0' ) ? 'subMenu' : 'rootNode' %> id="<%=name%>">
+			<span class="text"><%= label%></span>
+		</div>
+	</script>
+
+	<!-- FEATURED ARTICLE LIST LAYOUT  -->
+	<script type="text/html" id="template-KAV-FeaturedList">
+		<span class="kavListTitle">{!$Label.PKB2_Featured_Articles}</span>
+		<div class="separator"></div>
+	</script>
+
+	<!-- POPULAT ARTICLE LIST LAYOUT  -->
+	<script type="text/html" id="template-KAV-PopularList">
+		<span class="kavListTitle">{!$Label.PKB2_Popular_Articles}</span>
+		<div class="separator"></div>
+	</script>
+
+	<!-- SINGLE ARTICLE VIEW LAYOUT  -->
+	<script type="text/html" id="template-KAVItem">
+
+		<div class="title" ><%= title %></div>
+		<span class="publishDate">
+			<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/clock.png')}" class="miniIcons" style="margin-top:-2px;"/>
+			<%= lastPublishedDate %>
+		<span class="subSeparator">|</span>
+			<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/eye.png')}" class="miniIcons" />
+			<%= viewStat %>
+		<span class="subSeparator">|</span>
+			<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/like.png')}" class="miniIcons" style="margin-top:-6px;" />
+			<%= usefulStat %>
+		<%if (isKeyword) { %>
+			<span class="recommended">{!$Label.PKB2_Recommended}</span>
+		<%}%>
+		</span>
+
+	</script>
+
+	<!-- SINGLE ARTICLE RELATED ARTICLE VIEW LAYOUT  -->
+	<script type="text/html" id="template-KAV-Related-Item">
+		<div id="<%= id%>" class="relatedArticle" ><%= title %></div>
+	</script>
+
+
+<!-- CONTACT US Footer VIEW LAYOUT  -->
+<script type="text/html" id="template-contactUs-footer">
+	<div class="contactUs_footer">
+			<span class="contactUs_title">{!$Label.PKB2_Contact_Us_Link_Prompt}</span><br/>
+
+			<div class="contactButtonWrapper <% if (callEnabled && liveAgentEnabled){%>threeColumns<%} else if ( callEnabled && !liveAgentEnabled ){%>twoColumns<%} else if(liveAgentEnabled && !callEnabled){%>twoColumns<%} else{%>oneColumn<%}%>">
+			<!-- SEND EMAIL -->
+			<div id="contactBtn" class="buttonGreen contactUs_button">
+				<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/icon-mail.png')}" class="iconMail"/><br/>
+				<span  style="font-size: 9pt;font-weight: bold;">{!$Label.PKB2_send_mail}</span>
+			</div>
+
+			<% if ( callEnabled ) {%>
+			<!-- CALL -->
+			<div id="callBtn" class="buttonGreen contactUs_button">
+				<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/icon-call.png')}" class="iconCall" /><br/>
+				<span  class="iconCall" onclick='' style="font-size: 9pt;font-weight: bold;">{!$Label.PKB2_CallNow}</span>
+			</div>
+			<%}%>
+			<% if ( liveAgentEnabled ) {%>
+			<!-- CHAT WITH LIVE AGENT -->
+			<div class="chatBtn buttonGreen contactUs_button" id="liveagent_button_online_footer" style="display:none;">
+				<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/chat-icon-online.png')}" class="iconChat" /><br/>
+				<span  style="font-size: 9pt;font-weight: bold;">{!$Label.PKB2_ChatNow}</span>
+			</div>
+			<div id="liveagent_button_offline_footer" class="buttonGreen contactUs_button">
+				<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/chat-icon-offline.png')}" class="iconChat" /><br/>
+				<span  style="font-size: 9pt;font-weight: bold; color:#bbd29a;">{!$Label.PKB2_ChatOff}</span>
+			</div>
+			<%}%>
+			</div>
+	</div>
+
+
+	<div id="container-iframe" ></div>
+
+</script>
+
+	<!-- CONTACT US page VIEW LAYOUT  -->
+	<script type="text/html" id="template-contactUs-QuestionForm">
+		<header id="app_header">
+			<div class="blueHeaderBar" >
+				<div id="cancelBtnContactFlow" class="buttonBlue topLeft" href="javascript:void(0);">{!$Label.PKB2_Cancel}</div>
+				<div class="contactUsTitle">
+					<% if ( type == "n" ) {%> &nbsp;&nbsp;&nbsp; {!$Label.PKB2_help_please}
+					<%}else if ( type == "call" ) {%> &nbsp;&nbsp; {!$Label.PKB2_help_please_call}
+					<%}else {%> &nbsp;&nbsp; {!$Label.PKB2_help_please_liveAgent}<%}%>
+				</div>
+				<div id="askBtn" class="buttonGreen contactUs_button topRight buttonGreenInactive">
+					 {!$Label.PKB2_Ask_Button}
+				</div>
+			</div>
+		</header>
+		<div id="content" class="contactUs">
+			<textarea maxlength="255" title="{!$Label.PKB2_how_can_we_help}" placeholder="{!$Label.PKB2_how_can_we_help}" ><%=questionBody%></textarea>
+			<div class="emo">
+				<div id="emoticonsOptions">
+        		<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/smallIndicator.png')}" />
+        		<div class="emoIam">{!$Label.PKB2M_i_am} </div>
+        			<%for(em in emoIcons ){%>
+          			<div id="<%=emoIcons[em]%>" class="emoIconOption <%=emoIcons[em]%>" ></div>
+        			<%}%>
+      			</div>
+
+				<div id="contactUsActions">
+					<div id="emoIconBtn"
+						<% if ( emoIcon != '' ){%>
+							class="<%=emoIcon%> icon selected "
+						<%}else{%>
+							class="icon unSelected "
+						<%}%>
+					></div>
+					<div id="geoBtn"
+						<% if ( geoLoc != undefined && geoLoc){%>
+							class="icon selected "
+						<%}else{%>
+							class="icon unSelected "
+						<%}%>
+					></div>
+					<div id="picBtn"
+						<% if ( picAdded != undefined && picAdded ){%>
+							class="icon selected "
+						<%}else{%>
+							class="icon unSelected "
+						<%}%>
+					></div>
+					<div id="picThumbnail"></div>
+				</div>
+			</div>
+		</div>
+
+	</script>
+
+
+	<!-- CONTACT US page CASE Data  -->
+	<script type="text/html" id="template-contactUs-CaseData">
+
+		<div id="userDataForm">
+			<span class="modalAboutYou">{!$Label.PKB2M_about_you}</span>
+			<div class="error" id="errorMsg" style="display:none;"></div>
+			<div class="fieldsGroup">
+
+				<div class="sectionTitle">{!$Label.PKB2_Name}</div>
+				<div class="fields">
+					<div class="inputHolder">
+						<input id="userName" type="text" class="userName" <% if (storeDetails.firstName != null) {%>value="<%= storeDetails.firstName%>" <%}%> placeholder="{!$Label.PKB2_First_Name}" 	/>
+					</div>
+					<div  class="inputHolder">
+						<input id="lastName"  class="lastName" <% if (storeDetails.lastName != null) {%>value="<%= storeDetails.lastName%>" <%}%>  placeholder="{!$Label.PKB2_Last_Name}" />
+					</div>
+				</div>
+
+				<div class="sectionTitle" style="padding-top:5px;">{!$Label.PKB2_Email}</div>
+
+				<div class="fields inputHolder">
+					<input id="userEmail" class="userEmail" type="email"  <% if (storeDetails.email != null) {%>value="<%= storeDetails.email%>" <%}%>  placeholder="{!$Label.PKB2_Email}"/>
+				</div>
+
+				<div class="sectionTitle" style="padding-top:5px;">{!$Label.PKB2_Topic}</div>
+				<div class="fields">
+					<select>
+						<%for (k in types){%>
+							<option name="<%= k%>"><%= types[k]%></option>
+						<%}%>
+					</select>
+				</div>
+
+				<div class="footerActions">
+					<span id="sendBtn" class="buttonGreen" >
+						<% if (type == "n"){ %>
+						 	<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/icon-mail.png')}" class="icMail" />
+						 	&nbsp;&nbsp;&nbsp;&nbsp;{!$Label.PKB2_Send_Button}
+ 						<%}else if(type=="call"){%>
+							<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/icon-call.png')}" class="icCall" />
+						 	&nbsp;&nbsp;&nbsp; {!$Label.PKB2_Call_Button}
+						<%}else {%>
+							<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/icon-chat.png')}" class="icChat" />
+						 	&nbsp;&nbsp;&nbsp; {!$Label.PKB2_Chat_Button}
+						<%}%>
+					</span>
+					<span id="cancelDialog" class="buttonGrey">{!$Label.PKB2_Cancel}</span>
+				</div>
+			</div>
+		</div>
+
+	</script>
+
+	<!-- CONTACT US page SEARCH FORM  LAYOUT  -->
+	<script type="text/html" id="template-contactUs-searchResults">
+		<header id="app_header" class="preSearchFlow">
+			<div class="blueHeaderBar">
+				<div class="backBtnContainer"><img class="backBtn" src="{!URLFOR($Resource.pkb_mobile, 'imgs/backBar.png')}" /></div>
+				<div class="contactUsTitle titlePreSearchFlow"> {!$Label.PKB2_help_please}</div>
+				<div id="cancelBtn" class="buttonBlue topRight" style="width:auto;" href="javascript:void(0);">
+					{!$Label.PKB2_Cancel}
+				</div>
+			</div>
+			<div id="searchBar" class="blueHeaderBar contactsUsSearch appheaderInPlace barPreSearchFlow"></div>
+			<div id="filtersBar"></div>
+		</header>
+		<div id="content" class="contactUs contentPreSearchFlow">
+			<div class="preSearchTitle">{!$Label.PKB2_Answers_Might_Help}</div>
+			<div id="contactUsresultsList">
+				<div  id="recommendedList" class="results" > </div>
+				<div  id="resultsList" class="results" > </div>
+			</div>
+		</div>
+		<div id="footer" class="contactUs_footer footerBox articleFooter">
+			<span class="title">{!$Label.PKB2_Still_Have_Question}</span>
+			<div class="actions">
+				<span class="buttonGreen" id="showUserDataForm">{!$Label.PKB2_yes}</span>
+				<span class="buttonGrey"  id="deflectFromResults">{!$Label.PKB2_No}</span>
+			</div>
+		</div>
+	</script>
+
+		<!-- ARTICLE DETAILED VIEW LAYOUT  -->
+	<script type="text/html" id="template-KA-Detail">
+		<header id="app_header">
+			<div id="searchBar" class="blueHeaderBar contactsUsSearch appheaderInPlace"></div>
+		</header>
+		<div class="articleDetailContainer">
+			<div class="articleTop">
+				<div class="kavTitle"><%= title %></div>
+				<div class="kavSubTitle">
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/article-type.png')}" class="miniIcons" style="height:14px;margin-top:-2px;" />
+					<%= articleTypeLabel %>
+				<span class="subSeparator">|</span>
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/clock.png')}" class="miniIcons" style="margin-top:-2px;"/>
+					<%= elapsed %>
+				<span class="subSeparator">|</span>
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/eye.png')}" class="miniIcons" />
+					<%= viewStat %>
+				<span class="subSeparator">|</span>
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/like.png')}" class="miniIcons" style="margin-top:-6px;"/>
+					<%= usefulStat %>
+			</div>
+				<div class="kavSummary"><%= summary %></div>
+			</div>
+			<!-- article fields-->
+			<section class="articleBody">
+			</section>
+			<!-- footer actions-->
+			<div class="relatedTitle">{!$Label.PKB2_Related_Articles}</div>
+			<section id="relatedResultsSection"></section>
+		</div>
+		<div class="articleFooter">
+			<% if (feedbackGiven) {%>
+				<br/>
+				<span class="title">{!$Label.PKB2_Thanks_For_Feedback}</span>
+				<br/>
+			<%}else{%>
+				<span class="title" style="font-size:9pt;">
+					<%= (usefulStat >0 ) ? ('{!$Label.PKB2_find_Helpful_and_you}').replace('NNN',usefulStat) : '{!$Label.PKB2_Was_Helpful}' %>
+				</span>
+				<div class="actions">
+					<span class="buttonGreen" id="feedbackOK">{!$Label.PKB2_yes}</span>
+					<span class="buttonGrey"  id="feedbackNOTOK">{!$Label.PKB2_No}</span>
+				</div>
+			<%}%>
+		</div>
+	</script>
+
+	<!-- ARTICLE DETAILED VIEW LAYOUT  -->
+	<script type="text/html" id="template-KA-Detail-inContactFlow">
+		<div class="articleDetailContainer" style="margin-top:0px;">
+			<div class="articleTop">
+				<div class="kavTitle"><%= title %></div>
+				<div class="kavSubTitle">
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/article-type.png')}" class="miniIcons" style="height:14px;margin-top:-2px;" />
+					<%= articleTypeLabel %>
+				<span class="subSeparator">|</span>
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/clock.png')}" class="miniIcons" style="height:13px;margin-top:-3px;"/>
+					<%= elapsed %>
+				<span class="subSeparator">|</span>
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/eye.png')}" class="miniIcons" />
+					<%= viewStat %>
+				<span class="subSeparator">|</span>
+					<img src="{!URLFOR($Resource.pkb_mobile, 'imgs/like.png')}" class="miniIcons" style="margin-top:-6px;"/>
+					<%= usefulStat %>
+				</div>
+				<div class="kavSummary"><%= summary %></div>
+			</div>
+			<!-- article fields-->
+			<section class="articleBody">
+			</section>
+		</div>
+
+	</script>
+
+	<!-- ARTICLE DETAILED VIEW LAYOUT  -->
+	<script type="text/html" id="template-KA-FieldDetail">
+		<div class="fieldLabel"><%= fLabel%></div>
+		<div class="fieldValue"><%= fValue%></div>
+	</script>
+
+		<!-- ARTICLE FEEDBACK FORM  -->
+	<script type="text/html" id="template-KA-feedBackForm">
+		<header id="app_header">
+      	<div class="blueHeaderBar" >
+        <div id="cancelBtn" class="buttonBlue topLeft cancelNegativeFeedback" href="javascript:void(0);">{!$Label.PKB2_Cancel}</div>
+        <div class="feedBackTitle">{!$Label.PKB2_Feedback_Appreciated}</div>
+        <div id="askBtn" class="buttonGreen contactUs_button topRight buttonGreenInactive sendNegativeFeedback ">
+           {!$Label.PKB2_Submit}
+        </div>
+      	</div>
+  		</header>
+		<div id="feedbackForm" class="feedbackText">
+      	<textarea maxlength="255" class="feedBackTextArea" rows="10" placeholder="{!$Label.PKB2_HelpUs_HelpYou}"></textarea>
+		</div>
+		<div class="feedBackFooter">{!$Label.PKB2_tellitlikeitis}</div>
+	</script>
+
+	<!-- ARTICLE  Feedback Submit Success -->
+	<script type="text/html" id="template-KA-FeedbackSuccess">
+		<span class="feedbackTitle" style="display:block;text-align:center;" >{!$Label.PKB2_Thanks_For_Feedback}</span>
+		<div class="feedBackThanks">
+			<span class="buttonGreyError" id="closeFeedback">{!$Label.PKB2_Close}</span>
+		</div>
+	</script>
+
+
+	<!-- Contact Us   Submit Success -->
+	<script type="text/html" id="template-contactUs-SubmitionSuccess">
+		<span class="feedbackTitle sSuccessMsg">
+			{!$Label.PKB2_Request_Submitted}<br/>
+			{!$Label.PKB2_Get_Back_Soon}
+		</span>
+		<div class="feedBackThanks">
+			<span class="buttonGreySSuccess" id="closeContactUsSuccessfull">{!$Label.PKB2_Close}</span>
+		</div>
+	</script>
+
+
+	<!-- Contact Us   launch chat  -->
+	<script type="text/html" id="template-contactUs-launchLiveAgentChat">
+		<span class="feedbackTitle" style="display:block;text-align:center;" >
+			Contacting Support Available Agents
+		</span>
+		<div class="feedBackThanks">
+			<div class="buttonGreen contactUs_button" style="width:auto;">
+						<!-- START Button code -->
+						<div id="liveagent_button_online" style="display: none;" >
+							{!$Label.PKB2_Chat_Online}
+						</div>
+						<div id="liveagent_button_offline" style="display: none;">
+							{!$Label.PKB2_no_availanble_liveAgent}
+						<div/>
+			</div>
+		</div>
+	</script>
+	<!-- Contact Us   Upload in progress -->
+	<script type="text/html" id="template-contactUs-UploadInProgress">
+		<span class="feedbackTitle"  >
+			{!$Label.PKB2M_fileUploadProgress}
+		</span>
+		<div class="feedBackThanks">
+			<span id ="loader" class="loader"> </span>
+		</div>
+	</script>
+
+	<!-- GENERAL error message -->
+	<script type="text/html" id="template-error-message">
+		<span class="feedbackTitle">
+			<div class="errorSign" />
+			<div class="msgError"><%= message %></div>
+		</span>
+		<div class="errorCloseContainer feedBackThanks">
+			<span class="buttonGreyError" id="closeDialog">{!$Label.PKB2_Close}</span>
+		</div>
+	</script>
+
+	<!-- GENERAL text Labels message -->
+	<script type="text/javascript"  >
+		var pkb2_LANG = function(){
+			var labels = {
+					'selectFile' 							: "{!$Label.PKB2_js_select_file}",
+					'can_not_read_file' 					: "{!$Label.PKB2_js_cannot_read_file}",
+					'error_on_file_upload' 					: "{!$Label.PKB2_js_issues_uploading_file}",
+					'ERROR :'								: "{!$Label.PKB2_js_error}",
+					'error_question_empty'					: "{!$Label.PKB2_js_error_question_empty}",
+					'error_question_length'					: "{!$Label.PKB2_js_error_question_length}",
+					'error_access_denied'					: "{!$Label.PKB2_js_error_access_denied}",
+					'error_position_unavailable'			: "{!$Label.PKB2_js_error_position_unavailable}",
+					'error_geoloc_not_supported'			: "{!$Label.PKB2_js_geolocation_not_supported}",
+					'error_reach_max_uploaded_files'		: "{!$Label.PKB2_js_only_n_files_supported}",
+					'error_search_string_empty'				: "{!$Label.PKB2_js_search_string_empty}",
+					'error_search_string_length'			: "{!$Label.PKB2_js_search_string_empty}",
+					'error_topic_empty'						: "{!$Label.PKB2_js_topic_empty}" ,
+					'error_search_string_min_length'		: "{!$Label.PKB2_js_search_string_length}",
+					'error_all_fields_required'				: "{!$Label.PKB2_All_Fields_Required}",
+					'error_invalid_characters'				: "{!$Label.PKB2_Search_Invalid_Characters}",
+					'error_search_string_length_to_long'	: "{!$Label.PKB2_search_to_long}",
+					'outside_business_hours'				: "{!$Label.PKB2M_out_of_business_hours}"
+			};
+			function getInfo(k){
+				if (labels[k] == undefined)
+					return ' ';
+				else
+					return (labels[k]);
+			}
+			return {
+					get: getInfo
+			}
+		}();
+	</script>
+
+</apex:component>

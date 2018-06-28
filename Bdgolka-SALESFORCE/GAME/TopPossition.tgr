@@ -1,0 +1,47 @@
+/**This Trigger Change players possition in win list
+ * after each battle  
+ * 
+ * @author Julia Pulova   
+**/
+trigger TopPossition on Game_Unit__c (before insert, before update) {
+    
+    List <Game_Unit__c> units = new List<Game_Unit__c>();     
+    
+    if (Trigger.isUpdate){
+        
+        //List of Objects ids that were changed
+        List<Id> changedObjId = new List<Id>();
+        
+        for (integer i = 0; i < Trigger.size; i++){
+            if (Trigger.old.get(i).wins__c != Trigger.New.get(i).wins__c){
+                units.add(Trigger.New.get(i));
+                changedObjId.add(Trigger.New.get(i).id) ;
+            }
+        }
+        
+       	for(Game_unit__c unit : [SELECT id, name, wins__c, top_possition__c 
+                   FROM Game_Unit__c WHERE Id NOT IN : changedObjId]){
+              units.add(unit);                     
+          }
+        
+        //Apply bubble sort in order to sort units by their number of wins
+        //Temporaru variable for swaping value
+        Game_Unit__c temp;
+        
+        for (Integer i = 0; i < (units.size() - 1); i++){
+            for(Integer j = 0; j< (units.size() - 1 - i); j++){
+                
+                if(units[j].wins__c < units[j+1].wins__c){
+                temp = units[j];
+                units[j] = units[j+1];
+                units[j+1] = temp;
+                }
+            }
+        }
+        
+        //Assign to units possition in win list
+        for (Integer i = 0; i < units.size(); i++){
+            units[i].Top_possition__c = i+1;
+       }       
+   }
+}

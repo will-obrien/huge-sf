@@ -1,0 +1,111 @@
+<apex:page sidebar="false" 
+           id="ViewContest" 
+           controller="ePrize_Zemzu.ViewContestUsersController" 
+           tabStyle="Contests__tab"
+           readOnly="true">
+
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+
+    <apex:define name="head"></apex:define>
+
+    <apex:define name="contentHeader">
+      <h1 class="lb-title">Competition Participants &amp; Observers</h1>
+      <h2 class="lb-subtitle">{!fullContest.contestEntity.ContestName__c}</h2>
+    </apex:define>
+
+    <apex:define name="contentMain">
+
+      <div class="zemzu">
+        <apex:outputPanel rendered="{!IF(contestId != null, true, false)}">
+          <apex:form >
+            <!-- This is needed so the javascript which highlights the selected menu is displayed. --> 
+            <div id="viewContestUsersHeader" style="display:none;"></div>            
+            <apex:pageBlock title="Contest Participants">
+              <apex:pageMessages />
+                  <apex:pageBlockButtons >
+                    <apex:outputlink value="/apex/ViewContest" styleClass="btn">
+                       Back to Contest
+                       <apex:param name="contestId" value="{!contestId}"/>
+                    </apex:outputlink>     
+                  </apex:pageBlockButtons>
+              <apex:pageBlockSection columns="1">                   
+                  <apex:outputPanel >
+                      <p>Listed below are all participants and observers of this contest. This contest is made up of:</p>
+                    <ul>
+                      <apex:outputPanel rendered="{!IF(fullContest.contestEntity.ePrize_Zemzu__Teams__c == true, true, false)}">
+                          <li><apex:outputText value="{!numberOfTeams}"/> Team<apex:outputText value="s" rendered="{!numberOfTeams > 1}"/></li>
+                      </apex:outputPanel>
+    
+                      <apex:outputPanel >
+                          <li><apex:outputText value="{!numberOfParticipants}"/> Participant<apex:outputText value="s" rendered="{!numberOfParticipants > 1}"/></li>
+                      </apex:outputPanel>
+                      
+                      <apex:outputPanel >
+                          <li><apex:outputText value="{!numberOfAdministrators}"/> Observer<apex:outputText value="s" rendered="{!numberOfAdministrators > 1}"/></li>
+                      </apex:outputPanel>
+                    </ul>
+                  </apex:outputPanel>
+              </apex:pageBlockSection>
+
+              <div>
+                <div style="float:left; width: 46%;">                   
+                  <apex:dataTable value="{!fullContest.participants}" var="user" id="users" rowClasses="odd,even" styleClass="tableClass" rendered="{!IF(fullContest.contestEntity.ePrize_Zemzu__Teams__c == false, true, false)}">
+                    <apex:column >
+                        <apex:facet name="header">Participants</apex:facet>
+                        <apex:outputField value="{!user.ePrize_Zemzu__User__c}"/>
+                        <apex:outputPanel rendered="{!fullContest.isPercentToGoal && !fullContest.contestEntity.ePrize_Zemzu__Teams__c && fullContest.DisplayContestGoals}"> 
+                          (Goal: 
+                            <apex:outputText value="{0, number, 0.00}">
+                              <apex:param value="{!user.ePrize_Zemzu__Goal__c}" />
+                          </apex:outputText>
+                          )
+                        </apex:outputPanel>
+                    </apex:column>
+                  </apex:dataTable>
+                </div>
+                
+                <div style="float:left; width: 46%;">                   
+                  <apex:dataTable value="{!fullContest.teams}" var="team" id="teams" rowClasses="odd,even" styleClass="tableClass" rendered="{!IF(fullContest.contestEntity.ePrize_Zemzu__Teams__c == true, true, false)}">
+                    <apex:column style="padding-bottom: 15px;">
+                        <apex:facet name="header">Eligible Teams</apex:facet>
+                        <apex:outputText style="font-weight: bold;" value="{!team.name}" />
+                        <apex:outputPanel rendered="{!fullContest.isPercentToGoal && fullContest.DisplayContestGoals}"> 
+                        (Goal: 
+                          <apex:outputText value="{0, number, 0.00}">
+                            <apex:param value="{!team.goal}" />
+                          </apex:outputText>
+                        )</apex:outputPanel><br />
+                        <apex:variable var="memberCount" value="{!0}"/>
+                        <apex:repeat value="{!team.teamMemberNames}" var="name">
+                            <apex:outputText style="font-style: italic;" value="{!name}"/>
+                            <apex:outputText style="font-style: italic;" value=", " rendered="{!memberCount < team.teamMemberNames.size - 1}"/>
+                            <apex:variable var="memberCount" value="{!memberCount + 1}"/>
+                        </apex:repeat>                        
+                    </apex:column>
+                  </apex:dataTable>
+                </div>
+                <div style="float:right; width: 46%;">                                      
+                  <apex:dataTable value="{!fullContest.admins}" var="admin" id="admins" rowClasses="odd,even" styleClass="tableClass">
+                    <apex:column >
+                        <apex:facet name="header">Observers</apex:facet>
+                        <apex:outputField value="{!admin.ePrize_Zemzu__Admin__c}"/>
+                    </apex:column>
+                  </apex:dataTable>
+              </div>
+              <div style="clear: both;"></div>
+              </div>
+            </apex:pageBlock>
+          </apex:form>
+        </apex:outputPanel>
+      
+        <apex:outputPanel rendered="{!IF(contestId == null, true, false)}">
+          <br /><br />Oops! The contest you are looking for doesn't appear to exist!  Please double check your link and try again!<br /><br />
+        </apex:outputPanel>
+
+      </div>
+
+    </apex:define>
+
+  </apex:composition>
+  
+</apex:page>

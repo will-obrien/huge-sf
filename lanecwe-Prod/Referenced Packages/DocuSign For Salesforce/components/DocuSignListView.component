@@ -1,0 +1,111 @@
+<apex:component >
+   <apex:attribute name="pController" description="DocuSignListController that supports setting views" type="dsfs.DocuSignListController" required="true"/>
+   <apex:attribute name="panel" description="Panel to refresh when view is changed." type="String" required="true"/>
+   <table style="margin: 0px 0px 10px 0px; width: 100%; background-color: #F1F1F1;">
+      <tr>
+         <td style="align: left; vertical-align: middle"><apex:outputLabel style="padding-left: 15px;" value="View:" /> &nbsp; 
+            <apex:selectList value="{!pController.filterId}"
+                             size="1"
+                             title="Select a filter to apply to the user list below.">
+               <apex:actionSupport event="onchange"
+                                   action="{!pController.filterIdChanged}"
+                                   rerender="{!panel}" />
+               <apex:selectOptions value="{!pController.filterOptions}" />
+            </apex:selectList>
+            &nbsp;&nbsp;&nbsp;
+            <apex:outputLink value="/ui/list/FilterEditPage?ftype=s&retURL={!pController.currentUrl}"
+                             id="newLink"
+                             title="Create a new user view">
+               Create New View
+            </apex:outputLink>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <apex:outputLink value="/ui/list/FilterEditPage?id={!pController.filterId}&retURL={!pController.currentUrl}"
+                             id="editlink"
+                             title="Edit the user view">
+               Edit
+            </apex:outputLink>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <apex:commandlink action="{!pController.ChooseColumns}"
+                              title="Choose the fields to display in the user table below">
+               Choose fields
+            </apex:commandlink>
+         </td>
+      </tr>
+   </table>
+
+   <apex:pageBlock id="theChooseColumnsPageBlock"
+                   rendered="{!pController.RenderChooseColumns}">
+
+      <div style="width: 800px;">
+         <table style="align: center">
+            <tr>
+               <td style="text-align: center"><b>Available Fields</b>
+                  <apex:selectlist value="{!pController.selectedAvailableFields}" 
+                                   multiselect="true"
+                                   size="10"
+                                   title="Select fields to display in the list below">
+                     <apex:selectOptions value="{!pController.availableFields}" />
+                  </apex:selectlist>
+               </td>
+               <td style="height: 100%">
+                  <table style="height: 100%;">
+                     <tr>
+                        <td style="vertical-align: bottom; text-align: center;">
+                           <apex:commandbutton action="{!pController.addFieldToFieldsToDisplay}"
+                                               value="Add ==>"
+                                               title="Add the selected 'Available Fields' to the 'Selected Fields' list" />
+                        </td>
+                     </tr>
+                     <tr>
+                        <td style="vertical-align: top; text-align: center;">
+                           <apex:commandbutton action="{!pController.removeFieldFromFieldsToDisplay}"
+                                               value="<== Remove"
+                                               title="Move the selected 'Selected Fields' back to the 'Available Fields' list" />
+                        </td>
+                     </tr>
+                  </table>
+               </td>
+               <td style="text-align: center"><b>Selected Fields</b>
+                  <apex:selectlist value="{!pController.selectedFieldsToDisplay}"
+                                   id="theSelectedFieldsToDisplay"
+                                   multiselect="true"
+                                   size="10"
+                                   title="Fields that will be displayed in the list below">
+                     <apex:selectOptions value="{!pController.availableFieldsToDisplay}" />
+                  </apex:selectlist>
+               </td>
+               <td>
+                  <table style="height: 100%">
+                     <tr>
+                        <td style="vertical-align: bottom; text-align: center;">
+                           <apex:commandbutton action="{!pController.moveFieldUp}"
+                                               id="MoveUpSelectedField"
+                                               value="Move Up"
+                                               rerender="theSelectedFieldsToDisplay"
+                                               title="Move the selected field up one position" />
+                        </td>
+                     </tr>
+                     <tr>
+                        <td style="vertical-align: top; text-align: center;">
+                           <apex:commandbutton action="{!pController.moveFieldDown}"
+                                               id="MoveDownSelectedField"
+                                               value="Move Down"
+                                               rerender="theSelectedFieldsToDisplay"
+                                               title="Move the selected field down one position" />
+                        </td>
+                     </tr>
+                  </table>
+               </td>
+            </tr>
+         </table>
+         <div class="addRemoveButtonDivStyle">
+            <apex:commandbutton action="{!pController.HandleChooseColumnsCancel}"
+                                value="Cancel"
+                                title="Discard the changes to the 'Selected Fields' list" />
+            &nbsp;&nbsp;&nbsp;
+            <apex:commandbutton action="{!pController.HandleChooseColumnsOK}" value="OK"
+                                title="Save the changes to the 'Selected Fields' list" />
+         </div>
+      </div>
+   </apex:pageBlock>
+</apex:component>

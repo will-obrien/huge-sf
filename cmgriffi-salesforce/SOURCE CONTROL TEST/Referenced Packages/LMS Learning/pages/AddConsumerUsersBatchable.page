@@ -1,0 +1,619 @@
+<apex:page controller="lmscons.MyTrainingExtension" showheader="false" title="{!$Label.MyTraining_title_My_Training}" sidebar="false" action="{!create_pub}">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>{!$Label.MyTraining_title_My_Training}</title>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/jquery.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/init.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__LMSSource, 'css/training.css')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__lmslightbox, 'css/lms-lightbox.css')}"/>
+
+<apex:stylesheet value="{!URLFOR($Resource.lmscons__jquery1816min, 'jquery-ui.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery1816min, 'jquery-ui.min.js')}" />
+
+<style type="text/css">
+/* sf fix */
+#tsid {z-index:200}
+
+.cField{
+	width:300px;
+}
+
+.cust_btn {
+	border-radius: 4px 4px 4px 4px;
+	color: #F4F4F4;
+	display: inline-block;
+	padding: 3px 8px;
+	text-decoration: none;
+	background: none repeat scroll 0 0 #209BC4;
+}
+
+.button_inactive {
+	background: none repeat scroll 0 0 #aaaaaa;
+
+}
+
+.DeleteLink {
+	display:inline-block;
+	padding-left:12px;
+	line-height:8px;
+	diplay: block;
+	background:transparent url("/img/feeds/x_sprite.png") center left no-repeat;
+	background-position: -0px -8px;
+	position:relative;
+	top: 1px;
+}
+
+
+.ui-widget-overlay {
+	background: #010101;
+	opacity: 0.6;
+	filter:alpha(opacity=60);
+	height:100%;
+	width:100%;
+	z-index: 1001;
+}
+</style>
+
+<script type="text/javascript">
+<!------------------ Chatter Javascript Start ----->
+
+	var overlay;
+	var lightbox;
+	var openedwindow;
+
+	var UploadId = '';
+	var newwindow;
+	var uploadcontent;
+	var i = 0;
+	var enableRedir = false;
+	var idisSet = false;
+	var rp = {!ResizeParent};
+
+	window.onkeypress = handleKeyPress;
+
+	jQuery(document).ready(function(){
+
+		set_iframe_height();
+
+		overlay = $('.b-overlay');
+		lightbox = $('.b-lightbox');
+
+		jQuery("th:contains('{!$ObjectType.Content_Upload__c.fields.CreatedDate.label}')").text('Upload Date');
+		if(getUrlVars()['open_popup_attach']){
+			open_popup_attach();
+		}
+	});
+
+	function init_redir() {
+		//alert('enredir');
+		uploadcontent = 1;
+		i = 1;
+		idisSet = true;
+		enableRedir = true;
+	}
+
+	function handleKeyPress(e) {
+		var eventInstance = window.event ? event : e;
+		var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+		if (keyCode == 13){
+
+			if (openedwindow == 1) {
+				SearchUser();
+			}
+			else {
+				SearchGroup();
+			}
+			return false;
+		}
+	}
+
+	function Lightbox() {
+
+		fade_parent();
+
+		lightbox.fadeIn('fast');
+
+		lightbox
+			.css('position','fixed')
+			.css('top',100);
+
+		overlay
+			.height( jQuery(document).height() )
+			.css('opacity','0.6')
+			.fadeIn('fast');
+
+	}
+
+
+	function return_parent() {
+		if (rp == true) {
+			jQuery('#social_learning', window.parent.document).attr('height','100');
+		}
+	}
+
+	function fade_parent() {
+		if (rp == true) {
+			jQuery('#social_learning', window.parent.document).attr('height','1000');;
+		}
+	}
+
+	function Closelightbox() {
+		Closelb();
+		set_iframe_height();
+		Refresh();
+	}
+
+	function Closelb() {
+		lightbox.fadeOut('fast');
+		overlay.fadeOut('fast');
+		return_parent();
+		set_iframe_height();
+
+	}
+
+
+	function select_people() {
+		openedwindow = 1;
+		Lightbox();
+	}
+
+	function select_group() {
+		openedwindow = 2;
+		Lightbox();
+	}
+
+	function open_upload_popup() {
+		openedwindow = 3;
+		Lightbox();
+	}
+
+	function open_popup_attach(){
+		uploadcontent = 1;
+		newwindow = window.open('/apex/Upload_Popup?override=1','name','height=500,width=600');
+		if (window.focus) {newwindow.focus()}
+	}
+
+	function test_baca() {
+		//UploadId = 'a00U0000002biI7';
+		//alert(UploadId);
+		uploadcontent = 1
+		GetUploadedObject(UploadId);
+		//redirectWindow();
+	}
+
+	function attach_file(){
+		Closelb();
+		setTimeout('attach2();', 1000);
+		}
+
+	function attach2() {
+		if (uploadcontent == 1) {
+			uploadcontent = 0;
+			UploadId = jQuery('input[name$="UploadId"]').val();
+			//UploadId
+			GetUploadedObject();
+		}
+		else {
+			//window.location.href = window.location.href;//'/apex/MyTraining';
+		}
+	}
+
+	function getUrlVars() {
+		var vars = [], hash;
+		var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+		for(var i = 0; i < hashes.length; i++)
+		{
+			hash = hashes[i].split('=');
+			vars.push(hash[0]);
+			vars[hash[0]] = hash[1];
+		}
+		return vars;
+	}
+
+	function check_poller() {
+		var c = jQuery('[id*="poller_step"]').html();
+
+		if (c == 'true') {
+			process_publish();
+		}
+		set_iframe_height();
+
+	}
+
+	function testT() {
+		i++;
+		var ua = jQuery.browser;
+		if( i > 2) {
+			if(enableRedir == true) {
+				if(idisSet == true) {
+					attach_file();
+				}
+			}
+		}
+	}
+
+
+	function closesearch() {
+		jQuery("#dialog-modal3").dialog('close');
+
+	}
+
+	function open_sc_popup() {
+
+		var szx = jQuery(window).width()*0.9;
+		var szy = jQuery(window).height()*0.9-100;
+
+		jQuery('#dialog-modal3').html('<iframe id="searchcatalogframe" name="searchcatalogframe" frameborder="0" height="'+szy+'px" src="/apex/SearchCatalog" width="100%"></iframe>');
+
+		jQuery('#dialog-modal3').dialog({
+			autoOpen: false,
+			width: jQuery(window).width()*0.9,
+			height: jQuery(window).height()*0.9,
+			modal: true,
+			resizable: false,
+			close: function(event, ui) {
+				RefreshPage();
+			}
+		});
+
+
+		jQuery("#dialog-modal3").dialog('open');
+	}
+
+
+	function init_pg() {
+
+		jQuery('.m-tbl').find('table.m-hide').parent().parent().addClass('m-hide');
+		jQuery('.m-tbl').find('table.m-hide').parent().parent().attr('style', 'display: table-row;');
+		/*$('.m-tbl').find('table.m-hide tr').addClass('m-faded');*/
+		jQuery('.m-tbl').find('table.m-hide').removeClass('m-hide');
+
+
+		Toggler();
+		HideShowToggler();
+		Check();
+		ShowSession();
+		SearchToggler();
+
+
+		/* last/first child */
+		jQuery('.m-tbl th:first-child,.m-tbl td:first-child').addClass('m-first');
+		jQuery('.m-tbl th:last-child, .m-tbl td:last-child, .m-first-level tr:last-child').addClass('m-last');
+		jQuery('.m-first-level .m-second-level').parent().closest('td.m-first-level').addClass('m-no-bord');
+
+		/* chrome/safari fix */
+		jQuery('.b-results .m-tbl tr td:nth-child(2)').addClass('m-auto-width');
+
+		/* ie table fix */
+		if (jQuery.browser.msie) {
+		jQuery(".m-tbl td:empty, .m-tbl thead th div:empty").html("&nbsp;");
+		}
+
+	}
+
+	function set_iframe_height() {
+		if (rp == true) {
+			var zsz = jQuery(document).height();
+			jQuery('#social_learning', window.parent.document).attr('height',zsz);
+		}
+
+	}
+
+</script>
+
+<!------------------ Chatter Javascript End -------------------------->
+
+</head>
+<body>
+
+<!--  <input type="button" value="click" onclick="set_iframe_height()" /> -->
+
+
+	<apex:pageMessages id="messages" />
+
+<!------------------------- Chatter Start ------------------------------------------------>
+	<apex:form id="chatter_form" >
+		<apex:outputpanel styleclass="b-blue-box" id="bluebox" layout="block" rendered="{!ChatterEnabled = true}">
+			<apex:outputpanel id="pb" layout="none">
+				<apex:actionFunction action="{!process_publish}" name="process_publish" rerender="bluebox, poller_step, publish, pb, messages" status="publish_status" />
+				<apex:actionFunction action="{!Publish}" name="Publish" rerender="poller_step, publish, pb, messages" status="publish_status" />
+			</apex:outputpanel>
+
+			<apex:outputpanel id="poller_step" layout="block" style="display:none;">{!Poller}</apex:outputpanel>
+
+			<div class="m-first-line m-cfix">
+
+			<!------------------------------ Action Function  ------------------------------------->
+
+			<apex:actionFunction action="{!RefreshPage}" name="RefreshPage" rerender="mycontent" status="refresh_page" />
+
+			<apex:actionFunction action="{!ShareWith}" name="Sharewith" rerender="bluebox, pb, select_user_and_group, messages, messages2" status="publish_status" />
+			<apex:actionFunction action="{!SearchUser}" name="SearchUser" rerender="select_user_and_group, messages, messages2" status="search_user_status" />
+			<apex:actionFunction action="{!SearchGroup}" name="SearchGroup" rerender="select_user_and_group, messages, messages2" status="search_group_status" />
+
+			<apex:actionFunction action="{!Refresh}" name="Refresh" rerender="bluebox" status="loading" />
+
+			<apex:actionFunction action="{!GetUploadedObject}" name="GetUploadedObject" rerender="bluebox" status="bluebox_status" />
+
+
+
+			<apex:actionFunction action="{!ApplyPeople}" name="ApplyPeople" oncomplete="Closelightbox()" rerender="bluebox, chatter_people" status="search_user_status" />
+			<apex:actionFunction action="{!CancelPeople}" name="CancelPeople" oncomplete="Closelightbox()" rerender="bluebox, chatter_people" status="search_user_status" />
+
+			<apex:actionFunction action="{!ApplyGroup}" name="ApplyGroup" oncomplete="Closelightbox()" rerender="bluebox, chatter_group" status="search_group_status" />
+			<apex:actionFunction action="{!CancelGroup}" name="CancelGroup" oncomplete="Closelightbox()" rerender="bluebox, chatter_group" status="search_group_status" />
+
+				<apex:inputText value="{!TextShare}" maxlength="256" styleclass="b-search-input" />
+
+				<apex:outputpanel layout="block" styleclass="b-btns">
+					<apex:outputpanel layout="block" styleclass="b-socbtn">
+						<apex:outputpanel layout="inline" styleClass="{!IF(Count_People = 0, 'm-gray-btn', 'm-gold-btn')}">
+							<a href="javascript:GeneratePeople()">{!$Label.MyTraining_Select_People} ({!Count_People})</a>
+						</apex:outputpanel>
+					</apex:outputpanel>
+
+					<apex:outputpanel layout="block" styleclass="b-socbtn">
+						<apex:outputpanel layout="inline" styleClass="{!IF(Count_Group = 0, 'm-gray-btn', 'm-gold-btn')}">
+							<a href="javascript:GenerateGroups()">{!$Label.MyTraining_Select_Groups} ({!Count_Group})</a>
+						</apex:outputpanel>
+					</apex:outputpanel>
+
+					<apex:outputpanel rendered="{!CatalogId != null && lmsConfig.lmscons__User_Generated_Learning__c = true}" layout="none">
+						<apex:outputpanel styleclass="b-socbtn" rendered="{!ScormContent != null}" layout="block">
+							<span class="m-gold-btn b-checkbox">
+								<apex:inputCheckbox value="{!AddToCatalog}" id="addtocatalog"/>
+								<label for="addtocatalog">{!$Label.MyTraining_Add_to_Catalog}</label>
+							</span>
+						</apex:outputpanel>
+
+						<apex:outputpanel styleclass="b-socbtn" rendered="{!ScormContent = null || ScormContent = ''}" layout="block">
+							<span class="m-gray-btn button_inactive b-checkbox">
+								<apex:inputCheckbox value="{!AddToCatalog}" id="addtocatalog1" disabled="true"/>
+								<label for="addtocatalog1">{!$Label.MyTraining_Add_to_Catalog}</label>
+							</span>
+						</apex:outputpanel>
+					</apex:outputpanel>
+
+					<apex:outputpanel styleclass="b-socbtn" layout="block" rendered="{!Count_People > 0 || Count_Group > 0}">
+						<apex:outputpanel styleclass="m-blue-btn" layout="inline">
+							<a href="Javascript:Sharewith()" class="">{!$Label.MyTraining_Share}</a>
+						</apex:outputpanel>
+					</apex:outputpanel>
+
+					<apex:outputpanel styleclass="b-socbtn" layout="block" rendered="{!Count_People = 0 && Count_Group = 0}">
+						<apex:outputpanel styleclass="m-gray-btn" layout="inline">
+							<a href="JavaScript:void(0);" class="">{!$Label.MyTraining_Share}</a>
+						</apex:outputpanel>
+					</apex:outputpanel>
+
+					<apex:actionStatus id="load_upload_popup" onstop="open_upload_popup()">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+					<apex:actionStatus id="loading">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+					<apex:actionStatus id="load_select_people" onstop="select_people()">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+					<apex:actionStatus id="load_select_group" onstop="select_group()">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+					<apex:actionStatus id="bluebox_status">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+					<apex:actionStatus id="publish_status" onstop="check_poller()">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+					<apex:actionStatus id="refresh_page" onstop="init_pg()">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+				</apex:outputpanel>
+			</div>
+			<div class="b-publisher">
+				<apex:outputpanel rendered="{!lmsConfig.lmscons__User_Generated_Learning__c = true}" layout="none">
+
+					<apex:outputpanel rendered="{!ScormContent == null}" layout="none">
+						<strong>{!$Label.MyTraining_Attach}</strong>
+						<a href="javascript:UploadContent()" class="b-file">{!$Label.MyTraining_File}</a>
+					</apex:outputpanel>
+					<apex:outputpanel rendered="{!ScormContent != null}" layout="none">
+						<strong>{!$Label.MyTraining_Attached_File}</strong> {!ScormContent} <a href="javascript:RemoveContent();" class="DeleteLink">{!$Label.MyTraining_Remove}</a>
+					</apex:outputpanel>
+				</apex:outputpanel>
+			</div>
+		</apex:outputpanel>
+
+	<apex:actionFunction action="{!UploadContent}" name="UploadContent" oncomplete="init_redir()" rerender="select_user_and_group, messages, messages2" status="load_select_people" />
+	<apex:actionFunction action="{!GeneratePeople}" name="GeneratePeople" rerender="select_user_and_group, messages, messages2" status="load_select_people" />
+	<apex:actionFunction action="{!GenerateGroups}" name="GenerateGroups" rerender="select_user_and_group, messages, messages2" status="load_select_group" />
+	<apex:actionFunction action="{!LoadUploadPopup}" name="LoadUploadPopup" rerender="upload_popup" status="load_upload_popup" />
+	<apex:actionFunction action="{!RemoveContent}" name="RemoveContent" rerender="bluebox" status="bluebox_status" />
+
+	<apex:actionFunction action="{!FollowEntity}" name="follow_entity" rerender="select_user_and_group" status="search_user_status">
+		<apex:param name="snd1" value="" assignTo="{!FollowEntityId}"/>
+	</apex:actionFunction>
+	<apex:actionFunction action="{!FollowEntity2}" name="follow_entity2" rerender="select_user_and_group" status="search_group_status">
+		<apex:param name="snd2" value="" assignTo="{!FollowEntityId}"/>
+	</apex:actionFunction>
+
+	<div class="b-overlay"></div>
+	<div class="b-lightbox">
+
+
+	<apex:outputpanel id="select_user_and_group" layout="block">
+<!-------------------------Upload Content ------------------------------------------------>
+	<apex:outputpanel id="upload_content" layout="block" rendered="{!PopupNum = 3}">
+		<div class="b-title-bar">
+			<div class="b-title">Upload Content</div>
+			<div class="b-close-btn"><a href="javascript:Closelightbox()">{!$Label.MyTraining_Close}</a></div>
+		</div>
+
+		<div class="b-content m-select-people">
+			<div class="b-scroller">
+
+					<p><strong class="m-faded">Instructions: </strong> <apex:outputPanel >Please select the package to upload. Do not refresh this page during upload.</apex:outputPanel></p>
+					<p><strong class="m-faded">Fully Supported File Types: </strong> <apex:outputPanel >SCORM 1.2, SCORM 2004, AICC, MP4</apex:outputPanel></p>
+					<p><strong class="m-faded">Partially Supported File Types: </strong> <apex:outputPanel >Most other file types are supported, but will not stream. Potentialy harmful file types are not allowed, including .EXE, .COM, .BAT, and .VBxxx</apex:outputPanel></p>
+					<p class="b-title">Select File</p>
+
+					<apex:outputPanel id="upload_frame" rendered="true" >
+						<iframe id="iframeCyberu" onload="testT()" src="{!iframeUrl}" width="100%" height="150" scrolling="yes" frameborder="0">{!$Label.Upload_msg}</iframe>
+					</apex:outputPanel>
+					<apex:outputPanel id="upload_id" rendered="true" >
+						<apex:inputHidden value="{!UploadId}" id="UploadId" />
+					</apex:outputPanel>
+			</div>
+		</div>
+	</apex:outputpanel>
+<!-------------------------Select people------------------------------------------------>
+	<apex:outputpanel id="chatter_people" layout="block" rendered="{!PopupNum = 1}">
+		<div class="b-title-bar">
+			<div class="b-title">{!$Label.MyTraining_Select_People}</div>
+			<div class="b-close-btn"><a href="javascript:Closelightbox()">{!$Label.MyTraining_Close}</a></div>
+		</div>
+		<div class="b-content m-select-people">
+			<div class="b-scroller">
+
+				<div class="b-search-input">
+					<apex:inputText value="{!SearchUserGroup}" styleclass="b-search-input" /> &nbsp;
+					<a href="javascript:SearchUser()" class="b-btn">{!$Label.MyTraining_Search}</a>
+
+					&nbsp;&nbsp;&nbsp;
+
+					<a href="javascript:ApplyPeople()" class="b-btn">{!$Label.MyTraining_Ok}</a>
+					<a href="javascript:CancelPeople()" class="b-btn">{!$Label.MyTraining_Cancel}</a>
+
+					&nbsp;
+
+					<apex:actionStatus id="search_user_status">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+
+				</div>
+				<table width="100%" border="0" cellspacing="0" cellpadding="0">
+					<thead>
+						<tr>
+							<th>&nbsp;</th>
+							<th>{!$Label.MyTraining_Name}</th>
+							<th>{!$Label.MyTraining_Following}</th>
+						</tr>
+					</thead>
+					<tbody>
+						<apex:repeat value="{!ChatterData_People}" var="chat">
+							<tr>
+								<td class="m-first">
+									<apex:inputCheckbox value="{!chat.CheckedTemp}" />
+								</td>
+								<td>
+									<div class="b-info" >
+										<img src="{!chat.SmallFoto}" class="b-img" />
+										<p class="b-name">{!chat.Name}</p>
+									</div>
+								</td>
+								<td>
+									<apex:outputpanel rendered="{!chat.Following = false}" layout="none">
+										<a class="m-follow" href="Javascript:follow_entity('{!chat.Cid}')">{!$Label.MyTraining_Follow}</a>
+									</apex:outputpanel>
+									<apex:outputpanel rendered="{!chat.Following = true}" layout="none">
+										<span class="m-following">{!$Label.MyTraining_Following}</span> <a href="Javascript:follow_entity('{!chat.Cid}')" class="m-del">{!$Label.MyTraining_Delete}</a>
+									</apex:outputpanel>
+								</td>
+							</tr>
+						</apex:repeat>
+					</tbody>
+				</table>
+			</div>
+		</div>
+		</apex:outputpanel>
+
+<!-------------------------Select group------------------------------------------------>
+	<apex:outputpanel id="chatter_group" layout="block" rendered="{!PopupNum = 2}">
+		<div class="b-title-bar">
+			<div class="b-title">{!$Label.MyTraining_Select_Groups}</div>
+			<div class="b-close-btn"><a href="javascript:Closelightbox()">{!$Label.MyTraining_Close}</a></div>
+		</div>
+		<div class="b-content m-select-people">
+			<div class="b-scroller">
+				<div class="b-search-input">
+					<apex:inputText value="{!SearchUserGroup}" styleclass="b-search-input" /> &nbsp;
+					<a href="javascript:SearchGroup()" class="b-btn">{!$Label.MyTraining_Search}</a>
+
+					&nbsp;&nbsp;&nbsp;
+
+					<a href="javascript:ApplyGroup()" class="b-btn">{!$Label.MyTraining_Ok}</a>
+					<a href="javascript:CancelGroup()" class="b-btn">{!$Label.MyTraining_Cancel}</a>
+
+					&nbsp;
+
+					<apex:actionStatus id="search_group_status">
+						<apex:facet name="start">
+							<apex:image url="/img/loading.gif" />
+						</apex:facet>
+					</apex:actionStatus>
+				</div>
+				<table width="100%" border="0" cellspacing="0" cellpadding="0">
+					<thead>
+						<tr>
+							<th>&nbsp;</th>
+							<th>{!$Label.MyTraining_Name}</th>
+							<th>{!$Label.MyTraining_Following}</th>
+						</tr>
+					</thead>
+					<tbody>
+						<apex:repeat value="{!ChatterData_Group}" var="chat">
+							<tr>
+								<td class="m-first">
+									<apex:inputCheckbox value="{!chat.CheckedTemp}" rendered="{!chat.IsMember}" />
+								</td>
+								<td>
+									<div class="b-info" style="min-height:70px">
+										<img src="{!chat.SmallFoto}" class="b-img" />
+										<p class="b-name">{!chat.Name}</p>
+									</div>
+								</td>
+								<td>
+									<apex:outputpanel rendered="{!chat.Following = false}" layout="none">
+										<a class="m-follow" href="Javascript:follow_entity2('{!chat.Cid}')">{!$Label.MyTraining_Join}</a>
+									</apex:outputpanel>
+									<apex:outputpanel rendered="{!chat.Following = true}" layout="none">
+										<span class="m-following">{!$Label.MyTraining_Member}</span> <a href="Javascript:follow_entity2('{!chat.Cid}')" class="m-del">Leave</a>
+									</apex:outputpanel>
+								</td>
+							</tr>
+						</apex:repeat>
+					</tbody>
+				</table>
+
+			</div>
+		</div>
+		</apex:outputpanel>
+	</apex:outputpanel>
+	</div>
+	</apex:form>
+<!------------------------- Chatter End ------------------------------------------------>
+</body>
+</html>
+</apex:page>

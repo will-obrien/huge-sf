@@ -1,0 +1,121 @@
+<apex:page docType="html-5.0" Controller="P_Controller" id="productPage" >
+<apex:form id="productForm">
+<apex:includeScript value="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js" />
+<apex:includeScript value="//cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.17.8/js/jquery.tablesorter.min.js"/>
+<apex:stylesheet value="//cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.17.8/css/theme.green.css"/>
+<script>
+ j$ = jQuery.noConflict();
+ j$(document).ready(function()
+  { sortTable();
+    });
+
+    function sortTable(){
+        j$("[id$='able']").tablesorter({theme: 'green'}); 
+ };
+</script>
+<apex:pageBlock title=" Search for a Product Name ">
+<apex:pageBlockSection >
+<apex:pageBlockSectionItem >
+<apex:outputLabel > Search for a Product Name </apex:outputLabel>
+ <apex:inputText value="{!SearchProductKeyword}" /> 
+</apex:pageBlockSectionItem><br/>
+<apex:pageBlockSectionItem >
+<apex:outputLabel > Start Date Added (day.month.year) </apex:outputLabel> 
+<apex:input type="date" value="{!startDT}"/>
+</apex:pageBlockSectionItem><br/>
+<apex:pageBlockSectionItem >
+<apex:outputLabel > End Date Added (day.month.year) </apex:outputLabel> 
+<apex:input type="date" value="{!endDT}"/>
+</apex:pageBlockSectionItem><br/>
+<apex:pageBlockSectionItem >
+<apex:commandButton action="{!SearchProducts}" value="Search" rerender="ProductTableBox" status="SearchStatus" oncomplete="tablesort();"/>
+<apex:actionStatus id="SearchStatus" onstop="sortTable()">
+<apex:facet name="start"><img src="/img/loading.gif" alt="" /></apex:facet>
+<apex:facet name="stop"></apex:facet>
+</apex:actionStatus>
+</apex:pageBlockSectionItem>
+</apex:pageBlockSection>
+</apex:pageBlock>
+<br/>
+<br/>
+<apex:outputPanel layout="block" id="ProductTableBox">
+<apex:panelGrid columns="7">
+<apex:commandButton action="{!setCon.first}" status="PaginationStatus" reRender="ProductableBox" value="|<" disabled="{!!setCon.hasPrevious}" title="First Page"/>
+<apex:commandButton action="{!setCon.previous}" status="PaginationStatus" reRender="ProductTableBox" value="<" disabled="{!!setCon.hasPrevious}" title="Previous Page"/>
+<apex:commandButton action="{!setCon.next}" status="PaginationStatus" reRender="ProductTableBox" value=">" disabled="{!!setCon.hasNext}" title="Next Page"/>
+<apex:commandButton action="{!setCon.last}" status="PaginationStatus" reRender="ProductTableBox" value=">|" disabled="{!!setCon.hasNext}" title="Last Page"/>
+<apex:outputText >{!(setCon.pageNumber * size)+1-size}-{!IF((setCon.pageNumber * size)>noOfRecords, noOfRecords,(setCon.pageNumber * size))} of {!noOfRecords}</apex:outputText>
+<apex:actionStatus id="PaginationStatus">
+<apex:facet name="start"><img src="/img/loading.gif" alt="" /></apex:facet>
+<apex:facet name="stop"></apex:facet>
+</apex:actionStatus>
+</apex:panelGrid>
+
+<apex:datatable value="{!Products}" var="Product" id="productTable" >
+<apex:facet name="header">All Created Products </apex:facet>
+<apex:column headerValue="Name">
+    <apex:outputField value="{!Product.Name}" />
+  </apex:column>
+  <apex:column headerValue="Price">
+    <apex:outputField value="{!Product.Price__c}" />
+  </apex:column>
+  <apex:column headerValue="Amount">
+    <apex:outputField value="{!Product.Amount__c}" />
+  </apex:column>
+  <apex:column headerValue="Type">
+    <apex:outputField value="{!Product.Type__c}" />
+  </apex:column>
+  <apex:column headerValue="Date Added">
+  <apex:outputText value="{0, date, dd/MM/yyyy}">
+  <apex:param value="{!Product.Date_Added__c}"/>
+    </apex:outputText>
+  </apex:column>
+   <apex:column headerValue="Release Date">
+    <apex:outputText value="{0, date, dd/MM/yyyy}">
+  <apex:param value="{!Product.Release_Date__c}"/>
+   </apex:outputText>
+   </apex:column>  
+  <apex:column headerValue="Available">
+  <apex:inputCheckbox value="{!Product.Available__c}"/>
+  </apex:column> 
+  </apex:datatable>
+<apex:pageBlock title="Please, Create Your New Products">
+<apex:pageBlockTable value="{!wrappers}" var="wrapper" id="wtable">
+<apex:column headerValue="Ident">
+<apex:outputText value="{!wrapper.ident}"/>
+</apex:column>
+<apex:column headerValue="Name">
+<apex:inputField value="{!wrapper.pr.Name}"/>
+</apex:column>
+<apex:column headerValue="Price">
+<apex:inputField value="{!wrapper.pr.Price__c}"/>
+</apex:column>
+<apex:column headerValue="Amount">
+<apex:inputField value="{!wrapper.pr.Amount__c}"/>
+</apex:column>
+<apex:column headerValue="Type">
+<apex:inputField value="{!wrapper.pr.Type__c}"/>
+</apex:column>
+<apex:column headerValue="Date_Added">
+<apex:inputField value="{!wrapper.pr.Date_Added__c}"/>
+</apex:column>
+<apex:column headerValue="Release Date">
+<apex:inputField value="{!wrapper.pr.Release_Date__c}"/>
+</apex:column>
+<apex:column headerValue="Action">
+<apex:commandButton value="Delete" action="{!delWrapper}" rerender="wtable">
+<apex:param name="toDelIdent" value="{!wrapper.ident}" assignTo="{!toDelIdent}"/> 
+</apex:commandButton>
+ </apex:column>
+ </apex:pageBlockTable>
+<apex:commandButton value="Add Row" action="{!addRows}" rerender="wtable">
+<apex:param name="addCount" value="1" assignTo="{!addCount}"/> 
+ </apex:commandButton>
+ <apex:commandButton value="Add 5 Rows" action="{!addRows}" rerender="wtable">
+ <apex:param name="addCount" value="5" assignTo="{!addCount}"/> 
+ </apex:commandButton>
+ <apex:commandButton value="Save" action="{!save}"/>
+ </apex:pageBlock>       
+ </apex:outputPanel>
+  </apex:form>
+  </apex:page>

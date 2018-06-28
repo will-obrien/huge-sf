@@ -1,0 +1,756 @@
+<apex:page sidebar="false" showHeader="false" controller="ProductSelectionController" id="thePage" >
+    
+    <apex:pagemessages />
+    <script>
+        // ================================================Sort Table Code Start========================================================== //
+        function addEvent(obj, evType, fn, useCapture){
+        
+        
+                if (window.Event && Event.observe) { //use prototype if available for memory cleanup
+                    return Event.observe(obj, evType, fn, useCapture);
+                }
+            
+                if (evType == 'keypress' && (navigator.appVersion.match(/Konqueror|Safari|KHTML/) || obj.attachEvent)) {
+                    evType = 'keydown';
+            }
+        
+          if (obj.addEventListener){
+            obj.addEventListener(evType, fn, useCapture);
+            return true;
+          } else if (obj.attachEvent){
+            var r = obj.attachEvent("on"+evType, fn);
+            return r;
+          } else {
+            alert("Handler could not be attached");
+          }
+        }
+
+        addEvent(window, "load", ts_sortables_init);
+        
+        var SORT_COLUMN_INDEX;
+        
+        function ts_addClassName(object, newclass)
+        {
+            if (typeof(object) == 'string') object = document.getElementById(object);
+            if (object)
+            {
+                var pattern = "(\\s|^)(" + newclass + ")(\\s|$)";
+                var regex = new RegExp(pattern, "g");
+                if (!regex.test(object.className))
+                    object.className+= ' ' + newclass;
+        
+            }
+        }
+        
+        function ts_removeClassName(object, newclass)
+        {
+            if (typeof(object) == 'string') object = document.getElementById(object);
+            if (object) {
+                var pattern = "(\\s|^)(" + newclass + ")(\\s|$)";
+                var regex2 = new RegExp(pattern);regex2.global=true;
+                object.className = object.className.replace(regex2, "$3")
+            }
+        }
+        function ts_sortables_init() {
+        
+            // Find all tables with class list and make them sortable
+            if (!document.getElementsByTagName) return;
+            tbls = document.getElementsByTagName("table");
+            for (ti=0;ti<tbls.length;ti++) {
+                thisTbl = tbls[ti];
+                if (((' '+thisTbl.className+' ').indexOf("list") != -1) ) {
+                    ts_makeSortable(thisTbl);
+                }
+            }
+        }
+        
+        function ts_makeSortable(table) {
+            if (table.rows && table.rows.length > 2 && table.rows.length < 500) {
+                var firstRow = table.rows[0];
+            }
+            if (!firstRow) return;
+        
+            // We have a first row: assume it's the header, and make its contents clickable links
+            for (var i=0;i<firstRow.cells.length;i++) {
+                var cell = firstRow.cells[i];
+                var txt = ts_getInnerText(cell);
+                if (txt.length < 3 || cell.getAttribute("nosort")  || txt.trim() == "Select")
+                    continue;
+        
+                cell.innerHTML = '<a href="#" class="sortheader" onclick="ts_resortTable(this);return false;">'+txt+'<span class="sortarrow"></span></a>';
+            }
+        }
+        
+        function ts_getInnerText(el) {
+            if (typeof el == "string") return el;
+            if (typeof el == "undefined") { return el };
+            if (el.innerText) return el.innerText;  //Not needed but it is faster
+            var str = "";
+        
+            var cs = el.childNodes;
+            var l = cs.length;
+            for (var i = 0; i < l; i++) {
+                if (cs[i].type == "text/javascript") {
+                    continue;
+                }
+                switch (cs[i].nodeType) {
+                    case 1: //ELEMENT_NODE
+                        str += ts_getInnerText(cs[i]);
+                        break;
+                    case 3: //TEXT_NODE
+                        str += cs[i].nodeValue;
+                        break;
+                }
+            }
+            return str.replace(/\n/g,'');
+        }
+        
+        function ts_resortTable(lnk) {
+            // get the span
+            var span;
+            for (var ci=0;ci<lnk.childNodes.length;ci++) {
+                if (lnk.childNodes[ci].tagName && lnk.childNodes[ci].tagName.toLowerCase() == 'span') span = lnk.childNodes[ci];
+            }
+            var spantext = ts_getInnerText(span);
+            var td = lnk.parentNode;
+            var column = td.cellIndex;
+            var table = getParent(td,'TABLE');
+        
+            var alternateRowClasses = (table.getAttribute('alternateRowClasses') == 'true');
+        
+            // Work out a type for the column
+            if (table.rows.length <= 1) return;
+            sortfn = ts_sort_caseinsensitive;
+            var datatype = td.getAttribute("datatype");
+            if (datatype)
+            {
+                //MAN-3121-- The regular expression matching in the else clause is flawed and should be redone. Example: if
+                //varchar column has data that starts with '$', the regex will think its a currency instead of string
+                if (datatype == "varchar") sortfn = ts_sort_caseinsensitive;
+                else if (datatype == "date") sortfn = ts_sort_date;
+                else if (datatype == "money") sortfn = ts_sort_currency;
+                else if (datatype == "numeric") sortfn = ts_sort_numeric;
+            }
+            else
+            {
+                var itm = ts_getInnerText(table.rows[1].cells[column]);
+                if (itm.match(/^\d\d[\/-]\d\d[\/-]\d\d\d\d$/)) sortfn = ts_sort_date;
+                if (itm.match(/^\d\d[\/-]\d\d[\/-]\d\d$/)) sortfn = ts_sort_date;
+                if (itm.match(/^[£$]/)) sortfn = ts_sort_currency;    // ^[£$€¥]|CAD
+                if (itm.match(/^[\d\.]+$/)) sortfn = ts_sort_numeric;
+            }
+            SORT_COLUMN_INDEX = column;
+            var firstRow = new Array();
+            var newRows = new Array();
+            for (i=0;i<table.rows[0].length;i++) { firstRow[i] = table.rows[0][i]; }
+            for (j=1;j<table.rows.length;j++) { newRows[j-1] = table.rows[j]; }
+        
+            newRows.sort(sortfn);
+            if (span.getAttribute("sortdir") == 'down') {
+                //ARROW = '&nbsp;&nbsp;&uarr;';
+                ARROW = '<img src="{!$Resource.PGI_SortDown}" border="0" alt="' + "Sorted Descending" + '"/>';
+                newRows.reverse();
+                span.setAttribute('sortdir','up');
+            } else {
+                //ARROW = '&nbsp;&nbsp;&darr;';
+                ARROW = '<img src="{!$Resource.PGI_SortUp}" border="0" alt="' + "Sorted Ascending" + '"/>';
+                span.setAttribute('sortdir','down');
+            }
+            //alert(ARROW);
+        
+            // We appendChild rows that already exist to the tbody, so it moves them rather than creating new ones
+            // don't do sortbottom rows
+            for (i=0;i<newRows.length;i++)
+            {
+                if (!newRows[i].className || (newRows[i].className && (newRows[i].className.indexOf('sortbottom') == -1)))
+                {
+                    if (alternateRowClasses == true)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            ts_addClassName(newRows[i], 'alternaterow');
+                        }
+                        else
+                        {
+                            ts_removeClassName(newRows[i], 'alternaterow');
+                        }
+                    }
+                    table.tBodies[0].appendChild(newRows[i]);
+                }
+            }
+        
+            // do sortbottom rows only
+            for (i=0;i<newRows.length;i++) { if (newRows[i].className && (newRows[i].className.indexOf('sortbottom') != -1)) table.tBodies[0].appendChild(newRows[i]);}
+        
+            // Delete any other arrows there may be showing
+            var allspans = document.getElementsByTagName("span");
+            for (var ci=0;ci<allspans.length;ci++) {
+                if (allspans[ci].className == 'sortarrow') {
+                    if (getParent(allspans[ci],"table") == getParent(lnk,"table")) { // in the same table as us?
+                        allspans[ci].innerHTML = '';
+                    }
+                }
+            }
+        
+            span.innerHTML = ARROW;
+        }
+        
+        function getParent(el, pTagName) {
+            if (el == null) return null;
+            else if (el.nodeType == 1 && el.tagName.toLowerCase() == pTagName.toLowerCase())    // Gecko bug, supposed to be uppercase
+                return el;
+            else
+                return getParent(el.parentNode, pTagName);
+        }
+        function ts_sort_date(a,b) {
+            //note assumes 4 digit years
+            aa = ts_getInnerText(a.cells[SORT_COLUMN_INDEX]);
+            bb = ts_getInnerText(b.cells[SORT_COLUMN_INDEX]);
+        
+            var dt1 = ts_JSUnformatDate(aa);
+            var dt2 = ts_JSUnformatDate(bb);
+            if (dt1==dt2) return 0;
+            if (dt1<dt2) return -1;
+            return 1;
+        }
+        
+        function ts_sort_currency(a,b) {
+            aa = ts_getInnerText(a.cells[SORT_COLUMN_INDEX]).replace(/[^0-9.\-\(]/g,'');
+            bb = ts_getInnerText(b.cells[SORT_COLUMN_INDEX]).replace(/[^0-9.\-\(]/g,'');
+            aa = aa.replace(/[\(]/g,'-');
+            bb = bb.replace(/[\(]/g,'-');
+            return parseFloat(aa) - parseFloat(bb);
+        }
+        
+        function ts_sort_numeric(a,b) {
+            aa = parseFloat(ts_getInnerText(a.cells[SORT_COLUMN_INDEX]));
+            if (isNaN(aa)) aa = 0;
+            bb = parseFloat(ts_getInnerText(b.cells[SORT_COLUMN_INDEX]));
+            if (isNaN(bb)) bb = 0;
+            return aa-bb;
+        }
+        
+        function ts_sort_caseinsensitive(a,b) {
+            aa = ts_getInnerText(a.cells[SORT_COLUMN_INDEX]).toLowerCase();
+            bb = ts_getInnerText(b.cells[SORT_COLUMN_INDEX]).toLowerCase();
+            if (aa==bb) return 0;
+            if (aa<bb) return -1;
+            return 1;
+        }
+        
+        function ts_sort_default(a,b) {
+            aa = ts_getInnerText(a.cells[SORT_COLUMN_INDEX]);
+            bb = ts_getInnerText(b.cells[SORT_COLUMN_INDEX]);
+            if (aa==bb) return 0;
+            if (aa<bb) return -1;
+            return 1;
+        }
+        
+        function ts_JSUnformatDate (dateStr)
+        {
+            //format the localized date field into yyyy/mm/dd format
+            var strMyDate = dateStr.replace(/-|\.|\//g, "-");
+            var arrDate = strMyDate.split("-");
+        
+        
+            return arrDate[2] + '/' + arrDate[0] + '/' +  arrDate[1];
+        } 
+        // ================================================Sort Table Code End========================================================== //
+        
+        function onlyNumbers(evt){
+        var charCode = (evt.which) ? evt.which : event.keyCode
+        if (charCode > 31 && (charCode < 48 || charCode > 57))       
+        {
+        alert('Please enter only Number!');
+              return false;
+             }
+         if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+        doSearchAF(); 
+        disableSearch();       
+        return false;
+        }    
+             
+             
+         
+     }
+     
+     function onlyNumbers1(evt){
+       
+        var charCode = (evt.which) ? evt.which : event.keyCode
+        if (charCode > 31 && (charCode < 48 || charCode > 57))       
+        {  
+        alert('Please enter only Number!');
+              return false;
+         }
+         if (charCode == 13 ) 
+         {         
+          doSearchAF1();             
+          return false;
+         }    
+             
+             
+         
+     }
+        
+        function validateEstQuantity(e)
+        {
+            var minValCtrl = e.substring(0,e.length -1) + '1';
+            var maxValCtrl = e.substring(0,e.length -1) + '2';
+
+            minValCtrl = document.getElementById(minValCtrl);
+            maxValCtrl = document.getElementById(maxValCtrl);
+
+            var minVal = minValCtrl.innerHTML;
+            var maxVal = maxValCtrl.innerHTML;
+            
+            var estQuantityCtrl = document.getElementById(e);
+            var estQuantityVal = estQuantityCtrl.value;
+            
+            if( (parseFloat(estQuantityVal) > parseFloat(maxVal)) || (parseFloat(estQuantityVal) < parseFloat(minVal)) )
+            {
+                estQuantityCtrl.style.backgroundColor = '#FF0000';
+                alert("Please enter a value within the minimum and maximum range on the screen.");
+                estQuantityCtrl.value='';
+                estQuantityCtrl.focus();                 
+            }
+            else
+            {
+               estQuantityCtrl.style.backgroundColor = '#FFFFFF';
+
+            }
+        }
+     
+        function populateValues(selectLst,lic){
+            var termCtrl = document.getElementById(selectLst);
+            var selectedValue = termCtrl.options[termCtrl.selectedIndex].value;
+            var splitValues = selectedValue.split('&'); 
+            var licenseID = document.getElementById(lic);
+            var termLengthID=document.getElementById("{!$Component.formProductSelection.productSearch.solutionSection.solutionTermSection.lineitemTerms.termLengthID}");
+            var pgiProductFamilyBox = document.getElementById("{!$Component.formProductSelection.productSearch.solutionSection.pgiProductFamilySection.pgiProductFamilySectionItem.pgiProductFamily}");
+           if(splitValues !=""){
+            pgiProductFamilyBox.selectedIndex = -1;
+            pgiProductFamilyBox.disabled = true;
+           if(splitValues[3]=="Licenses" || splitValues[3]=="Minutes")
+           {
+                    if(splitValues[1] !="null" && splitValues[3]!="Minutes"){     
+                        licenseID.value = splitValues[1];
+                    }else{ 
+                     licenseID.value ='';
+                    }
+                
+                     if(splitValues[2] !="null"){
+                         termLengthID.value=splitValues[2];
+                       }else{
+                        termLengthID.value='';
+                    }
+                    if(splitValues[3] !="null"){
+                        for(var i=0;i<unitTypeLst.options.length;i++){
+                            if((unitTypeLst.options[i].value == "Minute" && splitValues[3]=="Minutes")
+                                || (unitTypeLst.options[i].value == "Licenses" && splitValues[3]=="Licenses"))
+                            {
+                                unitTypeLst.selectedIndex = i;
+                            }
+                        }
+                    }
+                    if(splitValues[4] !="null"){
+                        for(var i=0;i<billingFrequencyLst.options.length;i++){
+                            if(billingFrequencyLst.options[i].value == splitValues[4])
+                                billingFrequencyLst.selectedIndex = i;
+                                
+                        }
+                    }
+             }  
+             else{
+                    licenseID.value ='';
+                    termLengthID.value='';
+                    unitTypeLst.selectedIndex=0;
+                    billingFrequencyLst.selectedIndex =0;
+            }
+        }      
+            else{
+                    pgiProductFamilyBox.disabled = false;
+                    pgiProductFamilyBox.selectedIndex = -1;
+                    licenseID.disabled = false;
+                    licenseID.value ='';
+                    termLengthID.disabled = false;
+                    termLengthID.value='';
+                    unitTypeLst.selectedIndex=-1;
+                    billingFrequencyLst.selectedIndex = -1;
+            }
+     
+        }
+          
+        function enableDisableFields(prodFamilySelectId)
+        {
+            var prodFamily = document.getElementById(prodFamilySelectId);
+            var disableTerm = false;
+            var disableQuantity = false;
+            // this variable handles the multiselect scenario. In selected options even if one value is
+            // there with term than we should not disable the term box.
+            var checkTerm = true;
+            // this variable handles the multiselect scenario. In selected options even if one value is
+            // there with license than we should not disable the license box.
+            var checkQuantity = true;
+            for (var i = 0; i < prodFamily.options.length; i++)
+            {
+                if (prodFamily.options[i].selected) {
+                    var selectedValue = prodFamily.options[i].value;
+                    var splitValues = selectedValue.split(';'); 
+                    if (splitValues != null && splitValues != '')
+                    {
+                        if (splitValues[1] != 'true' && checkTerm)
+                        {
+                            disableTerm = true;
+                        }
+                        else
+                        {
+                            checkTerm = false;
+                        }
+                        if (splitValues[2] != 'true' && checkQuantity)
+                        {
+                            disableQuantity = true;
+                        }
+                        else
+                        {
+                            checkQuantity = false;
+                        }
+                    }
+                }
+            }
+            var termLengthID=document.getElementById("{!$Component.formProductSelection.productSearch.solutionSection.solutionTermSection.lineitemTerms.termLengthID}");
+            termLengthID.disabled = disableTerm;
+            var licenseField = document.getElementById("{!$Component.formProductSelection.productSearch.solutionSection.solutionTermLicenseSection.solutionTermLicSectionItem.LicenceID}");
+            licenseField.disabled = disableQuantity;
+        }
+        
+        function disableSearch() {
+        var x=document.getElementById("{!$Component.formProductSelection.productSearch.search}");
+        x.className = 'btnDisabled';
+        x.disabled =true;
+        }
+        
+        function checkboxlimit(cb, limit)
+        {
+             var countchbox=0;
+             var limit=limit;
+             var inputElem = document.getElementsByTagName("input");
+                for(var i=0; i<inputElem.length; i++)
+                {
+                    if(inputElem[i].id.indexOf("checkedone")!=-1)
+                    {
+                        if(inputElem[i].checked ==true)
+                        {  
+                            countchbox=countchbox+1;
+                        }
+                    }
+                }
+                if(countchbox>limit){
+                    alert("You can only select a maximum of "+limit+" Packages")
+                    cb.checked = false; 
+                }
+        }
+  
+   
+        function noenter(ev)
+        {
+            if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+                doSearchAF(); 
+                disableSearch();       
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        
+        function noenter1(ev)
+        {
+            if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+                doSearchAF1();            
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        
+        function removeSpaces(str){
+        return str.split(' ').join('');
+        }
+      </script>
+    
+    <apex:form id="formProductSelection">       
+        <apex:pageBlock title="{!$Label.pgiFilterProducts}"  id="productSearch" rendered="{!FilterPage}">
+            <div style="border: 5px solid #461B7E; text-align:left;overflow:auto; padding-top: 20px;padding-bottom: 20px;  font-family:Helvetica, sans-serif; font-size:10pt; line-height: 1.5em; width:99%;"> 
+                <apex:pageBlockSection columns="3" id="solutionSection">
+                
+                    <!--Opportunity Product Family -->
+                    <apex:pageBlockSection id="oppProductFamilySection">      
+                        <apex:pageBlockSectionItem labelStyle="padding-right:11px;">               
+                        <apex:outputLabel style="width: 130px;display: inline-block;" title="{!$Label.pgiOpportunityProductSolution}"><b> {!$Label.pgiInterestedSolution}</b></apex:outputLabel>
+                            <apex:selectList id="IntrsdSoln" value="{!interestedSolution}" multiselect="false"  size="3" style="width:245px;" 
+                                 onchange="populateValues(this.id,'{!$Component.formProductSelection.productSearch.solutionSection.solutionTermLicenseSection.solutionTermLicSectionItem.LicenceID}');"   onkeypress="return noenter(event);">
+                                <apex:selectOptions value="{!interstdSolLst}" >
+                                </apex:selectOptions>
+                            </apex:selectList>  
+                          </apex:pageBlockSectionItem>         
+                    </apex:pageBlockSection>
+                    
+                    
+                   <!-- PgiSolution -->
+                    <apex:pageBlockSection id="pgiProductFamilySection">    
+                        <apex:pageBlockSectionItem id="pgiProductFamilySectionItem" labelStyle="padding-left: 85px;padding-right: 1px;">                
+                        <apex:outputLabel title="{!$Label.pgiSolutionproductfamily}"><b> {!$Label.pgiSolutions}</b></apex:outputLabel>
+                        <apex:selectList id="pgiProductFamily" value="{!Solutions}" multiselect="true"  size="3" style="width:280px;"  
+                                    onChange="enableDisableFields(this.id)" onkeypress="return noenter(event);">
+                            <apex:selectOptions value="{!solutionList}">
+                            </apex:selectOptions>
+                        </apex:selectList>      
+                        </apex:pageBlockSectionItem>                         
+                    </apex:pageBlockSection>  
+                    
+                     <!-- UnitType -->
+                    <apex:pageBlockSection id="unitTypeSection">  
+                           <apex:pageBlockSectionItem labelStyle="padding-left: 45px;padding-right: 8px;">               
+                            <apex:outputLabel style="width: 55px;display: inline-block;" title="{!$Label.pgiUnitTypehover}"><b> {!$Label.pgiUnitType}</b></apex:outputLabel>
+                             <apex:outputPanel layout="block">
+                            <apex:selectList value="{!unitType}" multiselect="true"  size="3" style="width:110px;" id="unitType" onkeypress="return noenter(event);">
+                                <apex:selectOptions id="unittypeOptions" value="{!unitTypeLst}">
+                                </apex:selectOptions>
+                            </apex:selectList>
+                            <script> var unitTypeLst = document.getElementById("{!$Component.unitType}"); </script>
+                              </apex:outputPanel>
+                        </apex:pageBlockSectionItem>
+                    </apex:pageBlockSection>
+                    
+              
+                       <!-- License -->                   
+                   <apex:pageBlockSection id="solutionTermLicenseSection"> 
+                        <apex:pageBlockSectionItem labelStyle="padding-right:9px;" id="solutionTermLicSectionItem">                 
+                            <apex:outputLabel style="width: 130px;display: inline-block;" title="{!$Label.pgiLicensesHover}"><b>{!$Label.pgiLicenses}</b></apex:outputLabel>
+                             <apex:inputText id="LicenceID" value="{!MinmaxLicenses}" onkeypress="return onlyNumbers(event);" />
+                        </apex:pageBlockSectionItem>    
+                        
+ 
+                                                
+                    </apex:pageBlockSection>
+                     
+                   <!-- Term Length -->                   
+                   <apex:pageBlockSection id="solutionTermSection"> 
+                       <apex:pageBlockSectionItem labelStyle="padding-left: 36px;padding-right: 1px;" id="lineitemTerms">        
+                             <apex:outputLabel style="width: 90px;display: inline-block;" title="{!$Label.pgiTermhover}"><b> {!$Label.pgiTermLength} </b></apex:outputLabel>
+                             <apex:inputText id="termLengthID"  value="{!TermLength}" onkeypress="return onlyNumbers(event);" />
+                        </apex:pageBlockSectionItem>                            
+                    </apex:pageBlockSection>
+                    
+                 
+                    
+                   
+                    
+              <!-- Billing frequency -->
+                    <apex:pageBlockSection >   
+                          <apex:pageBlockSectionItem labelStyle="padding-left: 20px;padding-right: 8px;">            
+                            <apex:outputLabel style="width: 80px;display: inline-block;" title="{!$Label.pgiBillingFrequencyHover}"><b> {!$Label.pgiBillingFrequency}</b></apex:outputLabel>
+                            <apex:outputPanel layout="block">
+                            <apex:selectList value="{!billingFrequency}" multiselect="true"  size="3" style="width:110px;" id="billingFrequency" onkeypress="return noenter(event);">
+                                <apex:selectOptions value="{!billingFrequencyLst}">
+                            </apex:selectOptions>
+                            </apex:selectList> 
+                            <script> var billingFrequencyLst = document.getElementById("{!$Component.billingFrequency}"); </script>
+                            </apex:outputPanel>   
+                          </apex:pageBlockSectionItem>       
+                    </apex:pageBlockSection>
+                    
+                   <!-- Opportunity Product Family 
+                    <apex:pageBlockSection >      
+                        <apex:pageBlockSectionItem labelStyle="padding-right:25px;">               
+                        <apex:outputLabel style="width: 130px;display: inline-block;" title="{!$Label.pgiOpportunityProductSolution}"><b> {!$Label.pgiInterestedSolution}</b></apex:outputLabel>
+                            <apex:selectList id="IntrsdSoln" value="{!interestedSolution}" multiselect="false"  size="3" style="width:200px;" 
+                                 onchange="populateValues(this.id,'{!$Component.formProductSelection.productSearch.solutionSection.solutionTermLicenseSection.solutionTermLicSectionItem.LicenceID}');">
+                                <apex:selectOptions value="{!interstdSolLst}" >
+                                </apex:selectOptions>
+                            </apex:selectList>  
+                          </apex:pageBlockSectionItem>         
+                    </apex:pageBlockSection>-->
+                </apex:pageBlockSection> 
+
+                <br/>    
+                <table align="Center">
+                    <tr>
+                        <td></td>
+                        <td></td>
+                          <td><apex:commandButton value="{!$Label.pgiSearchButtonFilterPage}" Action="{!FilterProduct}"  rerender="productSearch,search" id="search" onclick="disableSearch();" status="searchStatus"/></td> 
+                          <td> <apex:commandButton value=" {!$Label.pgiClearButtonFilterPage}"  Action="{!ClearFromList}" rerender="productSearch" onclick="window.location.reload()" /></td>
+                          <td> <apex:commandButton value=" Cancel"   onclick=" window.top.close();" /></td>
+                        <td></td>
+                    </tr>
+                </table> 
+            </div>
+            
+            <br/>
+            
+            
+            <center>
+                <apex:pageBlockSection rendered="{!noSearch}">
+                    <apex:outputLabel ><b>{!$Label.searchFilter}</b></apex:outputLabel>
+                </apex:pageBlockSection>
+            </center>
+        
+            <apex:pageBlockSection rendered="{!prodFilterPage}" columns="1">
+                <apex:commandButton value="{!$Label.PgiConfigureNewPackage}" Action="{!EnterUsage}"  />   
+                <apex:pageBlockSectionItem >
+                    <apex:pageBlockTable value="{!ServProdDetails}" var="pu">     
+                        <apex:column headerValue="Select" >
+                        <apex:inputCheckbox value="{!pu.selectedproduct}"  id="checkedone"  onclick="return checkboxlimit(this,5)" />
+                        </apex:column> 
+                        <apex:column headerValue="{!$Label.pgiService}" value="{!pu.productName}" title="{!pu.Description}"/>
+                        <apex:column headerValue="{!$Label.pgiRegion}" value="{!pu.Region}"/>
+                       <!--  <apex:column headerValue="{!$Label.pgiChannel}" value="{!pu.Channel}"/>  -->
+                        
+                      <!--  <apex:column headerValue="{!$Label.pgiProductCode}" value="{!pu.ProductCode}"/> -->
+                      <apex:column headerValue="Max Participants" >
+                      <apex:outputText value="{0, Number,##}"><apex:param value="{!pu.MaxMeeting}"/></apex:outputText>
+                      </apex:column>
+                        <apex:column headerValue="{!$Label.pgiUnitType}" value="{!pu.unit}"/>
+                        <apex:column headerValue="{!$Label.Term}"  value="{!pu.termLength}" />
+                           <apex:column headerValue="{!$Label.pgiBillingFrequency}"  value="{!pu.billingFrequency}" />
+                            <apex:column headerValue="{!$Label.pgiCurrency}" value="{!pu.prodCurrency}"/>
+                        <apex:column headerValue="{!$Label.pgiListPrice}"  >
+                        <apex:outputText value="{0, Number, #0.000}" ><apex:param value="{!pu.ListRate}"/></apex:outputText>
+                        </apex:column>
+                       
+                     
+                       
+                    </apex:pageBlockTable>
+                 </apex:pageBlockSectionItem>
+                  <apex:commandButton value="{!$Label.PgiConfigureNewPackage}" Action="{!EnterUsage}"  />   
+                  <br/>
+                  <br/>
+            </apex:pageBlockSection>
+        </apex:pageBlock> 
+       
+        <apex:pageBlock title="{!$Label.pgiUsageEnter}"  id="Usage" rendered="{!usagePage}">
+            <c:QuoteAccInfo ></c:QuoteAccInfo>
+            <br/>
+            <table align="Center" style="padding-right: 30px;">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td><apex:commandButton value="{!$Label.pgiBackButton}" Action="{!back}"/>  </td>
+                    <td><apex:commandButton value=" {!$Label.pgiSave}" Action="{!saveOffers}" onclick="checkDoubleSubmit(this);"   id="topsave"/></td>
+                    <td><apex:commandButton value="{!$Label.pgiCancelButton}" Action="{!cancel}"/></td>
+                    <td></td>
+                </tr>
+            </table> 
+            <apex:repeat value="{!ProdUsageDetails}" var="prod" Id="QuoteLineItems">               
+                <apex:pageBlockSection columns="1">
+                    <apex:pageBlockSectionItem >
+                    <apex:outputlabel ><b><p style="font-size: 120%;"> {!$Label.pgiService} : {!prod.serviceName}</p></b></apex:outputlabel>
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem >                
+                        <apex:pageBlockTable value="{!prod.productLst}" var="pu">          
+                            <apex:column > 
+                            <apex:commandButton value="{!$Label.pgiDelete}" action="{!deletelineItem}" rerender="reptProductSelection,Usage" rendered="{!not(pu.isDefaultProduct)||pu.isserviceProduct}">
+                            <apex:param assignTo="{!selectedRowId}" value="{!pu.customRowId}"  name="rowId"  /> 
+                            </apex:commandButton> 
+                            </apex:column>
+                            <apex:column headerValue="{!$Label.Quantity}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                            <apex:inputText value="{!pu.Quantity}" id="value3" size="7" onblur="validateEstQuantity(this.id)" onkeypress="return onlyNumbers1(event);" rendered="{!pu.isServiceProduct}"/> 
+                            </apex:column> 
+                            <apex:column headerValue="{!$Label.pgiProduct}" value="{!pu.productName}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" title="{!pu.Description}"/>
+                            <apex:column headerValue="{!$Label.pgiUnitType}" value="{!pu.unit}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                            <apex:column headerValue="{!$Label.pgiMinimumQuantity}"  id="value1" value="{!pu.minQuantity}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                            <apex:column headerValue="{!$Label.pgiMaximumQuantity}"  id="value2" value="{!pu.maxQuantity}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                            
+                            <apex:column headerValue="{!$Label.Term}"  value="{!pu.termLength}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                            <apex:column headerValue="{!$Label.pgiBillingFrequency}"  value="{!pu.billingFrequency}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                            <apex:column headerValue="{!$Label.pgiListPrice}"   style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                            <apex:outputText value="{0, Number, #0.000}" ><apex:param value="{!pu.ListRate}" /></apex:outputText>
+                            </apex:column>
+                            <apex:column headerValue="{!$Label.sellPrice}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                            <apex:inputText value="{!pu.BidPrice}" id="sellprice" size="7" onkeypress="return noenter1(event);" onkeyup="this.value=removeSpaces(this.value);"/>
+                            </apex:column> 
+                         </apex:pageBlockTable>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                <table width="100%" style="margin-left:8px">
+                    <tr>
+                        <td>
+                            <apex:outputLabel ><b style="vertical-align:top"> {!$Label.pgiAdditionalProducts}<font color='red'> </font></b></apex:outputLabel>
+                            <apex:selectList value="{!prod.addedProducts}" multiselect="true" size="3" style="width:300px;">
+                            <apex:selectOptions value="{!prod.productOptions}">
+                            </apex:selectOptions>
+                            </apex:selectList>
+                        </td>
+                        <td style="padding-left: 190px;">
+                            <apex:outputLabel ><b style="vertical-align:top"> {!$Label.pgiAncillaryProducts}<font color='red'> </font></b></apex:outputLabel>
+                            <apex:selectList value="{!prod.ancillaryProducts}" multiselect="true" size="3" style="width:300px;">
+                                <apex:selectOptions value="{!prod.ancillaryOptions}">
+                                </apex:selectOptions>
+                            </apex:selectList>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td  style="padding-left: 170px;">
+                            <apex:commandButton value="{!$Label.pgiAddNewProducts}" action="{!AddAditionalProducts}"  rerender="reptProductSelection,Usage">              
+                                <apex:param assignTo="{!selectedServiceId}" value="{!prod.serviceId}"  name="AddProducts"  /> 
+                            </apex:commandButton>  
+                        </td>
+                        <td style="padding-left: 370px;">
+                            <apex:commandButton value="{!$Label.pgiAddAncillaryProducts}" action="{!AddAncillaryProducts}"  rerender="reptProductSelection,Usage">              
+                                <apex:param assignTo="{!selectedServiceId}" value="{!prod.serviceId}"  name="AddProducts"  /> 
+                            </apex:commandButton>
+                        </td> 
+                    </tr>
+                </table>
+            </apex:repeat>
+            <br/>
+            <br/>
+            <table align="Center" style="padding-right: 30px;">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td><apex:commandButton value="{!$Label.pgiBackButton}" Action="{!back}"/>  </td>
+                  <td><apex:commandButton value="{!$Label.pgiSave}" Action="{!saveOffers}" onclick="checkDoubleSubmit(this);" onkeypress="return onKeyup_TxtFieldcom(event);" id="bottomsave"/></td>
+                  <td><apex:commandButton value="{!$Label.pgiCancelButton}" Action="{!cancel}"/></td>
+                    <td></td>
+                </tr>
+            </table> 
+            <br/>
+            <br/>
+            <apex:pageBlockSection rendered="{!isCancelled}">
+                <script>
+                     window.top.close();
+                 </script>
+            </apex:pageBlockSection>
+      <script type="text/javascript">
+           var isClicked = false;
+           function checkDoubleSubmit(obj){
+                if (isClicked) 
+                {
+                  document.getElementById("{!$Component.topsave}").disabled =true;
+                  document.getElementById("{!$Component.bottomsave}").disabled =true;
+                   return false;
+                }
+                else 
+                {
+                  document.getElementById("{!$Component.topsave}").className = 'btnDisabled';;
+                  document.getElementById("{!$Component.bottomsave}").className = 'btnDisabled';;
+                  isClicked = true;
+                }
+            }
+  
+    
+    
+     </script>
+     </apex:pageBlock>       
+    <apex:actionFunction name="doSearchAF" action="{!FilterProduct}" /> 
+     <apex:actionFunction name="doSearchAF1" Action="{!saveOffers}"  /> 
+     <apex:actionStatus id="searchStatus" onStop="ts_sortables_init(), 
+                                                  enableDisableFields('{!$Component.formProductSelection.productSearch.solutionSection.pgiProductFamilySection.pgiProductFamilySectionItem.pgiProductFamily}'),
+                                                  populateValues('{!$Component.formProductSelection.productSearch.solutionSection.oppProductFamilySection.j_id28.IntrsdSoln}','{!$Component.formProductSelection.productSearch.solutionSection.solutionTermLicenseSection.solutionTermLicSectionItem.LicenceID}')"></apex:actionStatus>
+    
+    </apex:form>  
+</apex:page>

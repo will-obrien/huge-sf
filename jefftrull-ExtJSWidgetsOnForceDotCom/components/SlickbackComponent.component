@@ -1,0 +1,397 @@
+<!-- 
+Copyright 2012 Jeff Trull <jetrull@sbcglobal.net>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
+<apex:component controller="SlickbackRemotingCtrl">
+    <!-- A SlickTable grid backed by Force.com data via Backbone.js and Slickback.js -->
+    <apex:attribute name="object" type="String" description="sObject to generate a grid for" required="true"/>
+    <apex:attribute name="fields" type="String[]" description="list of fields to display" required="true"/>
+    <apex:attribute name="minimized" type="Boolean" description="whether to initially render the grid in minimized state" default="false"/>
+    <apex:attribute name="rows" type="int" description="how many rows to display in grid" default="19"/>
+
+<!-- contents of example.css -->
+<style type="text/css">
+#topLevel {
+  height: 500px;
+  width: 900px;
+}
+
+#exampleGrid {
+  height: 460px;
+  width: 100%;
+  overflow: hidden;
+}
+
+#examplePager {
+  width: 100%;
+}
+
+.alignRight {
+  text-align: right;
+}
+
+.slick-cell input, .slick-cell select {
+  height: 20px;
+  width: 100%;
+  padding: 0px;
+  margin: 0px;
+  border: 0px;
+}
+
+.slick-cell.alignRight input {
+  text-align: right;
+}
+
+.slick-pager .slick-pager-settings {
+  display: none;
+}
+</style>
+
+<script>
+// primary IIFE to protect global namespace
+(function() {  // unindented deliberately
+
+j$ = jQuery.noConflict();
+
+var dateFormat = "mm/dd/yy";   // controls model storage format and the format used by the date editor
+
+var SFDC_Connector = function(sobjname, fields) {
+    'use strict';
+
+    // private methods and data members:
+    var fieldData = j$.Deferred();    // cache of server-generated field metadata - a "future"
+                                      // we can use this to coordinate model and grid construction
+
+    // CRUD methods for sync function
+    function read(method, model, options) {
+        var dataParams = options.data || {};
+        // apply paging parameters
+        var pageSize    = parseInt('{!rows}');     // or let grid supply?
+        var page        = dataParams['page'] || 1;
+        var queryParams = {sobjname:    sobjname,
+                           fields:      fields,
+                           start:       (page - 1)*pageSize,
+                           recordCount: pageSize
+        };
+        if (('direction' in dataParams) && (dataParams.direction != null) &&
+            ('order' in dataParams)     && (dataParams.order != null)) {
+            queryParams.sortParams = [{ property:  dataParams.order,
+                                        direction: dataParams.direction
+                                      }];
+        }
+        SlickbackRemotingCtrl.query(
+            queryParams,
+            function(resp, e) {
+                if (!e.status || !resp.success) {  // TODO latter case is controller-generated; should pass on error message
+                    options.error(model, resp);
+                    return;
+                }
+                options.success({ entries: resp.records,
+                                  currentPage:  page,
+                                  perPage:      pageSize,
+                                  totalEntries: resp.total
+                });
+            });
+    }
+    
+    // when field metadata returns, store for use in communicating data:
+    var fieldMetaData;
+    fieldData.promise().done(function(data) { fieldMetaData = data; });
+
+    function update(method, model, options) {
+        // produce server-side CRUDData object
+        var attrs = model.changedAttributes();
+
+        // reformat Date fields (stored in the model as formatted strings)
+        // to be timestamps, as required on the server
+        for (var i = 0; i < fieldMetaData.length; i++) {
+            // see if this is a non-empty date-type field
+            if ((fieldMetaData[i].fieldType == "date") &&
+                (fieldMetaData[i].name in attrs) &&
+                !!attrs[fieldMetaData[i].name]) {
+                attrs[fieldMetaData[i].name] = 
+                    j$.datepicker.parseDate(dateFormat, attrs[fieldMetaData[i].name]);
+	    }
+        }
+
+        var params = {sobjname:    sobjname,
+        	      fields:      fields,
+        	      records:     [_.extend({Id: model.id}, attrs)]
+        };
+
+        SlickbackRemotingCtrl.updat(
+        	params,
+        	function(resp, e) {
+        		if (!e.status || !resp.success) {
+        			options.error(model, resp);
+        			return;
+        		}
+        		options.success({});
+        	});
+    }
+
+    function sync(method, model, options) {
+        switch(method) {
+            case 'read':
+                return read(method, model, options);
+            case 'update':
+                return update(method, model, options);
+            default:
+                throw "Method " + method + " not implemented";
+                break;
+        }
+    }
+
+    function parse(response) {
+        // here is where we perform any translations between data returned from the
+        // server and what we want to store in each model
+        if (!fieldMetaData) {
+            throw "Grid Error: attempting to parse server data without field metadata";
+        }
+        // for now, only date fields require special handling:
+        for (var i = 0; i < fieldMetaData.length; i++) {
+        	// see if this is a non-empty date-type field
+            if ((fieldMetaData[i].fieldType == "date") &&
+                (fieldMetaData[i].name in response) &&
+                !!response[fieldMetaData[i].name]) {
+                // format as readable string (is a Javascript "time" on the wire!)
+                var d = new Date(parseInt(response[fieldMetaData[i].name]));
+                // fix time zone issue
+                d = new Date(d.getUTCFullYear(),
+                             d.getUTCMonth(),
+                             d.getUTCDate());
+                // stringify
+                response[fieldMetaData[i].name] = j$.datepicker.formatDate(dateFormat, d);
+            }
+        }              
+        return response;
+    }
+
+    // initialization code
+    var fieldlist;
+    if ((fields == null) || (fields == '') || (fields == '[]')) {
+    	throw "Grid Component Error: no fields supplied";
+    }
+    if (fields.substr(0, 1) == '[') {
+        // a fieldset - remove brackets and split on comma+space
+        fieldlist = fields.substr(1, fields.length - 2).split(', ');
+    } else {
+        fieldlist = fields.split(',');
+    }
+   // launch field metadata request
+    SlickbackRemotingCtrl.describeFields(sobjname, fieldlist,
+        function(response, e) {
+            if (!e.status) {
+                fieldData.reject();                  // cause anyone waiting to fail
+                j$("#gridErrs").dialog(
+                    {height: 100,
+                     resizable: false,
+                     modal: true,
+                     title: "Server Error",
+                     buttons:
+                         {"OK" : function() {
+                                     j$( this ).dialog("close");
+                                 }
+                         }
+                    }).text(e.message);
+                return;
+            }
+            fieldData.resolve(response);             // cause waiters to succeed with data
+        });
+        
+    // define model
+    var model = Backbone.Model.extend({
+                sync:        sync,
+                parse:       parse,
+                idAttribute: "Id"
+            });
+
+    var collection = Slickback.PaginatedCollection.extend({
+        model: model,
+        sync: sync
+    });
+
+    return {
+        // public API
+        getFieldDataPromise: function() {
+            return fieldData.promise();
+        },
+    
+        getCollection: function() {
+            return collection;
+        }
+    }
+
+};  // end SFDC_Connector
+
+var sfdc = SFDC_Connector('{!object}', '{!fields}');
+
+var Collection = sfdc.getCollection();
+
+// define our local DateEditor which uses the format chosen above
+var ctor = function() {}
+ctor.prototype = Slickback.DateCellEditor.prototype;  // avoid calling parent ctor
+var DateEditor = function(args) {
+    // apply our format, and delegate to Slickback's DateCellEditor
+    Slickback.DateCellEditor.call(this, _.extend({dateFormat: dateFormat}, args));
+}
+DateEditor.prototype = new ctor();  // set up inheritance
+
+// when the field metadata is ready, define grid columns
+var columnsPromise = sfdc.getFieldDataPromise().pipe(
+    function(fieldData) {
+        var columns = [];
+        for (var i = 0; i < fieldData.length; i++) {
+            var col = {
+                id: fieldData[i].name,
+                field: fieldData[i].name,
+                name: fieldData[i].label,
+                sortable: fieldData[i].sortable,
+                width: 150
+            }
+            // special treatment for some data types
+            if (fieldData[i].fieldType == "picklist") {
+                col.formatter = Slickback.ChoiceFormatter;
+            }
+            // set up editors for modifiable fields
+            if (fieldData[i].modifiable) {
+                col.editable = true;
+                // special editors for certain data types
+                if (fieldData[i].fieldType == "double") {
+                    col.editor = Slickback.NumberCellEditor;
+                } else if (fieldData[i].fieldType == "integer") {
+                    col.editor = Slickback.IntegerCellEditor;
+                } else if (fieldData[i].fieldType == "date") {
+                    col.editor = DateEditor;
+                } else if (fieldData[i].fieldType == "picklist") {
+                    col.editor = Slickback.DropdownCellEditor;
+                    // add choice values
+                    col.choices = [];
+                    for (var j=0; j< fieldData[i].picklistValues.length; j++) {
+                        if (fieldData[i].picklistValues[j].length > 1) {  // skip nillable values
+                            col.choices.push({ label: fieldData[i].picklistValues[j][0],
+                                               value: fieldData[i].picklistValues[j][1]
+                                             });
+                        }
+                    }
+                } else {
+                    col.editor = Slickback.TextCellEditor;
+                }
+                if ((col.editor == Slickback.TextCellEditor) &&
+                	(fieldData[i].nillable == false)) {
+                	// add non-blank validation to field
+                	col.validator = function(val) {
+                		return ( _.isString(val) && val !== "")
+                			 ? { valid: true, msg: null }
+                			 : { valid: false, msg: "Please supply a value for this field" };
+                	}
+                }
+            }
+            columns.push(col);
+        }
+        return j$.Deferred().resolve(columns);   // release anything waiting on column definitions
+    });
+
+j$(document).ready(function() {
+    // anything that requires the page to be ready (e.g. rendering the grid) goes here
+
+    // defining the main grid view also requires waiting on the column definitions
+    // having them produce a promise, above, allows them to be calculated independently
+    // of the page loading and then used when available:
+    columnsPromise.done(function(columns) {
+        var collection = new Collection();
+        function initializeGridView(initializationOpts) {
+            var pagerElt  = initializationOpts.pager;
+        
+            var gridOptions = _.extend({},{
+                editable:         true,
+                formatterFactory: Slickback.BackboneModelFormatterFactory
+            },initializationOpts.grid);
+        
+            var grid =
+              new Slick.Grid(this.el,collection,columns,gridOptions);
+            var pager =
+              new Slick.Controls.Pager(collection,grid,pagerElt);
+        
+            grid.onSort.subscribe(function(e, msg) {
+                collection.extendScope({
+                    order:     msg.sortCol.field,
+                    direction: (msg.sortAsc ? 'ASC' : 'DESC')
+                });
+                collection.fetchWithScope(); // NOTE: resetting pagination
+            });
+        
+            collection.bind('change',function(model,attributes) {
+                model.save();
+            });
+        
+            collection.onRowCountChanged.subscribe(function() {
+                grid.updateRowCount();
+                grid.render();
+            });
+        
+            collection.onRowsChanged.subscribe(function() {
+                grid.invalidateAllRows();
+                grid.render();
+            });
+        
+            // arrange for error reporting
+            grid.onValidationError.subscribe(function (e, args) {
+                j$("#gridErrs").dialog(
+                    {height: 100,
+                     resizable: false,
+                     modal: true,
+                     title: "Validation Error",
+                     buttons:
+                         { "OK" : function() {
+                                     // ensure focus remains in edit cell
+                                     args.editor.focus();
+                                     j$( this ).dialog("close");
+                                  },
+                           "Cancel" : function() {
+                                       // restore old value to field
+                                       grid.getEditorLock().cancelCurrentEdit();
+                                       j$( this ).dialog("close");
+                                    }
+                         }
+                     }).text(args.validationResults.msg);
+            });
+
+            collection.fetchWithPagination();
+        }
+        
+        var GridView = Backbone.View.extend({
+            initialize: initializeGridView
+        });
+        
+        var view     = new GridView({
+            el:         '#exampleGrid',
+            collection: collection,
+            pager:      j$('#examplePager')
+        });
+    });
+});   // end document ready handling
+})(); // end primary IIFE
+</script>
+
+<div id="topLevel">
+    <div class="grid-header" style="width:100%">
+        <label>{!object}</label>
+    </div>
+    <div id="exampleGrid"></div>
+    <div id="gridErrs"></div>
+    <div id="examplePager"></div>
+</div>
+
+</apex:component>

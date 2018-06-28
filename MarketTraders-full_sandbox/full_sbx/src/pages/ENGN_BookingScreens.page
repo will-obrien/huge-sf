@@ -1,0 +1,853 @@
+<apex:page showHeader="false" sidebar="false"  title="Appointment Screen" standardStylesheets="false" docType="html-5.0">
+<apex:remoteObjects >
+    <apex:remoteObjectModel name="OpportunityContactRole" jsShorthand="getActs" fields="Id">
+    <apex:remoteObjectField name="OpportunityId" jsShorthand="offerOpp"/>
+    <apex:remoteObjectField name="ContactId" jsShorthand="offerCon"/>
+    </apex:remoteObjectModel>
+    </apex:remoteObjects>
+    <apex:remoteObjects >
+    <apex:remoteObjectModel name="Opportunity" jsShorthand="getUser" fields="Name">
+    <apex:remoteObjectField name="Id" jsShorthand="offerOppId"/>
+    <apex:remoteObjectField name="OwnerId" jsShorthand="offerOwner"/>
+    </apex:remoteObjectModel>
+    <apex:remoteObjectModel name="Contact" jsShorthand="getCon" fields="Name">
+    <apex:remoteObjectField name="Id" jsShorthand="offerConId"/>
+    <apex:remoteObjectField name="Email" jsShorthand="offeremail"/>
+    <apex:remoteObjectField name="LastName" jsShorthand="offerlname"/>
+    </apex:remoteObjectModel>
+    </apex:remoteObjects>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<apex:stylesheet value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/bootstrap/css/bootstrap.min.css')}"/>
+<!-- <apex:stylesheet value="{!URLFOR($Resource.BookingSocial_Library, 'BookingSocial_Library/bootstrap/css/bootstrap-responsive.min.css')}"/> -->
+<!--[if lt IE 7]>
+  <link href="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/css/bootstrap-ie7fix.min.css')}" rel="stylesheet">
+<![endif]-->
+<apex:stylesheet value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/bootstrap/css/style.css')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/css/ui-lightness/jquery-ui-1.8.11.custom.css')}"/>
+
+<apex:includeScript value="https://maps.googleapis.com/maps/api/js?sensor=false"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/jquery-1.6.2.min.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/ui/jquery.ui.core.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/ui/jquery.ui.widget.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/ui/jquery.ui.datepicker.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/jquery.inherit-1.3.2.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/BSL_Ajax.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/bksl.min.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/json2.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/jquery.tmpl.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/spine.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/spine.model.local.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/app/models/booking.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/app/application.js')}"/>
+
+<!--<apex:includeScript value="{!URLFOR($Resource.BKSL_Temporary, 'BookingSocial_Library/BookingScreen/app/application.js')}"/>-->
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/livevalidation_standalone.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/js/utils.js')}"/>
+<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'/>
+<style>
+.visible-xs {
+  display: none!important;
+}
+select option[disabled]{color:red;}
+body{
+    background-repeat:repeat !important;
+    font-family: ConfigFont !important;
+}
+@font-face {
+     font-family: ConfigFont;
+     src: url({!URLFOR($Resource.BKSL2__BookingWidget, 'fonts/OpenSans-Regular.ttf')});
+ }
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: ConfigFont !important;
+}
+#brandheader, .fullheader{
+
+}
+.headerService{
+    padding: 4px 15px;
+    background-color: #428bca;
+    border-color: #357ebd;
+    color: #FFF;
+}
+.btn{
+    border-radius: 0px;
+}
+.mainpanel{
+    background:white;
+    width:100% !important;
+    float:left;
+}
+.showServiceDetails{
+-webkit-padding-start: 0px;
+}
+.service {
+    /*background-color: #d9edf7;*/
+    margin: 0 15px 15px 0;
+    /*border: 1px solid #bce8f1;
+    -moz-border-radius: 5px;
+    -o-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;*/
+    padding:10px;
+    border-bottom: 1px solid #E0D9D9;
+}
+.showServiceDetails li {
+list-style: none;
+}
+/*#bookingscreen1 input[type="text"]:hover , .selectoption:hover{
+border: 1px solid #FBCB09;
+}*/
+
+/*#bookingscreen1 input[type="text"], .selectoption {
+font-size: 16px;
+font-family: inherit;
+line-height: 1.4em;
+border: 0;
+outline: none;
+padding: 4px;
+border: 1px solid #999999;
+-moz-border-radius: 5px;
+-o-border-radius: 5px;
+-webkit-border-radius: 5px;
+border-radius: 5px;
+-moz-box-shadow: rgba(0, 0, 0, 0.2) 0 1px 2px 0 inset;
+-webkit-box-shadow: rgba(0, 0, 0, 0.2) 0 1px 2px 0 inset;
+-o-box-shadow: rgba(0, 0, 0, 0.2) 0 1px 2px 0 inset;
+box-shadow: rgba(0, 0, 0, 0.2) 0 1px 2px 0 inset;
+}
+*/
+
+.LV_invalid_field{
+        border-color: red !important;
+}
+#existingContact{
+    background: #E37B2F;
+    padding: 5px;
+    text-align: right;
+    font-size: 12px;
+    border-bottom: 2px solid #D14836;
+}
+#userReference{
+    font-weight:bold;
+}
+body{
+   /* background:url('{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/images/bg2.png')}');*/
+   background:#F0F0F0;
+}
+.footer{
+    margin:0px !important;
+    padding: 10px;
+    width:100%;
+    float:left;
+}
+
+ul, li{
+    margin:0px !important;
+}
+
+.leftPanel{
+    /*padding: 0px 20px 10px 20px;*/
+    padding: 15px;
+    min-height:420px;
+    /*width:65% !important;
+    float:left;*/
+}
+
+.right-sidebar{
+    /*padding: 10px 10px 0px 0px;*/
+    padding: 15px;
+    /*width:30% !important;
+    float:left;*/
+}
+
+h1, h2, h3, h4, h5, h6 {
+    display: block !important;
+}
+
+legend {
+    margin: 10px 0px !important;
+    border-bottom: none !important;
+}
+
+*html .popup_block {
+    position: absolute;
+}
+.description{
+    font-size: 12px;
+}
+.reduce_padding{
+    padding-right: 10px;
+    padding-left: 10px;
+}
+.reduce_margin{
+    margin-right: -10px;
+    margin-left: -10px;
+}
+#fade { /*--Transparent background layer--*/
+    display: none; /*--hidden by default--*/
+    background: #666;
+    position: fixed; left: 0; top: 0;
+    width: 100%; height: 100%;
+    opacity: .50;
+    z-index: 9999;
+}
+.SelectBookingTemplate{
+    padding: 5px 15px;
+}
+.popup_block{
+    display: none; /*--hidden by default--*/
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #a6a5a5;
+    float: left;
+    font-family:Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    position: fixed;
+    top: 50%; left: 50%;
+    z-index: 99999;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+}
+
+.img-mid{
+margin-left: auto;margin-right: auto;
+}
+
+.mainpanel{
+margin-right:0px;
+margin-left:0px;
+}
+.actionBlock{
+    border-radius:0px;
+}
+.contactInformationBlock{
+    padding: 25px;
+}
+.add_margin {
+padding: 0px 20px;
+}
+.control-label{
+    font-weight:normal;
+}
+#fieldSet1{
+    padding: 20px 0px;
+}
+.serviceAction{
+    background: #ebf9ff;
+    padding: 11px 0px;
+}
+</style>
+<script>
+var __sfdcSessionId = '{!GETSESSIONID()}';
+var sr = new SOAPRequest({orgNameSpace: "BKSL2", sessionId : __sfdcSessionId, endPointName: "SETUP_Organization_WS"});
+</script>
+
+<script src="/soap/ajax/15.0/connection.js" type="text/javascript"></script>
+<script src="/soap/ajax/15.0/apex.js" type="text/javascript"></script>
+<div id="fb-root"></div>
+<script>
+    var bkslfb = new Object();
+    bkslfb.appId = '{!JSENCODE($CurrentPage.parameters.apedi)}';
+    bkslfb.user = null;
+    // Additional JS functions here
+    window.fbAsyncInit = function() {
+        if(bkslfb.appId != null && bkslfb.appId != ''){
+            FB.init({
+                appId      : bkslfb.appId, // App ID
+                channelUrl : '//WWW.YOUR_DOMAIN.COM/channel.html', // Channel File
+                status     : true, // check login status
+                cookie     : true, // enable cookies to allow the server to access the session
+                xfbml      : true  // parse XFBML
+            });
+    
+            // Additional init code here
+            FB.getLoginStatus(function(response) {
+                if (response.status === 'connected') {
+                    // connected
+                    //$('#facebookicon').hide();
+                    //User is an existing user
+                    getContactInformation();
+                    $('#userReference1').html($('#contactFirtsName').val());
+                    $('#existingContact').show();
+                } else if (response.status === 'not_authorized') {
+                    // not_authorized
+                    $('#facebookicon').show();
+                } else {
+                    // not_logged_in
+                    $('#facebookicon').show();
+                }
+            });
+
+            function getContactInformation() {
+                console.log('Welcome!  Fetching your information.... ');
+                FB.api('/me', function(response) {
+                    debugger;
+                    bkslfb.user = response;
+                    $('#contactFirtsName').val(response.first_name);
+                    $('#contactLastName').val(response.last_name);
+                    $('#contactEmail').val(response.email);
+                    $('#contactInfo').show();
+                });
+            }
+        }
+    
+    function login(){
+        FB.login(function(response) {
+            // handle the response
+            getContactInformation();
+        }, {scope: 'email'});
+    }
+    if(bkslfb.appId != null && bkslfb.appId != '')
+        window.fblogin = login;
+    };
+
+    // Load the SDK Asynchronously
+    (function(d){
+        if(bkslfb.appId != null && bkslfb.appId != ''){
+            var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+            if (d.getElementById(id)) {return;}
+            js = d.createElement('script'); js.id = id; js.async = true;
+            js.src = "//connect.facebook.net/en_US/all.js";
+            ref.parentNode.insertBefore(js, ref);
+        }
+    }(document));
+   
+   
+    function populateSelect(target, reqId){
+        if (!target){
+            return false;
+        }
+        else {
+        debugger;
+            var response = sforce.connection.query("Select Id, BKSL2__Package__c from BKSL2__Service__c where  Id = '" + reqId + "'");
+            if(response && response.records.BKSL2__Package__c && response.records.BKSL2__Package__c != null){
+                var selectOptions = (response.records.BKSL2__Package__c).split(";");
+                var select = document.getElementById(target);
+                select.length = 0;
+        
+                for (var i = 0; i<selectOptions.length; i++){
+                    var opt = document.createElement('option');
+                    opt.value = selectOptions[i];
+                    opt.innerHTML = selectOptions[i];
+                    select.appendChild(opt);
+                }
+            }
+        }
+    }
+</script>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/js/bookingscreen.js')}"/>
+    <script type="text/x-jquery-tmpl" id="selectLocationTemplate">
+        <option value="${locationId}">${locationName}</option>
+    </script>
+    
+    <script type="text/x-jquery-tmpl" id="ShowServiceTemplate">
+    <div class="selectServiceTemplate">
+        <div class="service row" onclick="setService('${serviceId}', '${serviceName}', '${duration}')">
+        <div class="col-md-12 col-sm-12 col-xs-12">
+        <label class="col-md-10 col-sm-10 col-xs-10" style="padding-left: 5px;">${serviceName}</label>
+        <!--
+        <div class="col-md-3 col-sm-3 col-xs-3 row hidden-xs" style="margin-top: 8px;text-align:center"><img src="{!URLFOR($Resource.BookingSocial_Library, 'BookingSocial_Library/images/time_small.png')}" class="img-responsive img-rounded img-mid">${duration}</div>
+        <div class="col-md-3 col-sm-3 col-xs-4 row visible-xs" style="margin-top: 8px;font-size:70%;text-align:center"><img src="{!URLFOR($Resource.BookingSocial_Library, 'BookingSocial_Library/images/time_small.png')}" class="img-responsive img-rounded img-mid">${smallDuration}</div>
+        -->
+        <div  class="col-md-2 col-sm-2 col-xs-2" style="margin-top: 8px;">
+            <!--<div type="button" class="btn btn-primary">Book</div>-->
+        </div>
+        
+        </div>
+        <div class="col-md-12 col-sm-12 col-xs-12" style="margin: 0px;padding: 5px;">
+            <div class="col-md-10 col-sm-10 col-xs-10"><p class="description">${description}</p></div>
+            <div class="col-md-2 col-sm-2 col-xs-2" id="selectService"><div type="button" class="btn btn-sm btn-primary">Book Now</div></div>
+        </div>
+        <div>
+    </div>
+  </script>
+  
+  <script type="text/x-jquery-tmpl" id="SelectBookingTemplate">
+    <div class="SelectBookingTemplate">
+        <!-- <div class="row">
+        <div class="col-md-12">${serviceName}</div>
+        <div class="col-md-7" style="margin-left: 0px;"><img src="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/images/time_small.png')}" class="img-responsive img-rounded img-mid">${duration}</div>
+        <div class="col-md-4">
+            <div type="button" class="btn btn-link closeService change">Change</div>
+        </div>
+        <div class="col-md-12" style="margin: 0px;padding: 5px;">${description}</div>
+        </div></div>-->
+        You have chosen <strong>${serviceName}</strong> 
+        <div type="button" class="btn btn-xs btn-link closeService change">
+        <strong>(CHANGE)</strong>
+        </div>
+    </div>
+    
+  </script>
+  
+  <script type="text/x-jquery-tmpl" id="BookedInformation">
+    <div class="BookedInformation" style="padding:20px 0px">
+        <div class="row">
+            <div class="col-md-12">Your appointment confirmation number is <b>${serviceRequestId}</b></div>
+            <div class="col-md-12 bold" style="margin-left: 0px;">Service: ${serviceName}</b></div>
+            <div class="col-md-12" style="margin-left: 0px;">${description}</div>
+            <div class="col-md-12" style="margin-left: 0px;">Appointment has been booked on ${selectedDate}</div>
+            <div class="col-md-12"style="margin-left: 0px;">Check your inbox for the appointment confirmation email which will be sent by our support group.</div>
+            <div class="col-md-12"style="margin-left: 0px;">
+                <!--<div type="button" class="btn btn-primary"  onclick="bookOneMoreAppointment()">Book Another Appointment</div>-->
+            </div>
+        </div>
+    </div>
+  </script>
+    
+  <script type="text/x-jquery-tmpl" id="CancelledInformation">
+    <div class="BookedInformation" style="padding:20px 0px">
+        <div class="row">
+            <div class="col-md-12">Your appointment has been cancelled for <b>${serviceRequestId}</b></div>
+            <div class="col-md-12 bold" style="margin-left: 0px;">Service: ${serviceName}</b></div>
+            <div class="col-md-12" style="margin-left: 0px;">${description}</div>
+            <div class="col-md-12"style="margin-left: 0px;">
+                <!--<div type="button" class="btn btn-primary" onclick="bookOneMoreAppointment()">Book Another Appointment</div>-->
+            </div>
+        </div>
+    </div>
+    <!--<apex:remoteObjects >
+    <apex:remoteObjectModel name="OpportunityContactRole" jsShorthand="getActs" fields="Id">
+    <apex:remoteObjectField name="OpportunityId" jsShorthand="offerOpp"/>
+    <apex:remoteObjectField name="ContactId" jsShorthand="offerCon"/>
+    </apex:remoteObjectModel>
+    </apex:remoteObjects>-->
+  </script>
+  <script>
+        var TAG = new Object();
+        TAG.TAG001 = 'Select location';
+        TAG.TAG002 = 'Select service';
+        TAG.TAG003 = 'Schedule appointment';
+        TAG.TAG004 = 'Your booked information';
+        TAG.TAG005 = 'Please select a date';
+        TAG.TAG006 = 'Please select some other date';
+        TAG.TAG007 = 'Booking Failed: ';
+        TAG.TAG008 = 'Select a slot';
+        TAG.TAG009 = 'Waiting list';
+        
+        var $ = jQuery.noConflict();
+        $(document).ready(function(){
+            getData();
+             if(model.mode == 'fb'){
+                $('.right-sidebar').addClass('hide');
+                $('.leftPanel').removeClass('col-sm-8');
+            }
+        });
+        
+        model.oppurtunityId = "{!JSENCODE($CurrentPage.parameters.bksloppid)}";
+        if(model.oppurtunityId != null){
+        var src = new SObjectModel.getActs();
+        //Use Remote Object to query 5 records
+        src.retrieve({
+        where : {
+        offerOpp :{
+        eq : model.oppurtunityId
+        }
+        }
+        } ,
+        function(err,records){
+        if(err == null)
+        {
+        console.log(records);
+        populate(records);
+        //Process returned "records" to display in Visualforce code.
+        }else{
+        
+        }
+        } );
+        }
+       var getContactId;
+        function populate(records)
+          {
+              records.forEach(function(record) {
+                   getContactId = record.get("offerCon");
+                   var getOpporId = record.get("offerOpp");
+                    console.log(getContactId);
+                    console.log(getOpporId);
+                     model.contactId = getContactId;
+                        if(model.contactId != null){
+                        var source = new SObjectModel.getCon();
+                        source.retrieve({
+                        where : {
+                        offerConId :{
+                        eq : model.contactId
+                        }
+                        }
+                        } ,
+                        function(err,records){
+                        if(err == null)
+                        {
+                        getContactDetails(records);
+                        }else{
+
+                        }
+                        } );
+                        }
+            var lname;
+            var conEmail;
+            function getContactDetails(records){
+                console.log('getContactDetails'+records);
+                records.forEach(function(record) {
+                    conEmail = record.get("offeremail");
+                    lname = record.get("offerlname");
+                    $('#contactLastName').val(lname);
+                    $('#contactEmail').val(conEmail);
+              });
+            }
+            console.log('getContactId'+model.contactId);
+                    $('#contactInfo').hide();
+              });
+          }
+          
+           if(model.oppurtunityId != null){
+            var source = new SObjectModel.getUser();
+            source.retrieve({
+            where : {
+            offerOppId :{
+            eq : model.oppurtunityId
+            }
+            }
+            } ,
+            function(err,records){
+            if(err == null)
+            {
+            getOwnerId(records);
+            }else{
+            
+            }
+            } );
+            }
+            var SRQappOwnerId;
+            function getOwnerId(records){
+                console.log(records);
+                records.forEach(function(record) {
+                    SRQappOwnerId = record.get("offerOwner");
+                    console.log('getOppOwnerId'+SRQappOwnerId);
+                    model.UserId = SRQappOwnerId;
+              });
+            }
+      
+        model.contactId = "{!JSENCODE($CurrentPage.parameters.bkslconid)}";
+        model.customerId = "{!JSENCODE($CurrentPage.parameters.bkslcustid)}";
+        model.serviceId = "{!JSENCODE($CurrentPage.parameters.bkslserid)}";
+        model.serviceRequestId = "{!JSENCODE($CurrentPage.parameters.bkslsreqid)}";
+        model.providerId = '{!JSENCODE($CurrentPage.parameters.dprv)}';
+        model.mode = '{!JSENCODE($CurrentPage.parameters.mode)}';
+        model.directproviderId = '{!JSENCODE($CurrentPage.parameters.dprv)}';
+        model.previousAppointmentDate = null;
+        model.gcalEvents = {};
+        model.prop = {showOnlyStartTime: false, blockedSlots: 'hide', mode: 'MULTISERVICE', 
+                        predefinedDate: "{!JSENCODE($CurrentPage.parameters.dt)}", workingHourDef: 'WORKINGHOUR',
+                        waitinglist: true};
+        
+        model.prop.brandingEnabled = true;
+        if(model.mode == 'fb'){
+            model.prop.brandingEnabled = false;
+        }
+        model.prop.webhooks = {
+            getBookedSlotDate : function(){
+                var d1 = new Date($("#selectedDate").val());
+                var month = d1.getMonth() + 1;
+                return month + '-' + d1.getDate() + '-' + d1.getFullYear();
+            }
+        }
+        /*
+        model.prop.webhooks = {
+            onBookingAppointment : function(){
+            },
+            onCancelAppointment : function(){
+            },
+            getBookedSlotDate : function(){
+                return $("#selectedDate").val() + ' ' + $('#availableTimeSlots').val().replace(/[_]/g,' to ')
+            }
+        }*/
+        model.prop.customValidation = function(){
+            return LiveValidation.massValidate( [availableTimeSlots_V, contactFirtsName_V, contactLastName_V, contactEmail_V] );;
+        }
+        model.prop.customAfterServiceSelection = function(){
+            //populateSelect('contactPackage', model.serviceId)
+        }
+        model.prop.customSorting = function(records){
+            records.sort(function(a,b){
+            if(!a.BKSL2__Available_On__c)
+                return 1;
+            var c = new Date(a.BKSL2__Available_On__c);
+            var d = new Date(b.BKSL2__Available_On__c);
+            return c-d;
+            });
+        }
+        //When you click on a link with class of poplight and the href starts with a # 
+        function showPopUp(popID, popWidth, isCloseAvailable) {
+            //Fade in the Popup and add close button
+            $('#' + popID).fadeIn().css({ 'width': Number( popWidth ) }).prepend('');
+        
+            //Define margin for center alignment (vertical   horizontal) - we add 80px to the height/width to accomodate for the padding  and border width defined in the css
+            var popMargTop = ($('#' + popID).height() + 80) / 2;
+            var popMargLeft = ($('#' + popID).width() + 80) / 2;
+            
+            if(isCloseAvailable)
+                $('#' + popID).fadeIn().css({ 'width': Number( popWidth ) }).prepend('<a href="#" class="close"><img src="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/BookingScreen/images/closeBtn.png')}" class="btn_close" title="Close" alt="Close" /></a>');
+            else
+                $('#' + popID).fadeIn().css({ 'width': Number( popWidth ) });
+        
+            //Apply Margin to Popup
+            $('#' + popID).css({
+                'margin-top' : -popMargTop,
+                'margin-left' : -popMargLeft
+            });
+        
+            //Fade in Background
+            $('body').append('<div id="fade"></div>'); //Add the fade layer to bottom of the body tag.
+            $('#fade').css({'filter' : 'alpha(opacity=80)'}).fadeIn(); //Fade in the fade layer - .css({'filter' : 'alpha(opacity=80)'}) is used to fix the IE Bug on fading transparencies 
+        
+            //Close Popups and Fade Layer
+            $('a.close').live('click', function() { //When clicking on the close or fade layer...
+                $('#fade , .popup_block').fadeOut(function() {
+                    $('#fade, a.close').remove();  //fade them both out
+                });
+                return false;
+            });
+            return false;
+        }
+        
+        function getContact()
+        {
+            var objContact = {};
+            if(model.contactId)
+            {
+                if(model.contactId)
+                    objContact['id'] = model.contactId;
+            }
+            objContact['FirstName'] = document.getElementById("contactFirtsName").value;
+            objContact['LastName'] = document.getElementById("contactLastName").value;
+            objContact['Email'] = document.getElementById("contactEmail").value;
+            objContact['Phone'] = document.getElementById("contactPhone").value;
+            var response = new BSLMap('Contact', null, null, null, null);
+            response.objContact = objContact;
+            console.log('conact Id'+response);
+            return response;
+        }
+        
+        function getServiceRequest()
+        {        debugger;
+            var objServiceRequest = {};
+            objServiceRequest['BKSL2__Service__c'] = model.serviceId;
+            objServiceRequest['Name'] = model.serviceName;
+            if(model.oppurtunityId != ''){
+            objServiceRequest['Appointment_Owner__c'] = model.UserId;
+            objServiceRequest['Opportunity__c'] = model.oppurtunityId;
+            }
+            var response = new BSLMap('SERVICEREQUEST', null, null, null, null);
+            response.objServiceRequest = objServiceRequest;
+            return response;
+        }
+
+        function clearContact()
+        {
+            model.contactId = null;
+            delete model.contact;
+            $('#existingContact').hide();
+        }
+        
+        //Close Popups and Fade Layer
+        function closePopUp() { //When clicking on the close or fade layer...
+            $('#fade , .popup_block').fadeOut(function() {
+                $('#fade, a.close').remove();  //fade them both out
+            });
+            return false;
+        }
+        
+        function bookOneMoreAppointment(){
+            top.location = top.location;
+            if(model.contactId){
+                if(model.serviceId)
+                    top.location = top.location+'&&bkslconid='+model.contactId+'&&bkslserid='+model.serviceId;
+                else
+                    top.location = top.location+'&&bkslconid='+model.contactId;
+            }
+        }
+        
+        function callBKSLinternalEvent(type){
+            $('#callEvent').val(type);
+            $('#callEvent').click();
+        };
+  </script>
+<div id="existingContact" style="display: none;">You have logged in as <span id="userReference1">Bala</span> <a href="#" onclick="clearContact()">Click if you are not!</a></div>
+
+<div class="container">
+<!--<img id="brandheaders" style="margin-top: 12px;" src="{!URLFOR($Resource.BookingSocial_Library, 'BookingSocial_Library/images/market1.png')}" class="hidden-xs img-responsive"/>
+<img id="brandheaders" style="margin-top: -78px;margin-left: 82px ;" src="{!URLFOR($Resource.BookingSocial_Library, 'BookingSocial_Library/images/market.png')}" class="hidden-xs img-responsive"/>-->
+
+<img src="https://c.ap2.content.force.com/servlet/servlet.ImageServer?id=0152800000092i7&oid=00D28000000Ic3i&lastMod=1425729867000" alt="Booking social" style="margin-top: 12px;"/>
+        <img src="https://c.ap2.content.force.com/servlet/servlet.ImageServer?id=0152800000092iC&oid=00D28000000Ic3i&lastMod=1425729964000" alt="Booking social" />
+
+<br/><br/>
+<div id="popup_name" class="popup_block"><img class="l-border" style="width: 20px;padding-left: 20px;" alt="" src="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/images/preloader.gif')}"/><span style="padding-left:30px">Loading...</span></div>
+<div id="error_popup" class="popup_block"><div id="contactInfoError" class="relativeTimeSelection LV_invalid hide"></div></div>
+<div id="bookingscreen1" class="row mainpanel">
+<img id="brandheadermobile" src="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/images/Brand-Page-Mobile.png')}" class="visible-xs img-responsive" style="width:100%"/>
+    <div class="col-md-8 col-sm-8 leftPanel">
+        <div id="appointmentDetailsHeader" class="headerService hide">BOOKING</div>
+        <div class="serviceAction" id="selectedServicePanel">
+        <!-- <legend id="headerText" style="font-weight:bold"></legend> -->
+        <div class="selectedServicePanel">
+              <div id="selectedServiceDetails"></div> 
+        </div>
+        <div id="errorConsole1" class="LV_invalid hide"></div>
+        <div id="fieldSet1" class="fieldset border margin-b">
+            <div id="selectDateTime" class="row reduce_margin hide">
+                <!-- <div class="col-md-12 visible-xs visible-sm">
+                    <label class="control-label" for="selectedDate">Select Date</label>
+                    <div type="button" class="btn btn-primary closeService change">Change</div>
+                </div> -->
+                <div class="col-md-6 col-sm-6 selectDateOption">
+                    <!--<label class="control-label" for="selectedDate">Select Date</label>
+                    <div>
+                        <input class="left" id="selectedDate" type="text" placeholder="Select date to book appointment"/>
+                    </div>-->
+                    <div class="form-group selectDateOption" >
+                        <label  class="col-sm-4 reduce_padding ">Select a Date</label>
+                        <div class="col-sm-8 reduce_padding" >
+                           <input class="left form-control actionBlock" id="selectedDate" type="text" placeholder="Select date to book appointment"/>
+                        </div>
+                      </div>
+                </div>
+                <div class="col-md-6 col-sm-6">
+                    <!-- <label class="control-label" for="availableTimeSlots">Select Time</label>
+                    <div >
+                        <select id="availableTimeSlots" class="selectoption"></select>
+                    </div>-->
+                    <div class="form-group selectDateOption" >
+                        <label  class="col-sm-4 reduce_padding " for="availableTimeSlots">Select a Slot</label>
+                        <div class="col-sm-8 reduce_padding">
+                           <select id="availableTimeSlots" class="form-control actionBlock"></select>
+                        </div>
+                      </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div id="fieldSet4" class="fieldset border margin-b">
+             <input id="callEvent" type="text" style='display:none'/>
+                <div id="ServiceDetailsHeader" class="headerService">CHOOSE A SERVICE</div>
+                <div id="locationList" >
+                <div>
+                <select id="lstLocation" class="hide" style="margin-bottom: 20px;">
+                </select>
+                </div>
+                <br/>
+                <br/>
+                <ul class="showServiceDetails"></ul>
+            </div>
+        </div>
+        <div id="fieldSet2" class="fieldset border margin-b">
+        <div id="contactInfo" class="row reduce_margin hide">
+            <br/>
+                <h4 class="add_margin">Contact Information</h4>
+         <div class="col-md-6 col-sm-6 col-sm-6 contactInformationBlock">
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" for="contactFirtsName">First Name</label>
+                    <div class="col-lg-8">
+                        <input id="contactFirtsName" type="text" class="form-control"/>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" for="contactLastName">Last Name</label>
+                    <div class="col-lg-8">
+                        <input id="contactLastName" type="text" class="form-control"/>
+                    </div>
+                </div>
+                <!-- 
+                <div class="form-group row">
+                    <label class="col-lg-2 control-label" for="contactPhone">Package</label>
+                    <div class="col-lg-10">
+                        <select class = "selectoption" id = "contactPackage">
+                        </select>
+                    </div>
+                </div>
+                 -->
+            </div>
+            <div class="col-md-6 col-sm-6 col-sm-6 contactInformationBlock">
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" for="contactEmail">Email</label>
+                    <div class="col-lg-8">
+                        <input id="contactEmail" type="text" class="form-control"/>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label class="col-lg-4 control-label" for="contactPhone">Phone</label>
+                    <div class="col-lg-8">
+                        <input id="contactPhone" type="text" class="form-control"/>
+                    </div>
+                </div>
+                <!-- 
+                <div class="form-group row">
+                    <label class="col-lg-2 control-label" for="contactPhone">Package</label>
+                    <div class="col-lg-10">
+                        <select class = "selectoption" id = "contactPackage">
+                        </select>
+                    </div>
+                </div>
+                 -->
+            </div>
+            <div id='facebookicon' style="float: right;position: relative;top: -217px;display: none">
+                <a href="#" onclick="fblogin();" class="fbLogin trackFBConnect">.</a>
+            </div>
+        </div>
+        <div id="bookAppointment" type="button" class="btn btn-primary change hide" style="float: right;">Book Now</div>
+        <div id="cancelAppointment" type="button" class="btn btn-primary change hide">Cancel</div>
+        </div>
+        <div id="fieldSet3" class="fieldset border margin-b">
+            <div id="bookedInfo">
+                <ul Id="elBookedInfo" class="hide"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 col-sm-4 right-sidebar">
+        <!-- <div id="selectedServicePanel" class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">Service Information</h3>
+            </div>
+            <div class="panel-body">
+               <div id="selectedServiceDetails"></div>
+            </div>
+        </div> -->
+        <div class="panel panel-info">
+          <div class="panel-body">
+            <div id="map_canvas"><h3 style="color: rgb(55, 55, 55); font-weight: normal; ">Welcome to the Market Traders Institute site!</h3>
+&nbsp;
+
+<p style="color: rgb(55, 55, 55); ">We’re happy to see your interest in our company. You can receive all of the details on our company, our mission, and our Forex education during a LIVE web demonstration. To get started, fill out the form to the right. We hope to see you there!</p>
+
+<span style=" color: rgb(55, 55, 55); float: right;font-family: droid sans,helvetica,arial,sans-serif;">- The MTI Success Team &nbsp;</span></div>
+          </div>
+        </div>
+    </div>
+    <div id="BKSLBasicfooter" class="footer"></div>
+    <div class="pull-right" style="padding: 5px;">
+        <img src="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/images/bookingsocial_24_24.png')}" class="img-responsive" style="float: left;padding: 0px 5px;"/>
+        <div style="float: left;">Powered by Booking Social</div>
+    </div>
+</div>
+</div>
+<script>
+
+    var availableTimeSlots_V = new LiveValidation( "availableTimeSlots", { wait: 500, onlyOnSubmit: true , validMessage : ' ' } );
+    availableTimeSlots_V.add( Validate.Presence,{ failureMessage: "Select available slot."} );
+    var selectedDate_V = new LiveValidation( "selectedDate", { wait: 500, onlyOnSubmit: true , validMessage : ' ' } );
+    selectedDate_V.add( Validate.Presence,{ failureMessage: "Select a valid date." } );
+    var contactFirtsName_V = new LiveValidation( "contactFirtsName", { wait: 500, onlyOnSubmit: true , validMessage : ' ' } );
+    //contactFirtsName.add( Validate.Presence,{ failureMessage: "This field is required." } );
+    var contactLastName_V = new LiveValidation( "contactLastName", { wait: 500, onlyOnSubmit: true , validMessage : ' ' } );
+    contactLastName_V.add( Validate.Presence,{ failureMessage: "Your last name is required." } );
+    var contactEmail_V = new LiveValidation( "contactEmail", { wait: 500, onlyOnSubmit: true , validMessage : ' ' } );
+    contactEmail_V.add( Validate.Presence,{ failureMessage: "Your email is required." } );
+    contactEmail_V.add( Validate.Email,{validMessage : ' '} );
+    //var contactPhone_V = new LiveValidation( "contactPhone", { wait: 500, onlyOnSubmit: true } );
+    //contactPhone_V.add( Validate.Presence,{ failureMessage: "Your contact number is required." } );
+    showPopUp("popup_name", 300, false);
+</script>
+<apex:includeScript value="{!URLFOR($Resource.BKSL2__BookingSocial_Library, 'BookingSocial_Library/js.lib/respond.js')}"/>
+</apex:page>

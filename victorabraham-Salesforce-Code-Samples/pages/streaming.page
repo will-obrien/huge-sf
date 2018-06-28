@@ -1,0 +1,66 @@
+<apex:page standardStylesheets="false" controller="StreamingController" showHeader="TRUE" sidebar="false">
+    <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
+    <div class="container">
+        <!--Displaying initial 10 opporunities in a table-->
+        <table id="oppTable" class="table table-hover table-bordered table-striped">
+            <thead>
+                <tr>
+                <th>
+                    Name
+                </th>
+                <th>
+                    Stage
+                </th>
+                <th>
+                    Amount
+                </th>  
+                </tr>                      
+            </thead>
+            <tbody>
+                <apex:repeat value="{!oppList}" var="opp"> 
+                    <tr>
+                        <td>
+                            {!opp.Name}
+                        </td>
+                        <td>
+                            {!opp.StageName}
+                        </td>
+                        <td>
+                            {!opp.amount}
+                        </td>  
+                    </tr>  
+                </apex:repeat>
+            </tbody>
+        </table>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>    
+    <script src="{!URLFOR($Resource.jsUtilities, '/js/json2.js')}"></script>
+    <script src="{!URLFOR($Resource.jsUtilities, '/js/cometd.js')}"></script>
+    <script src="{!URLFOR($Resource.jsUtilities, '/js/jquery.cometd.js')}"></script>
+        <script>
+      // initizlizing Streaming API
+      (function($) { 
+        $(document).ready(function() {  
+           //Initializing cometd library to cometd endpoint
+          $.cometd.init({
+            url: window.location.protocol + '//' + window.location.hostname + '/cometd/33.0/',
+            requestHeaders: {
+              Authorization: 'OAuth {!$Api.Session_ID}'
+            },
+            appendMessageTypeToURL : false
+          });
+
+          // Subscribing to the push topic. 
+          //JSON-encoded data will be returned in the callback each time whenever opportunity is created
+          $.cometd.subscribe('/topic/AllOpenOps', function(message) {
+            if (message.data.event.type == 'created') {
+              var newOpp =message.data.sobject; 
+              //Appeding newly created opportunity data to the table of opportunities as last row
+              $("#oppTable > tbody").append('<tr class="success"><td>'+newOpp.Name+'</td><td>'+newOpp.StageName+'</td><td>'+newOpp.Amount+'</td></tr>');
+            }
+          }); 
+          
+        }); 
+      })(jQuery)    
+    </script>
+</apex:page>

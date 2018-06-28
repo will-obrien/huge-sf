@@ -1,0 +1,99 @@
+<apex:component Controller="kwac.KWAC_TakeActionCampaignDisplayController" allowDML="TRUE">
+<apex:attribute name="state" type="string" description="The two letter abbreviation of the U.S. State this page should find." />
+
+<apex:form >
+<div id="Campaigns">
+        <label>Filter by State</label> &nbsp; 
+        <apex:selectList id="statefilter" size="1" styleClass="statefilter">
+            <apex:selectOptions value="{!slStates}"/>
+        </apex:selectList>
+        <div id="CampaignList"><div class="alert alert-warning"><i class="fa fa-spinner fa-spin"></i> loading up actions.</div></div>
+</div>
+</apex:form>
+
+<script>
+    var j$ = jQuery.noConflict();
+    var kwSierraClub = {}
+    kwSierraClub.actions = [];
+    kwSierraClub.actionsPage = 0;
+    kwSierraClub.actionsPaging = 500;
+    kwSierraClub.actionsTotal = 0;
+    /* Links use a default promo code as defined here */
+    var default_promo_code = '70131000001iOuIAAU';
+    /* If an action does not have an associated share image, this image gets used. */
+    var default_image = '//www.sierraclub.org/sites/www.sierraclub.org/files/default_actions.jpg';
+    
+    
+    function getCampaignList (sState, sStateName) {
+    
+      //  console.log("getCampaignList");
+        j$( "#CampaignList" ).html('<div class="alert alert-warning"><i class="fa fa-spinner fa-spin"></i> loading up actions.</div>');
+        
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.KWAC_TakeActionCampaignDisplayController.getCampaignList}',
+            sState,
+            function(result, event){
+                if (event.status) {
+                    if (sStateName == 'all states') sStateName = 'national';
+                    var currentactionurl = sStateName;
+                    if (sStateName == '' || sStateName == 'select state') {
+                      currentactionurl = document.location.href.toLowerCase().match(/.*\/actions\/([-a-zA-Z]+)[\/]?.*/);
+                      if (currentactionurl == null || currentactionurl.length == 0) currentactionurl = "national";
+                      else currentactionurl = currentactionurl[1]; 
+                    }
+                    j$( "#CampaignList" ).empty();
+                    kwSierraClub.actions = event.result;
+                    var currentPlace = 0;
+                    kwSierraClub.actionsTotal = kwSierraClub.actions.length;
+                    j$.each( event.result, function(index, value) {
+                        var actionurl = value.kwac__URL_to_Share__c.toLowerCase().match(/.*\/actions\/([-a-zA-Z]+)[\/]?.*/);
+                        if (actionurl.length == 0) actionurl = "";
+                        else actionurl = actionurl[1];
+                        
+                        var todaysDate = new Date().getTime();
+                        var expireyDate = (typeof(value.EndDate) != "undefined" && value.EndDate != "") ? value.EndDate : todaysDate;
+
+                        /* don't list test things or things in test mode */
+                        if (actionurl == currentactionurl && todaysDate <= expireyDate && !value.kwac__Test_Mode__c) {
+                            var imageUrl = (typeof(value.Sharing_Image__c) != "undefined" && value.Sharing_Image__c != "") ? value.Sharing_Image__c : default_image;
+                            var rex = /(<([^>]+)>)/ig;
+                            var desc = (typeof(value.Sharing_Description__c) != "undefined" && value.Sharing_Description__c != "") ? value.Sharing_Description__c: value.kwac__Call_to_Action_Text__c.replace(rex,"").substring(0,250) + "..."; 
+                            var j$newdiv1 = j$("<div class='row' style='padding-bottom: 25px;'><div class='col-md-4'><a href='" + value.kwac__URL_to_Share__c + "&id=" + default_promo_code + "'><img src='" + imageUrl + "' class='img-responsive' /></a></div><div class='col-md-8'><h3><a href='" + value.kwac__URL_to_Share__c + "&id=" + default_promo_code + "'>" + value.kwac__Tagline__c + "</a></h3><div>" + desc + "</div><div style='text-align:right; padding-top: 10px; padding-right: 100px;'><a href='" + value.kwac__URL_to_Share__c + "&id=" + default_promo_code + "' class='btn btn-danger' role='button'>Take Action</a></div></div>");
+                            j$( "#CampaignList" ).append( j$newdiv1);
+                                                        
+                            currentPlace++;
+                        } else {
+                            // make sure total walked down for items that are not to be listed.
+                            // items that might be in the same state, but served under a different
+                            // template.
+                            kwSierraClub.actionsTotal--;
+                        }
+                        // only display as many items as we have in kwSierraClub.actionsPaging
+                        if (currentPlace == kwSierraClub.actionsPaging - 1 ) {
+                            // we would also want to set up simple pagination here...
+                            return false;
+                        }
+                    });
+                    if (j$( "#CampaignList" ).html() == '') {
+                       j$( "#CampaignList" ).html('<div class="alert alert-warning">No actions were found.</div>');
+                    }
+                 }
+             }, 
+             {escape: false}
+        );
+    }
+
+    j$( document ).ready(function() {    
+        if (typeof kwacState == "undefined") kwacState = '';
+      //  console.log("knowwho campaign list ready");
+        getCampaignList('', '');
+        j$(".statefilter").val(kwacState)
+        j$(".statefilter option[value='-']").remove();
+        j$(".statefilter").change(function(){
+            getCampaignList(j$(".statefilter option:selected").val(), j$(".statefilter option:selected").text().toLowerCase());
+        });
+    });
+</script>
+
+
+</apex:component>

@@ -1,0 +1,203 @@
+<apex:page standardController="Quote" extensions="PGINewQuoteController" id="page">
+    <apex:pagemessages />
+    <script type="text/javascript"> 
+        var QuoteType= "{!Quote.Quote_Type__c}";
+        function changeQuoteType(quote_type)
+        {
+          QuoteType = quote_type;
+        }
+        function openLookup(baseURL, width, modified, searchParam)
+        {  
+            var originalbaseURL = baseURL;
+            var originalwidth = width;
+            var originalmodified = modified;
+            var originalsearchParam = searchParam;            
+            var lookupType = baseURL.substr(baseURL.length-3, 3);
+            if (modified == '1') baseURL = baseURL + searchParam;
+            var isCustomLookup = false;      
+            var baseContractURL=baseURL;
+            var baseContactURL = baseURL;  
+            var baseBillingContactURL= baseURL;
+             
+            if(lookupType == "{!teslaComapnyObjectPrefix}" || lookupType == "%5D" )
+            {
+               
+                var urlArr = baseURL.split("&");
+                var txtId = '';
+                if(urlArr.length > 2) 
+                {
+                        urlArr = urlArr[1].split('=');
+                        txtId = urlArr[1];
+                }
+    
+                baseURL = "/apex/PGITeslaCompanySearch?txt=" + txtId + '&accountId=' +"{!quote.Account__c}" + '&quoteType=' +QuoteType  ;
+                
+                baseURL = baseURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                if (modified == '1') 
+                {
+                        baseURL = baseURL + "&lksearch=" + searchParam;
+                }
+                 
+                if(txtId.indexOf('Company') > -1 )
+                {
+                        isCustomLookup = true;
+                }
+                 
+            } 
+            
+            if(isCustomLookup == false){              
+                if(lookupType == "{!masterContractObjectPrefix}" || lookupType == "%5D" )
+                {
+                    var urlArr = baseContractURL.split("&");
+                    var txtId = '';
+                    if(urlArr.length > 2) 
+                    {
+                            urlArr = urlArr[1].split('=');
+                            txtId = urlArr[1];
+                    }
+                        baseContractURL = "/apex/PGIMasterContractSearch?txt=" + txtId + '&accountId=' +"{!quote.Account__c}" + '&quoteType=' + QuoteType ; 
+                        baseContractURL = baseContractURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                    if (modified == '1') 
+                    {
+                            baseContractURL = baseContractURL + "&lksearch=" + searchParam;
+                    }
+         
+                    if( txtId.indexOf('Contract') > -1 )
+                    {
+                            isCustomLookup = true;
+                    }
+                   baseURL ='';
+                   baseURL = baseContractURL ;
+                }
+            }
+              
+            if(isCustomLookup == false){    
+                if( lookupType == "{!contactObjectPrefix}" || lookupType == "%5D"  )
+                {
+                    var urlArr = baseContactURL.split("&");
+                    var txtId = '';
+                    if(urlArr.length > 2) 
+                    {
+                            urlArr = urlArr[1].split('=');
+                            txtId = urlArr[1];
+                    }
+                    
+                    baseContactURL = "/apex/PGIContactSearch?txt=" + txtId + '&accountId=' +"{!quote.Account__c}" ;
+                    baseContactURL = baseContactURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                    if (modified == '1') 
+                    {
+                            baseContactURL = baseContactURL + "&lksearch=" + searchParam;
+                    }
+                     
+                   // if(txtId.indexOf('Contact') > -1 )
+                    if(txtId.indexOf('adminContact') > -1 )
+                    {
+                            isCustomLookup = true;
+                    }
+                      baseURL ='';
+                      baseURL = baseContactURL ;
+                } 
+                 
+             } 
+          
+          //Custom look up for Billing Contact
+          
+            if(isCustomLookup == false){     
+                
+                if( lookupType == "{!contactObjectPrefix}" || lookupType == "%5D"  )
+                {
+   
+                    var urlArr = baseBillingContactURL.split("&");
+                    var txtId = '';
+                    
+                    if(urlArr.length > 2) 
+                    {
+                            urlArr = urlArr[1].split('=');
+                            txtId = urlArr[1];
+                    }
+                    
+                    baseBillingContactURL = "/apex/PGIContactSearch?txt=" + txtId + '&accountId=' +"{!quote.Account__c}" ;
+                    baseBillingContactURL = baseBillingContactURL + "&frm=" + escapeUTF("{!$Component.myForm}");
+                    if (modified == '1') 
+                    {
+                            baseBillingContactURL = baseBillingContactURL + "&lksearch=" + searchParam;
+                    }
+                    
+                    if(txtId.indexOf('billingContact') > -1 )
+                    {
+                            isCustomLookup = true;
+                    }
+                       baseURL ='';
+                       baseURL = baseBillingContactURL;
+                       
+                } 
+            }
+           
+            if(isCustomLookup == true)
+            {
+                openPopup(baseURL, "lookup", 350, 480, "width="+width+",height=480,toolbar=no,status=no,directories=no,menubar=no,resizable=yes,scrollable=no", true);
+            }
+            else {
+                if (modified == '1') originalbaseURL = originalbaseURL + originalsearchParam;
+                openPopup(originalbaseURL, "lookup", 350, 480, "width="+originalwidth+",height=480,toolbar=no,status=no,directories=no,menubar=no,resizable=yes,scrollable=no", true);
+            } 
+        }
+      </script> 
+      <script>
+      var QuoteStatus = '{!quote.Status}';
+      var deleteNotAllowedStatuses = '{!deleteNotAllowedQuoteStatus}';
+      if(deleteNotAllowedStatuses.indexOf(QuoteStatus) != -1){
+         alert('Record cannot be edited since its in {!quote.Status} status!');
+         window.parent.location.href ='/{!quote.Id}';
+      }
+     </script>
+    <apex:form id="myForm">
+        <apex:pageblock title="Fill-in NCS Fields" mode="edit" id="PageBlock">
+            <apex:pageBlockButtons >
+                <apex:commandButton action="{!Save}" value="Save" id="save"/>
+                <apex:commandButton action="{!Cancel}" value="Cancel"/>
+            </apex:pageBlockButtons>
+    
+                   
+            <apex:PageBlockSection title="Provisioning Details" columns="1">   
+                  <apex:inputField value="{!Quote.ShippingName}"  required="true"/>  
+                  <apex:inputField value="{!Quote.ShippingStreet}" required="true"/>
+                  <!-- <apex:inputField value="{!Quote.Contrct_Number__c}" required="true"/>--> <!--Added by Himanshu for testing purpose-->
+                  <!-- <apex:inputField value="{!Quote.Parent_Contract_Number__c}"/>--> <!--Added by Himanshu for testing purpose-->
+                  <!--<apex:inputField value="{!Quote.Amendment_Number__c}"/>--> <!--Added by Himanshu for testing purpose-->
+                  <apex:inputField value="{!Quote.ShippingCity}" required="true"/>
+                  <apex:inputField value="{!Quote.ShippingState}" required="true"/>
+                  <apex:inputField value="{!Quote.ShippingPostalCode}" required="true"/>
+                  <apex:inputField value="{!Quote.ShippingCountry}" required="true"/>
+                  <apex:inputField value="{!Quote.Phone_Provisioning__c}" required="true"/>
+
+                  
+                  
+            </apex:PageBlockSection>
+            
+            <apex:PageBlockSection title="Billing Contact Details" columns="1">  
+            <apex:inputField value="{!Quote.Billing_Contact_Name__c}" required="true"/>
+            <apex:inputField value="{!Quote.Billing_Contact_Street__c}" required="true"/>
+            <apex:inputField value="{!Quote.Billing_Contact_City__c}" required="true"/>
+            <apex:inputField value="{!Quote.Billing_Contact_State_Province__c}" required="true"/>
+            <apex:inputField value="{!Quote.Billing_Contact_Postal_Code__c}" required="true"/>
+            <apex:inputField value="{!Quote.Billing_Contact_Email__c}" required="true"/>
+            <apex:inputField value="{!Quote.Billing_Contact_Phone__c}" required="true"/>
+                        
+            </apex:PageBlockSection>
+             
+            
+            <apex:PageBlockSection title="NCS Admin Contact Details" columns="1">  
+            <apex:inputField value="{!Quote.Admin_Contact_Name__c}" required="true"/>
+            <apex:inputField value="{!Quote.Admin_Contact_Street__c}" required="true"/>
+            <apex:inputField value="{!Quote.Admin_Contact_City__c}" required="true"/>
+            <apex:inputField value="{!Quote.Admin_Contact_State_Province__c}" required="true"/>
+            <apex:inputField value="{!Quote.Admin_Contact_Postal_Code__c}" required="true"/>
+            <apex:inputField value="{!Quote.Admin_Contact_Email__c}" required="true"/>
+            <apex:inputField value="{!Quote.Admin_Contact_Phone__c}" required="true"/>
+            
+            </apex:PageBlockSection> 
+                      
+        </apex:pageblock>
+    </apex:form>  
+</apex:page>

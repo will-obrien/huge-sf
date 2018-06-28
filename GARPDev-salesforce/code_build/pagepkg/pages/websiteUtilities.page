@@ -1,0 +1,779 @@
+<apex:page standardStylesheets="false" sidebar="false" showHeader="false" controller="ContactRemoter" applyBodyTag="false" cache="false" applyHtmlTag="false" docType="html-5.0">
+<apex:variable var="envPath" value="{!URLFOR($Resource.websiteUtilities)}" />
+<html lang="en">
+<head><base href="{!envPath}/"></base>
+<script type="text/javascript">
+        // Fix for IE ignoring relative base tags.
+        // See http://stackoverflow.com/questions/3926197/html-base-tag-and-local-folder-path-with-internet-explorer
+        (function() {
+            var baseTag = document.getElementsByTagName('base')[0];
+            baseTag.href = baseTag.href;
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>GARP</title>
+    <meta name="description" content="mean Global Association of Risk Management"/>
+    <link href="img/icons/favicon.ico" rel="shortcut icon" type="image/x-icon"/>
+    <link rel="stylesheet" href="css/bootstrap/css/bootstrap.garp.css"/>
+    <link rel="stylesheet" href="css/common.css"/>
+    <link rel="stylesheet" href="css/main.css"/>
+    <link rel="stylesheet" href="css/flags/flags.css"/>
+    <link rel="stylesheet" href="css/views/articles.css"/>
+    <script src='//maps.googleapis.com/maps/api/js?sensor=false'></script>
+    <script type="text/javascript" src="all.min.js"></script>
+<!-- Application Init -->
+
+<!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+
+  </head>
+  <body data-ng-class="$state.current.name.split('.')[0]" data-ng-cloak="">
+    <div data-ng-show="$state.current.name.split('.')[1] !== 'memberRegister'&& $state.current.name.split('.')[1] !== 'splash' && $state.current.name.split('.')[1] !== 'switchRegister'" class="navbar navbar-inverse navbar-static-top" data-ng-include="'views/header.html'" data-role="navigation" data-ng-controller="HeaderController"></div>
+    <div class="content" data-ng-cloak="true">
+              <apex:outputPanel layout="block" html-data-ui-view="" html-class="scale-fade" html-data-autoscroll="false">
+              </apex:outputPanel>
+    </div>
+<script type="text/javascript" src="js/app.js"></script>
+<script type="text/javascript" src="js/config.js"></script>
+<script type="text/javascript" src="js/directives.js"></script>
+<script type="text/javascript" src="js/filters.js"></script>
+
+<!-- Application Services -->
+<script type="text/javascript" src="js/services/global.js"></script>
+<script type="text/javascript" src="js/services/registration.js"></script>
+<script>
+        angular.module('garp').factory('BackEnd', function($q, $interval, $http, $location) {
+  var BackEnd = {};
+  var erpProducts, frmProducts;
+  BackEnd.GetProduct = function(productCode) {
+    var fourthDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getProduct',
+      productCode,
+      function(result, event) {
+        if (result) {
+          fourthDeferred.resolve(result);
+        } else {
+          console.log(event);
+          fourthDeferred.reject(event);
+        }
+      });
+    return fourthDeferred.promise;
+  };
+  BackEnd.GetMember = function(user) {
+    var secondDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.GetMember',
+      user,
+      function(result, event) {
+        console.log(result, event);
+        console.log(user);
+        if (result === false) {
+          console.log(result, event);
+          BackEnd.ErrorMsg = false;
+          console.log(' Result GetMember Resolve: ' + result + ' Event:  ' + event);
+          secondDeferred.resolve();
+          
+        } else {
+          console.log('Result GetMember Reject: ' + result);
+          BackEnd.ErrorMsg = true;
+          BackEnd.MemberId = result;
+          secondDeferred.reject();
+
+        }
+        console.log(BackEnd);
+      });
+    return secondDeferred.promise;
+  };
+  BackEnd.SetLead = function(user) {
+    var thirdDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.SetLead',
+      user,
+      function(result, event) {
+        if (result) {
+          console.log("BackEnd.SetLead result:",result);
+          thirdDeferred.resolve(result);
+          BackEnd.ErrorMsg = false;
+          BackEnd.MemberId = result;
+        } else {
+          thirdDeferred.reject();
+        }
+      });
+    return thirdDeferred.promise;
+  };
+  BackEnd.CreateOrder = function(user) {
+    var fifthDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.CreateOrder',
+      user,
+      function(result, event) {
+        if (result) {
+          var progress = 0;
+          var interval = $interval(function() {
+
+            if (progress >= 100) {
+              $interval.cancel(interval);
+              fifthDeferred.resolve(result);
+            }
+            progress += 10;
+            fifthDeferred.notify(progress + '%...');
+          }, 10);
+
+        } else {
+          fifthDeferred.reject(event);
+        }
+        console.log(user);
+      });
+    return fifthDeferred.promise;
+  };
+
+  BackEnd.CreateOrderPortal = function(user) {
+    var fifthDeferred = $q.defer();
+    console.log('Checkpoint');
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.createOrdersForPortalUsers',
+      user,
+      function(result, event) {
+        if (event.status) {
+          var progress = 0;
+          var interval = $interval(function() {
+
+            if (progress >= 100) {
+              $interval.cancel(interval);
+              fifthDeferred.resolve(result);
+            }
+            progress += 10;
+            fifthDeferred.notify(progress + '%...');
+          }, 1);
+
+        } else {
+          fifthDeferred.reject(event);
+        }
+        console.log(user);
+      });
+    return fifthDeferred.promise;
+  };
+  BackEnd.getActiveSites = function() {
+    var fifthDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getActiveSites',
+      function(result, event) {
+        if (result) {
+          console.log(result);
+          fifthDeferred.resolve(result);
+        } else {
+          fifthDeferred.reject(event);
+        }
+      });
+    return fifthDeferred.promise;
+  };
+  BackEnd.Registrationdate = function() {
+    var sixthDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.Registrationdate',
+      function(result, event) {
+        if (result) {
+          console.log(result);
+          sixthDeferred.resolve(result);
+        } else {
+          sixthDeferred.reject(event);
+        }
+
+      });
+    return sixthDeferred.promise;
+
+  };
+    BackEnd.getTestDate = function() {
+    var sixthDeferred = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.testDate',
+      function(result, event) {
+        if (result) {
+          console.log(result);
+          sixthDeferred.resolve(result);
+        } else {
+          sixthDeferred.reject(event);
+        }
+
+      });
+    return sixthDeferred.promise;
+
+  };
+  BackEnd.getBooks = $http.get('js/data/books.json').then(function(resp) {
+    return resp.data.books;
+  });
+  BackEnd.allBooks = function() {
+    return BackEnd.getBooks;
+  };
+  BackEnd.fetchUserData = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.fetchUserData',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else {
+          defer.reject('no user');
+        }
+      }, {
+        escape: true
+      }
+    );
+    return defer.promise;
+  };
+  BackEnd.fetchFrmData = function(examAttemptId) {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getFRMData',
+      examAttemptId,
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else {
+          defer.reject('no exam attempt for this id');
+        }
+      }, {
+        escape: true
+      }
+    );
+    return defer.promise;
+  };
+  BackEnd.fetchUserData().then(function(resp) {
+    BackEnd.user = resp;
+    if (BackEnd.user.examAttemptData) {
+      for (var i = 0; i < BackEnd.user.examAttemptData.length; i++) {
+        BackEnd.user.examAttemptData[i].isOpen = false;
+      }
+      BackEnd.user.examAttemptData[0].isOpen = true;
+    }
+  });
+  BackEnd.getProductCodes = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getProductCodes',
+      function(result, event) {
+        if (result) {
+         
+          defer.resolve(result);
+        } else {
+          defer.reject(event);
+        }
+
+      });
+    return defer.promise;
+  };
+  BackEnd.getStoreProducts = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getStoreProducts',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      });
+    return defer.promise;
+  };
+  BackEnd.getStoreDesc = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getStoreDescriptions',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      });
+    return defer.promise;
+  };
+  BackEnd.getStoreErp = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getStoreForErp',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      });
+    return defer.promise;
+  };
+  
+  BackEnd.getStoreFrm = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getStoreForFrm',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      });
+    return defer.promise;
+  };
+  BackEnd.getFRMCandidate = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getFRMCandidate',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      });
+    return defer.promise;
+  };
+  BackEnd.getERPCandidate = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getERPCandidate',
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      });
+    return defer.promise;
+  };
+
+  BackEnd.CreateStoreOrder = function(order) {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.createStoreOrder',
+      order,
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      }
+    );
+    return defer.promise;
+  };
+  BackEnd.CreateStoreOrderPortal = function(order) {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.createStoreOrderPortal',
+      order,
+      function(result, event) {
+        if (event.status) {
+          defer.resolve(result);
+        } else
+          defer.reject(event);
+      }
+    );
+    return defer.promise;
+  };
+  BackEnd.getEnrollmentStatus = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getActiveExamsWithContracts',
+      function(result, event) {
+        console.log(result[0]);
+          if (result) {
+          if (result[0]){
+            if (result[0].indexOf('ERP') !== -1) {
+              defer.resolve('erp');
+            }
+            if (result[0].indexOf('FRM') !== -1) {
+              defer.resolve('frm');
+            }
+          }
+          if (result[1]){
+            if (result[1].indexOf('ERP') !== -1) {
+              defer.resolve('erp');
+            }
+            if (result[1].indexOf('FRM') !== -1) {
+              defer.resolve('frm');
+            }
+          }
+           else {
+          console.log('none');
+            defer.reject('none');
+          }
+          }
+      });
+    return defer.promise;
+  };
+  BackEnd.getSwitchDetails = function() {
+    var defer = $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getSwitchDetails',
+      function(result, event) {
+        if (result.length) {
+          var frmProducts = [];
+          var erpProducts = [];
+          var products = {};
+          for (var i = 0; i < result.length; i++) {
+            console.log(result);
+            if (result[i].strDisplayName && result[i].strDisplayName.indexOf("ERP") != -1) {
+              erpProducts.push(result[i]);
+            }
+            if (result[i].strDisplayName && result[i].strDisplayName.indexOf('FRM') != -1) {
+              frmProducts.push(result[i]);
+            }
+
+          }
+          products.erp = erpProducts;
+          products.frm = frmProducts;
+          console.log(products);
+          defer.resolve(products);
+        } else {
+          defer.reject(event);
+        }
+
+      });
+    return defer.promise;
+  };
+ BackEnd.searchDirectory = function(searchText, searchType, sortField, sortOrder, pageSize, pageCurrent, callback) {    
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.searchDirectory}',
+            searchText,
+            searchType,
+            sortField, sortOrder,
+            pageSize, pageCurrent,
+            function(result, event){
+                var returnObj = {
+                    result: result,
+                    event: event
+                }
+                callback(null, returnObj);
+                return returnObj;                
+            }, 
+            {escape: true}
+        );            
+    };
+    BackEnd.findOneInDirectory = function(garpId) {
+        var defer = $q.defer();
+        Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ContactRemoter.findOne}',
+        garpId,
+        function(result, event){
+            if (result){
+                defer.resolve(result);
+            }
+            else
+                defer.reject(event)
+        }
+        );
+        return defer.promise;
+    };
+    BackEnd.getContactDetails = function(){
+    var defer = $q.defer();
+         Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getContactDetails}',
+            function(result, event){
+                if (result){
+                    console.log(result);
+                    defer.resolve(result);
+                }
+                else
+                    console.log(event);
+                    defer.reject(event);
+            }
+    ); return defer.promise;
+    };
+    BackEnd.getChapters = function(){
+    var defer= $q.defer();
+    Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getChapters}',
+            function(result, event){
+                if (result)
+                    defer.resolve(result);
+                else
+                    defer.reject(event);
+            }
+        );
+        return defer.promise;
+};
+BackEnd.GetProduct('GL0040').then(function(resp){
+    BackEnd.canadaCustom = resp;
+});
+BackEnd.getUPSPriceByAddress = function(MailingStreet, MailingStreet2, MailingCity, MailingCountry, MailingState, MailingPostalCode, products){
+var defer =$q.defer();
+    
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getUPSPrice}',
+            MailingStreet,MailingStreet2,MailingCity,MailingCountry,MailingState,MailingPostalCode,products,
+            function(result, event){
+                if (result){
+                    defer.resolve(result);
+                }
+                else
+                    defer.reject(event)
+            }
+);
+return defer.promise;
+};
+BackEnd.getUPSPrice = function(user){
+var defer =$q.defer();
+    
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getUPSPrice}',
+            user.MailingStreet,user.MailingStreet2,user.MailingCity,user.MailingCountryCode,user.MailingState, user.MailingPostalCode, user.lstProdCodes,
+            function(result, event){
+                if (result){
+                    defer.resolve(result);
+                }
+                else
+                    defer.reject(event)
+            }
+);
+return defer.promise;
+};
+BackEnd.GetExamProducts = function(exam){
+var defer =$q.defer();
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getExamProducts}',
+            exam,
+            function(result, event){
+                if (result) {
+                    for (key in result){
+                        console.log(key);
+                    }
+                    console.log(result);
+                    defer.resolve(result);
+                }
+                else{
+                    defer.reject(event);
+                }
+            }
+);
+return defer.promise;
+};
+            var endUrl;
+            var urlPath = $location.absUrl();
+            if (urlPath.indexOf('garpt3') !== -1){
+                BackEnd.endUrl = '//garpt3-altest.cs16.force.com/pmtx?pid=';
+                BackEnd.baseUrl = 'garpt3-altest.cs16.force.com/test';
+                BackEnd.renewUrl = '//garpt3-altest.cs16.force.com/pmtx?pid=';
+            }
+            if (urlPath.indexOf('build') !== -1){
+                BackEnd.endUrl = '//build-altest.cs16.force.com/pmtx?pid=';
+                BackEnd.renewUrl = '//build-altest.cs16.force.com/pmtx/pymt__SiteSubscribePRB?ppid=';
+                BackEnd.baseUrl = 'build-altest.cs16.force.com/test';
+                BackEnd.portalUrl = '//build-garpbuild.cs16.force.com/apex/sfdcApp#!/';
+                BackEnd.loginUrl = '//build-garpbuild.cs16.force.com/login';
+            }
+            if (urlPath.indexOf('uat') !== -1){
+                BackEnd.endUrl = '//uat-altest.cs15.force.com/pmtx?pid=';
+                BackEnd.baseUrl = 'uat-altest.cs15.force.com/test';
+                BackEnd.renewUrl = '//uat-altest.cs15.force.com/pmtx/pymt__SiteSubscribePRB?ppid=';
+                BackEnd.portalUrl = '//uat-altest.cs15.force.com/apex/sfdcApp#!/';
+                BackEnd.loginUrl = '//uat-altest.cs15.force.com/login';
+            }
+            if (urlPath.indexOf('uat2') !== -1 || urlPath.indexOf('uat2-altest.cs16') !== -1){
+                BackEnd.endUrl = '//uat2-altest.cs16.force.com/pmtx?pid=';
+                BackEnd.baseUrl = 'uat2-altest.cs16.force.com/test';
+                BackEnd.renewUrl = '//uat2-altest.cs16.force.com/pmtx/pymt__SiteSubscribePRB?ppid=';
+            }
+            var path = urlPath.split('#!')[1];
+            BackEnd.path = path;
+            
+  return BackEnd;
+});
+</script>
+<!-- Application Controllers -->
+<script type="text/javascript" src="js/controllers/index.js"></script>
+<script type="text/javascript" src="js/controllers/header.js"></script>
+<script type="text/javascript" src="js/controllers/register.js"></script>
+<script type="text/javascript" src="js/controllers/store.js"></script>
+<script type="text/javascript" src="js/controllers/search.js"></script>
+<script type="text/javascript" src="js/controllers/examRegistration.js"></script>
+<script type="text/javascript" src="js/controllers/MemberExamRegistration.js"></script>
+<script type="text/javascript" src="js/init.js"></script>
+<script type="text/javascript">
+window.getDefferedExams = function(){
+Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ContactRemoter.getDefferedExams}',
+        function(result, event){
+        if (result){
+            console.log(result);
+        }
+        else {
+            console.log(event);
+        }
+        })
+        };
+window.getOtherexamcodes = function(){
+Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ContactRemoter.getOtherexamcodes}',
+        function(result, event){
+        if (result){
+            console.log(result);
+        }
+        else {
+            console.log(event);
+        }
+        })
+        };
+window.getActiveSites = function(){
+Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ContactRemoter.getActiveSites}',
+        function(result, event){
+        if (result){
+            console.log(result);
+        }
+        else {
+            console.log(event);
+        }
+        })
+        };
+        window.getPriceCodes = function(){
+Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ContactRemoter.getStoreDescriptions}',
+        function(result, event){
+        if (result){
+            console.log(result);
+        }
+        else {
+            console.log(event);
+        }
+        })
+        };
+
+window.GetProduct = function(productCode) {
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.ContactRemoter.getProductCodes}',
+                    productCode,
+                    function(result, event) {
+                        if (result) {
+                           console.log(result);
+                        } else {
+                            console.log(event);
+                        }
+                    });
+            }; 
+window.getActiveExamsWithContracts = function(){
+    Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.ContactRemoter.getActiveExamsWithContracts}',
+    function(result, event){
+        console.log(result);
+        console.log(event);
+        });
+};
+window.getProductCodes = function(){
+    Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.ContactRemoter.getProductCodes}',
+    function(result, event){
+        console.log(result);
+        console.log(event);
+        });
+};
+window.getSwitchDetails = function(){
+    Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.ContactRemoter.getSwitchDetails}',
+    function(result, event){
+        console.log(result);
+        console.log(event);
+        });
+};
+window.getOtherexamcodes = function(){
+    Visualforce.remoting.Manager.invokeAction(
+    '{!$RemoteAction.ContactRemoter.getOtherexamcodes}',
+    function(result, event){
+        console.log(result);
+        console.log(event);
+        });
+};
+window.searchDirectory = function(searchText, searchType, sortField, sortOrder, pageSize, pageCurrent, callback) {    
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.searchDirectory}',
+            searchText,
+            searchType,
+            sortField, sortOrder,
+            pageSize, pageCurrent,
+            function(result, event){
+                var returnObj = {
+                    result: result,
+                    event: event
+                }
+                callback(null, returnObj);
+                return returnObj;                
+            }, 
+            {escape: true}
+        );            
+    };
+window.getContactDetails = function(){
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getContactDetails}',
+            function(result, event){
+                console.log(result);
+                console.log(event);
+            }
+)};
+window.getExamProducts = function(exam){
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getExamProducts}',
+            exam,
+            function(result, event){
+                console.log(result);
+                console.log(event);
+            }
+)};
+window.getStoreForFrm = function(){
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getStoreForFrm}',
+            function(result, event){
+                console.log(result);
+                console.log(event);
+            }
+)};
+window.getUPSPrice = function(strAddress1,strAddress2,strCity,strCountry,strStateCode, strZip, array){
+ Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ContactRemoter.getUPSPrice}',
+            strAddress1,strAddress2,strCity,strCountry,strStateCode, strZip, array,
+            function(result, event){
+                console.log(result);
+                console.log(event);
+            }
+)};
+window.fetchUserData = function() {
+    Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.fetchUserData',
+      function(result, event) {
+        console.log(result,event);
+      }, {
+        escape: true
+      }
+    );
+  };
+  window.getFRMCandidate = function(){
+      Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getFRMCandidate',
+      function(result, event) {
+        console.log(result,event);
+      }, {
+        escape: true
+      }
+    );
+  };
+  window.getERPCandidate = function(){
+      Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.getERPCandidate',
+      function(result, event) {
+        console.log(result,event);
+      }, {
+        escape: true
+      }
+    );
+  };
+  window.sendContactUs = function(fromAddress, toContact, msgBody){
+      Visualforce.remoting.Manager.invokeAction(
+      'ContactRemoter.sendContactUs',
+      fromAddress, toContact, msgBody,
+      function(result, event) {
+        console.log(result,event);
+      }, {
+        escape: true
+      }
+    );
+  };
+  
+</script>
+
+ </body>
+</html>
+</apex:page>

@@ -1,0 +1,2288 @@
+<apex:page controller="geopointe.Map_Controller" extensions="geopointe.FieldSelector"
+			showHeader="true" sidebar="{!userSettings.geopointe__Hide_Sidebar__c = false}" 
+			tabStyle="Map__tab" action="{!init}" cache="false" title="Geopointe - Map" id="page">
+
+    <!-- CSS -->
+    <!-- <apex:stylesheet value="{!URLFOR($Resource.jquery, '/DataTables/media/css/demo_table.css')}"/> jQuery DataTable css --> <!-- added styles to mapCSS instead -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/jgrowl/jquery.jgrowl.css')}"/> <!-- jGrowl css -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/ui/css/smoothness/jquery-ui-1.9.2.custom.min.css')}"/> <!--jQuery UI-->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/fieldSelector/css/fieldselector.css')}"/> <!-- FieldSelector plugin CSS -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/plugins/minicolor/jquery.minicolors.css')}"/> <!-- Color picker plugin CSS -->
+    <apex:stylesheet value="{!$Resource.geopointe__mapCSS}"/> <!-- our custom css. overrides the above -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/> <!-- Common geopointe CSS -->
+    
+    <link rel="stylesheet" type="text/css" href="{!$Resource.printCSS}" media="print"/> <!-- print css. Not using the apex:styleSheet b/c can't say media="print" with it -->    
+    
+    <!--Dynamic style -->
+    <style type="text/css">
+        .mainForm{
+            margin: {!IF(userSettings.Hide_Sidebar__c,'-10px','-5px')} -10px 0px -10px;
+        }
+    </style>
+
+    <!--[if IE 8]>
+        <style>
+            .mainForm{
+                margin: {!IF(userSettings.Hide_Sidebar__c,'-13px','-8px')} -10px 0px -10px;
+            }
+        </style>
+    <![endif]-->
+
+    <!-- Scripts -->
+    <script src="{!URLFOR($Resource.jquery, '/jquery-1.8.3.min.js')}"></script> <!-- core jQuery -->
+    <script src="{!URLFOR($Resource.jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}"></script> <!-- jQuery UI -->
+    <script src="{!URLFOR($Resource.jquery, '/DataTables/media/js/jquery.dataTables.min.js')}"></script> <!-- jQuery Data Tables-->
+    <script src="{!URLFOR($Resource.jquery, '/jgrowl/jquery.jgrowl_minimized.js')}"></script> <!-- jGrowl -->
+    <script src="{!URLFOR($Resource.jquery, '/MD5/jquery.md5-min.js')}"></script> <!-- jQuery MD5 -->
+    <script src="{!URLFOR($Resource.jquery, '/tooltip/jquery.tooltip.min.js')}"></script> <!-- jQuery Tooltip -->
+    <script src="{!URLFOR($Resource.jquery, '/mixpanel/mixpanel.js')}"></script><!-- Mix Panel -->
+    <script src="{!URLFOR($Resource.jquery, '/plugins/minicolor/jquery.minicolors.js')}"></script> <!-- Color Picker -->
+    <script src="{!URLFOR($Resource.jquery, '/fieldSelector/jquery.fieldselector.js')}"></script> <!-- fieldSelector plugin -->
+    <script src="{!URLFOR($Resource.jquery, '/js/data-set-filters.js')}"></script><!-- Data Set Filters script -->
+    <script src="{!URLFOR($Resource.jquery, '/json2.js')}"></script> <!-- JSON.stringify support for IE -->
+    <script src="{!URLFOR($Resource.jquery, '/js/common.js')}"></script> <!-- Generic JS use across entire app -->
+    <script src="{!URLFOR($Resource.jquery, '/plugins/highcharts/highcharts.js')}"></script> <!-- Highcharts charting library -->
+    <script src="{!URLFOR($Resource.jquery, '/js/lib/async.js')}"></script> <!-- async.js for help with asynchronous flow control -->
+        
+    <script src="/soap/ajax/25.0/connection.js"></script> <!-- Salesforce AJAX API -->
+    
+    <script src="{!$Resource.GeopointeJS}"></script> <!-- Geopointe universal functions -->
+
+    <apex:outputPanel rendered="{!mapProvider == 'Google'}">
+        <script src="{!googJSsrc}"></script> <!-- Google JavaScript API -->
+    </apex:outputPanel>
+
+    <script src="{!URLFOR($Resource.jquery, '/js/map.js')}"></script> <!-- Map page specific JS -->
+    <script src="{!URLFOR($Resource.jquery, '/js/map.charts.js')}"></script> <!-- Map page specific JS for charting -->
+    <script src="{!URLFOR($Resource.jquery, '/js/map.actions.js')}"></script> <!-- Map page specific JS for actions functionality -->
+
+    <!-- Google Maps API -->
+    <apex:outputPanel rendered="{!mapProvider='Google'}">
+        
+        <!-- Geopointe Google functions -->
+        <script src="{!$Resource.GeopointeJS_goog}" ></script>
+        
+        <!-- Google API + Plugins -->
+        <script src="{!URLFOR($Resource.jquery, '/goog/keydragzoom_packed.js')}"></script> <!-- Key Drag Zoom -->
+        <script src="{!URLFOR($Resource.jquery, '/goog/infobox_packed.js')}"></script> <!-- Info Box -->
+        
+    </apex:outputPanel>
+    
+    <!-- MapQuest API -->
+    <apex:outputPanel rendered="{!mapProvider='MapQuest'}">
+        
+        <!-- Geopointe MapQuest functions -->
+        <script src="{!$Resource.GeopointeJS_mq}"></script>
+        
+        <!-- MapQuest API -->
+        <script src="{!mqJSsrc}"></script>
+        
+    </apex:outputPanel>
+    
+    <!-- IE9 flag -->
+    <!--[if IE 9]>
+        <script type="text/javascript">
+            var isIE9 = true;
+        </script>
+    <![endif]-->
+
+    <!-- IE8 drop shadow support -->
+    <!--[if IE 8]>
+        <script type="text/javascript">
+            var isIE8 = true;
+        </script>
+        <style>
+            .mapControlTab{
+                margin-top: -1px;
+                filter: progid:DXImageTransform.Microsoft.Shadow(color=#888888,direction=135,strength=7);
+            }
+            .mapControlContent{
+                filter: progid:DXImageTransform.Microsoft.Shadow(color=#888888,direction=135,strength=7); 
+            }
+            .multiButtonContent{
+                border: 2px solid #797676;
+            }
+        </style>
+    <![endif]-->
+
+    <!-- IE7 / IE8 compatibility mode css fixes -->
+    <!--[if IE 7]>
+        <script type="text/javascript">
+            var isIE7 = true;
+        </script> 
+
+        <style>
+            #messageBanner {
+                width: 600px;
+            }
+            #FiltersDIVOuter{
+                width: 730px;
+            }
+            #filterCountBubble{
+                display: none;
+            }
+            #gp_dataTableRoute_wrapper{
+                overflow-x: hidden;
+            }
+            #dataSetPanel{
+                width: 800px;
+            }
+            .scrollableTableWrapper{
+                overflow-x: hidden;
+            }
+            .mapControlContent{
+                border: 2px solid #86a3b5;
+                border-top: none;
+            }
+            .mapControlTab{
+                border: 1px solid #b6c7d2;
+                border-top: none;
+                margin-top: -1px;
+            }
+            .mapTabSelected{
+                border: 2px solid #86a3b5;
+                border-top: none;
+                margin-top: -2px;
+            }
+            .multiButtonContent{
+                border: 2px solid #797676;
+            }
+            .searchSeperator{
+                margin-bottom: -10px;
+            }
+            #gp_dataTableTabs {
+                margin-top: -6px;
+            }
+            #gp_dataTableTabs .ui-tabs-nav {
+                padding-left: 12px;
+                padding-right: 0px;
+            }
+            #radialSearchOptions{
+                width: 270px;
+            }
+        </style>   
+    <![endif]-->
+    
+    <!-- JavaScript merge variables -->
+    <script type="text/javascript">
+        //Set timeout for all remoting call to 120 seconds, can be overrided on per call basis
+        Visualforce.remoting.timeout = 120000; 
+
+        var minZoomLevelForBoundsSearch = '{!minZoomLevelForBoundsSearch}';
+        var nameSpacePrefix = '{!orgFieldPrefix}';
+        var mapProviderOffsetLeft = {!IF( mapProvider="Google",88,68)};
+        var mapProviderOffsetRight = {!IF( mapProvider="Google",98,273)};  
+        var searchPinURL = '{!URLFOR($Resource.images, "map/searchPin.png")}';
+        var directionsURL = '{!URLFOR($Resource.images, "map/directions.png")}';
+        var blackXiconURL = '{!URLFOR($Resource.images, "blackX24.png")}';
+        var blackPlusIconURL = '{!URLFOR($Resource.images, "blackplus24.png")}';
+        var redCheckIconURL = '{!URLFOR($Resource.images, "map/redCheck.png")}';
+        var mapProvider = '{!mapProvider}';
+        var loadWithCenterPOI = {!NOT(ISNULL(centerPOI))};
+        var writeBackEnabled = {!writeBackEnabled};
+        var writeBackLookupObject = '{!JSENCODE(writeBackLookupObject)}';
+        var writeBackButtonText = '{!JSENCODE(writeBackButtonText)}';
+        var isGeopointeAdmin = {!isGeopointeAdmin};
+        var googJSsrc = '{!googJSsrc}';
+        var hasPaidLicense = {!hasPaidLicense};
+
+        /*Charting images */
+        var chartIconURL = '{!URLFOR($Resource.images, "map/chart/chart.png")}';
+        var barChartPlainURL = '{!URLFOR($Resource.images, "map/chart/basic_bar.png")}';
+        var columnChartPlainURL = '{!URLFOR($Resource.images, "map/chart/basic_column.png")}';
+        var pieChartPlainURL = '{!URLFOR($Resource.images, "map/chart/basic_pie.png")}';
+        var barStackNoneURL = '{!URLFOR($Resource.images, "map/chart/bar_1.png")}';
+        var barStackNormalURL = '{!URLFOR($Resource.images, "map/chart/bar_2.png")}';
+        var barStackPercentURL = '{!URLFOR($Resource.images, "map/chart/bar_3.png")}';
+        var columnStackNoneURL = '{!URLFOR($Resource.images, "map/chart/column_1.png")}';
+        var columnStackNormalURL = '{!URLFOR($Resource.images, "map/chart/column_2.png")}';
+        var columnStackPercentURL = '{!URLFOR($Resource.images, "map/chart/column_3.png")}';
+
+        gp_orgSettings = new Object();
+            gp_orgSettings.settings__c = {!orgSettingsJSON};
+            gp_orgSettings.clientId = 'Arrowpointe/Geopointe/';
+            gp_orgSettings.fieldPrefix = '{!orgFieldPrefix}';
+            gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';
+            gp_orgSettings.managed = {!orgManaged}; 
+
+        gp_userSettings = new Object();
+            gp_userSettings.settings__c = {!userSettingsJSON};
+            gp_userSettings.userInfo = {!userInfoJSON};
+            gp_userSettings.sessionId = '{!GETSESSIONID()}';
+            gp_userSettings.layouts = new Object();
+
+        //Array of actions
+        var gp_actions = convertActionsToObject( {!actionsJSON} );
+
+        //Populate the gp_layers object
+        if(mapProvider == 'Google'){
+            gp_initLayerObject({!layersJSON});
+        }
+
+    </script>
+    
+    <script type="text/javascript">
+    	//Merge values
+    	var searchRecordsRemoteMethodName = '{!$RemoteAction.Map_Controller.searchRecordsRemote}';
+        var saveDataSetRemoteMethodName = '{!$RemoteAction.Map_Controller.saveDataSet}';
+        var deleteDataSetRemoteMethodName = '{!$RemoteAction.Map_Controller.deleteDataSet}';
+        var saveShapeRemoteMethodName = '{!$RemoteAction.Map_Controller.saveShape}';
+        var getShapeLatLngRemoteMethodName = '{!$RemoteAction.Map_Controller.getShapeLatLng}';
+        var deleteShapeRemoteMethodName = '{!$RemoteAction.Map_Controller.deleteShape}';
+        var executeApexActionRemoteMethodName = '{!$RemoteAction.Map_Controller.executeApexAction}';
+        
+
+    	<!-- Needs to be at top so inline script that gets rerendered can see this mehtod exists -->
+    	function populateFilterJSON(){
+			//------Build the JSON for the filters------
+			var filtersJSON = convertFilterTableToJSON();
+			
+			//Add JSON to hidden inputText that will get posted back to controller on save
+			jQuery(".dataSetFiltersJSON").val(filtersJSON);
+
+            //------Build the JSON for the child filters------
+            var childFiltersJSON = convertChildFilterTableToJSON();
+            
+            //Add JSON to hidden inputText that will get psoted back to conroller on save
+            jQuery(".dataSetChildFiltersJSON").val(childFiltersJSON);
+						
+			return true;
+		}
+    </script>
+    
+    <script src="{!$Page.js_GA}"></script> <!-- Google Analytics --> 
+    
+    <!-- Mapping Provider Geopointe scripts are included at the end of page since they are not in the <head> area -->
+    
+    <apex:pageMessages id="pageMessages"></apex:pageMessages>
+    <div id="pageMessagesRemote"></div> 
+    
+    <apex:form onsubmit="javascript: if(gp_stopSubmit){gp_stopSubmit=false; return false;}" styleClass="mainForm" id="mainForm">
+    
+        <apex:outputPanel id="wrapperDIV" layout="block" styleClass="gp_wrapper" rendered="{!initSuccess}">
+
+        	<div id="mapWrapper">
+				<!-- Right click map context menu -->
+                <div id="mapContextMenu" oncontextmenu="return false;">
+                    <div class="mapContextMenuItem" onclick="gp_searchRadialRemoteRightClick();">
+                        Radial Search here
+                        <div class="mapContextMenuItemSubItem" id="contextMenuRadialSearchDetail">{!activeDataSetName} - {!searchNearbyRange} {!searchNearbyUnit}</div>
+                    </div>
+                    <div class="mapContextMenuItem" onclick="gp_addToRouteRightClick();">Add to Route</div>
+                    <div class="mapContextMenuItem" onclick="gp_addToMyLocationsRightClick();">Save to My Locations</div>
+                    <hr/>
+                    <div class="mapContextMenuItem" onclick="gp_centerRightClick();">Center Map</div>
+                    <div class="mapContextMenuItem" onclick="gp_centerZoomRightClick();">Center &amp; Zoom Map</div>
+                    <div class="mapContextMenuItem mapContextMenuItemGoogleOnly" onclick="gp_streetViewRightClick();">Street View</div>
+                    <div class="mapContextMenuItem" onclick="gp_bestFitRightClick();">Show All Mapped Points</div>
+                </div>
+
+                <!--Data Sets Map Control -->
+				<div class="mapControl" name="datasets" id="dataSetPanel">
+					<div class="mapControlContent" id="searchControl">									
+						
+                        <div id="dataSetSearchSection">
+                            <!--
+                            <div id="messageBanner">
+                                <span class="exclamation">!</span>
+                                <a href="http://bit.ly/gpV3ChangesVideo" target="_blank">Geopointe v3 is here! Click here to watch a video overview of the new UI and new features. </a>
+                                <a id="hideMessageBanner" class="hide" href="#">X</a>
+                            </div>
+                            -->
+
+                            <div id="centerContextTitleSection" class="mapControlTitleBar">
+                                <apex:outputPanel rendered="{!NOT(ISNULL(centerPOI))}">
+                                    <span id="backTorRecordFullName" style="display: none;"><a href="/{!centerPOI.recordid}" >« Back To {!centerPOI.title}</a>&nbsp;</span>
+                                </apex:outputPanel>
+
+                                <span id="centerContextTitleOutput">
+                                    <apex:outputPanel layout="block" rendered="{!NOT(ISNULL(centerPOI))}">
+                                        <a href="/{!centerPOI.recordid}">« Back To</a>&nbsp;&nbsp;<span class="centerContextTitle">{!centerPOI.title}:</span>&nbsp;
+                                        <apex:outputText value=" {!centerPOI.street}" rendered="{!centerPOI.street != ''}"/>
+                                        <apex:outputText value="," rendered="{!centerPOI.street != '' && centerPOI.city != ''}"/>
+                                        <apex:outputText value=" {!centerPOI.city}" rendered="{!centerPOI.city != ''}"/>
+                                        <apex:outputText value="," rendered="{!centerPOI.city != '' && centerPOI.state != ''}"/>
+                                        <apex:outputText value=" {!centerPOI.state}" rendered="{!centerPOI.state != ''}"/>
+                                        <apex:outputText rendered="{!centerPOI.postalCode != ''}">&nbsp;{!centerPOI.postalCode}</apex:outputText>
+                                        <apex:outputText rendered="{!centerPOI.country != ''}">, {!centerPOI.country}</apex:outputText>&nbsp;&nbsp;
+                                        
+                                        <span title="Geocode Quality - {!centerPOI.geocodeQuality}">
+                                            <apex:image styleClass="geocodeQualityTitle" url="{!URLFOR($Resource.geopointe__images, '/confirm12.png')}" rendered="{!centerPOI.geocodeQuality='POINT' || centerPOI.geocodeQuality='ADDRESS' || centerPOI.geocodeQuality='STREET' || centerPOI.geocodeQuality='INTERSECTION'}" />
+                                            <apex:image styleClass="geocodeQualityTitle" url="{!URLFOR($Resource.geopointe__images, '/warning12.png')}" rendered="{!centerPOI.geocodeQuality='CITY' || centerPOI.geocodeQuality='ZIP' || centerPOI.geocodeQuality='ZIP_EXTENDED'}" />
+                                            <apex:image styleClass="geocodeQualityTitle" url="{!URLFOR($Resource.geopointe__images, '/error12.png')}" rendered="{!centerPOI.geocodeQuality='COUNTY' || centerPOI.geocodeQuality='STATE' || centerPOI.geocodeQuality='COUNTRY'}" />
+                                        </span>
+                                    </apex:outputPanel>
+
+                                    <apex:outputPanel layout="block" rendered="{!ISNULL(centerPOI)}">
+                                        <div id="gp_centerpointMessage">
+                                            <span class="centerContextTitle">Search Center:</span> The map's center will be used as the centerpoint for the radial search.
+                                        </div>
+                                    </apex:outputPanel>
+                                </span>
+                            </div>
+
+                            <table cellspacing="0" cellpadding="0" width="100%">
+    	                        <tr>
+    	                            <!-- Data Set Cell -->
+    	                            <td style="vertical-align:top;">
+    	                            	<apex:outputPanel >
+    		                                <div class="fieldSet">
+    		                                    <div class="fieldSetTitle">Data Set Selection&nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_DataSetSelection" /></div>
+    		                                    <div class="fieldSetContent">
+    			                                    
+                                                    <table id="dataSetPickListTable" style="margin-bottom: 4px;" cellpadding="0" cellspacing="0">
+                                                        <tr>
+                                                            <td>
+                                                                <apex:selectList id="dataSetSelectList" value="{!activeDataSet}" multiselect="false" size="1">
+                			                                        <apex:selectOptions value="{!dataSetOptions}"/>
+                			                                    </apex:selectList>
+                			                                    <script> gp_UIElem.dataSetSelectList = document.getElementById("{!$Component.dataSetSelectList}"); </script>
+                                                            </td>
+                                                            <td>
+                                                                <div id="dataSetSaveWrapper" style="width:88px;"> <!--Fixed width to prevent wrapping -->
+                                                                    <div id="saveDataSetBtn" class="multiButtonWrapper">
+                                                                        <span class="gpButton openMultiButtonOptions">
+                                                                            <div class="multiButtonInner multiButtonLeftNoSeperator">
+                                                                                Save
+                                                                            </div>
+                                                                            <div class="multiButtonInner">
+                                                                                <span class="ui-icon ui-icon-triangle-1-s"></span>
+                                                                            </div>
+                                                                        </span>
+
+                                                                        <!-- drop down options -->
+                                                                        <div class="multiButtonContent"> 
+
+                                                                            <!-- TODO needs to be dynamic based on save/save as permission -->
+                                                                            <div class="multiButtonOption dataSetSave">
+                                                                                <span class="multiButtonOptionText">
+                                                                                    Save &nbsp;<span class="saveDetail">(Data Set)</span>
+                                                                                </span>      
+                                                                            </div>
+
+                                                                            <div class="multiButtonOption dataSetSaveAs">
+                                                                                <span class="multiButtonOptionText">
+                                                                                    Save As &nbsp;<span class="saveDetail">(Data Set)</span>
+                                                                                </span>      
+                                                                            </div>
+                                                                
+                                                                        </div>
+                                                                    </div>
+                                                                    <span id="editDataSetBtn" class="gpButton gpButtonBasicSmall" style="padding: 1px 6px 1px 6px;">
+                                                                        <img src="{!URLFOR($Resource.images, 'map/gear.png')}" title="Data Set Settings" height="14px"/>
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+
+    			                                    <div>
+    			                                    	<b>Clear Existing?</b>&nbsp;
+    			                                    	<apex:inputCheckbox id="clearExisting" value="{!clearExisting}"></apex:inputCheckbox>
+    			                                    	<script> gp_UIElem.clearExisting = document.getElementById("{!$Component.clearExisting}"); </script>
+    		                                    	</div>
+    			                                    <div>
+    			                                    	<b>Marker Color</b>&nbsp;
+    			                                    	<apex:inputText id="gp_selectedcolor" value="{!selectedColor}" size="8" />
+    			                                    	<script> gp_UIElem.selectedcolor = document.getElementById("{!$Component.gp_selectedcolor}"); </script>
+    		                                    	</div>
+    				                                <div>
+    					                                <b>Color Markers By</b>&nbsp;
+    					                                <select id="gp_ColorMarkersBy" onchange="javascript:gp_UIElem.hidden_colorMarkersBy.value=this.value;">
+    					                                	<!-- Default the value with the ds value, this will get wiped out quickly, but needs to be present on lead for auto run radial searchs-->
+    					                                	<option value="{!colorMarkersBy}">- Select a Field -</option> 
+    					                                </select>
+    				                                </div>
+
+                                                    <div style="white-space: nowrap;">
+                                                        <span>
+                                                            <b>Show</b>&nbsp;
+                                                            <select id="showFilterOptions">
+                                                            </select>    
+                                                        </span>
+
+                                                        <span id="showHideCustomFilters" style="cursor: pointer; display: inline-block;">
+                                                            <img id="showHideFiltersImg" class="filterLogicImg" src="/s.gif"/>
+                                                            <span style="text-decoration: underline; margin: 5px 0; display: inline-block; color: #1485a9;" >More Filters</span>
+                                                            <div class="countBubble" id="filterCountBubble"></div>
+        				                                </span>
+                                                    </div>
+                                                </div>
+    		                                </div>
+    	                                </apex:outputPanel>
+    	                            </td>
+    		                     
+    		                        <!-- Search Cell -->
+    		                        <td style="vertical-align:top;">
+		                                <div class="fieldSet noRightMargin">
+		                                    <div class="fieldSetTitle">Search&nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_search" /></div>
+		                                    <div class="fieldSetContent" style="padding-bottom: 3px;">
+                                                <table cellpadd="0" cellspacing="0">
+		                                    		<tr>
+		                                    			<td class="searchIconCol" id="radialIcon">
+		                                    				<img height="40px" title="Radial Search" src="{!URLFOR($Resource.images, 'map/radial.png')}"/>
+		                                    			</td>
+		                                    			<td style="vertical-align:top;">
+															<input class="btn" id="buttonSearchNearbyRemote" value="Search" type="button" /> 
+		                                    			</td>
+		                                    			<td style="vertical-align:top;">
+	                                    					<b>Within</b>&nbsp;
+				                                            <apex:inputText id="radialSearchRange" onkeypress="javascript:gp_DoClick(event,'buttonSearchNearbyRemote');" value="{!searchNearbyRange}" size="7" />
+				                                            
+                                                            <apex:selectList id="radialSearchUnit" value="{!searchNearbyUnit}" multiselect="false" size="1" > 
+				                                                <apex:selectOption itemValue="miles" itemLabel="Miles"/>
+				                                                <apex:selectOption itemValue="kilometers" itemLabel="Kilometers"/>
+				                                            </apex:selectList>
+
+				                                            <strong>of</strong>
+				                                            <img id="radialCenterIconSmall" src="{!URLFOR($Resource.geopointe__images, '/center_pin2.png')}"/>
+
+				                                            <br/>
+				                                            <div id="radialSearchOptions">
+					                                            <apex:outputPanel >
+					                                            	<b>Show Radius?</b>&nbsp;<apex:inputCheckbox id="radialSearchShowRadius" value="{!searchNearbyShowOverlay}"/>
+				                                            	</apex:outputPanel>
+					                                            
+					                                            <apex:outputPanel >
+					                                            	<b>Calculate Drive Distance?</b>&nbsp;<apex:inputCheckbox id="radialSearchCalcDriveDistance" value="{!searchNearbyDriveCalc}"/>
+				                                            	</apex:outputPanel>
+			                                            	</div>		                                            
+						                                    
+		                                    			</td>
+		                                    		</tr>
+		                                    	</table>
+
+		                                    	<hr class="searchSeperator"/>
+                                                
+                                                <table cellpadd="0" cellspacing="0">
+		                                    		<tr>
+		                                    			<td class="searchIconCol" id="viewableAreaIcon">
+		                                    				<img src="{!URLFOR($Resource.images, 'map/worldgreenviewable.png')}" title="Viewable Area" style="height: 30px;"/>
+		                                    			</td>
+		                                    			<td style="vertical-align:middle;">
+			                                    			<input class="btn" id="buttonSearchBoundsRemote" value="Viewable Area" type="button" /> 
+		                                    			</td>
+
+                                                        <apex:outputPanel rendered="{!mapProvider == 'Google'}">
+                                                            <td class="buttonSearchPolygon searchIconCol">
+                                                                <img src="{!URLFOR($Resource.images, 'map/worldgreenpoly.png')}" title="Polygon Search" style="height: 30px; margin-left: 6px;"/>
+                                                            </td>
+                                                            <td style="vertical-align:middle;">
+                                                                <div class="multiButtonWrapper">
+                                                                    <span class="gpButton">
+                                                                        <div class="buttonSearchPolygon multiButtonInner multiButtonLeftLarge">
+                                                                            Shape Search
+                                                                        </div>
+                                                                        <div class="multiButtonInner multiButtonRightLarge openMultiButtonOptions">
+                                                                            <span class="ui-icon ui-icon-triangle-1-s"></span>
+                                                                        </div>
+                                                                    </span>
+                                                                    <div class="multiButtonContent"> 
+                                                                        <div class="multiButtonOption" id="openDrawModeOption">
+                                                                            <span class="multiButtonOptionText">
+                                                                                Add Shapes to Map
+                                                                            </span>      
+                                                                        </div>
+                                                                        <div class="multiButtonOption" id="removeAllShapes">
+                                                                            <span class="multiButtonOptionText">
+                                                                                Remove All Shapes  
+                                                                            </span>      
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </apex:outputPanel>
+		                                    		</tr>
+		                                    	</table>
+                                                
+		                                    	<apex:outputPanel rendered="{!disableEntireDataSetSearch != true}">
+			                                    	<hr class="searchSeperator"/>
+			                                    	<table cellpadd="0" cellspacing="0">
+			                                    		<tr>
+			                                    			<td class="searchIconCol" id="entireDataSetIcon">
+			                                    				<img src="{!URLFOR($Resource.images, 'map/worldgreen.png')}" title="Entire Data Set" style="height: 30px;"/>
+			                                    			</td>
+			                                    			<td style="vertical-align:middle;">
+					                                    		<input class="btn" id="buttonSearchAllRemote" value="Entire Data Set" type="button" /> 
+			                                    			</td>
+			                                    		</tr>
+			                                    	</table>
+		                                    	</apex:outputPanel>
+		                                    </div>
+		                                </div>
+    	                            </td>
+    	                        </tr>
+    	                        <tr>
+    	                        	<td colspan="3">
+    	                        		<!-- Place to inject HTML --><div id="gp_customHTML_MapDataSets_below"></div>
+    	                        	</td>
+    		                    </tr>
+    	                    </table>
+                        </div>
+
+                        <!-- Data Set Edit Section -->
+                        <div id="dataSetEditSection">
+                            <div class="mapControlTitleBar">
+                                <input type="button" id="backToDataSetSearch" class="btn" value="« Back to Search"/>
+                                <span class="editDataSetTitle">Edit Data Set: </span>
+                                <span id="editDataSetNameTitle">Accounts (All)</span>
+                            </div>
+
+                            <div id="dataSetEditButtons">
+                                <input type="button" class="btn dataSetSave" value="Save"/>
+                                <input type="button" class="btn dataSetSaveAs" value="Save As"/>
+                                <input type="button" id="dataSetDelete" class="btn" value="Delete"/>
+                            </div>
+
+                            <table id="dataSetEditTable" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td>
+                                        <div id="dataSetSettings" class="fieldSet noHeightSet">
+                                            <div class="fieldSetTitle">Data Set Settings &nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_DataSetSettings" /></div>
+                                            <div class="fieldSetContent">
+                                                <table id="dataSetEditSettings" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td class="editDataSetLabel">Name</td>
+                                                        <td><input id="editDataSetName" type="text"/></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <apex:outputPanel rendered="{!isGeopointeAdmin}">
+                                                            <td class="editDataSetLabel">Data Set Access</td>
+                                                            <td>
+                                                                <select id="editDataSetOwnership">
+                                                                    <option value="{!$User.Id}">Me</option>
+                                                                    <option value="{!$Organization.Id}">All Users</option>
+                                                                </select>
+                                                            </td>
+                                                        </apex:outputPanel>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="editDataSetLabel">Marker Color</td>
+                                                        <td><input id="editDataSetColor" value="{!selectedColor}" type="text" size="8"/></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="editDataSetLabel">Color Markers By</td>
+                                                        <td>
+                                                            <select id="editDataSetColorBy"></select>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="editDataSetLabel">Available in Visualize</td>
+                                                        <td><input id="editDataSetAvailableInVisualize" type="checkbox"/></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="editDataSetLabel">One Column Address</td>
+                                                        <td><input id="editDataSetOneColumnAddress" type="checkbox"/></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="editDataSetLabel">Show</td>
+                                                        <td><select id="editDataSetShowFilter"></select></td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div id="dataSetFields" class="fieldSet noRightMargin noHeightSet">
+                                            <div class="fieldSetTitle">
+                                                Data Set Fields &nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_DataSetFields" />
+                                                <span id="addDataSetField" class="gpButton gpButtonBasicSmall" data-objectName="{!selectedEntity}">
+                                                    Add
+                                                </span>
+                                            </div>
+                                            <div class="fieldSetContent" style="width: 355px; min-height: 124px;">
+                                                <ul id="dataSetFieldList">
+                                                </ul>
+                                                <div class="gp_clearer"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Draw Controls -->
+                        <div id="drawModeSection">
+                            <div class="mapControlTitleBar">
+                                <input type="button" id="drawCancel" class="btn" value="« Back to Search"/>
+                                <span class="editDataSetTitle">Draw Mode: </span>
+                                <span>Add custom shapes to the map that can act as boundaries for searches.</span>
+                            </div>
+
+                            <div id="noShapeMsg" class="gp-alert gp-alert-info">
+                                <button type="button" class="gp-alert-close" data-dismiss="hide" data-onclose="resetMapControlOffset('#dataSetPanel');">×</button>
+                                Click on the map to start building a shape.
+                            </div>
+
+                            <table cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td>
+                                        <div class="fieldSet noHeightSet ">
+                                            <div class="fieldSetTitle">Tools &nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_shapeTools" /></div>
+                                            <div class="fieldSetContent">
+                                                <span id="drawHand" class="gpButton gpButtonBasic drawToolOption">
+                                                    <img src="{!URLFOR($Resource.images, 'map/openhand.png')}" height="22"/>
+                                                </span>
+                                                <span id="drawPolygon" class="gpButton gpButtonBasic drawToolOption">
+                                                    <img src="{!URLFOR($Resource.images, 'map/polygonBlue.png')}" height="22"/>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fieldSet noHeightSet">
+                                            <div class="fieldSetTitle">Saved Shapes  &nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_savedShapes" /></div>
+                                            <div class="fieldSetContent">
+                                                <apex:outputPanel id="shapeList">
+                                                    <select id="shapeList">    
+                                                        <option value="--None--">--None--</option>
+
+                                                        <!--There are only user shapes-->
+                                                        <apex:outputPanel rendered="{!shapeList.display == 'user'}">
+                                                            <apex:repeat value="{!shapeList.userShapes}" var="s">
+                                                                <option value="{!s.Id}">{!s.Name}</option>
+                                                            </apex:repeat>
+                                                        </apex:outputPanel>
+
+                                                        <!--There are only other shapes-->
+                                                        <apex:outputPanel rendered="{!shapeList.display == 'other'}">
+                                                            <apex:repeat value="{!shapeList.otherShapes}" var="s">
+                                                                <option value="{!s.Id}">{!s.Name}</option>
+                                                            </apex:repeat>
+                                                        </apex:outputPanel>
+
+                                                        <!--There are both user and other shapes -->
+                                                        <apex:outputPanel rendered="{!shapeList.display == 'both'}">
+                                                            <optgroup label="My Shapes" class="userShapes">
+                                                                <apex:repeat value="{!shapeList.userShapes}" var="s">
+                                                                    <option value="{!s.Id}">{!s.Name}</option>
+                                                                </apex:repeat>
+                                                            </optgroup>
+                                                        
+                                                            <optgroup label="Other Shapes" class="otherShapes">
+                                                                <apex:repeat value="{!shapeList.otherShapes}" var="s">
+                                                                    <option value="{!s.Id}">{!s.Name}</option>
+                                                                </apex:repeat>
+                                                            </optgroup>
+                                                        </apex:outputPanel>
+                                                    </select>
+
+                                                    <!--Updates picklist with correct id when rerendered -->
+                                                    <script>
+                                                        var shapeId = '{!selectedShapeId}';
+                                                        jQuery("#shapeList").val(shapeId);
+                                                    </script>
+                                                </apex:outputPanel>
+                                                <span class="gpButton gpButtonBasicSmall" onclick="gp_addShapeToMap();">
+                                                    Add To Map
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td width="1px">
+                                        <div class="fieldSet noRightMargin noHeightSet">
+                                            <div class="fieldSetTitle">Search</div>
+                                            <div class="fieldSetContent">
+                                                <table cellpadd="0" cellspacing="0">
+                                                    <tr>
+                                                        <td class="buttonSearchPolygonDraw searchIconCol">
+                                                            <img src="{!URLFOR($Resource.images, 'map/worldgreenpoly.png')}" title="Shape Search" style="height: 30px;"/>
+                                                        </td>
+                                                        <td style="vertical-align:middle;">
+                                                            <input class="buttonSearchPolygonDraw btn" value="Shape Search" type="button" /> 
+                                                            <div id="drawSectionDataSetName"></div>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+		            	<!-- Filters -->
+						<div id="FiltersDIVOuter" style="display:none;"><!-- this DIV is what show/hide -->
+							<apex:outputPanel layout="block" id="FiltersDIV" style="5px 0;">
+                                <div id="filtergroup">
+                                    <div class="fieldSet noRightMargin noHeightSet" style="margin-top: 10px;">
+                                        <div class="fieldSetTitle ">
+                                            <div class="fieldSetTitleFilter">Filters &nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_dataSetFilters" /></div>
+
+                                            <div class="multiButtonWrapper" id="addFilterWrapper">
+                                                <span class="gpButton">
+                                                    <div id="addObjectFilter" data-objectName="{!selectedEntity}" class="multiButtonInner multiButtonLeft">
+                                                        Add
+                                                    </div>
+                                                    <div class="multiButtonInner multiButtonRight openMultiButtonOptions">
+                                                        <span class="ui-icon ui-icon-triangle-1-s"></span>
+                                                    </div>
+                                                </span>
+                                                <div class="multiButtonContent"> 
+                                                    <div class="multiButtonOption" id="multiButtonAddFilter" data-objectName="{!selectedEntity}">
+                                                        <img alt="" src="/s.gif" class="multiButtonOptionImg"/>
+                                                        <span class="multiButtonOptionText">
+                                                            Field Filter  <br/>
+                                                            <span class="multiButtonOptionSubText">
+                                                                e.g., Account Name <b>equals</b> Acme
+                                                            </span>
+                                                        </span>      
+                                                    </div>
+
+                                                    <div class="multiButtonOption" id="showFilterLogic">
+                                                        <img alt="" src="/s.gif" class="multiButtonOptionImg filterLogicImg"/>
+                                                        <span class="multiButtonOptionText">
+                                                            Filter Logic  <br/>
+                                                            <span class="multiButtonOptionSubText">
+                                                                e.g., Filter 1 <b>AND</b> (Filter 2 <b>OR</b> Filter 3)
+                                                            </span>
+                                                        </span>      
+                                                    </div>
+                                                    <hr/>
+
+                                                    <div class="multiButtonOption" id="addChildObjectFilter" data-objectName="{!selectedEntity}">
+                                                        <img alt="" src="/s.gif" class="multiButtonOptionImg crossfilterLogicImg"/>
+                                                        <span class="multiButtonOptionText">
+                                                            Cross Filter  <br/>
+                                                            <span class="multiButtonOptionSubText">
+                                                                e.g., Accounts <b>with</b> Opportunities
+                                                            </span>
+                                                        </span>      
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="fieldSetContent">
+
+                                            <div id="noFilterAccessMsg">
+                                                You do not have permission to edit filters on this Data Set due to Object or Field Level Security restrictions.<br/><br/>
+                                                Contact your system adminstrator to resolve this issue. 
+                                            </div> 
+
+                                            <div id="noFiltersMsg">
+                                                This Data Set has no filters.
+                                            </div> 
+                                            
+                                            <div id="filtersObject">
+                                                <div id="filterLogic" style="display:none;">
+                                                    <img alt="" src="/s.gif" class="multiButtonOptionImg filterLogicImg"/>
+                                                    Filter Logic: <input id="filterLogicInput" type="text" style="width: 420px;"/> <a href="" id="hideFilterLogic">Remove</a>
+                                                </div>
+
+                                                <table id="filterTableWrapper" border="0" cellpadding="0" cellspacing="0" width="100%">
+                                                    <tr class="alignTop">
+                                                        <td>
+                                                            <table id="filterCountTable" style="display: none; width: 100%;" cellpadding="0" cellspacing="0">
+                                                                <tbody></tbody>
+                                                            </table>
+                                                        </td>
+                                                        <td>
+                                                            <table id="dataFilterTable" class="list dataFilterTable" border="0" cellpadding="0" cellspacing="0">
+                    										    <tbody id="dataFilterBody">
+                                                                </tbody>
+                    										</table>
+
+                                                            <apex:inputTextArea value="{!dataSetFiltersJSON}" styleClass="dataSetFiltersJSON hiddenJSON"/>
+                                                        </td>
+                                                    </tr> 
+                                                </table>
+                                            </div>         
+
+                                            <!-- Child filters -->
+                                            <div id="filtersChild">
+                                                <span id="filtersChildTitle">
+                                                    <img alt="" src="/s.gif" class="multiButtonOptionImg crossfilterLogicImg"/>
+                                                    Cross Object Filters
+                                                </span>
+
+                                                <table class="list dataFilterTable" id="childFilterTable" border="0" cellpadding="0" cellspacing="0">
+                                                    <tbody id="dataChildFilterBody">
+                                                    </tbody>
+                                                </table>      
+                                                
+                                                <apex:inputTextArea value="{!dataSetChildFiltersJSON}" styleClass="dataSetChildFiltersJSON hiddenJSON"/>
+
+        						                <script type="text/javascript">
+        						                	//Anytime this section gets rerendered populate the json field
+        						                	populateFilterJSON();
+        						                </script>
+                                            </div>
+                                        </div>
+                                    </div>									
+								</div>
+							</apex:outputPanel>
+						</div>
+					</div>
+					<div class="mapControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/datapoints.png')}" title="Data Sets"/>
+					</div>
+				</div> <!--End Data Sets map Control-->
+			
+				<!-- Search Map Control -->
+				<div class="mapControl noHeightSet" name="search" id="searchPanel">
+					<div class="mapControlContent">
+                    	<div class="fieldSet noRightMargin">
+							<div class="fieldSetTitle">Search&nbsp;<img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_PlacesSearch" /></div>
+		                    <div class="fieldSetContent">
+		                   
+                                <div id="format">
+                                    <input type="radio" id="addressSearch" name="searchType" value="address" checked="true"/><label for="addressSearch">Address</label>
+                                    <input type="radio" id="placesSearch" name="searchType" value="places" /><label for="placesSearch">Places</label>
+                                </div>
+                                
+                                <table cellpadding="0" cellspacing="0" style="margin-top:3px;">
+                                    <tr>
+                                        <td style="vertical-align:middle;"><input class="searchInput" type="text" id="gp_placesSearchString" onkeypress="javascript:gp_DoClick(event,'searchNow');" /></td>
+                                        <td style="vertical-align:middle;"><input id="searchNow" name="searchNow" class="btn btnImportant" onclick="gp_search();" value="Search" type="button" /></td>
+                                    </tr>
+                                </table>
+                               
+								<div id="placesSearchOptions" style="display:none;"> <!--initially hidden -->
+									<input id="gp_placesRestrictSearchArea" type="checkbox" checked="checked"/>&nbsp;<b>Restrict Results to Map's Viewable Area</b><br/>
+									<input id="clearNow" name="clearNow" class="btn" onclick="javascript: gp_clearPlaces(); return false;" value="Clear Results" type="button" />
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="mapControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/search.png')}" title="Search Places & Data"/>
+					</div>
+				</div><!-- End Search Map Control -->
+			
+				<!-- Layers Map Control -->
+				<div class="mapControl" name="layers" id="layersPanel">
+					<div class="mapControlContent">
+                        <div id="layerTabs" class="mapControlUITabs">
+                            <ul>
+                                <li><a href="#tabs-kml">Layers&nbsp; <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_kmlLayers" /></a></li>
+                                <li><a href="#tabs-demographics">Demographics&nbsp; <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_Demographics" /></a></li>
+                                <li><a href="#tabs-other">Other&nbsp; <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_OtherLayers" /></a></li>
+                            </ul>
+                            <div id="tabs-kml" class="layerTab">
+                                <apex:outputPanel id="layersContent">
+                                    <!-- My Saved Locations -->
+                                    <apex:outputPanel rendered="{!layers.size > 0}">
+                                        Filter: <input type="text" size="30" class="tableFilterInput"/>
+                                    </apex:outputPanel>
+
+                                    <div id="layersOuterTableWrapper" class="scrollableTableWrapper">
+                                        
+                                        <div id="layersFloatingHeaders" class="floatingTableHeaders"></div>
+                                        
+                                        <apex:outputPanel rendered="{!layers.size > 0}" layout="block">
+                                            <table id="layersTable" cellpadding="0" cellspacing="0" class="list display gp_dataTable filterableTable" data-floatingHeadersId="layersFloatingHeaders" style="display:block; max-width: 730px">
+                                                <thead>
+                                                    <tr class="headerRow">
+                                                        <th class="headerRow">Action</th>
+                                                        <th class="headerRow">Name</th>
+                                                        <th class="headerRow">Description</th>
+                                                    </tr>
+                                                </thead>    
+                                                <tbody>
+                                                    <apex:repeat value="{!layers}" var="l">
+                                                        <tr data-url="{!l.URL__c}">
+                                                            <td>
+                                                               <div style="white-space: nowrap; width: 135px;">
+                                                                    <a href="#" class="actionLink addRemoveLayer" data-url="{!l.URL__c}">Add</a> <!--event listner for this in map.js .ready() -->
+                                                                    |
+                                                                    <a href="#" class="actionLink zoomToShowLayer actionLinkDisabled" data-url="{!l.URL__c}">Zoom to Show</a> <!--event listner for this in map.js .ready() -->
+                                                                </div>
+                                                            </td>
+                                                            <td style="white-space: nowrap;">
+                                                                <span class="filterValue" style="float:left; padding-right: 6px;">{!l.Name}</span>
+                                                                <img width="8px" style="visibility:hidden;" class="layerGreenDot" src="{!URLFOR($Resource.images, 'map/greendot.png')}" title="This Layer is currently displayed on the map."/>
+                                                            </td>
+                                                            <td>
+                                                                <span class="filterValue" >
+                                                                   {!l.Description__c}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    </apex:repeat>
+                                                </tbody>   
+                                            </table>
+                                        </apex:outputPanel>
+                                    </div>
+
+                                    <apex:outputPanel rendered="{!layers.size == 0}" layout="block">
+                                        Please contact your system administrator to setup Layers.
+                                    </apex:outputPanel>
+                                </apex:outputPanel>
+                            </div>
+                            <div id="tabs-demographics" class="layerTab">
+                                <div id="gp_demoDIV">
+                                    <div>
+                                        <table>
+                                        <tr>
+                                        <td class="demoLabel demoFixedLabel">Year</td>
+                                        <td>
+                                            <select name="gp_demoYear" id="gp_demoYear">
+                                                <option value="2010">2010</option>
+                                                <option value="2011" selected="selected">2011</option>
+                                                <option value="2015p">2015 (Projected)</option>
+                                                <option value="2016p">2016 (Projected)</option>
+                                            </select>
+                                        </td>
+                                        <td class="demoLabel">Granularity</td>
+                                        <td>
+                                            <select name="gp_demoGranularity" id="gp_demoGranularity">
+                                                <option value="" selected="selected">-- None --</option>
+                                                <option value="state">State</option>
+                                                <option value="county">County</option>
+                                                <option value="tract">Census Tract</option>
+                                                <option value="block_group">Census Block Group</option>
+                                            </select>
+                                        </td>
+                                        </tr><tr>
+                                        <td class="demoLabel demoFixedLabel">Metric</td>
+                                        <td colspan="3">
+                                            <select name="gp_demoMetric" id="gp_demoMetric"></select>
+                                        </td>
+                                        </tr>
+                                        </table>
+                                    </div>
+
+                                    <div >
+                                        <table>
+                                        <tr>
+                                        <td class="demoLabel demoFixedLabel">Fill Opacity</td>
+                                        <td width="250px"><div id="gp_demoFillOpacity"></div></td>
+                                        </tr><tr>
+                                        <td class="demoLabel demoFixedLabel">Border Opacity</td>
+                                        <td width="250px"><div id="gp_demoBorderOpacity"></div></td>
+                                        </tr>
+                                        </table>
+                                    </div>
+
+                                    <div>
+                                        <table>
+                                        <tr>
+                                        <td class="demoLabel demoFixedLabel">Min Value</td>
+                                        <td><input id="gp_demoMinValue" type="text" value="" /></td>
+                                        <td class="demoLabel">Max Value</td>
+                                        <td><input id="gp_demoMaxValue" type="text" value="" /></td>
+                                        </tr>
+                                        </table>
+                                    </div>
+
+                                    <input id="gp_demoShowLegend" name="gp_demoShowLegend" class="btn" value="Show Legend" type="button" />
+                                </div>
+                            </div>
+                            <div id="tabs-other" class="layerTab">
+                                <input class="btn" id="buttonTrafficLayer" name="buttonTrafficLayer" onclick="javascript:gp_toggleTraffic(); return false;" value="Toggle Traffic On" type="button" />
+                                <br/><br/>
+                                <input class="btn" id="buttonTransitLayer" name="buttonTransitLayer" onclick="javascript:gp_toggleTransit(); return false;" value="Toggle Transit On" type="button" />
+                                <br/><br/>
+                                <input class="btn" id="buttonBicyclingLayer" name="buttonBicyclingLayer" onclick="javascript:gp_toggleBicycling(); return false;" value="Toggle Bicycling On" type="button" />
+                                <br/><br/>
+                                <input class="btn" id="buttonWeatherLayer" name="buttonWeatherLayer" onclick="javascript:gp_toggleWeather(); return false;" value="Toggle Weather On" type="button" />
+                            </div>
+                        </div>
+					</div>
+					<div class="mapControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/layers.png')}" title="Layers & Demographics"/>
+					</div>
+				</div><!-- End Layers Map Control -->
+			
+				<!-- Locations / My Places Map Control -->
+				<div class="mapControl noHeightSet" name="locations" id="locationsPanel">
+					<div class="mapControlContent">
+                    	<div class="fieldSet noRightMargin">
+                            <div class="fieldSetTitle">My Locations <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_myLocations" /></div>
+                        	<div class="fieldSetContent">
+                                <apex:outputPanel id="myLocationsContent">
+                                    <!-- My Saved Locations -->
+                                    <apex:outputPanel rendered="{!myLocations.size > 0}">
+                                        Filter: <apex:inputText id="myLocationsFilter" value="{!locationFilter}" size="30" styleClass="tableFilterInput"/>
+                                    </apex:outputPanel>
+
+                                    <div id="myLocationsOuterTableWrapper" class="scrollableTableWrapper">
+                                        
+                                        <div id="myLocationsFloatingHeaders" class="floatingTableHeaders"></div>
+                                        
+                                        <div id="myLocationsTableWrapper">
+                                            
+                                            <apex:outputPanel rendered="{!myLocations.size > 0}">
+                                                <table id="myLocationsTable" cellpadding="0" cellspacing="0" class="list display gp_dataTable filterableTable" data-floatingHeadersId="myLocationsFloatingHeaders">
+                                                    <thead>
+                                                        <tr class="headerRow">
+                                                            <th class="headerRow">Action</th>
+                                                            <th class="headerRow">Name</th>
+                                                            <th class="headerRow">Location</th>
+                                                        </tr>
+                                                    </thead>    
+                                                    <tbody>
+                                                        <apex:repeat value="{!myLocations}" var="list"> <!--list within a list to avoid 1000 VF collection limit -->
+                                                            <apex:repeat value="{!list}" var="l">
+                                                                <tr>
+                                                                    <td>
+                                                                        <div style="width: 170px;">
+                                                                            <a href="#" class="actionLink" onclick="gp_goToMyLocationWrapper('{!l.Id}'); return false;">Go Here</a> | 
+                                                                            <a href="#" class="actionLink" onclick="gp_addToRouteMyLocation('{!l.Id}'); return false;">Add To Route</a> |&nbsp;
+                                                                            <apex:commandLink value="Del" action="{!deleteLocation}" rerender="myLocationsContent" styleClass="actionLink locationDelLink"
+                                                                                onclick="if(!confirm('Are you sure you want to delete the selected location?')) return false; geopointeAjaxStart('body','Deleting Location...');" 
+                                                                                oncomplete="setMyLocationsTableMaxHeight(); geopointeAjaxEnd();">
+                                                                                <apex:param name="locationIdToDelete" assignTo="{!locationIdToDelete}" value="{!l.Id}" />
+                                                                            </apex:commandLink>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="locationName filterValue" data-locationNameId="{!l.Id}">{!l.Name}</span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="locationAddress filterValue" data-locationAddressId="{!l.Id}" data-lat="{!l.latitude__c}" data-lng="{!l.longitude__c}" data-street="{!l.geopointe__Street__c}" 
+                                                                        data-city="{!l.geopointe__City__c}" data-state="{!l.geopointe__State__c}" data-postalCode="{!l.geopointe__PostalCode__c}" data-country="{!l.Country__c}">
+                                                                            <apex:outputText value=" {!l.geopointe__Street__c}" rendered="{!l.geopointe__Street__c != ''}"/>
+                                                                            <apex:outputText value="," rendered="{!l.geopointe__Street__c != '' && l.geopointe__City__c != ''}"/>
+                                                                            <apex:outputText value=" {!l.geopointe__City__c}" rendered="{!l.geopointe__City__c != ''}"/>
+                                                                            <apex:outputText value="," rendered="{!l.geopointe__City__c != '' && l.geopointe__State__c != ''}"/>
+                                                                            <apex:outputText value=" {!l.geopointe__State__c}" rendered="{!l.geopointe__State__c != ''}"/>
+                                                                            <apex:outputText rendered="{!l.geopointe__PostalCode__c != ''}"> {!l.geopointe__PostalCode__c}</apex:outputText>
+                                                                            <apex:outputText rendered="{!l.geopointe__Country__c != ''}">, {!l.geopointe__Country__c}</apex:outputText>
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            </apex:repeat>
+                                                        </apex:repeat>
+                                                    </tbody>   
+                                                </table>
+                                            </apex:outputPanel>
+                                        </div>
+                                    </div>
+
+                                    <apex:outputPanel rendered="{!myLocations.size == 0}" layout="block">
+                                        You do not have any saved locations. Once you do, an option to use those locations will be here.
+                                    </apex:outputPanel>
+                                </apex:outputPanel>
+                        	</div>
+						</div>
+							
+	                   <!-- Place to inject HTML -->
+                       <div id="gp_customHTML_manualEntry_below"></div>
+							
+					</div>
+					<div class="mapControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/places.png')}" title="My Places & Locations"/>
+					</div>
+				</div> <!--End Places map control -->
+			
+				<!-- Routes Map Control -->
+				<div class="mapControl" name="routes" id="routePanel">
+					<div class="mapControlContent">
+						<!-- Records to Route -->
+				        <div class="mapControlTitleBar">
+
+                             <!-- "Back To" breadcrumb -->
+                            <apex:outputPanel id="breadcrumbDIV" styleClass="gp_hidewhenprinted" style="font-size: 8pt; margin: 0 0 3px 0;" >
+                                 <apex:outputPanel rendered="{!activeMapMode = 'ROUTE' && ISNULL(savedRouteId)}">
+                                    <apex:commandLink value="« Return to Previous Map" action="{!resetCenterPOIContext}" 
+                                        rerender="dynamicJavaScript, pageMessages, breadcrumbDIV" 
+                                        onclick="geopointeAjaxStart('body','Resetting map into Search mode...');"
+                                        oncomplete="javascript:gp_AffectMap(); gp_resetCenterPOIContext('gp_dataTables');" />&nbsp;
+                                </apex:outputPanel>
+                            </apex:outputPanel>
+
+                            <apex:outputPanel id="routeTitle">
+                                <span id="routeTitle" data-routeId="{!savedRouteId}" style="font-size: 14px; font-weight: bold;">{!savedRouteNameForVF}</span>
+                            </apex:outputPanel>
+
+                            <apex:outputPanel layout="block" style="margin: 5px 0 0 0;" rendered="{!NOT(ISNULL(savedRouteId)) && NOT(amIRouteOwner)}">
+                                <i>Saved Route Owned by:&nbsp;<b>{!HTMLENCODE(savedRouteOwnerForVF)}</b></i>
+                            </apex:outputPanel>
+                        </div>
+
+                        <apex:outputPanel layout="block" style="font-size: 8pt;">
+                    	    <table cellpadding="0" cellspacing="0"><tr>
+								<td>
+	                        	    <div class="fieldSet">
+		                        	    <div class="fieldSetTitle">Route Options</div>
+		                        	    <div class="fieldSetContent">
+			                        	    <apex:outputPanel rendered="{!mapProvider='MapQuest'}" id="routeDetailsMQ">
+			                        	    	<apex:outputText ><b>&nbsp;Type:&nbsp;</b></apex:outputText>
+					                            <apex:selectList id="routeTypeMQ" style="font-size: 8pt;" value="{!routeType}" multiselect="false" size="1">
+					                                <apex:selectOption itemValue="fastest" itemLabel="Fastest"/>
+					                                <apex:selectOption itemValue="shortest" itemLabel="Shortest"/>
+					                                <apex:selectOption itemValue="pedestrian" itemLabel="Walking"/>
+					                                <apex:selectOption itemValue="bicycle" itemLabel="Bicycle"/>
+					                                <apex:selectOption itemValue="multimodal" itemLabel="Public Transit"/>
+					                            </apex:selectList>
+					                            <script> gp_UIElem.routeType = document.getElementById("{!$Component.routeTypeMQ}"); </script>
+				                                <apex:outputText ><b>&nbsp;Units:&nbsp;</b></apex:outputText>
+				                                <apex:selectList id="routeUnitsMQ" style="font-size: 8pt;" value="{!routeUnits}" multiselect="false" size="1">
+				                                    <apex:selectOption itemValue="m" itemLabel="Miles"/>
+				                                    <apex:selectOption itemValue="k" itemLabel="Kilometers"/>
+				                                </apex:selectList>
+				                                <script> gp_UIElem.routeUnits = document.getElementById("{!$Component.routeUnitsMQ}"); </script>
+				                                <br/>
+				                                <apex:outputText ><b>&nbsp;Avoid Tolls:&nbsp;</b></apex:outputText>
+				                                <apex:inputCheckbox id="routeAvoidTollsMQ" value="{!routeAvoidTolls}"/>
+				                                <script> gp_UIElem.routeAvoidTolls = document.getElementById("{!$Component.routeAvoidTollsMQ}"); </script>
+				                                <apex:outputText ><b>&nbsp;Thumbnails:&nbsp;</b></apex:outputText>
+				                                <apex:inputCheckbox value="{!routeThumbMaps}" />
+				                                
+				                                <apex:outputText ><b>&nbsp;Optimize Route:&nbsp;</b></apex:outputText>
+				                                <apex:inputCheckbox id="routeOptimizeMQ" value="{!routeOptimize}"/>
+				                                <script> gp_UIElem.routeOptimize = document.getElementById("{!$Component.routeOptimizeMQ}"); </script>
+				                             </apex:outputPanel>
+				                             
+				                           <apex:outputPanel rendered="{!mapProvider='Google'}" id="routeDetailsGoog">
+				                                <apex:outputText ><b>&nbsp;Type:&nbsp;</b></apex:outputText>
+					                            <apex:selectList id="routeTypeGOOG" style="font-size: 8pt;" value="{!routeType}" multiselect="false" size="1">
+					                                <apex:selectOption itemValue="driving" itemLabel="Driving"/>
+					                                <apex:selectOption itemValue="multimodal" itemLabel="Public Transportation"/>
+					                                <apex:selectOption itemValue="pedestrian" itemLabel="Walking"/>
+					                                <apex:selectOption itemValue="bicycle" itemLabel="Bicycle"/>
+					                            </apex:selectList>
+					                            <script> gp_UIElem.routeType = document.getElementById("{!$Component.routeTypeGOOG}"); </script>
+					                            <apex:outputText ><b>&nbsp;Units:&nbsp;</b></apex:outputText>
+				                                <apex:selectList id="routeUnitsGOOG" style="font-size: 8pt;" value="{!routeUnits}" multiselect="false" size="1">
+				                                    <apex:selectOption itemValue="m" itemLabel="Miles"/>
+				                                    <apex:selectOption itemValue="k" itemLabel="Kilometers"/>
+				                                </apex:selectList>
+				                                <script> gp_UIElem.routeUnits = document.getElementById("{!$Component.routeUnitsGOOG}"); </script>
+				                                <br/>
+				                                <apex:outputText ><b>&nbsp;Avoid Highways:&nbsp;</b></apex:outputText>
+				                                <apex:inputCheckbox id="routeAvoidHighwaysGOOG" value="{!routeAvoidHighways}"/>
+				                                <script> gp_UIElem.routeAvoidHighways = document.getElementById("{!$Component.routeAvoidHighwaysGOOG}"); </script>
+				                                <apex:outputText ><b>&nbsp;Avoid Tolls:&nbsp;</b></apex:outputText>
+				                                <apex:inputCheckbox id="routeAvoidTollsGOOG" value="{!routeAvoidTolls}"/>
+				                                <script> gp_UIElem.routeAvoidTolls = document.getElementById("{!$Component.routeAvoidTollsGOOG}"); </script>
+				                                <apex:outputText ><b>&nbsp;Optimize Route:&nbsp;</b></apex:outputText>
+				                                <apex:inputCheckbox id="routeOptimizeGOOG" value="{!routeOptimize}"/>
+				                                <script> gp_UIElem.routeOptimize = document.getElementById("{!$Component.routeOptimizeGOOG}"); </script>
+				                             </apex:outputPanel>
+			                             </div>
+		                             </div>
+	                             </td>
+								<td>
+									<div class="fieldSet">
+		                        	    <div class="fieldSetTitle">Route Execution</div>
+										<div class="fieldSetContent">
+											
+                                            <apex:outputPanel id="routeButtons">
+                                                <input class="btn btnImportant" id="buttonGetRoute" onclick="javascript:gp_doRouteWrapper(true); return false;" value="Get Route" type="button" />
+                                                <input class="btn" id="buttonClearRoute" onclick="javascript:gp_clearRoute(); return false;" value="Clear Route" type="button" />
+                                                
+                                                <apex:outputPanel rendered="{!ISNULL(savedRouteId)}">
+                                                    <input class="btn" id="buttonSaveRoute" onclick="javascript: gp_saveRouteWrapper('', true); return false;" value="Save" type="button" />
+                                                </apex:outputPanel>
+
+                                                <apex:outputPanel rendered="{!NOT(ISNULL(savedRouteId)) && NOT(amIRouteOwner)}">
+                                                    <input class="btn" id="buttonSaveAsRoute" onclick="javascript: gp_saveRouteWrapper('', true); return false;" value="Save As" type="button" />
+                                                </apex:outputPanel>
+
+                                                <apex:outputPanel rendered="{!NOT(ISNULL(savedRouteId)) && amIRouteOwner}">
+                                                    <input class="btn" id="buttonSaveRoute" onclick="javascript: gp_overwriteRoute('{!JSENCODE(savedRouteNameForVF)}');" value="Save" type="button" />
+                                                    <input class="btn" id="buttonSaveAsRoute" onclick="javascript: gp_saveRouteWrapper('', true); return false;" value="Save As" type="button" />
+                                                </apex:outputPanel>
+
+                                            </apex:outputPanel>
+
+											<br/>
+										    <apex:image styleClass="routeActionIcon" url="{!URLFOR($Resource.geopointe__images, '/mq-small-logo.png')}"  
+												title="Edit this Route at MapQuest.com" alt="Edit this Route at MapQuest.com" onclick="javascript:gp_gotoMQRoute();"/>
+											 &nbsp;
+										    <apex:image styleClass="routeActionIcon" url="{!URLFOR($Resource.geopointe__images, '/goog-small-logo.png')}"  
+												title="Edit this Route at Google Maps" alt="Edit this Route at Google Maps" onclick="javascript:gp_gotoGoogRoute();"/>
+											&nbsp;
+											<apex:commandLink onfocus="blur()" onclick="javascript: if(gp_UIElem.hidden_htmlDirections.value==''){alert('You must have created a route by clicking Get Route before a PDF can be generated?'); return false;} gp_trackRoutePDF();" 
+																action="{!printRoute}" target="_blank">
+												<apex:image url="{!URLFOR($Resource.geopointe__images, '/pdf_icon.png')}" styleClass="routeActionIcon" title="Print this Route To PDF" alt="Print this Route To PDF"/>
+											</apex:commandLink>
+											&nbsp;
+										</div>
+									</div>
+								</td>
+                                <td>
+                                    <div class="fieldSet">
+                                        <div class="fieldSetTitle">Saved Routes</div>
+                                        <div class="fieldSetContent">
+                                            <!-- My Saved Routes -->
+                                            <apex:outputPanel id="savedRoutes">
+
+                                                <apex:selectList id="savedRouteList" rendered="{!NOT(ISNULL(myRoutesOptions))}" value="{!selectedRouteId}" multiselect="false" size="1">
+                                                    <apex:selectOptions value="{!myRoutesOptions}"/>
+                                                </apex:selectList>
+
+                                                <apex:outputPanel rendered="{!NOT(ISNULL(myRoutesOptions))}">
+                                                    <input type="button" class="btn" value="Run Route" onclick="gp_runSavedRouteBefore();"/>
+                                                </apex:outputPanel>
+         
+                                                <apex:outputPanel rendered="{!NOT(ISNULL(myRoutesOptions))}">
+                                                    <input class="btn" id="buttonDeleteRoute" onclick="javascript: gp_deleteRouteWrapper(); return false;" value="Delete" type="button" />
+                                                </apex:outputPanel>
+
+                                                <apex:outputPanel rendered="{!ISNULL(myRoutesOptions)}" layout="block">
+                                                    You do not have any saved routes.<br/>
+                                                    Once you do, an option to use those<br/>
+                                                    routes will be here.
+                                                </apex:outputPanel>
+                                            </apex:outputPanel>
+                                        </div>
+                                    </div>
+                                </td>   
+							</tr></table>
+						</apex:outputPanel>
+						
+						<!-- jQuery Routing Data Table DIV -->
+						<div id="routeTableWrapper">
+                            <div id="routeFloatingHeaders" class="floatingTableHeaders"></div>
+                            <table cellpadding="0" cellspacing="0" border="0" class="list display gp_dataTable gp_dataTableRoute" id="gp_dataTableRoute"></table>
+                        </div>
+
+                    </div>
+					<div class="mapControlTab" id="routeControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/directions.png')}" title="Routes & Directions"/>
+                        <div id="routeCount" class="countBubble" style="display: none;"></div>
+					</div>
+				</div><!-- End routes map control -->
+			
+				<!-- Settings Map Control -->
+				<div class="mapControl" name="settings" id="settingsPanel">
+					<div class="mapControlContent">
+						<table cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="width:250px;">
+    		                    	<div class="fieldSet">
+    			                     	<div class="fieldSetTitle">Preferences <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_settingsPref"/></div>
+    			                     	<div class="fieldSetContent">
+    			                     		<table>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Use Geolocation</td>
+    				                    			<td><input id="mySettingsUseGeolocation" type="checkbox"/></td>
+    			                    			</tr>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Hide Sidebar</td>
+    				                    			<td><input id="mySettingsHideSidebar" type="checkbox"/></td>
+    			                    			</tr>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Scrollwheel Zoom</td>
+    				                    			<td><input id="mySettingsScrollwheelZoom" type="checkbox"/></td>
+    			                    			</tr>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Number Map Pins</td>
+    				                    			<td><input id="mySettingsNumberPins" type="checkbox"/></td>
+    			                    			</tr>
+                                                <tr>
+                                                    <td class="settingsLabel">Close Tabs on Search</td>
+                                                    <td><input id="mySettingsCloseTabsOnSearch" type="checkbox"/></td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="settingsLabel">Start Tab</td>
+                                                    <td>
+                                                        <select id="mySettingsStartTab">
+                                                            <option value ="">--None--</option>
+                                                            <option value ="datasets">Data Sets</option>
+                                                            <option value ="search">Search</option>
+                                                            <option value ="layers">Layers</option>
+                                                            <option value ="locations">Locations</option>
+                                                            <option value ="routes">Routes</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="settingsLabel">Map Height</td>
+                                                    <td>
+                                                        <select id="mySettingsMapHeight">
+                                                            <option value ="auto">Auto</option>
+                                                            <option value ="300">300</option>
+                                                            <option value ="400">400</option>
+                                                            <option value ="500">500</option>
+                                                            <option value ="600">600</option>
+                                                            <option value ="700">700</option>
+                                                            <option value ="800">800</option>
+                                                            <option value ="900">900</option>
+                                                            <option value ="1000">1000</option>
+                                                            <option value ="1100">1100</option>
+                                                            <option value ="1200">1200</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+    				                    	</table>
+    				                    </div>
+    		                    	</div>
+		                    	</td>
+		                    	<td style="width:200px;">
+    		                    	<div class="fieldSet">
+    			                     	<div class="fieldSetTitle">Starting Map Position <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_settingsStart"/></div>
+    			                     	<div class="fieldSetContent">
+    			                     		<table>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Starting Latitude:</td>
+    				                    			<td class="settingsValue"><span id="mySettingsStartingLatitude"></span></td>
+    			                    			</tr>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Starting Longitude:</td>
+    				                    			<td class="settingsValue"><span id="mySettingsStartingLongitude"></span></td>
+    			                    			</tr>
+    				                    		<tr>
+    				                    			<td class="settingsLabel">Starting Zoom:</td>
+    				                    			<td class="settingsValue"><span id="mySettingsStartingZoom"></span></td>
+    			                    			</tr>
+    				                    		<tr>
+    				                    			<td colspan="2" class="settingsValue"><input class="btn" id="mySettingsSetMapAsHome" value="Set Starting Position" type="button" /></td>
+    			                    			</tr>
+    				                    	</table>
+    			                     	</div>
+    			                     </div>
+		                    	</td>
+                                <td style="width:220px;">
+                                    <div class="fieldSet noRightMargin">
+                                        <div class="fieldSetTitle">Pinned Tabs <img src="/s.gif" class="helpIcon gp_hoverhelp" id="gp_hoverhelp_pinnedTabs" /></div>
+                                        <div class="fieldSetContent">
+                                            <div id="pinnedTabsTable">
+                                                <apex:panelGrid columns="4" columnClasses="settingsLabel,settingsValue" width="100%">
+                                                    <apex:outputLabel value="Data Sets"/>
+                                                    <apex:outputPanel ><input type="checkbox" value="dataSetPanel"/></apex:outputPanel>
+
+                                                    <apex:outputLabel value="Search"/>
+                                                    <apex:outputPanel ><input type="checkbox" value="searchPanel"/></apex:outputPanel>
+
+                                                    <apex:outputLabel value="Layers" rendered="{!mapProvider == 'Google'}"/>
+                                                    <apex:outputPanel rendered="{!mapProvider == 'Google'}"><input id="pinLayersPanelCheckbox" type="checkbox" value="layersPanel"/></apex:outputPanel>
+
+                                                    <apex:outputLabel value="My Locations"/>
+                                                    <apex:outputPanel ><input type="checkbox" value="locationsPanel"/></apex:outputPanel>
+
+                                                    <apex:outputLabel value="Routes"/>
+                                                    <apex:outputPanel ><input id="pinRoutePanelCheckbox" type="checkbox" value="routePanel"/></apex:outputPanel>
+
+                                                    <apex:outputLabel value="Settings"/>
+                                                    <apex:outputPanel ><input type="checkbox" value="settingsPanel"/></apex:outputPanel>
+
+                                                    <apex:outputLabel value="Help"/>
+                                                    <apex:outputPanel ><input type="checkbox" value="helpPanel"/></apex:outputPanel>
+                                                </apex:panelGrid>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+	                    	</tr>
+                        </table>
+					</div>
+					<div class="mapControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/gear.png')}" title="Settings" height="28px" style="margin-top: 8px;"/>
+					</div>
+				</div><!--End Settings map control -->
+			
+				<div class="mapControl" name="help" id="helpPanel">
+					<div class="mapControlContent">
+						<div class="fieldSet noHeightSet noRightMargin">
+                            <div class="fieldSetTitle">Help</div>
+                            <div class="fieldSetContent">
+                                <div style="height: 43px;">
+                                    <img id="gpHelpLogo" src="{!URLFOR($Resource.images, 'geopointe-logo.png')}" height="43px"/>
+                                </div>
+
+                                Need help with Geopointe? Check out these great support resources.
+                                
+                                <ul id="gpHelpList">
+                                    <li><a href="http://youtube.com/arrowpointe" target="_blank">Videos</a> - Learn about the <a href="http://bit.ly/gpV3ChangesVideo" target="_blank">new UI</a>, <a href="http://www.youtube.com/watch?v=gXXNvZ1LD-c" target="_blank">mobile</a> or <a href="http://www.youtube.com/watch?v=JRP6HAn8RvI" target="_blank">analytics</a></li>
+                                    <li><a href="http://support.arrowpointe.com" target="_blank">Support Center</a> - Access all of the help resources</li>
+                                    <li><a href="http://arrowpointe.uservoice.com" target="_blank">Ideas</a> - Let us know what features you want to see in Geopointe</li>
+                                    <li><a href="http://geopointe.mobi" target="_blank">Geopointe Mobile</a> - Use Geopointe on your mobile device</li>
+                                    <li><a href="http://www.arrowpointe.com/products/geopointe/webinars/" target="_blank">Attend a Webinar</a> - We hold regular webinars to teach you about Geopointe</li>
+                                    <li><a href="http://support.arrowpointe.com/email-list/" target="_blank">Join our Email List</a> - Stay updated about Geopointe</li>
+                                    <li><a href="http://arrowpointe.com/blog" target="_blank">Read our Blog</a> - Stay updated about Geopointe</li>
+                                </ul>
+                            </div>
+                        </div>
+					</div>
+					<div class="mapControlTab">
+						<img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/helpRed.png')}" title="Help" height="30px" style="margin-top: 8px;"/>
+					</div>
+				</div>
+
+                <div class="mapControl noHeightSet" name="legend" id="legendPanel" style="visibility:hidden;"> <!--not visible on initial load -->
+                    <div class="mapControlContent">
+                        <div class="fieldSet">
+                            <div class="fieldSetTitle">Map Legend</div>
+                            <div class="fieldSetContent">
+                                <div id="legendContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mapControlTab" id="legendControlTab">
+                        <img class="mapControlTabIcon" src="{!URLFOR($Resource.images, 'map/legend.png')}" title="Legend" height="32px" style="margin-top: 8px;"/>
+                    </div>
+                </div>
+
+                <div id="recordSelectionModeMsg">
+                    <strong>Currently in Record Selection Mode.</strong><br/> Click or touch a map pin to selected it. In the "Apply Action To" picklist below choose "Selected Records" and then choose an Action.
+                </div>
+				
+				<div id="mapShadowTop"></div>
+				
+                <div id="mapDIV" style="width: 100%; height: 100%;"></div>
+				
+			</div> <!--End Map Wrapper-->
+                        
+            <!-- The Data Table DIV -->
+            <div class="gp_clearer"></div>
+            <div id="dataTableDIV" style="width: 100%;">
+
+                <!-- Mass mapped data actions -->
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" class="pbHeaderCustom">
+                    <tbody>
+                        <tr>
+                            <td class="pbTitle" width="30%">
+                                <span id="mappedDataTitle"><h2>Mapped Data</h2></span>
+                                <span id="gp_dataTablesNoData">No records have been mapped.</span>
+                            </td>
+                            <td class="pbButton" width="70%">
+                                <table cellpaddin="0" cellspacing="0" id="mappedDataButtons">
+                                    <tr>
+                                        <td>
+                                            Apply Action To:
+                                            <select id="applyActionTo">
+                                                <option value="allTabs">All Tabs</option>
+                                                <option value="selectedTab">Selected Tab</option>
+                                                <option value="selectedRecords">Selected Records</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <div id="selectRecordsModeBtn" title="Enter Record Selection Mode" class="btn" onclick="toggleRecordSelectionMode();">
+                                                <img src="{!URLFOR($Resource.images, '/checkbox_checked.gif')}"/>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="multiButtonWrapper" id="dataSetSearchActionBtn">
+                                                <span class="gpButton openMultiButtonOptions" data-afterShow="setListActionButtonWidths();"> <!--setupActionButtonPanel() map.actions.js-->
+                                                    <div class="multiButtonInner multiButtonLeftLarge noRightBorder">
+                                                        Actions
+                                                    </div>
+                                                    <div class="multiButtonInner multiButtonRightLarge">
+                                                        <span class="ui-icon ui-icon-triangle-1-n"></span>
+                                                    </div>
+                                                </span>
+                                                <div class="multiButtonContent upRight" style="display: none; background-color: white;"> 
+                                                    <div id="actionButtonPanel">
+                                                        <!--Custom Apex Actions will be placed here by map.actions.js -->
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <img class="helpIcon gp_hoverhelp" id="gp_hoverhelp_DataListButtons" src="/s.gif" alt=""/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- jQuery Data Table DIV -->
+                <div id="gp_dataTables" width="100%" style="display: none;">
+                    <!--Tabs-->
+                    <div id="gp_dataTableTabs">
+                        <ul>
+                        </ul>
+                    </div>
+                </div>
+
+            </div><!-- End of DataTableDIV -->
+            
+            <!-- MapQuest Terms and Conditions  -->
+            <apex:outputPanel id="mqLegalDIV" style="padding: 0 auto; font-size: 8pt; text-align: center;" layout="block" rendered="{!mapProvider='MapQuest'}">
+                <p><a href="http://cdn.mapquest.com/mq_legal/termsofuse.html" target="_blank">MapQuest Terms and Conditions</a></p>
+                <p><i>Maps/Directions are informational only. User assumes all risk of use. MapQuest, Arrowpointe, and 
+                their suppliers make no representations or warranties about content, road conditions, route usability, 
+                or speed.</i></p>
+            </apex:outputPanel>
+        </apex:outputPanel>
+        
+        <!-- ACTION FUNCTIONS -->
+        
+        <!-- Search for Nearby Records -->
+        <apex:actionFunction name="gp_searchNearbyRecords"
+            action="{!searchRecords}" 
+            rerender="dynamicJavaScript,pageMessages,colorLegendDIV" 
+            oncomplete="javascript:gp_AffectMap();">
+            <apex:param name="mapCenterLat"  assignTo="{!mapCenterLat}" value="" />
+            <apex:param name="mapCenterLng"  assignTo="{!mapCenterLng}" value="" />
+            <apex:param name="searchType"  assignTo="{!searchType}" value="nearby" />
+        </apex:actionFunction>
+        
+        <!-- Search Map Bounds -->
+        <apex:actionFunction name="gp_searchNearbyRecordsInBounds"
+            action="{!searchRecords}"
+            rerender="dynamicJavaScript,pageMessages,colorLegendDIV" 
+            oncomplete="javascript:gp_AffectMap();">
+            <apex:param name="minLatSearch"  assignTo="{!minLatSearch}" value="" />
+            <apex:param name="maxLatSearch"  assignTo="{!maxLatSearch}" value="" />
+            <apex:param name="minLngSearch"  assignTo="{!minLngSearch}" value="" />
+            <apex:param name="maxLngSearch"  assignTo="{!maxLngSearch}" value="" />
+            <apex:param name="currZoomLevel"  assignTo="{!currZoomLevel}" value="" />
+            <apex:param name="searchType"  assignTo="{!searchType}" value="bounds" />
+        </apex:actionFunction>
+        
+        <!-- Map All Records -->
+        <apex:actionFunction name="gp_mapRecords"
+            action="{!searchRecords}" 
+            rerender="dynamicJavaScript,pageMessages,colorLegendDIV" 
+            oncomplete="javascript:gp_AffectMap();">
+            <apex:param name="searchType"  assignTo="{!searchType}" value="records" />
+        </apex:actionFunction>
+        
+        <!-- Write back selection to the originating record -->
+        <apex:actionFunction name="gp_writeBackSelection" 
+            action="{!writeBackSelection}"
+            rerender="pageMessages"
+            oncomplete="geopointeAjaxEnd(); jQuery.jGrowl('Originating record successfully updated!');">
+            <apex:param name="wrkRecordID"  assignTo="{!wrkRecordID}" value="" />
+        </apex:actionFunction>
+        
+        <!-- Export CSV -->
+        <apex:actionFunction name="gp_exportCSV"
+            action="{!exportToCSV}">
+        </apex:actionFunction>
+        
+        <!-- Export KML -->
+        <apex:actionFunction name="gp_exportKML"
+            action="{!exportToKML}">
+        </apex:actionFunction>
+        												        
+        <!-- Calculate a Route -->
+        <apex:actionFunction name="gp_doRoute"
+            action="{!doRoute}" 
+            rerender="dynamicJavaScript,pageMessages,breadcrumbDIV" 
+            oncomplete="javascript:gp_AffectMap();">
+        </apex:actionFunction>
+
+       <!-- Run a Saved Route -->
+        <apex:actionFunction name="gp_runSavedRoute" action="{!runSavedRoute}" rerender="routeDetailsGoog,routeDetailsMQ,routeButtons,dynamicJavaScript,pageMessages,breadcrumbDIV" oncomplete="javascript:gp_AffectMap();">
+            <apex:param name="routeId" assignTo="{!savedRouteId}" value=""/>
+        </apex:actionFunction>
+        
+        <!-- Save a Route -->
+        <!-- Don't run gp_AffectMap() oncomplete -->
+        <apex:actionFunction name="gp_saveRoute"
+            action="{!saveRoute}" 
+            rerender="dynamicJavaScript,pageMessages,breadcrumbDIV,routeTitle,savedRoutes,routeButtons" 
+            oncomplete="geopointeAjaxEnd(); jQuery.jGrowl('Route Successfully Saved', { life: 5000 });">
+            <apex:param name="routeNameToSave"  assignTo="{!routeNameToSave}" value="My Route" />
+            <apex:param name="saveAsRoute"  assignTo="{!saveAsRoute}" value="false" />
+        </apex:actionFunction>
+        
+        <!-- Delete a Route -->
+        <apex:actionFunction name="gp_deleteRoute" action="{!deleteRoute}" rerender="pageMessages,dynamicJavaScript,routeTitle,savedRoutes,routeButtons"
+            oncomplete="geopointeAjaxEnd(); jQuery.jGrowl('Route Deleted', { life: 5000 });"
+        />
+        
+        <!-- Save Location -->
+        <apex:actionFunction name="gp_saveNewLocation" rerender="myLocationsContent" action="{!insertLocation}" 
+            oncomplete="setMyLocationsTableMaxHeight(); geopointeAjaxEnd(); jQuery.jGrowl('Location Successfully Saved', { life: 5000 });">
+            <apex:param name="locationJSON" assignTo="{!locationJSON}" value="" />
+        </apex:actionFunction>
+
+        <!-- Refresh Filters -->
+        <apex:actionFunction name="gp_emptyActionFunction"
+            action="{!emptyActionFunction}" 
+            rerender="dummyPanel" >
+        </apex:actionFunction>
+
+        <apex:actionFunction name="gp_rerenderShapeListAdd" action="{!resetShapeList}" rerender="shapeList" oncomplete="geopointeAjaxEnd(); jQuery.jGrowl('Shape was saved successfully.', { life: 4000 });">
+            <apex:param name="selectedShapeId" assignTo="{!selectedShapeId}" value="" />
+        </apex:actionFunction>
+
+        <apex:actionFunction name="gp_rerenderShapeListRemove" action="{!resetShapeList}" rerender="shapeList" oncomplete="geopointeAjaxEnd(); jQuery.jGrowl('Shape deleted.', { life: 3000 });"/>
+
+        <apex:outputPanel id="dummyPanel"></apex:outputPanel>
+        
+        <!-- HIDDEN DATA -->
+        <apex:outputPanel id="hiddenDIV">
+
+			<!-- Populated when a route is saved and sent up to the server for saving -->
+			<apex:inputHidden id="hidden_routeLocXML" value="{!routeLocXML}" />
+				<script> gp_UIElem.hidden_routeLocXML = document.getElementById("{!$Component.hidden_routeLocXML}"); </script>
+			
+			<!-- Populated when the route is generated -->
+			<apex:inputHidden id="hidden_htmlDirections" value="{!htmlDirections}" />
+				<script> gp_UIElem.hidden_htmlDirections = document.getElementById("{!$Component.hidden_htmlDirections}"); </script>
+			
+			<!-- Populated when the data is exported and sent up to the server -->
+			<apex:inputHidden id="hidden_csvExport" value="{!csvExport}" />
+				<script> gp_UIElem.hidden_csvExport = document.getElementById("{!$Component.hidden_csvExport}"); </script>
+			
+			<!-- Populated when the data is exported and sent up to the server -->
+			<apex:inputHidden id="hidden_kmlExport" value="{!kmlExport}" />
+				<script> gp_UIElem.hidden_kmlExport = document.getElementById("{!$Component.hidden_kmlExport}"); </script>
+			
+			<!-- Populated as the user interacts with the Color Markers By field -->
+			<apex:inputHidden id="hidden_colorMarkersBy" value="{!colorMarkersBy}"/>
+				<script> gp_UIElem.hidden_colorMarkersBy = document.getElementById("{!$Component.hidden_colorMarkersBy}"); </script>
+				
+			<!-- A place to put SOQL that will dynamically affect the map query. This can only be populated if it's injected into the page via plugins -->
+			<apex:inputHidden id="hidden_customSOQL" value="{!customSOQL}"/>
+				<script> gp_UIElem.hidden_customSOQL = document.getElementById("{!$Component.hidden_customSOQL}"); </script>
+			
+		</apex:outputPanel>
+		
+    </apex:form>
+	
+	<!-- Hover Help Content -->
+	<div id="gp_hoverhelpContent" style="display:none;">
+		<span id="gp_hoverhelp_DataSetSelection">
+			<div>This section is where you specify how you want to interact with your Salesforce data. </div>
+			<div><b>Data Set</b>: Choose a Data Set to define what Salesforce data to search. 
+				A Data Set is based upon an object (e.g. Accounts) and defines the fields to return and query filters to apply. 
+				You can create personal Data Sets in your My Settings tab. Admins create them in the Geopointe Setup tab.
+			</div>
+            <div><b>Save Button</b>: This will display options to Save or Save As the Data Set based on changes you have made.</div>
+            <div><b>Settings Icon (Gear)</b>: Opens a panel that allows you to customize additional settings for this Data Set.</div>
+            <div><b>Clear Existing</b>: Tells Geopointe to keep or remove existing points from the map on the next search.</div>
+            <div><b>Marker Color</b>: Data Sets have a default color associated with them. Override the color for your next search using this option.</div>
+            <div><b>Color Markers By</b>: Choose a field and the system will asisgn a pin color to your results for each unique value in the chosen field.</div>
+            <div><b>Show</b>: For the selected Data Set this allows you to apply a quick filter to see all of the records in the Data Set or only the records that you own.</div>
+			<div><b>More Filters/Hide Filters</b>: Shows/hides a section to let you modify the filters for this Data Set.</div>
+		</span>
+        <span id="gp_hoverhelp_DataSetSettings">
+            <div>This section allows you to customize and save additional settings about a Data Set </div>
+            <div><b>Name</b>:The Name of the Data Set</div>
+            <div><b>Data Set Access</b>: Controls who has access to the Data Set. Only you or all users. Only administrators will see this option.</div>
+            <div><b>Marker Color</b>: Set the default color for Data Set markers on the map.</div>
+            <div><b>Color Markers By</b>: Choose a field and the system will asisgn a pin color to your results for each unique value in the chosen field.</div>
+            <div><b>Available in Visualize</b>:Check this box to make this Data Set available in the Visualize tab and Geopointe Analytics.</div>
+            <div><b>One Column Address</b>:Check this box to make the address in the search result table under the map on use one column. If not checked fields
+                like Street, City, etc will be in their own column.
+            </div>
+            <div><b>Show</b>: Allows you to apply a quick filter to see all of the records in the Data Set or only the records the current user owns.</div>
+        </span>
+        <span id="gp_hoverhelp_DataSetFields">
+            <div>These are additional fields that will be returned when performing a Data Set search.</div>
+            <div>Name and Address fields are always returned and do not need to be added.</div>
+        </span>
+		<span id="gp_hoverhelp_search">
+			<table cellpadding="0" cellspacing="0">
+				<tr>
+					<td class="helpIconCol"><img style="height: 25px; left: -3px; position: relative;" title="Radial Search" src="{!URLFOR($Resource.images, 'map/radial.png')}"/></td>
+					<td>
+						<div><strong><u>Radial Search</u></strong><br/></div>
+						<div>A Radial Search will query a circular area around a given point. The center of the circle is defined by the "Context".</div>
+						<div><b>Within</b>: Define the distance you want to search in miles or kilometers.</div>
+						<div><b>Show Radius</b>: When selected, the search results will include a circle representing the area searched.</div>
+						<div><b>Calculate Drive Distance</b>: When selected, the list of results below the map will include a column measuring the drive distance from the context point to the destination. This is an intelligent, real-time response from the mapping provider.</div>
+					</td>
+				</tr>
+				<tr>
+					<td class="helpIconCol"><img style="height: 25px;" title="Viewable Area" src="{!URLFOR($Resource.images, 'map/worldgreenviewable.png')}"/></td>
+					<td>
+						<div><strong><u>Viewable Area</u></strong></div>
+						<div>This will search and map all records in the selected Data Set that fall within the currently viewable area of the map. Zoom in/out to change the area you would like to search.</div>
+					</td>
+				</tr>
+				<tr>
+					<td class="helpIconCol"><img style="height: 25px;" title="Entire Data Set" src="{!URLFOR($Resource.images, 'map/worldgreen.png')}"/></td>
+					<td>
+						<div><strong><u>Entire Data Set</u></strong></div> 
+						<div>This search will attempt to map all records in the selected Data Set.</div>
+					</td>
+				</tr>
+
+                <apex:outputPanel rendered="{!mapProvider == 'Google'}">
+                    <tr>
+                        <td class="helpIconCol"><img style="height: 25px;" title="Shape Search" src="{!URLFOR($Resource.images, 'map/worldgreenpoly.png')}"/></td>
+                        <td>
+                            <div><strong><u>Shape Search</u></strong></div> 
+                            <div>This advanced search option will allow you to draw complex shapes on the map and search inside their bounds. If no shapes are on the map
+                                you will be taken to a panel to draw shapes on the map. The down arrow provides options to add more shapes to the map or remove all shapes.
+                            </div>
+                        </td>
+                    </tr>
+                </apex:outputPanel>
+			</table>
+		</span>
+        <span id="gp_hoverhelp_shapeTools">
+            <table cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="helpIconCol"><img style="height: 25px;" title="Viewable Area" src="{!URLFOR($Resource.images, 'map/openhand.png')}"/></td>
+                    <td>
+                        <div>The open hand tool allows you to interact with the map normally and disable drawing mode.</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="helpIconCol"><img style="height: 25px;" title="Viewable Area" src="{!URLFOR($Resource.images, 'map/polygonBlue.png')}"/></td>
+                    <td>
+                        <div>The blue polygon puts the map in to Draw mode. Click the map to start building a shape. Double click or connect the last shape point to the starting point to finish the shape.</div>
+                    </td>
+                </tr>
+            </table>
+        </span>
+        <span id="gp_hoverhelp_savedShapes">
+            <div>A list of your personal saved shapes. To save a shape draw one on the map, click the shape, and then select the Save button in the popup window.</div>
+        </span>
+		<span id="gp_hoverhelp_DataListButtons">
+			<div><b>Add All To Route</b>: Rather than select records for routing one at a time, use this button to add all records in the list to your route. Will only add a max of 40 points.</div>
+			<div><b>Add To Campaign</b>: If leads or contacts are on the map, this button will launch an Add To Campaign wizard allowing you to find records on the map and put them into a Marketing Campaign. This button only appears if you have the authority to work with Campaigns.</div>
+			<div><b>Export CSV</b>: Export the records in the list to a CSV (Excel) file.</div>
+			<div><b>Export KML</b>: Export the records in the list to a KML file. KML files are geographic data files that can be read by many applications like Google Earth, Google Maps and ArcGIS from ESRI.</div>
+		</span>
+		<span id="gp_hoverhelp_PlacesSearch">
+			<div><b>Address Search</b> allows you to enter the name of a city, state, or other address information and quickly reposition the map to this location.</div>
+            <div><b>Places Search</b> allows you to search for businesses and landmarks. A Places searches will not remove Data Set markers on the map and a Data Set search will not remove markers from a Places search.</div>
+		</span>
+		<span id="gp_hoverhelp_kmlLayers">
+            <div>Layers are defined by your Administrator and can be used to add additional information on top of the map such as city boundaries, location of stores, or transit routes.</div>
+            <div>Layer Names with a green dot next to them (<img width="8px" src="{!URLFOR($Resource.images, 'map/greendot.png')}"/>) indicate layers that are displayed on the map.</div>
+            <div>Some layers may load automatically during map load as defined by your Administrator.</div>
+        </span>
+        <span id="gp_hoverhelp_Demographics">
+			<div>The <b>Demographics</b> feature provides access to an information layer containing United States census information (provided by Nielsen) from recent years as well as 5-year projections.</div>
+			<div>To add a layer, choose the following:
+				<ul>
+					<li><b>Year</b>: Choose a source year. Available years are 2010, 2011, 2015 (projected from 2010 data) and 2016 (projected from 2011 data)</li>
+					<li><b>Granularity</b>: Choose a level of granularity from State, County, Census Tract or Census Block Group. </li>
+					<li><b>Metric</b>: Choose an available metric.</li>
+				</ul>
+				When all three selections are made, the map will draw the layer using a 12-color scale evenly distributed by the Min and Max values on the form. You can modify
+				the Min or Max values to change the scale. To modify the layer itself, opacity sliders exist that affect the fill and borders.
+			</div>
+		</span>
+		<span id="gp_hoverhelp_OtherLayers">
+			<div><b>Traffic</b>: Adds a layer of real-time traffic information to the map. This is only available in certain locations and at certain zoom levels.</div>
+			<div><b>Transit</b>: Adds a layer of public transit information to the map. This is only available in certain locations and at certain zoom levels.</div>
+			<div><b>Bicycling</b>: Adds a layer of bicycling trails to the map. This is only available in certain locations and at certain zoom levels.</div>
+			<div><b>Weather</b>: Adds a layer of weather information from weather.com to the map. Once added, users can click to see weather detail. This is only available in certain locations and at certain zoom levels.</div>
+		</span>
+        <span id="gp_hoverhelp_myLocations">
+            <div>My Locations allows you to save locations that are separate from your normal Data Sets.</div>
+            <div>You can add items to My Locations by right clicking on the map and choosing the 'Save to My Locations' option or you can perform an address search, 
+                select the marker on the map, and then choose 'Save to My Locations' in the Map Actions section.
+            </div>
+        </span>
+        <span id="gp_hoverhelp_settingsPref">
+            <div><b>Use Geolocation</b>: When this page loads the map will attempt to center on your current location.</div>
+            <div><b>Hide Sidebar</b>: Do not show the sidebar and make the map as wide as possible. <em>Takes effect the next time this page is refreshed.</em></div>
+            <div><b>Scrollwheel Zoom</b>: Use the mouse scrollwheel to zoom in/out on the map. <em>Takes effect the next time this page is refreshed</em></div>
+            <div><b>Number Map Pins</b>: Mapped pins will be numbered making it easier to correspond the list data with the map data.</div>
+            <div><b>Close Tabs on Search</b>: Upon completion of a Data Set search this will close any open tabs.</div>
+            <div><b>Start Tab</b>: The selected tab will automatically open on page load.</div>
+            <div><b>Map Height</b>: 'Auto' will maximize the size of the map based on the dimensions of your screen. Number values will give the map a fixed height in pixels.</div>
+        </span>
+        <span id="gp_hoverhelp_settingsStart">
+            <div>This is the position and zoom level of the map when this page loads.</div>
+            <div>You can change the start position by positioning the map to your preferred start location and then selecting the 'Set Starting Position' button.</div>
+        </span>
+        <span id="gp_hoverhelp_pinnedTabs">
+            <div>Pinned Tabs are map control tabs that will always be visible when opening and closing the map control panels.</div>
+        </span>
+        <span id="gp_hoverhelp_dataSetFilters">
+            <div>These are the filters applied to the currently selected Data Set. To remove a filter select the Del link next to the filter you want to remove. Additional filters can be
+                added by selecting the Add Filter button. 
+            </div>
+            <div>
+                Use the down arrow on the Add Filter button to add advanced filter logic such as (1 OR 2) AND 3, or cross object child filters like 
+                "Accounts with Opportunities where amount is greater then 5000".
+            </div>
+        </span>
+	</div>
+	
+	<!-- Gets rerendered to invoke JavaScript -->
+    <apex:outputPanel id="dynamicJavaScript" rendered="{!initSuccess}">
+        
+        <apex:include pageName="geopointe__js_MQ"  id="js_MQ" rendered="{!mapProvider='MapQuest'}"/>
+        
+        <apex:include pageName="geopointe__js_GOOG"  id="js_GOOG" rendered="{!mapProvider='Google'}"/>
+        
+		<script type="text/javascript">
+			function gp_initColorPickerOnComplete(){
+            	gp_initColorPicker('gp_selectedcolor','input');
+                gp_initColorPicker('editDataSetColor','input');
+	        }
+        </script>
+        
+    </apex:outputPanel>
+    
+    
+    <!-- OnLoad Stuff -->
+    <script type="text/javascript">
+			
+            var selectedMapObject = '{!selectedEntity}'; //Keep track of the selected map object
+            
+            jQuery(document).ready(function() {
+            
+                // Set the Map Height Value on the UI
+                jQuery('#mySettingsMapHeight').val('{!userSettings.MapHeight__c}');
+
+                // Set Start Tab value, remove Layers if needed
+                jQuery('#mySettingsStartTab').val('{!userSettings.Map_Start_Tab__c}');
+                jQuery("#mySettingsStartTab > option").each(function() {
+                    if(gp_orgSettings.settings__c[nameSpacePrefix + 'Mapping_Provider__c'] == 'MapQuest' && this.value == 'layers'){
+                        if (jQuery('#mySettingsStartTab').val() == 'layers') { jQuery('#mySettingsStartTab').val('datasets'); }
+                        jQuery(this).remove();
+                    }
+                });
+                
+                // Reset map size if window size changes
+                jQuery(window).resize(function() {
+					 gp_resetMapWidth();
+                     gp_setMapHeight(jQuery('#mySettingsMapHeight').val());
+				});
+
+                //Create tabs for layers
+                jQuery( "#layerTabs" ).tabs();
+
+                //Open layers tab to the last selected tab
+                var lastSelectedTab = gp_getCookie('selectedLayerTab');
+                if(lastSelectedTab){
+                    //open demographics tab
+                    jQuery('#layerTabs a[href="'+lastSelectedTab+'"]').click();
+                }
+
+                //Event listner when user switch tab inside layers lab controls
+                jQuery( "#layerTabs" ).bind( "tabsshow", function(event, ui) {
+                    resetMapControlOffset("#layersPanel");
+                    
+                    //Update cookie of last selected tab
+                    var tabId = jQuery(ui.tab).attr('href');
+                    gp_setCookie('selectedLayerTab',tabId,365); //expires in 365 days
+                });
+                                
+               	// JavaScript Vars
+                gp_MQApiKey = '{!mqAPIKey}';
+                gp_baseURL = '{!baseURL}';
+                
+                gp_remotes = new Object();
+                	gp_remotes.addToCampaign = '{!$RemoteAction.Map_Controller.addToCampaign}';
+                    gp_remotes.buildDataSetInfoforJS = '{!$RemoteAction.Map_Controller.buildDataSetInfoforJS}';
+                    gp_remotes.buildObjectMetaforJS = '{!$RemoteAction.Map_Controller.buildObjectMetaforJS}';
+                    gp_remotes.settingGeoLocation = '{!$RemoteAction.Map_Controller.settingGeoLocation}';
+                    gp_remotes.settingHideSidebar = '{!$RemoteAction.Map_Controller.settingHideSidebar}';
+                    gp_remotes.settingScrollwheelZoom = '{!$RemoteAction.Map_Controller.settingScrollwheelZoom}';
+                    gp_remotes.settingNumberMapPins = '{!$RemoteAction.Map_Controller.settingNumberMapPins}';
+                    gp_remotes.settingCloseTabsOnSearch = '{!$RemoteAction.Map_Controller.settingCloseTabsOnSearch}';
+                    gp_remotes.settingMapHeight = '{!$RemoteAction.Map_Controller.settingMapHeight}';
+                    gp_remotes.settingStartTab = '{!$RemoteAction.Map_Controller.settingStartTab}';
+                    gp_remotes.searchRecordsRemote = '{!$RemoteAction.Map_Controller.searchRecordsRemote}';
+                    gp_remotes.settingPinnedTabs = '{!$RemoteAction.Map_Controller.settingPinnedTabs}';
+                    gp_remotes.settingSetMapAsHome = '{!$RemoteAction.Map_Controller.settingSetMapAsHome}';
+                
+                // Init some UI elements
+                gp_initColorPickerOnComplete();
+                gp_initDataTableRoute();
+                
+                // sforce API
+                sforce.connection.sessionId = gp_userSettings.sessionId;
+                sforce.connection.client = gp_orgSettings.clientId;
+                gp_userSettings.apiEnabled = false;
+                sforce.connection.describeGlobal({ onSuccess:function(result){
+                															gp_userSettings.apiEnabled = true;
+                															gp_orgSettings.descByObj = new Object();
+                															gp_orgSettings.descByKeyPref = new Object();
+                															jQuery.each(result.sobjects, function(key, value) { 
+																				gp_orgSettings.descByObj[value.name] = value;
+																				gp_orgSettings.descByKeyPref[value.keyPrefix] = value;
+																			});
+                															},
+        											onFailure:function(error){
+                                                        if(console && console.log){
+                                                            console.log(error);
+                                                            console.log(JSON.stringify(error));
+                                                        }
+                                                    }
+        											});
+                
+                // Data Set Info
+                Visualforce.remoting.Manager.invokeAction(
+					gp_remotes.buildDataSetInfoforJS,'', //'' param will return info for all datasets but without filters included
+	                function(result, event){ 
+	                	if (event.status) {
+                            //Build the gp_dataSetInfo object
+                            jQuery.each(result, function(key, value) { 
+                                createDataSetInfoObject(value);
+							});
+
+                            //Populate the filters table and other data set input fields
+                            updateDataSetInputs();
+
+                            //Rebuild data set so it uses optgroups
+                            buildDataSetPicklist();
+
+                             //Populates the color by picklist
+                            gp_handleDataSetChange('{!JSENCODE(activeDataSet)}', true);
+	                	}
+	               	},
+               	{escape:true, timeout: 120000, buffer: false});
+               	
+               	// Map Object Info
+               	Visualforce.remoting.Manager.invokeAction(
+					gp_remotes.buildObjectMetaforJS,
+	                function(result, event){ 
+	                	if (event.status) {
+	                		jQuery.each(result, function(key, obj) {
+		                		var metaObject = new Object();
+					   			metaObject.objectLabel = jQuery.trim(obj.objectLabel);
+					   			metaObject.objectName = jQuery.trim(obj.objectName);
+					    		metaObject.metaFields = new Object();
+					    		jQuery.each(obj.metaFields, function(key1, field) {
+					    			var metaField = new Object();
+					   				metaField.fieldLabel = jQuery.trim(field.fieldLabel);
+					   				metaField.fieldName = jQuery.trim(field.fieldName);
+					   				metaField.dataType = jQuery.trim(field.dataType);
+					   				metaField.isFilterable = field.isFilterable;
+					   				metaField.decimals = field.decimals;
+					   				metaField.referenceTo = jQuery.trim(field.referenceTo);
+					   				metaField.relationshipName = jQuery.trim(field.relationshipName);
+					   				metaObject.metaFields[metaField.fieldName] = metaField;
+					    		});
+					    		gp_objectMeta[metaObject.objectName] = metaObject;
+				    		});
+				    		gp_handleDataSetChange('{!JSENCODE(activeDataSet)}', true);
+	                	}
+	               	},
+               	{escape:true, timeout: 120000, buffer: false});
+               	
+               	// Set HTML fields and define events
+               	jQuery('#mySettingsUseGeolocation').attr('checked', eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Use_Geolocation__c'));
+               		jQuery('#mySettingsUseGeolocation').change(function(){
+	               		Visualforce.remoting.Manager.invokeAction(
+							gp_remotes.settingGeoLocation,
+							jQuery(this).is(':checked'),
+		               		function(result, event){ 
+			                	if (event.status) { gp_userSettings.settings__c = result; }
+		               		}, 
+	               		{escape:true, timeout: 120000});
+					});
+               	jQuery('#mySettingsHideSidebar').attr('checked', eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Hide_Sidebar__c'));
+               		jQuery('#mySettingsHideSidebar').change(function(){
+               			Visualforce.remoting.Manager.invokeAction(
+		               		gp_remotes.settingHideSidebar, 
+		               		jQuery(this).is(':checked'), 
+		               		function(result, event){ 
+			                	if (event.status) { gp_userSettings.settings__c = result; }
+		               		}, 
+	               		{escape:true, timeout: 120000});
+					});
+               	jQuery('#mySettingsScrollwheelZoom').attr('checked', eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Use_Scrollwheel_Zoom__c'));
+               		jQuery('#mySettingsScrollwheelZoom').change(function(){
+               			Visualforce.remoting.Manager.invokeAction(
+		               		gp_remotes.settingScrollwheelZoom,
+		               		jQuery(this).is(':checked'), 
+		               		function(result, event){ 
+			                	if (event.status) { gp_userSettings.settings__c = result; }
+			               	}, 
+		               	{escape:true, timeout: 120000});
+					});
+               	jQuery('#mySettingsNumberPins').attr('checked', eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Number_Map_Pins__c'));
+               		jQuery('#mySettingsNumberPins').change(function(){
+               			Visualforce.remoting.Manager.invokeAction(
+		               		gp_remotes.settingNumberMapPins,
+	               			jQuery(this).is(':checked'), 
+	               			function(result, event){ 
+			                	if (event.status) { gp_userSettings.settings__c = result; }
+			               	},
+		               	{escape:true, timeout: 120000});
+					});
+
+                jQuery('#mySettingsCloseTabsOnSearch').attr('checked', eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Close_Tabs_on_Search__c'));
+                    jQuery('#mySettingsCloseTabsOnSearch').change(function(){
+                        Visualforce.remoting.Manager.invokeAction(
+                            gp_remotes.settingCloseTabsOnSearch,
+                            jQuery(this).is(':checked'), 
+                            function(result, event){ 
+                                if (event.status) { gp_userSettings.settings__c = result; }
+                            },
+                        {escape:true, timeout: 120000});
+                    });
+           		jQuery('#mySettingsMapHeight').change(function(){
+           			gp_setMapHeight(jQuery(this).val());
+           			Visualforce.remoting.Manager.invokeAction(
+	               		gp_remotes.settingMapHeight,
+	               		jQuery(this).val(),
+	               		function(result, event){ 
+		                	if (event.status) { gp_userSettings.settings__c = result; }
+		               	},
+	               	{escape:true, timeout: 120000});
+				});
+					
+				//Update start tab
+				jQuery("#mySettingsStartTab").change(function(){
+					Visualforce.remoting.Manager.invokeAction(
+	               		gp_remotes.settingStartTab,
+	               		jQuery(this).find( "option:selected" ).val(),
+	               		function(result, event){ 
+		                	if (event.status) { gp_userSettings.settings__c = result; }
+		               	},
+	               	{escape:true, timeout: 120000});
+				});	
+
+                //Populate the sticktab checkboxes.
+                var pinnedTabs = '{!userSettings.Pinned_Tabs__c}';
+                jQuery("#pinnedTabsTable input").each(function(){
+                    if(pinnedTabs.indexOf(  jQuery(this).val()     ) > -1){
+                        jQuery(this).prop('checked', true);
+                    }
+                });
+
+                //Event listener to update pinned tabs
+                jQuery("#pinnedTabsTable input").click(function(){
+                    var pinnedTabs = '';
+
+                    jQuery("#pinnedTabsTable input").each(function(){
+                        if(jQuery(this).is(':checked')){
+                            pinnedTabs += jQuery(this).val() + ','
+                        }
+                    });
+
+                    Visualforce.remoting.Manager.invokeAction(gp_remotes.settingPinnedTabs,pinnedTabs,function(result, event){ 
+                        if (event.status) { 
+                            gp_userSettings.settings__c = result; 
+
+                            //If legend tab is visible make sure it stays as a 'pinned' tab
+                            if(jQuery("#legendControlTab").is(":visible")){
+                                gp_userSettings.settings__c[nameSpacePrefix + 'Pinned_Tabs__c'] += 'legendPanel,';       
+                            }
+                        }
+                    },{escape:true, timeout: 120000});
+                });
+				
+                var startLat = eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Starting_Lat__c');
+                var startLng = eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Starting_Lng__c');
+                var startZoom = eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Starting_Zoom__c');
+				if(typeof(startLat) != "undefined") {jQuery('#mySettingsStartingLatitude').html(startLat.toFixed(4));}
+                if(typeof(startLng) != "undefined") {jQuery('#mySettingsStartingLongitude').html(startLng.toFixed(4));}
+                if(typeof(startZoom) != "undefined") {jQuery('#mySettingsStartingZoom').html(startZoom);}
+                	jQuery('#mySettingsSetMapAsHome').click(function(){
+						geopointeAjaxStart('body','Saving Settings...');
+						
+                        var lat = gp_getCenterObject().lat;
+                        var lng = gp_getCenterObject().lng;
+
+                        //Make sure lat and lng are valid values before saving
+                        if(lat > 90.0 || lat < -90.0 || lng > 180.0 || lng < -180.0){
+                            alert('Unable to set starting map position. Please reload the page and try again.')
+                            geopointeAjaxEnd();
+                            return false;
+                        }
+
+                        Visualforce.remoting.Manager.invokeAction(
+							gp_remotes.settingSetMapAsHome,
+							lat, lng, gp_getZoomLevel(), 
+							function(result, event){ 
+			                	if (event.status) { 
+			                		gp_userSettings.settings__c = result;
+			                		jQuery('#mySettingsStartingLatitude').html(eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Starting_Lat__c').toFixed(4));
+									jQuery('#mySettingsStartingLongitude').html(eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Starting_Lng__c').toFixed(4));
+									jQuery('#mySettingsStartingZoom').html(eval('gp_userSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Starting_Zoom__c'));
+		                		}
+		                		geopointeAjaxEnd();
+			               	},
+		               	{escape:true, timeout: 120000});
+					});
+               	if(eval('gp_orgSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Mapping_Provider__c') == 'Google') { 
+               		if(typeof(google.maps.visualization.DemographicsLayer)=="undefined"){ 
+               			jQuery('#gp_demoDIV').html('<p style="width:300px; font-size:9pt;">Demographics are only available when using Geopointe&apos;s Google Maps Premier license. This license is not used in Sandbox systems.</p>');
+               			jQuery('#gp_hoverhelpContent #gp_hoverhelp_Demographics').html('Demographics are not available');
+               		} else {
+               			gp_initDemoControls();
+              			}
+              		}
+              		jQuery("#gp_addKMLLayer").click(function () {
+			    	var url = jQuery('#gp_KMLURL').val().trim();
+			    	if(url!=''){
+				    	var kml = new google.maps.KmlLayer(url, {map:gp_map});
+				    	gp_kmlOverlays[url + '_overlay'] = kml;
+			    	}
+				});
+               	
+                // jQuery tabs
+                if(eval('gp_orgSettings.settings__c.' + gp_orgSettings.fieldPrefix + 'Mapping_Provider__c') == 'MapQuest') { jQuery( "#theTabPanel" ).tabs("remove",gp_JQTabs["layers"]); }
+                
+                // jGrowl
+                jQuery.jGrowl.defaults.sticky = false;
+                jQuery.jGrowl.defaults.closer = true;
+                jQuery.jGrowl.defaults.glue = 'after';
+                jQuery.jGrowl.defaults.position = 'center';
+                jQuery.jGrowl.defaults.check = 500;
+                jQuery.jGrowl.defaults.life = 3000;
+                jQuery.jGrowl.defaults.theme = '';
+                jQuery.jGrowl.defaults.themeState = '';
+                jQuery.jGrowl.defaults.beforeOpen = function(e,m,o) { jQuery(e).removeClass('ui-state-highlight ui-corner-all'); };
+                
+                // jQuery Tooltip handler
+                jQuery(".gp_hoverhelp").tooltip({
+					track: false,
+					delay: 250,
+					top: 5, 
+					showURL: false,
+					bodyHandler: function() {
+						if(typeof(gp_tooltips[this.id])=="undefined"){
+							gp_tooltips[this.id] = jQuery('#gp_hoverhelpContent #' + this.id).html();
+						}
+						return gp_tooltips[this.id];
+					} 
+				});
+              		
+          		// Run the map
+          		gp_AffectMapTimer();
+              									
+                // Custom JS Inject
+			    if({!mapInjectJS}){
+			    	var elem = document.createElement('script');
+					elem.type='text/javascript';
+					elem.src='{!mapInjectJSPath}';
+					document.body.appendChild(elem);
+			    }
+			    
+			    //Create field picker functionality for adding filters
+			    createFieldSelectors();
+				
+				//Event listner to update JSON field if filter value is changed
+				jQuery("body").on("change",".dataFilterTable .filterValue",function(){
+					populateFilterJSON();
+				});
+				
+				//When dataset select list is changed wipe out filters and remove
+				jQuery("select[id$='dataSetSelectList']").change(function(){
+
+                    //Set flag that indicates fields and filters are not yet updated on the page.
+                    fieldsAndFiltersUpdated = false;
+
+					var mapObjectFieldName = '{!orgFieldPrefix}Map_Object__c';
+
+                    //Update the local gp_dataSetInfo object with the current filters and logic
+                    updateDataSetInfoObject();
+
+					//Only wipe out the filters if map opbject is changing
+					if(selectedMapObject != gp_dataSetInfo[jQuery(this).val()][mapObjectFieldName]){
+
+						//Set the new selected map object
+						selectedMapObject = gp_dataSetInfo[jQuery(this).val()][mapObjectFieldName];
+						
+						//Get the map object name from the dataSetInfo object
+						var mapObject = gp_dataSetInfo[jQuery(this).val()][mapObjectFieldName];
+					}
+
+                    //Update data set inputs, like color, fields, and other options on the edit data set page
+                    updateDataSetInputs();
+
+                    //Call gp_handleDataSetChange()
+                    gp_handleDataSetChange(jQuery(this).val(),false);
+				});
+
+				//Call this last as there may be other methods that adjust the height of the map controls on load
+				resetMapControlOffset('.mapControl');
+            });
+            
+		function rerenderComplete(){
+			//Visualforce rerenders like to break event binds so re-attach necessary js functionality
+			geopointeAjaxEnd();
+			createFieldSelectors();
+		}
+		
+		function createFieldSelectors(){
+            //Create event listener for adding
+            jQuery("#addDataSetField").fieldSelector({
+                isFilter : false,
+                showAll: false,
+                onSelect: function(field){
+                    
+                    //Check to make sure field is not already selected
+                    var alreadySelected = false;
+                    jQuery("#dataSetFieldList li").each(function(){
+                        if(  jQuery(this).attr('data-fullAPIName').toLowerCase() == field.fullAPIName.toLowerCase() ){
+                            alert('This field has already been selected.');
+                            alreadySelected = true;
+                            return false; //exit the .each() loop
+                        }
+                    });
+                    
+                    if(alreadySelected == false){
+                        //Add a new <li> item to the select fields list
+                        var newField = '';
+                        
+                        newField += '<li data-fullAPIName="'+ field.fullAPIName.toLowerCase() +'" data-path="'+ field.objectName +'"">'+
+                                        '<span class="fieldLabel">' + field.fullAPIName.toLowerCase() + '</span><span class="removeDataSetField">&#215;</span></li>';
+                        
+                        jQuery("#dataSetFieldList").append(newField);
+                    }else{
+                        //Field was already selected keep the fieldselector box open by returning false
+                        return false;
+                    }
+                },
+                startObject: function(e){
+                    return getMapObjectFromSelectedDataSet();
+                },
+                getFieldsForObjectRemoteMethod: '{!$RemoteAction.FieldSelector.getFieldsForObject}',
+                getChildObjectsRemoteMethod: '{!$RemoteAction.FieldSelector.getChildObjects}',
+                getPicklistValuesRemoteMethod: '{!$RemoteAction.FieldSelector.getPickListValues}'
+            });
+
+            //Create event listener for adding an object filter
+			jQuery("#addObjectFilter,#multiButtonAddFilter").fieldSelector({
+				isFilter: true,
+				showAll: false,
+				onSelect: function(field){
+	
+                    //Add table row to represent the selected filter					
+					addFilterTableRow(field,false); //false, don't include up down buttons on map page
+			        
+			        //Populate the hidden json input field
+			        populateFilterJSON();
+
+                    //Hide the no filters message if it is present
+                    jQuery("#noFiltersMsg").hide();
+
+                    //Update filter count table for filter logic
+                    updateFilterCountLogicTable();
+
+                    //Reset max height of data set tab as this could change based on filters added/removed
+                    setDataSetTabMaxHeight();
+
+                    //Make tabs line up correctly
+                    resetMapControlOffset("#dataSetPanel");
+
+                    updateVisibleFilterTables();
+				},
+				startObject: function(e){
+					return getMapObjectFromSelectedDataSet();
+				},
+				getFieldsForObjectRemoteMethod: '{!$RemoteAction.FieldSelector.getFieldsForObject}',
+				getChildObjectsRemoteMethod: '{!$RemoteAction.FieldSelector.getChildObjects}',
+				getPicklistValuesRemoteMethod: '{!$RemoteAction.FieldSelector.getPickListValues}'
+			});
+
+            //Create event listen for child object filter
+            jQuery("#addChildObjectFilter").fieldSelector({
+                isFilter: true,
+                isChildFilter: true,
+                showAll: false,
+                onSelect: function(field){
+                    //Add table row to represent the selected child filter
+                    addChildFilterTableRow({field: field, useWith: true});
+
+                    //Populate the hidden json input field
+                    populateFilterJSON();
+
+                    //Hide the no filters message if it is present
+                    jQuery("#noFiltersMsg").hide();
+
+                    //Reset max height of data set tab as this could change based on filters added/removed
+                    setDataSetTabMaxHeight();
+
+                    //Make tabs line up correctly
+                    resetMapControlOffset("#dataSetPanel");
+
+                    updateVisibleFilterTables();
+                },
+                startObject: function(e){
+                    return getMapObjectFromSelectedDataSet();
+                },
+                getFieldsForObjectRemoteMethod: '{!$RemoteAction.FieldSelector.getFieldsForObject}',
+                getChildObjectsRemoteMethod: '{!$RemoteAction.FieldSelector.getChildObjects}',
+                getPicklistValuesRemoteMethod: '{!$RemoteAction.FieldSelector.getPickListValues}'
+            });
+		}
+    </script>
+
+    <!-- Override Salesforce's setFocusOnLoad method -->
+    <script type="text/javascript">
+        function setFocusOnLoad() {}
+    </script>
+    	
+    <!-- Empty area to re-render in the event I am forced to rerender something -->
+    <apex:outputPanel id="rerenderNothing"/>
+ 
+</apex:page>

@@ -1,0 +1,165 @@
+<apex:page controller="elementSearch" standardStylesheets="false" sidebar="false" showHeader="false">
+    <html lang="en">
+        <head>
+            <link rel="stylesheet" href="{!URLFOR($Resource.tablefile,'tablefile/css/css/bootstrap.min.css')}" />
+            <link href="{!URLFOR($Resource.tablefile,'tablefile/css/bootstrap.css')}" rel="stylesheet"/> 
+            
+            <script src="{!URLFOR($Resource.tablefile,'tablefile/js/jquery-2.1.1.min.js')}" type="text/javascript"></script>
+            <script src="{!URLFOR($Resource.tablefile,'tablefile/js/bootstrap.min.js')}"></script>
+            
+            
+            <script>
+            function editrecord(){
+                $('[id$=myModal]').modal('show'); 
+                
+            }
+            </script>
+            
+            
+            
+        </head>
+        
+        <body>
+            <apex:pageBlock >
+                <apex:form styleClass="form-inline" id="tbl">
+                    <div class="container-fluid" style="padding-top:50px;">
+                        <div class="row">
+                            <div class="col-md-2"></div>
+                            <div class="col-md-10">
+                                <apex:actionFunction name="refresh"  action="{!savechanges}" reRender="tbl"/>
+                                
+                                
+                                <apex:actionFunction name="modelfill" reRender="panel" action="{!fillpopup}">
+                                    <apex:param name="fd" value=""  assignTo="{!findid}"/>
+                                    <apex:param name="md" value="" assignTo="{!finddate}"/>
+                                    <apex:param name="dType" value="" assignTo="{!dateType}"/>
+                                </apex:actionFunction>
+                                
+                                <div class="form-group">
+                                    <label for="exampleInputName2"> Start Date</label>
+                                    <apex:inputField styleClass="form-control"  value="{!con.StartDate__c}"  id="example1" />
+                                    <label for="exampleInputName2">  End Date</label>
+                                    <apex:inputField styleClass="form-control" value="{!con.EndDate__c}" id="example2"/>
+                                    <apex:commandButton value="go" action="{!go}" styleClass="btn btn-primary" style="width:100px !important"/>
+                                    
+                                </div>
+                                
+                            </div>
+                        </div>
+                        <div class="row" Style="padding-top:20px">
+                            <div class="col-md-2"></div>
+                            <div class="col-md-8">
+                                <table class="table table-bordered">
+                                    
+                                    <tr>
+                                        <td colspan="2" style="display:{!IF(dateList.size == 0, 'none','visible')}"><center><font size="3"><i>DATE</i></font></center></td>
+                                        <apex:repeat value="{!datelist}" var="dt">
+                                            <td  bgcolor="{!IF(MOD(dt-DATE(1900,1,6),7)== 1,'red','white')}">
+                                                <apex:outputText value="{0,Date,dd/MM/YYYY}">
+                                                    <apex:param value="{!dt}"/>
+                                                </apex:outputText>
+                                            </td>
+                                        </apex:repeat>
+                                    </tr>
+                                    <apex:repeat value="{!modelsnew}" var="j">
+                                        <tr>
+                                            <td rowspan="4"><b>{!j.jobname}</b></td>
+                                        </tr>
+                                        
+                                        <tr id="trid">
+                                            <td style="background-color:#79ec56">drawing</td>
+                                            <apex:repeat value="{!j.drawcountlist}" var="dw">
+                                                <!-- <td onClick="editrecord(),modelfill('{!j.jobid}','{!dw.hiddendatecolor}');return false;"> -->
+                                                
+                                                <td bgcolor="{!IF(MOD(dw.hiddendatecolor-DATE(1900,1,6),7)== 1,'red','white')}" onclick="{!IF(dw.drawcount == null,'javascript:void(0)','editrecord(),modelfill(\"'+j.jobid+'\",\"'+dw.hiddendate+'\",\"Drawing\")'+';return false;')}" > {!dw.drawcount}</td> 
+                                            </apex:repeat>
+                                        </tr>
+                                        <tr>
+                                            <td>production</td>
+                                            <apex:repeat value="{!j.Productionlist}" var="pd">
+                                                <td bgcolor="{!IF(MOD(pd.hiddendatecolor-DATE(1900,1,6),7)== 1,'red','white')}" onclick="{!IF(pd.productioncount== null,'javascript:void(0)','editrecord(),modelfill(\"'+j.jobid+'\",\"'+pd.hiddendate+'\",\"Production\")'+';return false;')}" > {!pd.productioncount}</td>
+                                            </apex:repeat>
+                                            
+                                        </tr>
+                                        <tr>
+                                            <td>install</td>
+                                            <apex:repeat value="{!j.installationlist}" var="insdate">
+                                                <td bgcolor="{!IF(MOD(insdate.hiddendatecolor-DATE(1900,1,6),7)== 1,'red','white')}" onclick="{!IF(insdate.installationcount== null,'javascript:void(0)','editrecord(),modelfill(\"'+j.jobid+'\",\"'+insdate.hiddendate+'\",\"Installation\")'+';return false;')}" >{!insdate.installationcount}</td>
+                                            </apex:repeat>
+                                            
+                                        </tr>
+                                    </apex:repeat>
+                                </table>
+                                
+                            </div>
+                        </div>  
+                        <!---- model------->  
+                        
+                        <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                        <h4 class="modal-title">Modal title</h4>
+                                    </div>
+                                    <div class="modal-body">
+                                        
+                                        
+                                        <apex:outputPanel id="panel">   
+                                            
+                                            <table>
+                                                <tr>
+                                                    <th>Element</th>
+                                                    <th>Drawing Date</th>
+                                                    <th>Production date</th>
+                                                    <th>Installation Date</th>
+                                                    
+                                                </tr>
+                                                <apex:repeat value="{!elementslist}" var="e"> 
+                                                    <tr>
+                                                        <th><apex:outputField value="{!e.name}"/></th>
+                                                        <td><apex:inputField rendered="{!IF(e.DrawingDate__c!= null ,true,true)}" styleClass="form-control"  value="{!e.DrawingDate__c}"/></td>
+                                                        <td><apex:inputField rendered="{!IF(e.Production_date__c!= null ,true,true)}" styleClass="form-control"  value="{!e.Production_date__c}"/></td>
+                                                        <td><apex:inputField rendered="{!IF(e.Installation_date__c!= null ,true,true)}" styleClass="form-control"  value="{!e.Installation_date__c}"/></td>
+                                                    </tr>
+                                                </apex:repeat>
+                                            </table>
+                                            
+                                        </apex:outputPanel>
+                                        
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                                        
+                                        <apex:commandButton value="savechanges"  styleClass="btn btn-primary"  onclick="refresh(); return false;"/>
+                                    </div>
+                                </div><!-- /.modal-content -->
+                            </div><!-- /.modal-dialog -->
+                        </div><!-- /.modal -->
+                        
+                        
+                        <!---- model end------->   
+                    </div>
+                </apex:form>
+            </apex:pageBlock>
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker.css" />
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker.min.css" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.js"></script>
+            <script type="text/javascript">
+                // When the document is ready
+                $(document).ready(function () {
+                // alert('load');
+                $('[id$=example1]').datepicker({
+                    format: "mm/dd/yyyy"
+                });  
+                
+                $('[id$=example2]').datepicker({
+                    format: "mm/dd/yyyy"
+                });
+            });
+            </script>
+            
+        </body>
+    </html>
+    
+</apex:page>

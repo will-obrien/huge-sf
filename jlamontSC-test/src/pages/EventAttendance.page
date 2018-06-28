@@ -1,0 +1,1271 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="EventAttendanceController" applyHTMLTag="TRUE" standardStylesheets="FALSE"
+>
+<apex:includeScript value="{!$Resource.Knockout}"/>
+<apex:includeScript value="https://cdnjs.cloudflare.com/ajax/libs/knockout-validation/2.0.3/knockout.validation.min.js"/>
+
+<script src="{!URLFOR($Resource.BootstrapFormHelperJS)}" type="text/javascript"></script>
+<apex:stylesheet value="{!URLFOR($Resource.BootstrapFormHelperCSS)}"/> 
+
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>Take Attendance</title>
+    </apex:define> 
+    
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+      <div id="dataDiv">
+      
+        <div class="modal fade" id="newParticipantModal" tabindex="-1" role="dialog" aria-labelledby="myNewParticipantModalLabel">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="myNewParticipantModalLabel">
+                  <div id="modalTitle">
+                  </div>
+                </h4>
+              </div>
+              <div class="modal-body">
+                <div class="alert alert-info">
+                  <i class="fa fa-exclamation-triangle fa-2x pull-left" aria-hidden="true"></i>
+                  This section must be completed by the participant or parent/guardian, and not by the leader.
+                </div>
+                <c:EventAttendanceModalContents />
+              </div>
+             </div>
+           </div>
+         </div>
+         
+        <div class="modal fade" id="msg2UserModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content alignCenter">
+              <div class="modal-header">
+                <h4 class="modal-title">
+                  <div id="msg2UserTitle"></div>
+                </h4>
+              </div>
+              <div class="modal-body">
+                <div class="row">
+                  <div class="col-xs-12 form-group">
+                    <div id="msg2UserDiv"></div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-xs-12 col-sm-6 form-group">
+                    <input type="button" 
+                           class="btn btn-primary btn-block" 
+                           id="dismissMsg2UserButton"
+                           value="OK" />
+                  </div>
+                </div>
+              </div>
+             </div>
+           </div>
+         </div>
+
+        <div class="modal fade" id="unsavedEventsModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content alignCenter">
+              <div class="modal-header">
+                <div id="unsavedMessagesTitle">
+                  <div class="alert alert-warning">
+                    <i class="fa fa-exclamation-triangle fa-2x pull-left" aria-hidden="true"></i>
+                    Unsaved changes found for <strong><span id="unsavedEventsTitle"></span></strong>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-body">
+                <div class="row">
+                  <div class="col-xs-12 col-sm-6 form-group">
+                    <input type="button" 
+                           class="btn btn-block btn-primary" 
+                           id="saveUnsavedChangesButton"
+                           value="Save Changes"
+                    />
+                  </div>
+                  <div class="col-xs-12 col-sm-6 form-group">
+                    <input type="button" 
+                           class="btn btn-block btn-danger" 
+                           id="discardUnsavedChangesButton"
+                           value="Discard Changes"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="paperWaiverModal" tabindex="-1" role="dialog" data-keyboard="false">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content alignCenter">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <div id="paperWaiverTitle">
+                  <div class="alert alert-danger col-xs-11">
+                    <i class="fa fa-exclamation-triangle fa-2x pull-left" aria-hidden="true"></i>
+                    Do not continue until you have received the completed paper waiver from the participant.
+                  </div>
+                </div>
+              </div>
+              <div class="modal-body">
+                <div class="row">
+                  <div class="col-xs-12 form-group">
+                    <p>
+                      Once you confirm below, the waiver option cannot be changed.
+                    </p>                
+                  </div>
+                  <div class="col-xs-12 col-sm-6 col-md-6">
+                    <input type="button" 
+                           class="btn btn-primary btn-block" 
+                           id="paperWaiverCompletedButton"
+                           value="Participant paper waiver completed" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="newParticipantpaperWaiverModal" tabindex="-1" role="dialog" data-keyboard="false">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content alignCenter">
+              <div class="modal-header">
+                <div class="alert alert-warning">
+                  <i class="fa fa-exclamation-triangle fa-2x pull-left" aria-hidden="true"></i>
+                  Return device to leader
+                </div>
+              </div>
+              <div class="modal-body">
+                <div class="row">
+                  <div class="col-xs-12">
+                    <p>
+                      You have selected that you wish to complete a paper copy of the waiver for this event.
+                    </p>
+                    <p class="form-group">
+                      Please return this device to the leader to receive your paper form.
+                      You must complete this form before you can participate in this event.
+                    </p>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-xs-12 col-sm-6 col-md-6 form-group">               
+                    <input type="button" 
+                           class="btn btn-primary btn-block" 
+                           id="newParticipantWaiverCompletedButton"
+                           value="I am the leader | Continue" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="digitalWaiverCompleteModal" tabindex="-1" role="dialog" data-keyboard="false">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content alignCenter">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h3 class="modal-title">
+                    Digital Waiver
+                </h3>
+                <div>
+                    <span id="digitalWaiverParticipant"></span>
+                    <br/>
+                    <span data-bind="text: dateBegin"></span>
+                    <br/>
+                    <span data-bind="text: title"></span>
+                    <br/>
+                    <span data-bind="text: sponsor"></span>
+                </div>
+              </div>
+              <div class="modal-body">
+                <p class="waiver-submitted alert alert-success">
+                  <i class="fa fa-check-square" aria-hidden="true"></i>
+                    Submission successful. You will receive a copy of the waiver by email. 
+                    <strong>Please return the device to the leader.</strong>
+                </p>
+                <div class="row">
+                  <div class="col-xs-12 col-sm-6 col-md-6 form-group">
+                    <input type="button" class="btn btn-primary btn-block" id="continueAttendanceButton"
+                           value="Continue Taking Attendance" />
+                  </div>
+                </div>
+              </div>
+             </div>
+           </div>
+         </div>
+
+        </div>      
+      
+        <div class="row">  
+          <div class="col-xs-12">
+            <ul id="pageNavigation" class="breadcrumb">
+              <li><a href="{!pageBase}clubeventlist">Events Home</a></li>
+              <li><a href="{!pageBase}leaderevents">My Event Attendance</a></li>
+              <li class="active"><strong>Take Attendance</strong></li>
+            </ul>
+          </div>
+        </div>
+        <!--
+        <div class="row">  
+          <h3 class="col-xs-12">
+            Take Attendance
+          </h3>
+        </div>
+        -->
+        <div class="row">  
+          <p class="col-xs-12">
+            <strong><span data-bind="text: dateBegin"></span></strong>
+            <br/>
+            <span data-bind="text: title"></span>
+            <br/>
+            <span data-bind="text: sponsor"></span>
+          </p>
+        </div>
+        <div class="row" data-bind="visible: waiverRequired">  
+          <p class="messageToUser col-xs-12">
+            <em>People who have not signed a waiver may not participate (nor be marked as Attended).</em>
+          </p>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped">
+            <th class="text-center">Participants</th>
+          </table>
+        </div>    
+        
+        
+          <!--
+          <div class="well well-sm text-center">
+            <strong>Participants</strong>
+          </div>
+          -->
+            <div class="row">
+              <div class="col-xs-6 col-sm-6 col-md-3 form-group">
+                <input type="button" class="btn btn-block btn-primary"
+                       id="updateAttendanceButton"
+                       value="Save Changes"
+                       data-bind="css: { disabled: ! changesMade() }" />
+              </div>
+              <div class="col-xs-6 col-sm-6 col-md-4 form-group">
+                <input type="button" class="btn btn-block btn-info" 
+                       id="newRegistrationButton" 
+                       value="Add Participant"/>
+              </div>
+            </div>
+            <!--
+            <div class="row">
+              <div class="col-xs-12">
+                <div class="user-messages"></div>
+              </div>
+            </div>
+            -->
+            <div class="row">
+              <div class="col-xs-12 fixed-to-top">
+                <div id="changesPendingMessage"
+                     data-bind="visible: changesMade()"
+                     class="alert alert-warning"
+                     style="display: none;" >
+                  <i class="fa fa-exclamation-triangle fa-2x pull-left" aria-hidden="true"></i>
+                  You have changes that need to be saved to Campfire. <a id="pendingChangesLink" class="alert-link">Save Changes</a>
+                </div>
+                <div class="user-messages"></div>
+              </div>  
+            </div>
+          
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped" id="participantListTable">
+              <!--<th class="text-center">Participants</th>-->
+              <tbody data-bind="foreach: $root.signups">
+                <tr>
+                    <td>
+                        <div class="text-center">
+                            <div class="col-xs-12 col-sm-6 col-md-3 form-group">
+                                <strong><span data-bind="text: name"></span></strong>
+                            </div>
+                            <div class="col-xs-12 col-sm-6 col-md-4 form-group" data-bind="visible: $parent.waiverRequired && (! waiverSubmitted())">
+                              <div class="btn-group btn-group-justified" role="group">
+                                <div class="btn-group" role="group">
+                                  <input type="button" 
+                                         class="btn btn-sm btn-default waiver-btn" 
+                                         value="Paper waiver"
+                                         data-bind="click: $parent.paperWaiverChosen"
+                                  />
+                                </div>
+                                <div class="btn-group" role="group">
+                                  <input type="button" 
+                                         class="btn btn-sm btn-default waiver-btn" 
+                                         value="Digital waiver"
+                                         data-bind="click: $parent.openDialog"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-xs-12 col-sm-6 col-md-4 form-group" data-bind="visible: $parent.waiverRequired && waiverSubmitted()">
+                              <div class="panel panel-success no-margin">
+                                <div class="panel-heading modest-padding">
+                                  <i aria-hidden="true" class="fa fa-check-square"></i>&nbsp;&nbsp;Waiver completed
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-xs-12 col-sm-12 col-md-5 form-group">
+                              <div class="btn-group btn-group-justified" role="group">
+                                <div class="btn-group" role="group">
+                                  <input type="button" 
+                                         class="btn btn-sm btn-default status-btn" 
+                                         value="Attended"
+                                         data-bind="css: { 'btn-success markedAttended active': status() == 'Attended' }, enable: (! $parent.waiverRequired) || waiverSubmitted, click: $parent.markAttended"
+                                  />
+                                </div>
+                                <div class="btn-group" role="group">
+                                  <input type="button" 
+                                         class="btn btn-sm btn-default status-btn" 
+                                         value="No show"
+                                         data-bind="css: { 'btn-warning markedNoShow active': status() == 'No Show' }, click: $parent.markNoShow"
+                                  />
+                                </div>
+                                <div class="btn-group" role="group">
+                                  <input type="button" 
+                                         class="btn btn-sm btn-default status-btn" 
+                                         value="Cancelled"
+                                         data-bind="css: { 'btn-danger markedCancelled active ' : status() == 'Cancelled' }, click: $parent.markCancelled"
+                                  />
+                                </div>  
+                              </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>    
+              </tbody>
+            </table>
+          </div>
+          
+            <div class="row">
+              <div class="col-xs-6 col-sm-6 col-md-3 form-group">
+                <input type="button" class="btn btn-block btn-primary updateAttendanceButton"
+                       value="Save Changes"
+                       data-bind="css: { disabled: ! changesMade() }" />
+              </div>
+              <div class="col-xs-6 col-sm-6 col-md-4 form-group">
+                <input type="button" class="btn btn-block btn-info newRegistrationButton" 
+                       value="Add Participant"/>
+              </div>
+              <div class="col-xs-12 col-sm-12 col-md-5 form-group">
+                <div class="form-group">
+                  <input type="button" class="btn btn-success btn-block" id="attendanceCompleteButton" value="Attendance Complete" />
+                </div>
+              </div>
+            </div> 
+            <!--  
+            <div class="row">
+              <div class="col-xs-12">
+                <div class="user-messages"></div>
+              </div>
+            </div>
+            -->
+            <div class="row">
+              <div class="col-xs-12">
+                <p>
+                  <small>
+                    Clicking "Attendance Complete" will mark as "No Show" any remaining participants not already marked "Attended" or "Cancelled."
+                    <br/> 
+                    You can revise attendance at any time, even after clicking "Attendance Complete".
+                  </small>
+                </p>
+              </div>
+            </div>
+          
+          
+        
+
+
+    </apex:define>
+    
+    <apex:define name="footer">
+    <script type="text/javascript" async="async">
+        var pageViewModel;
+        var recordNumber=1;
+
+        $(document).ready(function() {
+            var unsavedEvents = checkForUnsavedEvents();
+            //Get signups from server
+            if( ! unsavedEvents) {
+                retrieveFromServer();
+            }
+			var campaignId = getRequestParameter("campaignId");
+			if(campaignId != "") {
+				$("#pageNavigation").html("<li><a href='{!salesforceBase}/" + campaignId + "'" + ">Return to Campaign</a></li>")
+			}
+            // Bind buttons to their handlers
+            $('#newRegistrationButton').click(function() {
+                openDialog();
+            });
+            $('.newRegistrationButton').click(function() {
+                openDialog();
+            });
+            $('#newParticipantDigitalWaiverButton').click(function() {
+                newParticipantDigitalWaiver();
+            });
+            $('#newParticipantPaperWaiverButton').click(function() {
+                newParticipantPaperWaiver();
+            });
+            $('#acceptDigitalWaiverButton').click(function() {
+                acceptDigitalWaiver();
+            });
+            $('.cancelDialogButton').click(function() {
+                cancelDialog();
+            });
+            $('#updateAttendanceButton').click(function() {
+                saveToServer(pageViewModel.eventId());
+            });
+            $('.updateAttendanceButton').click(function() {
+                saveToServer(pageViewModel.eventId());
+            });
+            $('#markSelectedButton').click(function() {
+                markSelected();
+            });
+            $('#dismissMsg2UserButton').click(function() {
+                $('#msg2UserModal').modal('hide');
+            });
+            $('#paperWaiverCompletedButton').click(function() {
+                paperWaiverCompleted();
+            });
+            $('#pendingChangesLink').click(function() {
+                saveToServer(pageViewModel.eventId());
+            });
+            $('#attendanceCompleteButton').click(function() {
+                pageViewModel.attendanceComplete();
+                saveToServer(pageViewModel.eventId());
+            });
+            $('#continueAttendanceButton').click(function() {
+                $('#digitalWaiverCompleteModal').modal('hide');
+            });
+            $('#newParticipantWaiverCompletedButton').click(function() {
+                $('#newParticipantpaperWaiverModal').modal('hide');
+            });
+            $('#discardUnsavedChangesButton').click(function() {
+                clearLocalStorage();
+                $('#unsavedEventsModal').modal('hide');
+            });
+            $('#saveUnsavedChangesButton').click(function() {
+                $('#unsavedEventsModal').modal('hide');
+                saveUnsavedEvents();
+            });
+            $('#newParticipantNoWaiverButton').click(function() {
+                newParticipantNoWaiver();
+            });
+            $('#guardianFormDiv').hide();
+            $('#isMinor').click(function() {
+                if($('#isMinor').is(':checked')) {
+                    $('#guardianFormDiv').show();
+                }
+                else {
+                    $('#guardianFormDiv').hide();
+                }
+            });
+
+            $("#newParticipantModal").on('show.bs.modal', function () {
+                pageViewModel.clearNewParticipant();
+            });
+            $("#newParticipantModal").on('shown.bs.modal', function () {
+                $('#firstName').focus();
+            });
+        });
+
+        // Legacy browser support
+        if (!String.prototype.trim) {
+           String.prototype.trim = function() { return this.replace(/^\s+|\s+$/g, ''); };
+        }
+
+        // Overall viewmodel for this page
+        function signupsViewModel(eventAttendance) {
+            var self = this;
+            
+            var array = eventAttendance.signupList;
+            self.signups = ko.observableArray();
+            for(i=0; i < array.length; i++) {
+                self.signups.push(
+                    new signupsViewItem(
+                        array[i].firstName, 
+                        array[i].lastName, 
+                        array[i].registrationId, 
+                        array[i].email,
+                        array[i].street,
+                        array[i].city,
+                        array[i].state,
+                        array[i].zip,
+                        array[i].phone,
+                        array[i].status, 
+                        array[i].waiverIsDigital, 
+                        array[i].waiverSubmitted,
+                        recordNumber ++ 
+                    )
+                );
+            }
+
+            ko.subscribable.fn.trimmed = function() {
+                return ko.computed({
+                    read: function() {
+                        return this();
+                    },
+                    write: function(value) {
+                        this(value.trim());
+                        this.valueHasMutated();
+                    },
+                    owner: this
+                });
+            };
+            
+            ko.validation.init({
+                insertMessages: false,  
+                messagesOnModified: true,
+                debug: true,
+                decorateInputElement: true,
+                decorateElementOnModified: true
+            });
+            
+            self.firstName = ko.observable('').extend({
+                required: true
+            });
+            self.lastName = ko.observable('').extend({
+                required: true,
+                minLength: 2
+            });
+            self.email = ko.observable('').trimmed().extend({
+                required: true,
+                email: true
+            });
+            self.zip = ko.observable('').extend({
+                required: true,
+                pattern: {
+                    message: 'Invalid Zip Code',
+                    params: /^((\d{5}-\d{4})|(\d{5})|([AaBbCcEeGgHhJjKkLlMmNnPpRrSsTtVvXxYy]\d[A-Za-z]\s?\d[A-Za-z]\d))$/
+                }
+            });
+
+			if(eventAttendance.askForPhone) {
+				self.phone = ko.observable('').extend({
+	                required: eventAttendance.requirePhone,
+					pattern: {
+						message: 'Invalid Phone',
+						params: /(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}/
+					}
+				});
+	            $('.showPhone').show();
+	            if(eventAttendance.requirePhone) {
+	            }
+	            else {
+		            $('.requirePhone').hide();
+	            }
+			}
+			else {
+				self.phone = ko.observable('');
+	            $('.showPhone').hide();
+			}
+
+			if(eventAttendance.askForAddress) {
+				self.street = ko.observable('').extend({
+					required: eventAttendance.requireAddress
+				});
+				self.city = ko.observable('').extend({
+					required: eventAttendance.requireAddress
+				});
+				self.state = ko.observable('').extend({
+					required: eventAttendance.requireAddress
+				});
+	            if(eventAttendance.requireAddress) {
+	            	$('.requireAddress').show;
+	            }
+	            else {
+		            $('.requireAddress').hide();
+	            }
+				$('.showAddress').show();
+			}
+			else {
+	            self.street = ko.observable('');
+	            self.city = ko.observable('');
+	            self.state = ko.observable('');
+				$('.showAddress').hide();
+			}
+			
+			var validations = [self.firstName, self.lastName, self.email];
+			if(eventAttendance.askForPhone) {
+				validations.push(self.phone);
+			}
+			if(eventAttendance.askForZip || eventAttendance.askForAddress) {
+				validations.push(self.zip);
+			}
+			if(eventAttendance.askForAddress) {
+				validations.push(self.street);
+				validations.push(self.city);
+				validations.push(self.state);
+			}
+			self.participantErrors = ko.validation.group(validations);
+			            
+            self.participantValid = function() {
+                return self.participantErrors().length == 0;
+            }
+            
+            self.guardianFirstName = ko.observable('').extend({
+                required: true
+            });
+            self.guardianLastName = ko.observable('').extend({
+                required: true,
+                minLength: 2
+            });
+            self.guardianEmail = ko.observable('').trimmed().extend({
+                required: true,
+                email: true
+            });
+            
+            self.guardianErrors = ko.validation.group([self.guardianFirstName, self.guardianLastName, self.guardianEmail]);
+            self.guardianValid = function() {
+                return self.guardianErrors().length == 0;
+            }
+            
+            self.waiverIsDigital = ko.observable(false);
+            self.waiverSubmitted = ko.observable(false);
+            self.name = 
+                ko.pureComputed(function() {
+                    return self.firstName() + " " + self.lastName();
+                }, this);
+            self.selectedStatus = ko.observable('Attended');
+
+            self.eventId = ko.observable(eventAttendance.id);
+            self.dateBegin = ko.observable(eventAttendance.dateBegin);
+            self.title = ko.observable(eventAttendance.title);
+            self.sponsor = ko.observable(eventAttendance.sponsor);
+            self.imageAuthorizationDeclined = false;
+            self.waiverRequired = eventAttendance.waiverRequired;
+            //self.localEvents = ko.observableArray(getEventsFromLocalStorage());
+            
+            self.changedItems = [];
+            self.changesMade = ko.observable(false);
+            
+            // Methods
+            
+            self.itemChanged = function(item) {
+                var items = self.changedItems;
+                var itemFound = false;
+                for(i=0; i < items.length; i++) {
+                    if(items[i] == item.recordNumber) {
+                        itemFound = true;
+                        break;
+                    }
+                }
+                if( ! itemFound ) {
+                    items.push(item.recordNumber);
+                }
+                self.changesMade(items.length > 0); 
+            }
+
+            self.addParticipant = function() {
+                var participant = new signupsViewItem(
+                    self.firstName(),
+                    self.lastName(),
+                    '',
+                    self.email(),
+                    self.street(),
+                    self.city(),
+                    self.state(),
+                    self.zip(),
+                    self.phone(),
+                    'Registered',
+                    self.waiverIsDigital(),
+                    self.waiverSubmitted(),
+                    recordNumber++
+                );
+                if(participant.waiverSubmitted() || (! self.waiverRequired)) {
+                    participant.status("Attended");
+                }
+                participant.imageAuthorizationDeclined = self.imageAuthorizationDeclined;
+                self.signups.push(participant);
+                self.itemChanged(participant);
+                self.sort();
+                self.clearNewParticipant();
+                saveToLocalStorage();
+                return participant;
+            }
+
+            self.openDialog = function(item) {
+                self.selectedItem = item;
+                openDialog(item);
+            }
+            self.paperWaiverChosen = function(item) {
+                self.selectedItem = item;
+                $('#paperWaiverModal').modal('show');
+            }
+            self.sort = function() {
+                self.signups.sort(
+                    function (left, right) {
+                        return left.lastName() == right.lastName() ? 0 : (left.lastName() < right.lastName() ? -1 : 1)
+                    }
+                );
+            }
+            self.clearNewParticipant = function() {
+                self.firstName('');
+                self.lastName('');
+                self.email('');
+                self.street('');
+                self.city('');
+                self.state('');
+                self.zip('');
+                self.phone('');
+                self.guardianFirstName('');
+                self.guardianLastName('');
+                self.guardianEmail('');
+                self.participantErrors.showAllMessages(false);
+                self.guardianErrors.showAllMessages(false);
+                
+                self.waiverIsDigital(false);
+                self.waiverSubmitted(false);
+                self.imageAuthorizationDeclined = false;
+            }
+
+            self.select = function(item) {
+                self.selectedItem = item;
+            }
+            self.markAttended = function(item) {
+                if(item.status() != 'Attended') {
+                    item.status('Attended');
+                    self.itemChanged(item);
+                    saveToLocalStorage();
+                }
+            }
+            self.markNoShow = function(item) {
+                if(item.status() != 'No Show') {
+                    item.status('No Show');
+                    self.itemChanged(item);
+                    saveToLocalStorage();
+                }
+            }
+            self.markCancelled = function(item) {
+                if(item.status() != 'Cancelled') {
+                    item.status('Cancelled');
+                    self.itemChanged(item);
+                    saveToLocalStorage();
+                }
+            }
+            self.loadLocalEvent = function(item) {
+                var storedEvent = localStorage.getItem(pageViewModel.eventId());
+                if(storedEvent) {
+                    var pageList = pageViewModel.signups();
+                    var newList = [];
+                    for(i=0; i < pageList.length; i++) {
+                        var signupItem=new Object();
+                        signupItem.firstName = pageList[i].firstName();
+                        signupItem.lastName = pageList[i].lastName();
+                        signupItem.registrationId = pageList[i].registrationId();
+                        signupItem.email = pageList[i].email();
+                        signupItem.street = pageList[i].street();
+                        signupItem.city = pageList[i].city();
+                        signupItem.state = pageList[i].state();
+                        signupItem.phone = pageList[i].phone();
+                        signupItem.zip = pageList[i].zip();
+                        signupItem.status = pageList[i].status();
+                        signupItem.waiverIsDigital = pageList[i].waiverIsDigital();
+                        signupItem.waiverSubmitted = pageList[i].waiverSubmitted();
+                        newList.push(signupItem);
+                    } 
+                    storedEvent = JSON.parse(storedEvent);
+                    storedEvent.signupList = newList;
+                    localStorage.setItem(pageViewModel.eventId(), JSON.stringify(storedEvent));
+                }
+            
+                var eventId = item.eventId;
+                var event = localStorage.getItem(eventId);
+                if(event) {
+                    event = JSON.parse(event);
+                    var array = event.signupList;
+                    self.signups.removeAll();
+                    for(i=0; i < array.length; i++) {
+                        self.signups.push(
+                            new signupsViewItem(
+                                array[i].firstName, 
+                                array[i].lastName, 
+                                array[i].registrationId, 
+                                array[i].email,
+                                array[i].street,
+                                array[i].city,
+                                array[i].state,
+                                array[i].zip,
+                                array[i].phone,
+                                array[i].status, 
+                                array[i].waiverIsDigital, 
+                                array[i].waiverSubmitted,
+                                recordNumber ++ 
+                            )
+                        );
+                    }
+
+                    self.eventId(event.id);
+                    self.dateBegin(event.dateBegin);
+                    self.title(event.title);
+                    self.sponsor(event.sponsor);
+                    self.waiverRequired = event.waiverRequired;
+                }
+            }
+            self.resetSignups = function(newSignups) {
+                self.signups.removeAll();
+                for(i=0; i < newSignups.length; i++) {
+                    self.signups.push(
+                        new signupsViewItem(
+                            newSignups[i].firstName, 
+                            newSignups[i].lastName, 
+                            newSignups[i].registrationId, 
+                            newSignups[i].email,
+                            newSignups[i].street,
+                          	newSignups[i].city,
+                          	newSignups[i].state,
+                            newSignups[i].zip,
+                            newSignups[i].phone,
+                            newSignups[i].status, 
+                            newSignups[i].waiverIsDigital, 
+                            newSignups[i].waiverSubmitted,
+                            recordNumber ++ 
+                        )
+                    );
+                }
+                self.changesMade(false);
+            }
+            self.createUpload = function() {
+                var retVal = new Object();
+                retVal.id = self.eventId();
+                retVal.dateBegin = self.dateBegin();
+                retVal.title = self.title();
+                retVal.sponsor = self.sponsor();
+                retVal.waiverRequired = self.waiverRequired;
+                
+                var signupList = [];
+                for(i=0; i < self.signups().length; i++) {
+                    var signupItem = self.signups()[i];
+                    if(self.changedItems.indexOf(signupItem.recordNumber) >= 0) {
+                        var signup = new Object();
+                        signup.registrationId = signupItem.registrationId();
+                        signup.firstName = signupItem.firstName();
+                        signup.lastName = signupItem.lastName();
+                        signup.email = signupItem.email();
+                        signup.street = signupItem.street();
+                        signup.city = signupItem.city();
+                        signup.state = signupItem.state();
+                        signup.phone = signupItem.phone();
+                        signup.zip = signupItem.zip();
+                        signup.status = signupItem.status();
+                        signup.waiverSubmitted = signupItem.waiverSubmitted();
+                        signup.waiverIsDigital = signupItem.waiverIsDigital();
+                        signup.imageAuthorizationDeclined = signupItem.imageAuthorizationDeclined;
+                        signup.isMinor = signupItem.isMinor;
+                        signup.guardianFirstName = signupItem.guardianFirstName;
+                        signup.guardianLastName = signupItem.guardianLastName;
+                        signup.guardianEmail = signupItem.guardianEmail;
+                        
+                        signupList.push(signup);
+                    }
+                }
+                retVal.signupList = signupList;
+                return retVal;
+            }
+            self.attendanceComplete = function() {
+                var changesMade = false;
+                for(i=0; i < self.signups().length; i++) {
+                    var signupItem = self.signups()[i];
+                    if(signupItem.status() == 'Registered') {
+                        signupItem.status('No Show');
+                        self.itemChanged(signupItem);
+                        changesMade = true;
+                    }
+                }
+                if(changesMade) {
+                    saveToLocalStorage();
+                }
+            }
+        }
+        
+        //Viewmodel for individual items
+        function signupsViewItem(firstName, lastName, registrationId, email, street, city, state, zip, phone, status, waiverIsDigital, waiverSubmitted, recNo) {
+            var self = this;
+
+            self.firstName = ko.observable(firstName);
+            self.lastName = ko.observable(lastName);
+            self.registrationId = ko.observable(registrationId);
+            self.name = 
+                ko.pureComputed(function() {
+                    return self.firstName() + " " + self.lastName();
+                }, this);           
+            self.email = ko.observable(email);
+            self.street = ko.observable(street);
+            self.city = ko.observable(city);
+            self.state = ko.observable(state);
+            self.zip = ko.observable(zip);
+            self.phone = ko.observable(phone);
+            self.status = ko.observable(status);
+            self.waiverIsDigital = ko.observable(waiverIsDigital);
+            self.waiverSubmitted = ko.observable(waiverSubmitted);
+            self.recordNumber = recNo;
+            self.imageAuthorizationDeclined = false;
+            self.isMinor = false;
+            self.guardianFirstName = "";
+            self.guardianLastName = "";
+            self.guardianEmail = "";
+        }
+
+        function retrieveFromServer () {
+            EventAttendanceController.getEvent(
+                getRequestParameter("id"),
+                function(result, event){
+                    if (event.status) {
+                        pageViewModel = new signupsViewModel(result);
+                        ko.applyBindings(pageViewModel);
+                        // handle no signups in result
+                        if (result.signupList.length === 0) {
+                          $('#participantListTable tbody').html('<tr id="noResultsMessage"><td><div class="alert alert-info"><i aria-hidden="true" class="fa fa-user-plus fa-lg"></i> No participants are currently registered.</div></td></tr>');
+                        }
+                    } else if (event.type === 'exception') {
+                        alert("Error:" + event.message);
+                    }
+                }, 
+                {escape: true}
+            );
+        }
+        function getEventsFromLocalStorage() {
+            var localEvents = localStorage.getItem('clubEvents');
+            if(localEvents) {
+                localEvents = JSON.parse(localEvents);
+            }
+            else {
+                localEvents = [];
+            }
+            return localEvents;
+        }
+        function saveToLocalStorage() {
+            var pageEvent = pageViewModel.createUpload();
+            var eventId = pageEvent.id;
+            var currentEvent = null;
+            
+            var clubEvents = localStorage.getItem('clubEvents');
+    
+            if(clubEvents == null) {
+                clubEvents = [];
+            }
+            else {
+                clubEvents = JSON.parse(clubEvents);
+                currentEvent = findEvent(eventId, clubEvents);
+            }
+    
+            if(currentEvent == null) {
+                currentEvent = new clubEvent(pageEvent);
+                currentEvent.changesMade = true;
+                clubEvents.push(currentEvent);
+            }
+            else {
+                currentEvent.changesMade = true;
+            }
+    
+            localStorage.setItem('clubEvents', JSON.stringify(clubEvents));     
+            localStorage.setItem(currentEvent.eventId, JSON.stringify(pageEvent));
+        }
+        function clearLocalStorage() {
+            var clubEvents = JSON.parse(localStorage.getItem('clubEvents'));
+            if(clubEvents == null) {
+                return;
+            }
+            for(i=0; i < clubEvents.length; i++) {
+                var eventId = clubEvents[i].eventId;
+                removeFromLocalStorage(eventId);
+            }
+            retrieveFromServer();
+        }
+        function removeFromLocalStorage(eventId) {
+            localStorage.removeItem(eventId);
+            var clubEvents = localStorage.getItem('clubEvents');
+            if(clubEvents == null) {
+                return;
+            }
+            clubEvents = JSON.parse(clubEvents);
+            var newValue = [];
+            for(i=0; i < clubEvents.length; i++) {
+                if(clubEvents[i].eventId != eventId) {
+                    newValue.push(clubEvents[i]);
+                }
+            }
+            if(newValue.length == 0) {
+                localStorage.removeItem('clubEvents');
+            }
+            else {
+                localStorage.setItem('clubEvents', JSON.stringify(newValue));
+            }
+        }
+        function saveToServer(eventId) {
+            // $('#dismissMsg2UserButton').hide();
+            // $('#msg2UserDiv').html('Saving to Server');
+            // $('#msg2UserModal').modal('show');
+            
+            var saveInProgressMessage = '<div class="alert alert-info alert-dismissible" role="alert"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button><i class="fa fa-cog fa-spin fa-fw fa-lg"></i><span class="sr-only">Loading...</span>&#160;&#160;&#160;Save in progress</div>';
+            $('.user-messages').hide().html('').append(saveInProgressMessage).fadeIn();
+            
+            var eventDataString = localStorage.getItem(eventId);
+            var eventData = JSON.parse(eventDataString);
+            var clubEvents = JSON.parse(localStorage.getItem('clubEvents'));
+            var currentEvent = findEvent(eventId, clubEvents);
+            
+            // $('#msg2UserTitle').html(currentEvent.title);
+            
+            EventAttendanceController.saveEvent(
+                eventData,
+                function(result, event){
+                    if (event.status) {
+                        if(pageViewModel) {
+                            if(eventId == pageViewModel.eventId()) {
+                                pageViewModel.resetSignups(result.signupList);
+                            }
+                        }
+                        removeFromLocalStorage(eventId);
+                        // $('#msg2UserDiv').html('Attendance successfully saved to server'); 
+                        var saveSuccessMessage = '<div id="saveSuccess" class="alert alert-success alert-dismissible" role="alert"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button><i class="fa fa-check-circle fa-lg"></i>&#160;&#160;&#160;Save Successful!</div>';
+                        $('.user-messages').hide().html('').append(saveSuccessMessage).fadeIn();
+                          setTimeout(function(){
+                            $('.user-messages').fadeOut();
+                        }, 2500);
+                        if(pageViewModel) {
+                            pageViewModel.changedItems.length = 0;
+                        }   
+                        $('#dismissMsg2UserButton').show();
+                    } else if (event.type === 'exception') {
+                        var msg2User = event.message;
+                        if(event.message.endsWith('Logged in?')) {
+                            window.location.reload(true);
+                        } 
+                        else if(event.message == 'Page not allowed for the profile') {
+                            window.location.href='{!pageBase}ConstituentLoginPage?startURL=/EventAttendance%3Fid=' + eventId
+                        }
+                        else {
+                            $('.user-messages').html('').hide();
+                            $('#msg2UserTitle').html('Error Saving to Server').addClass('text-danger');
+                            $('#msg2UserDiv').html('<span class="fa-stack fa-lg" aria-hidden="true"><i class="fa fa-signal fa-stack-1x"></i><i class="fa fa-ban fa-stack-2x fa-flip-horizontal"></i></span><strong>Save unsuccessful.</strong> ' + msg2User).addClass('alert alert-danger');
+                            $('#dismissMsg2UserButton').show();
+                            $('#msg2UserModal').modal('show');
+                        }
+                    }
+                }, 
+                {escape: true}
+            );
+        }
+        function checkForUnsavedEvents() {
+            var returnValue = false;
+            var clubEvents = JSON.parse(localStorage.getItem('clubEvents'));
+            if(clubEvents == null) {
+                return returnValue;
+            }
+            var unsavedEvents = [];
+            var eventsTitle = "";
+            for(i=0; i < clubEvents.length; i++) {
+                if(clubEvents[i].changesMade) {
+                    unsavedEvents.push(clubEvents[i].title);
+                }
+            }
+            if(unsavedEvents.length > 0) {
+                for(i=0; i < unsavedEvents.length; i++) {
+                    if(i > 0) {
+                        eventsTitle += '<br/>';
+                    }
+                    eventsTitle += unsavedEvents[i];
+                }
+                $('#unsavedEventsTitle').html(eventsTitle);
+                $('#unsavedEventsModal').modal('show');
+                returnValue = true;
+            }
+            return returnValue;
+        }
+        function saveUnsavedEvents() {          
+            var clubEvents = JSON.parse(localStorage.getItem('clubEvents'));
+            if(clubEvents == null) {
+                return;
+            }
+            for(i=0; i < clubEvents.length; i++) {
+                if(clubEvents[i].changesMade) {
+                    var eventId = clubEvents[i].eventId;
+                    saveToServer(eventId);
+                }
+            }
+            retrieveFromServer();
+        }
+        function findEvent(eventId, eventArray) {
+            var foundEvent=null;
+            for(i=0; i < eventArray.length; i++) {
+                if(eventArray[i].eventId == eventId) {
+                    foundEvent = eventArray[i];
+                    break;
+                }
+            } 
+            return foundEvent;
+        }
+        function clubEvent(eventObject) {
+            var self = this;
+            self.eventId = eventObject.id;
+            self.dateBegin = eventObject.dateBegin;
+            self.title = eventObject.title;
+            self.sponsor = eventObject.sponsor;
+        }
+        
+        function collapseWaiverSections() {
+          $('h4.panel-title a').addClass('collapsed');
+          $('.panel-collapse.collapse.in').removeClass('in');
+        }
+
+        function newParticipantDigitalWaiver () {
+            pageViewModel.select(null);
+            if(pageViewModel.participantValid()) {
+
+                pageViewModel.waiverSubmitted(false);
+                pageViewModel.waiverIsDigital(false);
+                var participant = pageViewModel.addParticipant();
+                pageViewModel.select(participant);
+
+                $('#waiverName').html(pageViewModel.name());
+                $('#newParticipantForm').hide();
+                $('#modalTitle').html('Digital Waiver');
+                collapseWaiverSections();
+                $('#waiverForm').show();
+            }
+            else {
+                pageViewModel.participantErrors.showAllMessages(true);
+            }
+        }
+
+        function openDialog(item) {
+            collapseWaiverSections();
+            $('#sectionAcknowledgement').attr('checked', false);
+            $('#agreementAccepted').attr('checked', false);
+            $('#imageAuthorizationDeclined').attr('checked', false);
+            $('#isMinor').attr('checked', false);
+            $('#guardianFormDiv').hide();
+            $('#agreementsNotChecked').hide();
+            $('#sectionsNotAcknowledged').hide();
+            if(item == null) {
+                $('#newParticipantForm').show();
+                $('#waiverForm').hide();
+                $('#modalTitle').html('New Participant');
+            }
+            else {
+                $('#modalTitle').html('Digital Waiver');
+                $('#waiverName').html(item.name());
+                $('#newParticipantForm').hide();
+                $('#agreementNotChecked').hide();
+                $('#waiverForm').show();
+            }
+
+            $('#participantListTable tbody #noResultsMessage').remove();
+            $('#newParticipantModal').modal('show');
+            
+        }
+        
+        function cancelDialog() {
+            pageViewModel.clearNewParticipant();
+            $('#newParticipantModal').modal('hide');
+        }
+
+        function newParticipantPaperWaiver() {
+            if(pageViewModel.participantValid()) {
+                pageViewModel.waiverSubmitted(false);
+                pageViewModel.waiverIsDigital(false);
+                pageViewModel.addParticipant();
+                $('#newParticipantModal').modal('hide');
+                $('#newParticipantpaperWaiverModal').modal('show');
+            }
+            else {
+                pageViewModel.participantErrors.showAllMessages(true);
+            }
+        }
+        
+        function newParticipantNoWaiver() {
+            if(pageViewModel.participantValid()) {
+                pageViewModel.addParticipant();
+                $('#newParticipantModal').modal('hide');
+            }
+            else {
+                pageViewModel.participantErrors.showAllMessages(true);
+            }
+        }
+
+        function acceptDigitalWaiver() {
+            var isMinor = $('#isMinor').is(':checked');
+            var sectionsAcknowledged = $('#sectionAcknowledgement').is(':checked');
+            var agreementChecked = $('#agreementAccepted').is(':checked');
+            
+            if(isMinor) {
+                if( ! pageViewModel.guardianValid()) {
+                    pageViewModel.guardianErrors.showAllMessages(true);
+                    return;
+                }
+            }
+            
+            if ( ( ! agreementChecked ) || ( ! sectionsAcknowledged ) ) {
+                $('#agreementsNotChecked').show();
+                return;
+            }
+            
+            var imageAuthorizationDeclined = $('#imageAuthorizationDeclined').is(':checked');
+            var participantName;
+            if(pageViewModel.selectedItem == null) {
+                pageViewModel.waiverSubmitted(true);
+                pageViewModel.waiverIsDigital(true);
+                pageViewModel.imageAuthorizationDeclined = imageAuthorizationDeclined;
+                participantName = pageViewModel.name;
+                pageViewModel.addParticipant();
+            }
+            else {
+                pageViewModel.selectedItem.waiverSubmitted(true);
+                pageViewModel.selectedItem.waiverIsDigital(true);
+                pageViewModel.selectedItem.imageAuthorizationDeclined = imageAuthorizationDeclined;
+                
+                if(isMinor) {
+                    pageViewModel.selectedItem.isMinor = true;
+                    pageViewModel.selectedItem.guardianFirstName = pageViewModel.guardianFirstName();
+                    pageViewModel.selectedItem.guardianLastName = pageViewModel.guardianLastName();
+                    pageViewModel.selectedItem.guardianEmail = pageViewModel.guardianEmail();
+                }
+                
+                pageViewModel.selectedItem.status("Attended");
+                pageViewModel.itemChanged(pageViewModel.selectedItem);
+                participantName = pageViewModel.selectedItem.name;
+            }
+            saveToLocalStorage();
+            $('#digitalWavierParticipant').html(participantName);
+            $('#newParticipantModal').modal('hide');
+            $('#digitalWaiverCompleteModal').modal('show');
+        }
+        function paperWaiverCompleted() {
+            if(pageViewModel.selectedItem == null) {
+                pageViewModel.waiverSubmitted(true);
+                pageViewModel.waiverIsDigital(false);
+                pageViewModel.addParticipant();
+            }
+            else {
+                pageViewModel.selectedItem.waiverSubmitted(true);
+                pageViewModel.selectedItem.waiverIsDigital(false);
+                pageViewModel.selectedItem.status("Attended");
+                pageViewModel.itemChanged(pageViewModel.selectedItem);
+            }
+            $('#paperWaiverModal').modal('hide');
+            saveToLocalStorage();
+        }
+        function getRequestParameter( name ) {
+            name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+            var regexS = "[\\?&]"+name+"=([^&#]*)";
+            var regex = new RegExp( regexS );
+            var results = regex.exec( window.location.href );
+            if( results == null )
+                return "";
+            else
+                return unescape(results[1]);
+        }
+      </script>
+    </apex:define>  
+    
+    </apex:composition>
+</apex:page>

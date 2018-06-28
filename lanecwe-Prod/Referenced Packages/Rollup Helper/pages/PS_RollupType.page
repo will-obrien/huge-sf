@@ -1,0 +1,159 @@
+<!--*************************************************************************************************************************
+/*                                                                                                                          *
+/*  Company: Passage Technology, All Rights Reserved                                                                        *
+/*  Purpose: Build source query for rollups.                                    											*
+/*  Author:  Brent Gossett (224-552-0077)                                                                                   *
+/*                                                                                                                          *
+/****************************************************************************************************************************-->
+
+<apex:page controller="rh2.PS_SelectMaster_Controller" sidebar="false" tabStyle="PS_Rollup_Helper__tab">
+    
+    <apex:includeScript value="{! URLFOR($Resource.PT_Resources_v1, '/js/modernizr-1.7.min.js') }"/>
+     
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/reset.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/grid.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/general.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/css3.css') }"/>    
+    
+    <style>
+        [id$=heading] { padding-top:20px; padding-bottom:5px;}
+        .h_scroll {overflow-x:auto;}
+        .caption {font-size:smallest; padding-left:10px; padding-bottom:5px; padding-top:5px;}
+  		.breadcrumb {font-size:small;}
+    </style>
+   
+    <apex:form >
+    <apex:outputPanel styleClass="row" layout="block">
+        <apex:outputPanel styleClass="col col_16 breadcrumb" id="heading">
+        		<apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_SelectMaster)}">Select Target Object</apex:outputLink>
+            	<apex:outputText styleClass="bold" value=" > "/>
+                <apex:outputLink styleClass="bold" value="{!URLFOR($Page.rh2__PS_SelectTargetField)}?mast={!masterAPI}">{!masterObjectLabel} Field For Results</apex:outputLink>
+            	<apex:outputText value=" > Define Summary Calculation"/>
+        </apex:outputPanel>
+    </apex:outputPanel>
+     
+    <apex:outputPanel styleClass="row" layout="block" rendered="{!AND(NOT(ISBLANK(masterObjectLabel)), NOT(ISBLANK(targetField_c)))}">
+    	<apex:pageBlock helpUrl="http://rolluphelper.passagetech.com/resources/user-guide/selecting-your-child-relationship--source-field"
+        				helpTitle="Help for this Page"
+         				title="Step 3. Define Summary Calculation"
+        >
+            
+            
+	        <apex:outputPanel styleClass="row" layout="block" style="padding-bottom:5px;">
+	       		<apex:pageBlockSection title="Select {! masterObjectLabel } Child (Related List)" showHeader="true" columns="1" collapsible="false"/>
+            
+	            <apex:selectList size="1" value="{! sourceAPI }" styleClass="col col_8">
+	                <apex:actionSupport event="onchange" action="{! refreshSource1 }" reRender="field1, field2, source, filter" status="statusMessage"/>
+	                <apex:selectOptions value="{! sourceObjects }" /> 
+	            </apex:selectList>
+	            <apex:outputPanel styleClass="col col_7">
+	        		<apex:actionStatus id="statusMessage" startText="(refreshing)" stopText=" " styleClass="caption" />
+	            </apex:outputPanel>                
+	            <apex:outputText styleClass="col col_1" value=" "/>
+            </apex:outputPanel>
+            
+            <apex:outputPanel id="field1">
+            <apex:outputPanel styleClass="row" layout="block" rendered="{! NOT(ISBLANK(sourceAPI)) }">
+            
+	            <apex:pageBlockSection title="Select {! sourceObject } Source For {! targetField_c }" showHeader="true" columns="5" collapsible="false"/>
+	           	<apex:outputPanel styleClass="row" layout="block">
+	           	
+	           		<apex:outputText value="Labels followed by a '>' indicate there are more fields available." styleClass="col col_16"/>
+	           	</apex:outputPanel>
+			
+	            <apex:outputPanel styleClass="row caption" layout="block">
+	                
+	                <apex:selectList size="8" value="{! sourceField1API }" styleClass="col col_4">
+	                    <apex:actionSupport event="onchange" action="{! refreshSource2 }" reRender="field2, source, filter" status="statusMessage"/>
+	                    <apex:selectOptions value="{! sourceFields1 }"/> 
+	                </apex:selectList>
+	                                
+	                <apex:outputPanel id="field2">
+	                    <apex:selectList size="8" value="{! sourceField2API }" styleClass="col col_4" rendered="{! AND(NOT(ISBLANK(sourceField1API)), sourceFields1FK)}">
+	                        <apex:actionSupport event="onchange" action="{! selectSourceField }" reRender="source, filter" status="statusMessage"/>
+	                        <apex:selectOptions value="{! sourceFields2 }"/> 
+	                    </apex:selectList>
+	                </apex:outputPanel>
+	
+	                <apex:outputPanel id="source" styleClass="col col_7">
+	                    <apex:outputPanel styleClass="row" layout="block" rendered="{! NOT(ISBLANK(sourceField_c)) }">
+	                        
+	                        <apex:outputPanel styleClass="col col_4 align_center h_scroll" style="height:135px;background-color:white;">
+	                            <apex:outputText value="You have selected:" styleClass="caption"/>
+	                            <br/>
+	                            <br/>
+	                            <apex:outputText value="{! SUBSTITUTE(sourceField_c, '.', ' > ') }" styleClass="bold"/>
+	                            <br/>
+	                            <br/>
+	                            <apex:outputText value="Type: {! sourceFieldType_c }"/><br />
+	                            <apex:outputText value="to rollup into {!targetField_c}" styleClass="caption"/>
+	                        </apex:outputPanel>
+	                        
+	                        <apex:outputPanel styleClass="col col_2" style="overflow-x:visible;">
+	                            <apex:outputText value="Select Type" styleClass="bold align_center caption"/>    
+	                            
+								<apex:selectRadio value="{!logic_c}" layout="pageDirection">
+								    <apex:selectOption itemValue="CNT" itemLabel="Count" />
+	                                <apex:selectOption itemValue="CON" itemLabel="Concatenate"/>
+	                                <apex:selectOption itemValue="MAX" itemLabel="Maximum"/>
+	                                <apex:selectOption itemValue="MIN" itemLabel="Minimum"/>
+	                                <apex:selectOption itemValue="AVG" itemLabel="Average" rendered="{! AND(IF(sourceFieldType_c != 'DATE', true, false), IF(sourceFieldType_c != 'DATETIME', true, false))}" />
+				                    <apex:selectOption itemValue="SUM" itemLabel="Sum" rendered="{! AND(IF(sourceFieldType_c != 'DATE', true, false), IF(sourceFieldType_c != 'DATETIME', true, false))}" />
+	                        		<apex:actionSupport event="onchange" action="{! selectSourceField }" reRender="filter" status="statusMessage"/>                                
+	                            </apex:selectRadio> 
+	                       
+	                        </apex:outputPanel>
+	                         
+	                    </apex:outputPanel>
+	                </apex:outputPanel>
+	                
+	            </apex:outputPanel>
+  			</apex:outputPanel>
+			</apex:outputPanel>
+            
+            <apex:outputPanel id="filter">
+            <apex:outputPanel rendered="{! NOT(ISBLANK(logic_c)) }" >
+				<apex:outputPanel styleClass="row" layout="block" >
+               	<apex:outputText styleClass="col col_16 bold" value="Query Preview"/>
+               	</apex:outputPanel>      
+				<apex:outputPanel styleClass="row" layout="block" id="preview">
+               	<code class="col col_16" style="margin-bottom:10px;">
+               		{!queryString}
+               	</code>
+               	</apex:outputPanel>
+               	
+				<apex:outputPanel styleClass="row" layout="block">
+	               	<apex:pageBlockSection title="Custom Filter (Optional)" showHeader="true" columns="1" collapsible="false"/>
+               	
+	               	<apex:outputText value="Select Filter" styleClass="col col_2 align_right bold"/>
+	               	<apex:selectList size="1" value="{! filterName }" styleClass="col col_5 align_left">
+						<apex:actionSupport action="{!buildFilterString}" event="onchange" reRender="filter_edit, preview"/>                                
+	                   	<apex:selectOptions value="{! filterNames }"/>  
+	               	</apex:selectList> 
+	                
+	               	<apex:outputPanel styleClass="col col_8" id="filter_edit">
+	                 	<apex:outputPanel rendered="{! NOT(ISBLANK(filterName)) }">
+		        			<apex:commandLink action="{!editFilter}" value="Edit"/>
+		            		<apex:outputText styleClass="" value=" | "/>
+	           			</apex:outputPanel>          	 
+	           			<apex:commandLink action="{! createFilter }" value="Create New Filter"/>
+					</apex:outputPanel>	
+					<apex:outputText styleClass="col col_1" value=" "/>
+	               	</apex:outputPanel>
+	                
+	                <apex:outputPanel styleClass="row" layout="block" style="padding-top:10px;">
+	                	<apex:outputPanel styleClass="col col_12" style="padding-top:5px;">
+	                     <apex:outputLink value="{!URLFOR($Page.rh2__PS_SelectMaster)}">
+	                         Cancel
+	                     </apex:outputLink>
+	                    </apex:outputPanel>
+	                    <apex:commandButton action="{! save }" value="Save" styleClass="col col_1"/> 
+	                </apex:outputPanel>
+                
+	            </apex:outputPanel>
+            </apex:outputPanel>
+                                 
+        </apex:pageBlock>
+    </apex:outputPanel>
+    </apex:form>
+</apex:page>

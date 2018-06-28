@@ -1,0 +1,534 @@
+<apex:page title="{!HTMLENCODE($Label.SETUP_TITLE)}" controller="sf4twitter.SocialSetupController" 
+tabStyle="Social_Setup__tab" showHeader="{!!consoleDetector.inConsole}" sidebar="false" >
+<apex:includeScript value="/support/console/22.0/integration.js"/>
+<apex:stylesheet value="{!URLFOR($Resource.sf4twitter__jqueryUI, '/css/smoothness/jquery-ui-1.8.16.custom.css')}"/>
+<script src="{!URLFOR($Resource.jQueryLibrary)}"></script>
+<script src="{!URLFOR($Resource.jqueryUI,'/js/jquery-ui-1.8.16.custom.min.js')}"></script>
+
+<script> 
+    //no conflict
+    var $j = jQuery.noConflict();
+
+    $j(document).ready(function() {
+
+        $j("#tabs2").tabs();
+        $j("#tabs2").tabs('select', 0 );
+    });
+    function _validate( _class ){
+        if( $j( '.'+_class ).val() == '' ){
+            $j( '.'+_class + '_Error').show('fast');
+            return false;
+        }else{
+            $j( '.'+_class + '_Error').hide('fast');
+        }
+        return true;
+    }
+    function _cancel( id, arrayEmpty ){
+        $j( '.errorMsg' ).hide('fast');
+        $j( id ).slideToggle('fast');
+        
+        $j.each( arrayEmpty, function(index, value ) { 
+            $j(value).val(''); 
+        });
+        return false;
+    }
+    function handleKeyWordPress(e){
+          var key= 0;
+          if(window.event){
+            key= e.keyCode;
+            }else if(e.which){
+           key= e.which;
+          }
+            if(key==13){
+            saveKWbutton.click();
+            }
+    }
+    function handleTwAccPress(e){
+          var key= 0;
+          if(window.event){
+            key= e.keyCode;
+            }else if(e.which){
+           key= e.which;
+          }
+            if(key==13){
+            saveTAbutton.click();
+            }
+    }
+    function handleFcbkPress(e){
+          var key= 0;
+          if(window.event){
+            key= e.keyCode;
+            }else if(e.which){
+           key= e.which;
+          }
+            if(key==13){
+            saveFcbkbutton.click();
+            }
+    }
+</script>
+<style>
+    .menu{
+        color: #069BCE;
+        font-size: 120%;
+        font-weight: bolder;
+        outline: medium none;
+        text-decoration: none;
+        weight: 200px;
+    }
+    h1{
+        font-family: Arial,Helvetica,sans-serif;
+        font-size: 1.7em;
+        padding-bot: 10px;
+    }
+    .lastCell{
+        padding-left: 12px;
+    }
+    .lastCell:active
+    {
+        text-decoration: none;
+        color: #B5B5B5;
+    } 
+    .logsCells{
+        padding-left: 12px;
+        padding-right: 12px;
+        border-right: solid;
+        border-color: #D7D3F0;
+    }
+    .logLink
+    {
+        text-decoration: underline;
+        color: #015BA7 !important;
+        cursor: pointer;
+    }
+    .active{
+        text-decoration: none;
+        color: #D7D3F0 !important;
+    }
+    #tabs, #tabs2 {
+        margin: 0;
+        padding: 10px 0px;
+        overflow: hidden;
+        display: block; 
+        background-color: #fff;
+    }
+    #tabs2 .ui-tabs-nav li {
+        width: 210px;
+        border: none;
+        list-style: none;
+        position: relative;
+        top: 1px;
+        float: left;        
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        display: block;
+    }
+    #tabs2 .ui-tabs-panel{
+        padding: 10px 0px;
+    }
+    
+    .pageTitleIcon{
+    	background-image: none !important;
+    }
+    .bPageTitle .ptBody{
+    	overflow: visible;
+    }
+    body .bPageTitle {
+		padding: 0px 0 0 !important;
+	}
+	.bPageTitle .ptBody .content {
+		float: left !important;
+		vertical-align: middle !important;
+		padding-left: 5px !important;
+		width: 0px !important;
+		height: 0px !important;
+	}
+	body .bPageTitle .ptBody .links {
+		padding-top: 0;
+		height: 0px;
+	}	
+</style>
+ <apex:sectionHeader title="" help="https://help.salesforce.com"/>
+    <apex:form >
+        <apex:pageBlock mode="maindetail" rendered="{!showSetupConfBtn}">
+            <apex:outputPanel layout="block" styleClass="message warningM3" >
+                <apex:image value="/img/msg_icons/warning24.png" style="padding: 0px 5px; float: left;" />
+				<apex:outputText escape="false" value="{!SUBSTITUTE( $Label.SETUP_WARNING_MESSAGE, '{0}', $Page.sf4twitter__SocialSetup )}" ></apex:outputText>
+            </apex:outputPanel>
+            <p>
+                <apex:commandButton action="{!createSetupConf}" value="{!$Label.Enable_Application_Button}" id="btnCreate" />
+            </p>
+        </apex:pageBlock>
+
+        <apex:pageBlock id="mainContainer" mode="maindetail" rendered="{!NOT(showSetupConfBtn)}">
+        
+             <div id="tabs">
+                <div style="width: 250px; float: left; padding: 0px 10px;" class="ui-tabs ui-widget ui-widget-content ui-corner-all">
+                    <ul class="ui-tabs-nav ui-helper-reset ui-helper-clearfix ui-widget-header ui-corner-all">
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '0','ui-tabs-selected ui-state-active','')}">
+                    	
+                    	<a href="{!AboutTabLinkContent}">
+                            <span class="menu">{!$Label.SOCIAL_SETUP_ABOUT}</span>
+                        </a>
+                    </li>
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '1','ui-tabs-selected ui-state-active','')}">
+                    	<a href="{!TwitterAccountsTabLinkContent}">
+                            <span class="menu">
+                                <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/Twitter_32x32.png')}" width="16" height="16" style="margin: left;" />
+                                {!$Label.Twitter_Accounts}
+                            </span>
+                        </a>
+                    </li>
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '2','ui-tabs-selected ui-state-active','')}">
+                    	<a href="{!TwitterKeywordsTabLinkContent}">
+                            <span class="menu">
+                                <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/Twitter_32x32.png')}" width="16" height="16" style="margin: left;" />
+                                {!$Label.SOCIAL_SETUP_TWITTER_KEYWORDS}
+                            </span>
+                        </a>
+                    </li>
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '3','ui-tabs-selected ui-state-active','')}">
+                    	<a href="{!FacebookTabLinkContent}">
+                            <span class="menu">
+                                <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/FaceBook_32x32.png')}" width="16" height="16" style="margin: left;" />
+                                Facebook
+                            </span>
+                        </a>
+                    </li>
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '4','ui-tabs-selected ui-state-active','')}">
+                    	<a href="{!TwitterSchedulerTabLinkContent}">
+                            <span class="menu">{!$Label.TWITTER_SCHEDULER_PAGE_TITLE}</span>
+                        </a>
+                    </li>
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '5','ui-tabs-selected ui-state-active','')}">
+                    	<a href="{!AdvancedTabLinkContent}">
+                            <span class="menu">{!$Label.SOCIAL_SETUP_ADVANCED}</span>
+                        </a>
+                    </li>
+                    <li class="ui-state-default ui-corner-top {!IF($CurrentPage.parameters.tab == '6','ui-tabs-selected ui-state-active','')}">
+                    	<a href="{!TroubleshootingTabLinkContent}">
+                            <span class="menu">{!$Label.TROUBLESHOOTING_LOG}</span>
+                        </a>
+                    </li>
+                    </ul>
+                </div>
+                <div style="float: left; width: 70%;  min-height: 400px; padding: 0px 15px;" >
+                    <!-- ABOUT ------------------------------------------------------>
+                    
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '0'}" >
+                    
+                        <div id="AboutDescription" style="width: 60%; float:left; ">
+                            <h1 style="text-shadow: 2px 2px 2px #6B7A7B; font-size: 23px;">
+                                       {!$Label.SOCIAL_SETUP_TITLE}
+                            </h1><br/>
+                            <h2> {!$Label.SOCIAL_SETUP_DESCRIPTION} </h2>
+                            <p>{!$Label.SOCIAL_SETUP_TEXT}</p>
+                        </div>
+                        <div style="float:left;
+                                    border-left: 1px;
+                                    padding-left: 30px;
+                                    width: 35%;
+                                    ">
+                            <div id="imagePlaceHolder" style="  height:300px;
+                                                                width: 300px;
+                                                                background: #6B7A7B;">
+                                <img src="{!URLFOR($Resource.Social_Setup_Icon)}" width="300px" height="300px" />                                              
+                            </div>
+                            <ul>
+                                <li>
+                                    <a href="https://sites.secure.force.com/appexchange/listingDetail?listingId=a0N30000003HpEQEA0" target="_blank">{!$Label.SOCIAL_SETUP_LINK}</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div style="clear:both;"></div>
+                    
+                    </apex:outputPanel>
+
+                    <!-- Twitter Accounts ------------------------------------------->
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '1'}" >
+                        <h1>{!$Label.Twitter_Accounts}</h1>
+                        <apex:pageBlock id="TwitterAccountListPanel">
+                            <apex:pageBlockTable value="{!TwitterAccountList}" var="k" id="TwitterAccountList">>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Name}</apex:facet>
+							        <c:SocialOutputLink linkValue="{!k.Name}" linkURL="/{!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Username}</apex:facet>
+                                    <apex:outputText value="{!k.sf4twitter__Username__c}" />
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Active}</apex:facet>
+                                    <apex:image value="{!IF(k.sf4twitter__Active__c,'/img/checkbox_checked.gif','/img/checkbox_unchecked.gif')}" />
+                                </apex:column>                      
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Validated}</apex:facet>
+                                    <apex:image value="{!IF(k.sf4twitter__Valid__c,'/img/checkbox_checked.gif','/img/checkbox_unchecked.gif')}" />
+                                </apex:column>
+                            </apex:pageBlockTable>
+                        </apex:pageBlock>
+                        
+                        <apex:outputPanel layout="block" rendered="{!isCreateableTwAcc}">
+        
+                            <p><input type="button" onClick="$j('#TwitterAccountInsertPanelDiv').slideToggle('fast');return false;" value="{!$Label.TWITTER_STATUS_NEW}" /></p>
+                            
+                            <div id="TwitterAccountInsertPanelDiv" style="{!IF( error,'display:block;','display:none;')}">
+                                <apex:pageBlock id="TwitterAccountInsertPanel">
+                                    <apex:pageBlockButtons location="bottom" >
+                                        <apex:commandButton onClick="return( _validate('TwitterAccount_Name') && _validate('TwitterAccount_Username') );" action="{!saveTwitterAccount}" value="{!$Label.Save}" id="saveTwAccBtn"/>
+                                        <apex:commandButton onClick="return _cancel('#TwitterAccountInsertPanelDiv', ['.TwitterAccount_Name', '.TwitterAccount_Username' ] );" value="{!$Label.Cancel}" />
+                                        <script> var saveTAbutton = document.getElementById("{!$Component.saveTwAccBtn}"); </script>
+                                    </apex:pageBlockButtons>
+                                    
+                                    <apex:pageblocksection collapsible="false"> 
+                                        <apex:pageblocksectionitem >
+                                            <apex:outputLabel value="{!$Label.Name}" />
+                                            <apex:outputPanel layout="block" >
+                                                <apex:inputText value="{!newTwitterAccount.Name}" maxlength="80" styleClass="TwitterAccount_Name" onkeypress="handleTwAccPress(event);"/><br />
+                                                <apex:outputLabel value="{!errorMsg}" styleClass="errorMsg TwitterAccount_Name_Error" style="display:none;" />
+                                            </apex:outputPanel>                                 
+                                        </apex:pageblocksectionitem>
+                                    </apex:pageblocksection>
+                
+                                    <apex:pageblocksection collapsible="false"> 
+                                        <apex:pageblocksectionitem >
+                                            <apex:outputLabel value="{!$Label.TWITTER_USERNAME}" />
+                                            <apex:outputPanel layout="block" >
+                                            <apex:inputText value="{!newTwitterAccount.sf4twitter__Username__c}" maxlength="38" styleClass="TwitterAccount_Username" onkeypress="handleTwAccPress(event);"/><br />
+                                                <apex:outputLabel value="{!errorMsg}" styleClass="errorMsg TwitterAccount_Username_Error" style="{!IF( error,'display:block;','display:none;')}" />
+                                            </apex:outputPanel>                                 
+                                        </apex:pageblocksectionitem>
+                                    </apex:pageblocksection>
+                                    
+                                </apex:pageBlock>
+                            </div>
+                        </apex:outputPanel>            
+                    </apex:outputPanel>
+        
+                    <!-- Twitter Keywords ------------------------------------------->
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '2'}" >
+                        <h1>{!$Label.SOCIAL_SETUP_TWITTER_KEYWORDS}</h1>
+                        <apex:pageBlock id="TwitterKeywordsListPanel">
+                            <apex:pageBlockTable value="{!TwitterKeywordsList}" var="k" id="TwitterKeywordsList">>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Name}</apex:facet>
+							        <c:SocialOutputLink linkValue="{!k.Name}" linkURL="/{!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.TWITTER_SCHEDULER_PAGE_TITLE_KEY}</apex:facet>
+                                    <apex:outputText value="{!k.sf4twitter__Twitter_Keyword_Search__c}" />
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Active}</apex:facet>
+                                    <apex:image value="{!IF(k.sf4twitter__Active__c,'/img/checkbox_checked.gif','/img/checkbox_unchecked.gif')}" />
+                                </apex:column>
+                            </apex:pageBlockTable>
+                        </apex:pageBlock>
+                        
+                        <apex:outputPanel layout="block" rendered="{!isCreateableTwKey}">
+        
+                            <p><input type="button" onClick="$j('#TwitterKeywordsInsertPanelDiv').slideToggle('fast');return false;" value="{!$Label.TWITTER_STATUS_NEW}" /></p>
+                            
+                            <div id="TwitterKeywordsInsertPanelDiv" style="{!IF(error,'display:block;','display:none;')}">
+                                <apex:pageBlock id="TwitterKeywordsInsertPanel">
+                                    
+                                    <apex:pageBlockButtons location="bottom" >
+                                        <apex:commandButton onClick="return( _validate('TwitterKeyword_Name') && _validate('TwitterKeyword_Key') );" action="{!saveKeyWordSearch}" value="{!$Label.Save}" id="saveKeyWordBtn"/>
+                                        <apex:commandButton onClick="return _cancel( '#TwitterKeywordsInsertPanelDiv', ['.TwitterKeyword_Name','.TwitterKeyword_Key'] );" value="{!$Label.Cancel}" />
+                                        <script> var saveKWbutton = document.getElementById("{!$Component.saveKeyWordBtn}"); </script>
+                                    </apex:pageBlockButtons>
+                                    
+                                    <apex:pageblocksection collapsible="false" >    
+                                        <apex:pageblocksectionitem >
+                                            <apex:outputLabel value="{!$Label.Name}" />
+                                            <apex:outputPanel layout="block" >
+                                                <apex:inputText value="{!newKeyWordSearch.Name}" maxlength="80" styleClass="TwitterKeyword_Name" onkeypress="handleKeyWordPress(event);"/><br />
+                                                <apex:outputLabel value="{!errorMsg}" styleClass="errorMsg TwitterKeyword_Name_Error" style="display:none;" />
+                                            </apex:outputPanel>
+                                        </apex:pageblocksectionitem>
+                                    </apex:pageblocksection>
+                
+                                    <apex:pageblocksection collapsible="false"> 
+                                        <apex:pageblocksectionitem >
+                                            <apex:outputLabel value="{!$Label.TWITTER_SCHEDULER_PAGE_TITLE_KEY}" />
+                                            <apex:outputPanel layout="block" >
+                                                <apex:inputText value="{!newKeyWordSearch.sf4twitter__Twitter_Keyword_Search__c}" maxlength="255" styleClass="TwitterKeyword_Key" onkeypress="handleKeyWordPress(event);"/><br />
+                                                <apex:outputLabel value="{!errorMsg}" styleClass="errorMsg TwitterKeyword_Key_Error" style="{!IF(error,'display:block;','display:none;')}" />
+                                            </apex:outputPanel>
+                                        </apex:pageblocksectionitem>
+                                    </apex:pageblocksection>
+                                    
+                                </apex:pageBlock>
+                            </div>
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+                    
+                    <!-- Facebook --------------------------------------------------->
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '3'}" >
+                        <h1>{!$Label.Answer_Integration_Title}</h1>
+                        <apex:pageBlock id="FacebookPageListPanel">
+                        <h2>Pages</h2>
+                            <apex:pageBlockTable value="{!FacebookPageList}" var="k" id="FacebookPageList">>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Name}</apex:facet>
+							        <c:SocialOutputLink linkValue="{!k.Name}" linkURL="/{!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">Facebook Id</apex:facet>
+                                    <apex:outputText value="{!k.sf4twitter__Fcbk_Id__c}" />
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Validated}</apex:facet>
+                                    <apex:image value="{!IF(k.sf4twitter__Valid__c,'/img/checkbox_checked.gif','/img/checkbox_unchecked.gif')}" />
+                                </apex:column>
+                            </apex:pageBlockTable>
+                        </apex:pageBlock>
+                        
+                        
+                        <apex:pageBlock id="FacebookUserListPanel">
+                            <h2>Users</h2>
+                            <apex:pageBlockTable value="{!FacebookUserList}" var="k" id="FacebookUserList">>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Name}</apex:facet>
+							        <c:SocialOutputLink linkValue="{!k.Name}" linkURL="/{!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                </apex:column>
+                                <apex:column >
+                                    <apex:facet name="header">{!$Label.Validated}</apex:facet>
+                                    <apex:image value="{!IF(k.sf4twitter__Valid__c,'/img/checkbox_checked.gif','/img/checkbox_unchecked.gif')}" />
+                                </apex:column>
+                            </apex:pageBlockTable>
+                        </apex:pageBlock>
+                        
+                        <apex:outputPanel layout="block" rendered="{!isCreateableTwFcbk}">
+                        
+                            <p><input type="button" onClick="$j('#FacebookUserInsertPanelDiv').slideToggle('fast');return false;" value="{!$Label.TWITTER_STATUS_NEW}" /></p>
+            
+                            <div id="FacebookUserInsertPanelDiv" style="display:none;">
+                            
+                                <apex:pageBlock id="FacebookUserInsertPanel">
+                                    
+                                    <apex:pageBlockButtons location="bottom" >
+                                        <apex:commandButton onClick="return( _validate('Facebook_Name') );" action="{!saveFacebookUser}" value="{!$Label.Save}" id="saveFacebookBtn"/>
+                                        <apex:commandButton onClick="return _cancel( '#FacebookUserInsertPanelDiv', ['.Facebook_Name'] );" value="{!$Label.Cancel}" />
+                                        <script> var saveFcbkbutton = document.getElementById("{!$Component.saveFacebookBtn}"); </script>
+                                    </apex:pageBlockButtons>
+                                    
+                                    <apex:pageblocksection collapsible="false" columns="2" showHeader="false">  
+                                        <apex:pageblocksectionitem >
+                                            <apex:outputLabel value="{!$Label.Name}" />
+                                            <apex:outputPanel layout="block" >
+                                                <apex:inputText value="{!newFacebookUser.Name}" maxlength="80" styleClass="Facebook_Name" onkeypress="handleFcbkPress(event);"/><br />
+                                                <apex:outputLabel value="{!$Label.SOCIAL_SETUP_ERROR}" styleClass="errorMsg Facebook_Name_Error" style="display:none;" />
+                                            </apex:outputPanel>                                 
+                                        </apex:pageblocksectionitem>
+                                    </apex:pageblocksection>
+            
+                                </apex:pageBlock>            
+                            </div>
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+        
+                    <!-- Scheduled Searches ----------------------------------------->
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '4'}" >
+                        <h1>{!$Label.TWITTER_SCHEDULER_PAGE_TITLE}</h1>
+                        <apex:iframe src="{!URLFOR($Page.sf4twitter__TwitterScheduler)}?e=" scrolling="true" width="100%" height="900px"/>
+                    </apex:outputPanel>
+        
+                    <!-- Advanced --------------------------------------------------->
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '5'}" >
+                        <h1>{!$Label.SOCIAL_SETUP_ADVANCED}</h1>
+                        <apex:iframe src="{!URLFOR($Page.sf4twitter__Setup)}?e={!firstTimeSettings}" scrolling="true" width="100%" height="900px"/>
+                    </apex:outputPanel>
+        
+                    <!-- Troubleshooting -------------------------------------------->
+                    <apex:outputPanel layout="block" rendered="{!$CurrentPage.parameters.tab == '6'}" >
+                        <h1>{!$Label.TROUBLESHOOTING_LOG}</h1>
+                        <div id="tabs2">
+                             <ul>
+                                 <li><a href="#tabs2-1">{!$Label.SOCIAL_SETUP_TWITTER_LOG}</a></li>
+                                 <li><a href="#tabs2-2">{!$Label.SOCIAL_SETUP_TWITTER_RSS}</a></li>
+                                 <li><a href="#tabs2-3">{!$Label.SOCIAL_SETUP_FACEBOOK_LOG}</a></li>
+                                 <li><a href="#tabs2-4">{!$Label.SOCIAL_SETUP_FACEBOOK_RSS}</a></li>
+                             </ul>
+                            <div id="tabs2-1">
+                                <apex:pageBlock >
+                                    <apex:pageBlockTable value="{!TwitterLogFiles}" var="k" id="TwitterLogFiles">>
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_LOG_DAY}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!LEFT(k.Name, 22)}" linkURL="{!$Page.sf4twitter__TroubleshootingLog}?f={!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_LOG_TIME}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!RIGHT(k.Name, 19)}" linkURL="{!$Page.sf4twitter__TroubleshootingLog}?f={!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                    </apex:pageBlockTable>
+                                </apex:pageBlock>
+                            </div>
+                            <div id="tabs2-2">
+                                <apex:pageBlock id="RSSTwitter">
+							        <apex:pageMessage severity="error" strength="2" rendered="{!TwitterRSSErrors}">
+						    			<apex:outputText value="{!$Label.RSS_NOT_AVAILABLE}">
+											<apex:param value="Twitter" />
+										</apex:outputText>
+						    		</apex:pageMessage>
+							        <apex:pageBlockTable value="{!templistTwitter}" var="k" rendered="{!!TwitterRSSErrors}">
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_RSS_NAME}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!k.title}" linkURL="{!k.link}" linkTarget="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column> 
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_RSS_DATE}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!k.pubDate}" linkURL="{!k.link}" linkTarget="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                    </apex:pageBlockTable>
+                                    <apex:outputPanel layout="block" rendered="{!showPaginatorRSSTwitter}" StyleClass="paginator">
+                                        <apex:commandLink action="{!previousPageRSSTwitter}" rendered="{!hasPreviousRSSTwitter}" rerender="RSSTwitter"> {!$Label.Previous} </apex:commandlink>
+                                        <apex:commandLink action="{!nextPageRSSTwitter}" rendered="{!hasNextRSSTwitter}" rerender="RSSTwitter" > {!$Label.Next}  </apex:commandlink>
+                                    </apex:outputPanel>
+                                </apex:pageBlock>
+                            </div>
+                            <div id="tabs2-3">
+                                <apex:pageBlock >
+                                    <apex:pageBlockTable value="{!FacebookLogFiles}" var="k" id="FacebookLogFiles">>
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_LOG_DAY}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!LEFT(k.Name, 23)}" linkURL="{!$Page.sf4twitter__TroubleshootingLog}?f={!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_LOG_TIME}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!RIGHT(k.Name, 19)}" linkURL="{!$Page.sf4twitter__TroubleshootingLog}?f={!k.Id}" openConsoleTab="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                    </apex:pageBlockTable>
+                                </apex:pageBlock>
+                            </div>
+
+                            <div id="tabs2-4">
+                                <apex:pageBlock >
+							        <apex:pageMessage severity="error" strength="2" rendered="{!FacebookRSSErrors}">
+						    			<apex:outputText value="{!$Label.RSS_NOT_AVAILABLE}">
+											<apex:param value="Facebook" />
+										</apex:outputText>
+						    		</apex:pageMessage>
+							        <apex:pageBlockTable value="{!templistFacebook}" var="k" id="RSSFacebook" rendered="{!!FacebookRSSErrors}">
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_RSS_NAME}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!k.title}" linkURL="{!k.link}" linkTarget="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                        <apex:column >
+                                            <apex:facet name="header">{!$Label.SOCIAL_SETUP_RSS_DATE}</apex:facet>
+							                <c:SocialOutputLink linkValue="{!k.pubDate}" linkURL="{!k.link}" linkTarget="true" enableOpenTab="true"></c:SocialOutputLink>
+                                        </apex:column>
+                                        <apex:outputPanel layout="block" rendered="{!showPaginatorRSSTwitter}" StyleClass="paginator">
+                                            <apex:commandLink action="{!previousPageRSSFacebook}" rendered="{!hasPreviousRSSFacebook}" rerender="RSSFacebook" > {!$Label.Previous} </apex:commandlink>
+                                            <apex:commandLink action="{!nextPageRSSFacebook}" rendered="{!hasNextRSSFacebook}" rerender="RSSFacebook" > {!$Label.Next} </apex:commandlink>
+                                        </apex:outputPanel>
+                                    </apex:pageBlockTable>
+                                </apex:pageBlock>
+                            </div>
+                        </div>
+                    </apex:outputPanel>
+                </div>
+            </div>  
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

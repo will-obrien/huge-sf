@@ -1,0 +1,59 @@
+<!-- 
+Copyright 2011 Jeff Trull <jetrull@sbcglobal.net>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
+<apex:component controller="CampaignHierarchyController">
+	<!-- a VF component for selecting a campaign from the hierarchy with an ExtJS TreePanel -->
+	<!-- Jeff Trull 2010-09-19 -->
+	<apex:attribute name="allowinactiveselect" type="Boolean" description="Whether to permit users to select inactive Campaigns" default="false"/>
+	<apex:attribute name="fn" type="String" description="name of a Javascript function to call with ID once a Campaign is selected." required="true"/>
+
+    <script type="text/javascript">
+        Ext.onReady(function(){
+            var allowinactive = ("{!allowinactiveselect}" == "true");
+        	var tree = Ext.create('Ext.tree.Panel', {
+                renderTo: 'treediv',
+                useArrows: true,
+                autoScroll: true,
+                animate: true,
+                containerScroll: true,
+                border: false,
+				height: 250,
+                root: {
+                    text: 'All Campaigns',
+                    expanded: true,
+                    disabled: true,
+                    id: 'camproot'
+                },
+                listeners: {
+                    // for the treepanel - but apparently not the menu - I can define a single event function for the whole thing
+                    itemclick: function(view, model, item, index) { {!fn}(model.data.id.substr(4)); }  // execute supplied callback
+                }
+            });
+            // add the campaigns as tree nodes
+            var parentNode;
+            <apex:repeat value="{!CampaignTree}" var="c" id="treenodes">
+                // add this Campaign as a menu item
+                parentNode = tree.getStore().getNodeById(("{!c.parentid}" == "") ? "camproot" : ("NODE" + "{!c.parentid}"));
+                parentNode.appendChild({id : ("NODE" + "{!c.id}"), text : "{!c.name}", leaf : "{!c.isleaf}",
+                                        // do not allow selecting inactive campaigns
+                                        disabled : !allowinactive && {!NOT(c.isActive)},
+                                        // if they are leafs, do not even show them...
+                                        hidden : !allowinactive && {!AND(c.isLeaf, NOT(c.isActive))}});
+            </apex:repeat>
+        });
+    </script>
+    <div id="treediv"/>
+
+</apex:component>

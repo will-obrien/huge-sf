@@ -1,0 +1,528 @@
+<apex:page showHeader="FALSE" sidebar="FALSE" standardStylesheets="FALSE" docType="html-5.0" cache="FALSE" title="Take Action Today!" applyHTMLTag="FALSE">
+<html>
+<head lang="en">
+<meta charset="UTF-8" />
+<title>Email Signups</title>
+<link href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet" />
+<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet" />
+<script src="//code.jquery.com/jquery-2.1.4.min.js"></script>
+<script>
+$(document).ready(function() {
+    var url = '/actions/services/apexrest/SubscriptionAPI',
+        useForm = '.email-signup-form';
+    $('.email-signup-form').on('submit', function(e) {
+        e.preventDefault();
+        var formValuesJSON = {},
+            formValuesArray = $(useForm).serializeArray();
+        for (var i=0; i<formValuesArray.length; i++) {
+            formValuesJSON[formValuesArray[i].name] = formValuesArray[i].value;
+        }
+        console.log({"request" : formValuesJSON });
+        $('.email-messaging').html('Sign up is Processing...').removeClass('alert-warning alert-success').addClass('alert-info').show();
+        $('.email-signup input[type="submit"]').prop('disabled',true).addClass('disabled');
+        $.ajax({
+            url : url,
+            method: 'POST',
+            dataType: 'json',
+            data: JSON.stringify({"request" : formValuesJSON}),
+            contentType: 'application/json'
+        })
+        .success(function(response, status) {
+            console.log(status);
+            console.log(response);
+            if (response.errorMessage != null ) {
+                if (response.errorMessage === 'INVALID_EMAIL_ADDRESS') {
+                    $('.email-messaging').html('Sorry. The email ' + $('#email').val() + ' you entered is invalid.').removeClass('alert-info alert-success').addClass('alert-warning').show();
+                } else {
+                    $('.email-messaging').html('Sorry. Something went wrong with the submission.<br>Error: ' + response.errorMessage).removeClass('alert-info alert-success').addClass('alert-warning').show();
+                }
+            } else {
+                $('.email-messaging').html('You&rsquo;re all set. The next time we publish <em>{!$CurrentPage.parameters.ET}</em> you should get it in your email inbox.').removeClass('alert-info alert-warning').addClass('alert-success').show();
+            }
+        })
+        .fail(function(response, status) {
+            console.log(status);
+            console.log(response);
+            $('.email-messaging').html('Sorry. Something went wrong with the submission.').removeClass('alert-info alert-success').addClass('alert-warning').show();
+        })
+        .always(function() {
+      //      $('.email-messaging').hide();
+      //      $('.email-signup input[type="submit"]').prop('disabled',false).removeClass('disabled');
+        });
+        return false;
+    });
+});
+</script>
+<style>
+.email-signup {
+    background-color: rgba(255,255,255,0.7);
+    padding-bottom: 15px;
+    position: relative;
+}
+.email-signup-form {
+    padding: 0 20px;
+}
+.email-signup-form .submit-container {
+    display: table;
+    padding-top: 20px;
+    width: 100%;
+}
+.email-messaging {
+    display: none;
+    padding: 15px;
+    text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="container-fluid email-signup">
+    <div class="email-messaging"></div>
+    <form class="email-signup-form">
+        <input type="hidden" name="Source" value="{!$CurrentPage.parameters.PS}" />
+        <input type="hidden" name="SourceURL" value="{!$CurrentPage.URL}" />
+        <input type="hidden" name="preferenceCode" value="{!$CurrentPage.parameters.PC}" />
+        <h3 class="email-signup-title">Sign Up for {!$CurrentPage.parameters.ET} Email</h3>
+        <div class="form-group col-sm-12">
+            <label for="email">Email</label>
+            <input class="form-control" name="email" placeholder="email" type="email" id="email" required="required" />
+        </div>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.FN =='1'}">
+        <div class="form-group col-sm-6">
+            <label for="firstName">First Name</label>
+            <input class="form-control" name="firstName" placeholder="first name" id="firstName" />
+        </div>
+</apex:outputpanel>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.LN =='1'}">
+        <div class="form-group col-sm-6">
+            <label for="lastName">Last Name</label>
+            <input class="form-control" name="lastName" placeholder="last name" id="lastName" />
+        </div>
+</apex:outputpanel>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.SA =='1'}">
+        <div class="form-group col-sm-12">
+            <label for="streetAddress">Street Address</label>        
+            <input class="form-control" name="streetAddress" placeholder="street address" id="streetAddress" />
+        </div>
+</apex:outputpanel>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.TC =='1'}">
+        <div class="form-group col-sm-6">
+            <label for="city">City</label>        
+            <input class="form-control" name="city" placeholder="city" id="city" />
+        </div>
+</apex:outputpanel>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.SP =='1'}">
+        <div class="form-group col-sm-3">
+            <label for="state">State</label>
+            <select class="form-control" name="state" id="state">
+                <option>Choose a state</option>
+                <optgroup label="United States">
+                <option value="AK">AK</option>
+                <option value="AL">AL</option>
+                <option value="AR">AR</option>
+                <option value="AZ">AZ</option>
+                <option value="CA">CA</option>
+                <option value="CO">CO</option>
+                <option value="CT">CT</option>
+                <option value="DC">DC</option>
+                <option value="DE">DE</option>
+                <option value="FL">FL</option>
+                <option value="GA">GA</option>
+                <option value="HI">HI</option>
+                <option value="IA">IA</option>
+                <option value="ID">ID</option>
+                <option value="IL">IL</option>
+                <option value="IN">IN</option>
+                <option value="KS">KS</option>
+                <option value="KY">KY</option>
+                <option value="LA">LA</option>
+                <option value="MA">MA</option>
+                <option value="MD">MD</option>
+                <option value="ME">ME</option>
+                <option value="MI">MI</option>
+                <option value="MN">MN</option>
+                <option value="MO">MO</option>
+                <option value="MS">MS</option>
+                <option value="MT">MT</option>
+                <option value="NC">NC</option>
+                <option value="ND">ND</option>
+                <option value="NE">NE</option>
+                <option value="NH">NH</option>
+                <option value="NJ">NJ</option>
+                <option value="NM">NM</option>
+                <option value="NV">NV</option>
+                <option value="NY">NY</option>
+                <option value="OH">OH</option>
+                <option value="OK">OK</option>
+                <option value="OR">OR</option>
+                <option value="PA">PA</option>
+                <option value="RI">RI</option>
+                <option value="SC">SC</option>
+                <option value="SD">SD</option>
+                <option value="TN">TN</option>
+                <option value="TX">TX</option>
+                <option value="UT">UT</option>
+                <option value="VA">VA</option>
+                <option value="VT">VT</option>
+                <option value="WA">WA</option>
+                <option value="WI">WI</option>
+                <option value="WV">WV</option>
+                <option value="WY">WY</option>
+                </optgroup>
+                <optgroup label="US Territories">
+                <option value="AS">AS</option>
+                <option value="FM">FM</option>
+                <option value="GU">GU</option>
+                <option value="MH">MH</option>
+                <option value="MP">MP</option>
+                <option value="PR">PR</option>
+                <option value="PW">PW</option>
+                <option value="VI">VI</option>
+                </optgroup>
+                <optgroup label="Canada">
+                <option value="AB">AB</option>
+                <option value="BC">BC</option>
+                <option value="MB">MB</option>
+                <option value="NB">NB</option>
+                <option value="NL">NL</option>
+                <option value="NS">NS</option>
+                <option value="NT">NT</option>
+                <option value="NU">NU</option>
+                <option value="ON">ON</option>
+                <option value="PE">PE</option>
+                <option value="QC">QC</option>
+                <option value="SK">SK</option>
+                <option value="YT">YT</option>
+                </optgroup>
+                <optgroup label="Other Countries">
+                <option value="None">None</option>
+                </optgroup>
+            </select>
+        </div>
+</apex:outputpanel>
+
+        <div class="form-group col-sm-3">
+            <label for="zip">Zip Code</label>                
+            <input class="form-control" name="postalCode" placeholder="zip code" id="zip" required="required" />
+        </div>
+
+<apex:outputpanel rendered="{!$CurrentPage.parameters.CT =='1'}">        
+        <div class="form-group col-xs-12">
+            <label for="country">Country</label>                
+            <select class="form-control" name="country" id="country">
+                <option>Choose a country</option>
+                <option value="UNITED STATES">UNITED STATES</option>
+                <option value="AFGHANISTAN">AFGHANISTAN</option>
+                <option value="ALBANIA">ALBANIA</option>
+                <option value="ALGERIA">ALGERIA</option>
+                <option value="AMERICAN SAMOA">AMERICAN SAMOA</option>
+                <option value="ANDORRA">ANDORRA</option>
+                <option value="ANGOLA">ANGOLA</option>
+                <option value="ANGUILLA">ANGUILLA</option>
+                <option value="ANTARCTICA">ANTARCTICA</option>
+                <option value="ANTIGUA AND BARBUDA">ANTIGUA AND BARBUDA</option>
+                <option value="ARGENTINA">ARGENTINA</option>
+                <option value="ARMENIA">ARMENIA</option>
+                <option value="ARUBA">ARUBA</option>
+                <option value="ARUSHA">ARUSHA</option>
+                <option value="ASCENSION ISLAND">ASCENSION ISLAND</option>
+                <option value="AUSTRALIA">AUSTRALIA</option>
+                <option value="AUSTRIA">AUSTRIA</option>
+                <option value="AZERBAIJAN">AZERBAIJAN</option>
+                <option value="AZORES">AZORES</option>
+                <option value="BAHAMAS">BAHAMAS</option>
+                <option value="BAHRAIN">BAHRAIN</option>
+                <option value="BANGLADESH">BANGLADESH</option>
+                <option value="BARBADOS">BARBADOS</option>
+                <option value="BARBUDA">BARBUDA</option>
+                <option value="BELGIUM">BELGIUM</option>
+                <option value="BELIZE">BELIZE</option>
+                <option value="BENIN">BENIN</option>
+                <option value="BERMUDA">BERMUDA</option>
+                <option value="BHUTAN">BHUTAN</option>
+                <option value="BISMRK ARCHPLGO">BISMRK ARCHPLGO</option>
+                <option value="BOLIVIA">BOLIVIA</option>
+                <option value="BONAIRE">BONAIRE</option>
+                <option value="BOSNIA-HERCEGOVINA">BOSNIA-HERCEGOVINA</option>
+                <option value="BOTSWANA">BOTSWANA</option>
+                <option value="BR SAMOA">BR SAMOA</option>
+                <option value="BRAZIL">BRAZIL</option>
+                <option value="BRUNEI DARUSSALAM">BRUNEI DARUSSALAM</option>
+                <option value="BULGARIA">BULGARIA</option>
+                <option value="BURKINA FASO">BURKINA FASO</option>
+                <option value="BURUNDI">BURUNDI</option>
+                <option value="BYELARUS">BYELARUS</option>
+                <option value="CAMBODIA">CAMBODIA</option>
+                <option value="CAMEROON">CAMEROON</option>
+                <option value="CANADA">CANADA</option>
+                <option value="CANARY">CANARY</option>
+                <option value="CAPE VERDE">CAPE VERDE</option>
+                <option value="CAROLINE">CAROLINE</option>
+                <option value="CAYMAN ISLANDS">CAYMAN ISLANDS</option>
+                <option value="CENTRAL AFRICAN REPUBLIC">CENTRAL AFRICAN REPUBLIC</option>
+                <option value="CHAD">CHAD</option>
+                <option value="CHANNEL ISLANDS">CHANNEL ISLANDS</option>
+                <option value="CHILE">CHILE</option>
+                <option value="CHINA">CHINA</option>
+                <option value="CHRISTMAS ISLAND">CHRISTMAS ISLAND</option>
+                <option value="CIS">CIS</option>
+                <option value="CNT AFRICA REP">CNT AFRICA REP</option>
+                <option value="COCOS ISLAND">COCOS ISLAND</option>
+                <option value="COLOMBIA">COLOMBIA</option>
+                <option value="COMORO">COMORO</option>
+                <option value="CONGO">CONGO</option>
+                <option value="COOK ISLANDS">COOK ISLANDS</option>
+                <option value="CORSICA">CORSICA</option>
+                <option value="COSTA RICA">COSTA RICA</option>
+                <option value="COTE D&#39;IVOIRE">COTE D&#39;IVOIRE</option>
+                <option value="CRETE">CRETE</option>
+                <option value="CROATIA">CROATIA</option>
+                <option value="CUBA">CUBA</option>
+                <option value="CURACAO">CURACAO</option>
+                <option value="CYPRUS">CYPRUS</option>
+                <option value="CZECH REPUBLIC">CZECH REPUBLIC</option>
+                <option value="DENMARK">DENMARK</option>
+                <option value="DJIBOUTI">DJIBOUTI</option>
+                <option value="DOMINICA">DOMINICA</option>
+                <option value="DOMINICAN REPUBLIC">DOMINICAN REPUBLIC</option>
+                <option value="DUTCH W INDIES">DUTCH W INDIES</option>
+                <option value="ECUADOR">ECUADOR</option>
+                <option value="EGYPT">EGYPT</option>
+                <option value="EL SALVADOR">EL SALVADOR</option>
+                <option value="EQUATORIAL GUINA">EQUATORIAL GUINA</option>
+                <option value="ERITREA">ERITREA</option>
+                <option value="ESTONIA">ESTONIA</option>
+                <option value="ETHIOPIA">ETHIOPIA</option>
+                <option value="FAEROE ISLANDS">FAEROE ISLANDS</option>
+                <option value="FALKLAND ISLANDS">FALKLAND ISLANDS</option>
+                <option value="FIJI">FIJI</option>
+                <option value="FINLAND">FINLAND</option>
+                <option value="FR GUIANA">FR GUIANA</option>
+                <option value="FR POLYNESIA">FR POLYNESIA</option>
+                <option value="FR WEST INDIES">FR WEST INDIES</option>
+                <option value="FRANCE">FRANCE</option>
+                <option value="GABON">GABON</option>
+                <option value="GAMBIA">GAMBIA</option>
+                <option value="GEORGIAN REP">GEORGIAN REP</option>
+                <option value="GERMANY">GERMANY</option>
+                <option value="GERMANY, F.R.">GERMANY, F.R.</option>
+                <option value="GHANA">GHANA</option>
+                <option value="GIBRALTAR">GIBRALTAR</option>
+                <option value="GILBERT &amp;#38; ELLICE">GILBERT &amp; ELLICE</option>
+                <option value="GREECE">GREECE</option>
+                <option value="GREENLAND">GREENLAND</option>
+                <option value="GRENADA">GRENADA</option>
+                <option value="GUADELOUPE ISLAND">GUADELOUPE ISLAND</option>
+                <option value="GUAM">GUAM</option>
+                <option value="GUATEMALA">GUATEMALA</option>
+                <option value="GUERNSEY">GUERNSEY</option>
+                <option value="GUINEA">GUINEA</option>
+                <option value="GUINEA-BISSAU">GUINEA-BISSAU</option>
+                <option value="GUYANA">GUYANA</option>
+                <option value="HAITI">HAITI</option>
+                <option value="HOLY SEE (VATICAN CITY STATE)">HOLY SEE (VATICAN CITY STATE)</option>
+                <option value="HONDURAS">HONDURAS</option>
+                <option value="HONG KONG">HONG KONG</option>
+                <option value="HUNGARY">HUNGARY</option>
+                <option value="ICELAND">ICELAND</option>
+                <option value="INDIA">INDIA</option>
+                <option value="INDONESIA">INDONESIA</option>
+                <option value="IRAN">IRAN</option>
+                <option value="IRAQ">IRAQ</option>
+                <option value="IRELAND">IRELAND</option>
+                <option value="ISLE OF ELY">ISLE OF ELY</option>
+                <option value="ISLE OF MAN">ISLE OF MAN</option>
+                <option value="ISLE OF WIGHT">ISLE OF WIGHT</option>
+                <option value="ISRAEL">ISRAEL</option>
+                <option value="ITALY">ITALY</option>
+                <option value="JAMAICA">JAMAICA</option>
+                <option value="JAPAN">JAPAN</option>
+                <option value="JERSEY">JERSEY</option>
+                <option value="JORDAN">JORDAN</option>
+                <option value="KAMPUCHEA">KAMPUCHEA</option>
+                <option value="KARELIA">KARELIA</option>
+                <option value="KAZAKHSTAN">KAZAKHSTAN</option>
+                <option value="KENYA">KENYA</option>
+                <option value="KIRIBATI REP">KIRIBATI REP</option>
+                <option value="KOREA (NORTH)">KOREA (NORTH)</option>
+                <option value="KOREA, REPUBLIC OF">KOREA, REPUBLIC OF</option>
+                <option value="KUWAIT">KUWAIT</option>
+                <option value="KYRGYZSTAN">KYRGYZSTAN</option>
+                <option value="LAOS PEOPLES DEM REP">LAOS PEOPLES DEM REP</option>
+                <option value="LATVIA">LATVIA</option>
+                <option value="LEBANON">LEBANON</option>
+                <option value="LEEWARD ISLANDS">LEEWARD ISLANDS</option>
+                <option value="LESOTHO">LESOTHO</option>
+                <option value="LIBERIA">LIBERIA</option>
+                <option value="LIBYA">LIBYA</option>
+                <option value="LIECHTENSTEIN">LIECHTENSTEIN</option>
+                <option value="LITHUANIA">LITHUANIA</option>
+                <option value="LUXEMBOURG">LUXEMBOURG</option>
+                <option value="MACAO">MACAO</option>
+                <option value="MACEDONIA, FORMER YUGOSLAVIA">MACEDONIA, FORMER YUGOSLAVIA</option>
+                <option value="MADAGASCAR">MADAGASCAR</option>
+                <option value="MADEIRA">MADEIRA</option>
+                <option value="MALAGASY REP">MALAGASY REP</option>
+                <option value="MALAWI">MALAWI</option>
+                <option value="MALAYSIA">MALAYSIA</option>
+                <option value="MALAYSIA">MALAYSIA</option>
+                <option value="MALDIVES">MALDIVES</option>
+                <option value="MALI">MALI</option>
+                <option value="MALTA">MALTA</option>
+                <option value="MARSHALL ISLANDS">MARSHALL ISLANDS</option>
+                <option value="MARTINIQUE">MARTINIQUE</option>
+                <option value="MAURITANIA">MAURITANIA</option>
+                <option value="MAURITIUS">MAURITIUS</option>
+                <option value="MAYOTTE ISLE">MAYOTTE ISLE</option>
+                <option value="MEXICO">MEXICO</option>
+                <option value="MOLDOVA">MOLDOVA</option>
+                <option value="MONACO">MONACO</option>
+                <option value="MONGOLIA">MONGOLIA</option>
+                <option value="MONTENEGRO">MONTENEGRO</option>
+                <option value="MONTSERRAT">MONTSERRAT</option>
+                <option value="MOOREA">MOOREA</option>
+                <option value="MOROCCO">MOROCCO</option>
+                <option value="MOZAMBIQUE">MOZAMBIQUE</option>
+                <option value="MYANMAR">MYANMAR</option>
+                <option value="MYANMAR UNION">MYANMAR UNION</option>
+                <option value="NAMIBIA">NAMIBIA</option>
+                <option value="NAURU">NAURU</option>
+                <option value="NEPAL">NEPAL</option>
+                <option value="NETHERLANDS">NETHERLANDS</option>
+                <option value="NETHERLANDS ANTILLES">NETHERLANDS ANTILLES</option>
+                <option value="NEVIS">NEVIS</option>
+                <option value="NEW CALEDONIA">NEW CALEDONIA</option>
+                <option value="NEW HEBRIDES">NEW HEBRIDES</option>
+                <option value="NEW ZEALAND">NEW ZEALAND</option>
+                <option value="NICARAGUA">NICARAGUA</option>
+                <option value="NIGER">NIGER</option>
+                <option value="NIGERIA">NIGERIA</option>
+                <option value="NIVE">NIVE</option>
+                <option value="NORFOLK ISLAND">NORFOLK ISLAND</option>
+                <option value="NORTHERN MARIANA ISLANDS">NORTHERN MARIANA ISLANDS</option>
+                <option value="NORWAY">NORWAY</option>
+                <option value="OMAN">OMAN</option>
+                <option value="P REP S YEMEN">P REP S YEMEN</option>
+                <option value="PAKISTAN">PAKISTAN</option>
+                <option value="PANAMA">PANAMA</option>
+                <option value="PAPAU NEW GUINEA">PAPAU NEW GUINEA</option>
+                <option value="PAPUA - NEW GUINEA">PAPUA - NEW GUINEA</option>
+                <option value="PARAGUAY">PARAGUAY</option>
+                <option value="PERSIAN GLF PT">PERSIAN GLF PT</option>
+                <option value="PERU">PERU</option>
+                <option value="PHILIPPINES">PHILIPPINES</option>
+                <option value="PITCAIRN ISLAND">PITCAIRN ISLAND</option>
+                <option value="POLAND">POLAND</option>
+                <option value="PORTUGAL">PORTUGAL</option>
+                <option value="PORTUGUESE TIMOR">PORTUGUESE TIMOR</option>
+                <option value="QATAR">QATAR</option>
+                <option value="REDONDA">REDONDA</option>
+                <option value="REP DJIBOUTI">REP DJIBOUTI</option>
+                <option value="REP MALDIVES">REP MALDIVES</option>
+                <option value="REUNION">REUNION</option>
+                <option value="ROMANIA">ROMANIA</option>
+                <option value="RUSSIAN FEDERATION">RUSSIAN FEDERATION</option>
+                <option value="RWANDA">RWANDA</option>
+                <option value="RYUKYU IS">RYUKYU IS</option>
+                <option value="SABA">SABA</option>
+                <option value="SAN MARINO">SAN MARINO</option>
+                <option value="SANTA CRUZ ISLANDS">SANTA CRUZ ISLANDS</option>
+                <option value="SAO TOME">SAO TOME</option>
+                <option value="SARDINIA">SARDINIA</option>
+                <option value="SAUDI ARABIA">SAUDI ARABIA</option>
+                <option value="SENEGAL">SENEGAL</option>
+                <option value="SERBIA">SERBIA</option>
+                <option value="SEYCHELLES">SEYCHELLES</option>
+                <option value="SICILY">SICILY</option>
+                <option value="SIERRA LEONE">SIERRA LEONE</option>
+                <option value="SIKKIM">SIKKIM</option>
+                <option value="SINGAPORE">SINGAPORE</option>
+                <option value="SLOVAKIA">SLOVAKIA</option>
+                <option value="SLOVENIA">SLOVENIA</option>
+                <option value="SOLOMAN ISLANDS">SOLOMAN ISLANDS</option>
+                <option value="SOUTH AFRICA">SOUTH AFRICA</option>
+                <option value="SPAIN">SPAIN</option>
+                <option value="SPANISH SAHARA">SPANISH SAHARA</option>
+                <option value="SRI LANKA">SRI LANKA</option>
+                <option value="ST CHRISTOPHER">ST CHRISTOPHER</option>
+                <option value="ST EUSTATIUS">ST EUSTATIUS</option>
+                <option value="ST HELENA">ST HELENA</option>
+                <option value="ST KITTS">ST KITTS</option>
+                <option value="ST LUCIA">ST LUCIA</option>
+                <option value="ST MARTIN">ST MARTIN</option>
+                <option value="ST PIERRE MIQLN">ST PIERRE MIQLN</option>
+                <option value="ST VINCENT">ST VINCENT</option>
+                <option value="SUDAN">SUDAN</option>
+                <option value="SURINAM">SURINAM</option>
+                <option value="SW AFRICA">SW AFRICA</option>
+                <option value="SWAZILAND">SWAZILAND</option>
+                <option value="SWEDEN">SWEDEN</option>
+                <option value="SWITZERLAND">SWITZERLAND</option>
+                <option value="SYRIA">SYRIA</option>
+                <option value="TAHITI">TAHITI</option>
+                <option value="TAIWAN R.O.C.">TAIWAN R.O.C.</option>
+                <option value="TAJIKISTAN">TAJIKISTAN</option>
+                <option value="TANZANIA, UNITED REPUBLIC OF">TANZANIA, UNITED REPUBLIC OF</option>
+                <option value="TENERIFE">TENERIFE</option>
+                <option value="THAILAND">THAILAND</option>
+                <option value="TIBET">TIBET</option>
+                <option value="TIMOR-LESTE">TIMOR-LESTE</option>
+                <option value="TOGO">TOGO</option>
+                <option value="TOKELAU IS">TOKELAU IS</option>
+                <option value="TONGA">TONGA</option>
+                <option value="TRINIDAD AND TOBGO">TRINIDAD AND TOBGO</option>
+                <option value="TRSTN DA CNH IS">TRSTN DA CNH IS</option>
+                <option value="TUNISIA">TUNISIA</option>
+                <option value="TURKEY">TURKEY</option>
+                <option value="TURKMENISTAN">TURKMENISTAN</option>
+                <option value="TURKS CAICOS">TURKS CAICOS</option>
+                <option value="TUVALU">TUVALU</option>
+                <option value="UGANDA">UGANDA</option>
+                <option value="UKRAINE">UKRAINE</option>
+                <option value="UNITED ARAB EMIRATES">UNITED ARAB EMIRATES</option>
+                <option value="UNITED KINGDOM">UNITED KINGDOM</option>
+                <option value="UPPER VOLTA">UPPER VOLTA</option>
+                <option value="URUGUAY">URUGUAY</option>
+                <option value="USSR">USSR</option>
+                <option value="UYO">UYO</option>
+                <option value="UZBEKISTAN">UZBEKISTAN</option>
+                <option value="VANUATU">VANUATU</option>
+                <option value="VENEZUELA">VENEZUELA</option>
+                <option value="VIET NAM">VIET NAM</option>
+                <option value="VIRGIN ISLANDS, BRITISH">VIRGIN ISLANDS, BRITISH</option>
+                <option value="VIRGIN ISLANDS, U.S.">VIRGIN ISLANDS, U.S.</option>
+                <option value="WALLIS AND FORTUNA ISLANDS">WALLIS AND FORTUNA ISLANDS</option>
+                <option value="WESTERN SAHARA">WESTERN SAHARA</option>
+                <option value="WESTERN SAMOA">WESTERN SAMOA</option>
+                <option value="WINDWARD ISLND">WINDWARD ISLND</option>
+                <option value="YEMEN">YEMEN</option>
+                <option value="YUGOSLAVIA">YUGOSLAVIA</option>
+                <option value="ZAIRE">ZAIRE</option>
+                <option value="ZAMBIA">ZAMBIA</option>
+                <option value="ZANZIBAR">ZANZIBAR</option>
+                <option value="ZIMBABWE">ZIMBABWE</option>
+            </select>            
+        </div>
+</apex:outputpanel>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.HP =='1'}">
+        <div class="form-group col-sm-6">
+            <label for="phone">Phone</label>        
+            <input class="form-control" name="phone" placeholder="phone" type="tel" id="phone" />
+        </div>
+</apex:outputpanel>
+<apex:outputpanel rendered="{!$CurrentPage.parameters.MP =='1'}">
+        <div class="form-group col-sm-6">
+            <label for="mobilePhone">Mobile Phone</label>        
+            <input class="form-control" name="mobilePhone" placeholder="mobile phone" type="tel" id="mobilePhone" />
+        </div>
+</apex:outputpanel>
+        <div class="submit-container">
+            <div class="form-group col-sm-6">
+                <input type="submit" class="email-signup-submit form-control btn btn-primary" id="email-submit-button" value="Sign Up!" />
+            </div>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
+</apex:page>

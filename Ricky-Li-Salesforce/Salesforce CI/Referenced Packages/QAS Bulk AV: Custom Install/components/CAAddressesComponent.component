@@ -1,0 +1,381 @@
+<apex:component access="global">
+    <apex:attribute access="global" name="Results" description="Address 1 results" type="QAS_NA.CASObjectResult[]" required="false"/>
+    <apex:attribute access="global" name="EmailPhoneResults" description="Email/Phone results" type="QAS_NA.EmailPhoneSObjectResult[]" required="false" />
+    <apex:attribute access="global" name="Results1" description="Address 1 results" type="QAS_NA.CASObjectResult" required="true"/>
+    <apex:attribute access="global" name="HasResults1" description="" type="boolean" required="true"/>
+    <apex:attribute access="global" name="Results2" description="Address 2 results." type="QAS_NA.CASObjectResult" required="true"/>
+    <apex:attribute access="global" name="HasResults2" description="" type="boolean" required="true"/>
+    <apex:attribute access="global" name="sObjectName" description="Continue button message text. Name is wrong and it is legacy" type="String" required="true"/>
+    <apex:attribute access="global" name="HasErrorOccured" description="" type="String" required="true"/>
+    <apex:attribute access="global" name="ExecuteAddressCorrectionAndMoveNext" description="Action" type="ApexPages.Action" required="false"/>    
+    <apex:attribute access="global" name="IsInConsole" description="Action" type="Boolean" required="false"/>
+    <apex:attribute access="global" name="IsSingleRecordSubmit" description="Action" type="Boolean" required="false"/>
+    <apex:attribute access="global" name="WarningMessage" description="" type="String" required="false" />
+    <apex:attribute access="global" name="IsEmailPhoneValidation" description="" type="Boolean" required="false" />
+   
+    <!-- jQuery included -->
+    <apex:includeScript value="{!URLFOR($Resource.QAS_NA__jquery)}"/>    
+    <script type="text/javascript">
+        var j$ = jQuery.noConflict();
+    </script>
+    
+   <style type="text/css">
+        
+        div.bPageBlock {overflow:hidden;}
+        .bPageBlock .pbTitle{width:100%; margin:0;}
+        .pbBody{margin:0;}
+        
+        .apexp .bPageBlock.apexDefaultPageBlock .pbBody{margin:0;}
+
+        div.qas_validAddressBox {padding:4px;}
+        
+        /* new style */
+        
+        .qas_div-container{width:49.9%; float:left;}
+        html>body .qas_div-container{width:50%;}
+        
+        div.qas_right-borderc{border-left:1px solid #ccc; float:left; width:100%;}
+        
+        h5.qas_title{font-size:16px; margin-left:20px; float:left; width:100%;}
+        span.qas_inactive h5.qas_title{font-weight:lighter; float:left; width:100%;}
+        
+        dl.qas_datalist p{ color:#b3402d; height:20px; margin:0; padding:0;}
+        dl.qas_datalist dt{float:left; overflow:hidden; height:26px; padding:4px 0; width:45%; text-align:right; display:table-cell; vertical-align:top;}
+        dl.qas_datalist dt strong{margin-right:10px; white-space: nowrap;}
+        dl.qas_datalist dd{float:left; overflow:hidden; height:26px; padding:4px 0; width:54%; display:table-cell; vertical-align:top;}
+        html>body dl.qas_datalist dd{height:auto; min-height:26px; margin:0;}
+        
+        dl.qas_datalist dd input.text{width:96%;}
+        
+        span.qas_active .qas_div-container{background-color:#ffffd8; color:#000;}
+        span.qas_inactive .qas_div-container{color:#888;}
+        
+        span.qas_active .qas_div-container div.radio-area-right{float:right; margin:0px 20px 0 20px; height:50px; color:#000;}
+        span.qas_inactive .qas_div-container div.radio-area-right{float:right; margin:0px 20px 0 20px; height:50px; color:#000;}
+        
+        span.qas_active .qas_div-container div.radio-area{margin:0px 20px 0 20px; float:left; height:50px; color:#000;}
+        span.qas_inactive .qas_div-container div.radio-area{margin:0px 20px 0 20px; float:left; height:50px; color:#000;}
+        
+        span.qas_active .qas_div-container div.radio-area-right p, span.qas_inactive .div-container div.radio-area-right p, span.qas_active .div-container div.radio-area p, span.qas_inactive .div-container div.radio-area p{padding-bottom:0;}
+        div.qas_warning-div {width:60%; margin-bottom:10px; background-color:#feffd5; border:1px solid #cfc095; overflow:hidden; padding:20px 20px 20px 80px; background-image:url(/resource/1289378009000/warning); background-repeat:no-repeat; background-position;left top;}
+        div.qas_warning-div p {line-height:18px; color:#000; font-size:12px; padding-bottom:30px;}
+        
+        /* style 2.0 */
+        
+        div.qas2-comp-wrap{border:1px solid #dfcea4; overflow:hidden; font-family:Verdana, Geneva, sans-serif; font-size:12px;}
+        div.qas2-comp-wrap div.label-wrap{ color:#000; padding:20px; background-color:#ffffbe; border-bottom:1px solid #dfcea4;}
+        div.qas2-comp-wrap div.label-wrap h2{ font-family:Arial, Helvetica, sans-serif; font-weight:lighter; font-size:18px; line-height:18px; margin:0;}
+        div.qas2-comp-wrap div.label-wrap p{ font-size:12px; line-height:18px; margin:0; padding-top:10px;}
+        
+        div.qas2-comp-wrap div.select-wrap{ padding:10px; overflow:hidden;}
+      
+        div.qas2-comp-wrap div.select-container       { padding:10px 0; }
+        div.qas2-comp-wrap div.select-container-phone { padding:10px 0; }
+        
+        div.qas2-comp-wrap td.select-container-td    {width:50%; vertical-align:top; background-color:#f8f8f8; color:#7d8497;}
+         
+        div.qas2-comp-wrap td.active { background-color:#ffffbe; color:#000000; }
+        div.qas2-comp-wrap td.active h5 {color:#000000}
+        div.qas2-comp-wrap td.active dt strong {color:#000000}
+        div.qas2-comp-wrap td.active dd {color:#000000}
+        div.qas2-comp-wrap td.right{ border-left:1px solid #cccdc8;}
+        
+        div.qas2-comp-wrap div.radio-right{float:right; margin:0px 20px 0 20px; height:70px;}
+        div.qas2-comp-wrap div.radio-right label{font-family:Arial, Helvetica, sans-serif; font-weight:lighter; font-size:18px;}
+        
+        div.qas2-comp-wrap div.radio{ float:left;margin:0px 20px 0 20px; height:70px;}
+        div.qas2-comp-wrap div.radio label{font-family:Arial, Helvetica, sans-serif; font-weight:lighter; font-size:18px;}
+        div.qas2-comp-wrap div.radio p{ padding-left:20px;}
+        
+        div.qas2-comp-wrap hr{ clear:both;}
+        
+        h5.qas_title{font-size:16px; margin-left:20px; margin-top:20px; float:left; width:100%; font-family:Arial, Helvetica, sans-serif; padding-bottom:20px;}
+        h5.qas_title_phone{font-size:16px; margin-left:20px; margin-top:20px; float:left; width:100%; font-family:Arial, Helvetica, sans-serif; padding-bottom:0px;}
+        h5.qas_title a{ font-size:12px; font-weight:lighter; font-family:Verdana, Geneva, sans-serif; margin-left:10px;}
+        h5.qas_title_phone a{ font-size:12px; font-weight:lighter; font-family:Verdana, Geneva, sans-serif; margin-left:10px;}
+        h5.qas-title{font-size:16px; float:left; width:100%; font-family:Arial, Helvetica, sans-serif; padding-bottom:0px;}
+        
+        dl.qas2-datalist p{ color:#b3402d; height:20px; margin:0; padding:0;}
+        dl.qas2-datalist dt{float:left; overflow:hidden; height:26px; padding:4px 0; width:30%; text-align:right; display:table-cell; vertical-align:top;}
+        dl.qas2-datalist dt strong{margin-right:10px;}
+        dl.qas2-datalist dd{float:left; overflow:hidden; height:26px; padding:4px 0; width:69%; display:table-cell; vertical-align:top;}
+        html>body dl.qas2-datalist dd{height:auto; min-height:26px; margin:0;}
+        
+        dl.qas2-datalist dd input.text{width:96%;}
+        
+        dl.qas2-datalist-alt p{ color:#b3402d; height:20px; margin:0; padding:0;}
+        dl.qas2-datalist-alt dt{float:left; overflow:hidden; height:13px; padding:4px 10px 4px 30px; width:89%; display:table-cell; vertical-align:top;}
+        dl.qas2-datalist-alt dt strong{margin-right:10px;}
+        dl.qas2-datalist-alt dd{float:left; overflow:hidden; height:26px; padding:4px 10px 4px 30px; width:89%; display:table-cell; vertical-align:top;}
+        html>body dl.qas2-datalist-alt dd{height:auto; min-height:26px; margin:0;}
+        
+        dl.qas2-datalist-alt dd input.text{width:56%; margin-right:10px;}
+        dl.qas2-datalist-alt dt input.text{width:56%; margin-right:10px;}
+        body .bPageBlock .pbTitle h2 {font-size: 1.9em !important;}
+        
+        dt {
+        font-weight: normal !important;
+        }             
+</style>
+   <script type="text/javascript">
+        (function ( $ ) {
+            var filters = $.expr[":"];
+            if ( !filters.focus ) { 
+                filters.focus = function( elem ) {
+                    return elem === document.activeElement && ( elem.type || elem.href );
+                };
+            }
+        })( jQuery );
+        
+        j$(document).ready(function() {
+            j$(document).keypress(function (e) {
+                if (j$('input[type=button].qas_default').size() > 0 && (e.which && e.which == 13) || (e.keyCode && e.keyCode == 13)) {
+                    var returnVal = true;
+                    j$('input[type=text].qas_number').each(function() {
+                        if(j$(this).is(":focus")) {
+                            j$(this).next(".qas_default").click();
+                            returnVal = false;
+                        }
+                    });
+                    return returnVal;
+                } else {
+                    return true;
+                }
+            });
+        });
+        </script>
+        
+   <script type="text/javascript">   
+        function qas_acceptRejectAddressRadioButtons(isRecommended, container) {
+             
+             var containerObj = j$("div[id='" + container + "']");
+             
+             var asEntered = containerObj.find("input[id$='qas_useAsEnteredRadio:0']");
+             var recommended = containerObj.find("input[id$='qas_recommendedRadio:0']");
+             
+             var otherRadioElement = isRecommended ? asEntered : recommended;
+             var thisRadioElement = isRecommended ? recommended : asEntered;
+             
+             otherRadioElement.attr("checked", false);
+             thisRadioElement.attr("checked", true);
+             
+             containerObj.find("td.select-container-td").has(otherRadioElement).removeClass("active");
+             containerObj.find("td.select-container-td").has(thisRadioElement).addClass("active");
+             if(otherRadioElement == recommended){
+              containerObj.find("td.select-container-td").has(otherRadioElement).find("input").each(function(){
+                  j$(this).attr("checked", false);
+              });
+             }
+             
+             containerObj.find("input[id$='qas_IsAddressAccepted']'").val(isRecommended);
+        }
+        
+       j$(document).ready(function(){
+            // Edit link right
+            j$("td.select-container-td.right .qas_title a").click(function(){
+                
+                var container = j$(this).parents("div[id$='maingPageBlock']");
+                
+                qas_acceptRejectAddressRadioButtons(false, container.attr("id"));
+                container.find("span[id$='qas_origAddressSubSectionLabels']").hide();
+                container.find("span[id$='qas_origAddressSubSectionInputTexts']").show();
+                container.find("input[id$='qas_IsInEditMode']").val(true);
+            });
+            
+            // Edit Email/Phone link left
+            j$("td.select-container-td:not(.right) .qas_title_phone a").click(function(){
+                
+                var container = j$(this).parents("div[id$='maingPageBlock']");
+                
+                qas_acceptRejectAddressRadioButtons(true, container.attr("id"));
+                container.find("span[id$='qas_validAddressSubSectionLabels']").hide();
+                container.find("span[id$='qas_validAddressSubSectionInputTexts']").show();
+                
+            });
+            
+            // Edit link left
+            j$("td.select-container-td:not(.right) .qas_title a").click(function(){
+                
+                var container = j$(this).parents("div[id$='maingPageBlock']");
+                
+                qas_acceptRejectAddressRadioButtons(true, container.attr("id"));
+                container.find("span[id$='qas_validAddressSubSectionLabels']").hide();
+                container.find("span[id$='qas_validAddressSubSectionInputTexts']").show();
+                
+            });
+            
+            // Cancel edit button right
+            j$("td.select-container-td.right button[id='cancelButton']").click(function(){
+                
+                var container = j$(this).parents("div[id$='maingPageBlock']");
+                
+                var inputContainer = container.find("span[id$='qas_origAddressSubSectionInputTexts']");
+                container.find("span[id$='qas_origAddressSubSectionLabels']").show();
+                inputContainer.hide();
+                container.find("input[id$='qas_IsInEditMode']").val(false);
+                
+                inputContainer.find("input[type='text']").each(function(index, el) {
+                    var jEl = j$(el);
+                    jEl.val(jEl.prev().val());
+                });
+                
+            });
+            
+            // Cancel edit button left
+            j$("td.select-container-td:not(.right) button[id='cancelButton']").click(function(){
+                
+                var container = j$(this).parents("div[id$='maingPageBlock']");
+                
+                var inputContainer = container.find("span[id$='qas_validAddressSubSectionInputTexts']");
+                container.find("span[id$='qas_validAddressSubSectionLabels']").show();
+                inputContainer.hide();
+                
+                inputContainer.find("input[type='text']").each(function(index, el) {
+                    var jEl = j$(el);
+                    jEl.val(jEl.prev().val());
+                });
+                
+                inputContainer.find("label[id$='qas_caAddressChangedMessage']").hide();
+                
+            });
+            
+            j$("td.select-container-td:not(.right) span[id$='qas_validAddressSubSectionInputTexts'] input[type='text']").keyup(function(){
+            
+                var isChanged = false;
+                
+                var container = j$(this).parents("span[id$='qas_validAddressSubSectionInputTexts']");
+                container.find("input[type='text']").each(function(index, el) {
+                    var jEl = j$(el);
+                    isChanged = isChanged || jEl.val() != jEl.prev().val();
+                });
+               
+                if (isChanged) {
+                    container.find("label[id$='qas_caAddressChangedMessage']").show();
+                } else {
+                    container.find("label[id$='qas_caAddressChangedMessage']").hide();
+                }
+                
+            });
+            
+            j$("div[id$='maingPageBlock']").each(function(index, el){
+                var recommendedRadio = j$(el).find("input[id$='qas_recommendedRadio:0']");
+                var userRadio = j$(el).find("input[id$='qas_useAsEnteredRadio:0']");
+                if (recommendedRadio.attr("checked")) {
+                    j$(el).find("input[id$='qas_IsAddressAccepted']").val(true);
+                } else if (userRadio.attr("checked")) {
+                    j$(el).find("input[id$='qas_IsAddressAccepted']").val(false);
+                }
+            });
+            
+            var qasWarningMessage = '{!JSENCODE(WarningMessage)}';
+            if(qasWarningMessage != undefined && qasWarningMessage != null && qasWarningMessage.length > 0){
+                alert(qasWarningMessage);   
+            }
+          });
+          
+            function showLoadingDiv() {
+                var newHeight = j$("div[id$=maingPageBlock]").css("height");//Just shade the body, not the header
+                //j$("div[id$=loading-curtain-div]").css("height", newHeight).show();
+                j$("div[id$=loading-curtain-div]").show();
+            }
+            function hideLoadingDiv() {
+                j$("div[id$=loading-curtain-div]").hide();
+            }
+    </script> 
+
+    <apex:sectionHeader title="QAS Address Verification"/>
+    
+    <div id="loading-curtain-div" style="display:none;">
+        <div style="width:100%; height:100%;">
+            <img src="{!$Resource.loading}" border="0" style="position:relative; z-index:1; margion-top:20px; margin-bottom:20px;" />
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+    
+    <apex:inputHidden value="{!IsSingleRecordSubmit}" id="qas_IsSingleRecordSubmit"/>
+    
+    <apex:repeat value="{!Results}" var="result" rendered="{!(!IsEmailPhoneValidation)}">
+      <c:CAAddressAcceptRejectComponent rendered="true" AddressAccepted="{!result.AddressAccepted}" 
+        AddressValidated="{!result.AddressValidated}" 
+        RecipientLabel=""
+        DeliveryLine1Label=""
+        DeliveryLine2Label=""
+        CityLabel=""
+        StateLabel=""
+        ZipLabel=""
+        CountryLabel=""
+        
+        CAFields="{!result.CAFields}"
+        SFFields="{!result.SFFields}"
+        SFRecipient="{!result.SFRecipient}"
+        SFDeliveryLine1="{!result.SFDeliveryLine1}"
+        SFDeliveryLine2="{!result.SFDeliveryLine2}"
+        SFCity="{!result.SFCity}"  
+        SFState="{!result.SFState}"
+        SFZip="{!result.SFZip}"
+        SFCountry="{!result.SFCountry}"
+        SObjectName="{!result.SObjectName}"
+        ConfigurationName="{!result.ConfigurationName}"
+        ResultsMessage="{!result.ResultsMessage}"
+        TitleMessage="{!result.TitleMessage}"
+        SubtitleMessage="{!result.SubtitleMessage}"
+        FormattedAddress="{!result.FormattedAddress}"
+        IsVerified="{!result.IsVerified}"
+        IsInteractionRequired="{!result.IsInteractionRequired}"
+        IsStreetPartial="{!result.IsStreetPartial}"
+        IsPremisesPartial="{!result.IsPremisesPartial}"
+        IsMultiple="{!result.IsMultiple}"
+        IsNone="{!result.IsNone}"
+        Picklist="{!result.Picklist}"
+        Addresses="{!result.FormattedAddresses}"
+        NumberAddition="{!result.NumberAddition}"
+        SelectedAddress="{!result.SelectedAddress}"
+        IsInEditMode="{!result.IsInEditMode}"
+        IsSubmitted="{!result.IsSubmitted}"
+       
+        CARecipient=""
+        CADeliveryLine1=""
+        CADeliveryLine2=""
+        CACity=""
+        CAState=""
+        CAZip=""
+        CACountry="">
+      </c:CAAddressAcceptRejectComponent>
+      
+    </apex:repeat>
+    
+     <apex:repeat value="{!EmailPhoneResults}" var="result" rendered="{!IsEmailPhoneValidation}">
+    
+      <c:EmailPhoneAcceptRejectComponent rendered="true" AddressAccepted="{!result.AddressAccepted}" 
+        SFEmailPhoneLabel="{!result.SFEmailPhoneColumnLabel}"
+        CAEmailPhone="{!result.CAEmailPhone}"
+        SFEmailPhone="{!result.SFEmailPhone}"
+        SObjectName="{!result.SObjectName}"
+        ConfigurationName="{!result.ConfigurationName}"
+        ResultsMessage="{!result.ResultsMessage}"
+        TitleMessage="{!result.TitleMessage}"
+        SubtitleMessage="{!result.SubtitleMessage}"
+        IsVerified="{!result.IsVerified}"
+        IsInteractionRequired="{!result.IsInteractionRequired}"
+        IsMultiple="{!result.IsMultiple}"
+        IsNone="{!result.IsNone}"
+        PicklistItems="{!result.PicklistItems}"
+        SelectedPicklistItem="{!result.SelectedPicklistItem}"
+        IsInEditMode="{!result.IsInEditMode}"
+        SFFields="{!result.SFFields}"
+        ConfigurationTypeName="{!result.ConfigurationTypeName}">
+      </c:EmailPhoneAcceptRejectComponent>
+      
+    </apex:repeat>
+    
+    <apex:outputPanel rendered="{!HasErrorOccured}">
+    <div class="qas_warning-div">
+        <p>The QAS address verification service did not respond to your request. The service may be down for scheduled maintenance or there could be a technical problem. Please click &quot;Try again&quot; to resubmit your request. If you continue to get this message click &quot;{!sObjectName}&quot; and contact technical support.</p>
+        <apex:commandButton value="Try again" onclick="javascript:window.location.href = window.location.href; return false;"/>
+    </div>    
+    </apex:outputPanel>
+    
+   <apex:commandButton id="qasContinueToButton" value="{!sObjectName}" action="{!ExecuteAddressCorrectionAndMoveNext}" rendered="{!IF(sObjectName == '', false, true)}" styleClass="btn" style="padding:3px 6px; font-family:Arial; font-size:16px; color:#255820" />
+  <!--   reRender="caAddressComponent" status="executeAddressCorrectionAndMoveNextStatus" 
+   <apex:actionStatus id="executeAddressCorrectionAndMoveNextStatus" onstart="showLoadingDiv();" onstop="hideLoadingDiv();" />-->
+</apex:component>

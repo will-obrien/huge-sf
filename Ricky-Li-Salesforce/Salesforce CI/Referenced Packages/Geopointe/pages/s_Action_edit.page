@@ -1,0 +1,241 @@
+<apex:page showHeader="true" title="Geopointe Action Edit" sidebar="false" standardController="geopointe__Action__c" extensions="geopointe.s_ActionEdit_Extension" tabStyle="Geopointe_Setup__tab">
+    
+    <apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/><!-- Geopointe common css -->
+
+    <style type="text/css">
+        .standardGPmsg{
+            margin: 10px;
+            color: #CC0000;
+        }
+        .mergeField{
+            margin-right: 5px;
+        }
+        #mergeFieldList{
+            display: none;
+            margin-top: 4px;
+        }
+    </style>
+
+    <apex:sectionHeader title="{!$ObjectType.geopointe__Action__c.Label} Edit" subtitle="{!geopointe__Action__c.Name}" rendered="{!AND($CurrentPage.parameters.Id != '',$CurrentPage.parameters.clone != '1')}"/>
+    <apex:sectionHeader title="{!$ObjectType.geopointe__Action__c.Label} Edit" subtitle="New {!$ObjectType.geopointe__Action__c.Label}" rendered="{!OR($CurrentPage.parameters.Id == '',$CurrentPage.parameters.clone == '1')}"/>
+
+    <p>To learn more about Geopointe Actions visit our support site: <a href="http://support.arrowpointe.com/actions">http://support.arrowpointe.com/actions</a></p>
+
+    <apex:pageMessages />
+
+    <apex:form >
+        <apex:pageBlock title="{!$ObjectType.geopointe__Action__c.Label} Edit" mode="edit" id="pageBlock">
+            <apex:pageBlockButtons >
+                <apex:commandButton action="{!save}" value="Save"/>
+                <apex:outputLink styleClass="btn gpLinkButton" style="top: 1px; position: relative;" value="{!URLFOR($Action.Action__c.Share, geopointe__Action__c.Id)}" rendered="{!$CurrentPage.parameters.Id != ''}">User Access</apex:outputLink> 
+                <apex:commandButton action="{!cancel}" value="Cancel"/>
+            </apex:pageBlockButtons>
+            
+            <apex:outputPanel rendered="{!geopointe__Action__c.geopointe__Standard_Action__c != ''}" layout="block" styleClass="standardGPmsg">
+                This is a Standard Geopointe Action. Some fields are not displayed and cannot be changed.
+            </apex:outputPanel>
+
+            <apex:pageBlockSection title="Action Information" columns="2">
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.Name.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:inputField value="{!geopointe__Action__c.Name}" required="false"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem rendered="{!$CurrentPage.parameters.Id != ''}">
+                    <apex:outputLabel value="Owner"/>
+                    <apex:outputPanel >
+                        <apex:outputField value="{!geopointe__Action__c.OwnerId}"/>
+                        <a href="/{!geopointe__Action__c.Id}/a?retURL={!$CurrentPage.URL}" onclick="return confirm('Changing the owner will reset the sharing for this Action.\n\nAfter changing the owner use the User Access button to ensure the correct users can use this Action.')">[Change Owner]</a>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:outputPanel rendered="{!$CurrentPage.parameters.Id == ''}"/>
+
+                <apex:inputField value="{!geopointe__Action__c.geopointe__Active__c}"/>
+                <apex:outputPanel rendered="{!OR($CurrentPage.parameters.clone == '1',AND(showEnableForAllUsers,$CurrentPage.parameters.Id == ''),  AND(NOT(showEnableForAllUsers),$CurrentPage.parameters.Id != ''))}">
+                    <!--Empty placeholder for pageblock formatting -->
+                </apex:outputPanel>
+
+                <apex:pageBlockSectionItem rendered="{!showEnableForAllUsers}" helpText="Make this Action availble to all users. This option available only when creating a new Action.">
+                    <apex:outputLabel value="Enable for All Users"/>
+                    <apex:inputCheckbox value="{!enableForAllUsers}"/>
+                </apex:pageBlockSectionItem>
+                <apex:outputPanel rendered="{!OR($CurrentPage.parameters.Id == '',$CurrentPage.parameters.clone == '1')}"/>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Map_Objects__c.InlineHelpText}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Map_Objects__c.Label}"/>
+                    <apex:outputPanel >
+                        <apex:selectRadio value="{!mapObjectsSelection}">
+                            <apex:selectOption itemValue="all" itemLabel="All Objects"/>
+                            <apex:selectOption itemValue="selected" itemLabel="Selected Objects"/>
+                            <apex:actionSupport event="onchange" rerender="pageBlock"/>
+                        </apex:selectRadio>         
+                        <apex:outputPanel rendered="{!mapObjectsSelection == 'selected'}">
+                            <apex:selectCheckboxes value="{!selectedMapObjects}" layout="pageDirection">
+                                <apex:selectOptions value="{!mapObjectSelectOptions}"/>
+                            </apex:selectCheckboxes>
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection title="Action Options" columns="1" id="actionOptions" >
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Apply_To__c.InlineHelpText}" rendered="{!NOT(isStandardAction)}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Apply_To__c.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:inputField value="{!geopointe__Action__c.geopointe__Apply_To__c}" >
+                            <apex:actionSupport event="onchange" action="{!changeApplyTo}" rerender="pageBlock"/>
+                        </apex:inputField>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Display_Type__c.InlineHelpText}" rendered="{!geopointe__Action__c.geopointe__Apply_To__c == 'Record'}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Display_Type__c.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:inputField value="{!geopointe__Action__c.geopointe__Display_Type__c}"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Action_Type__c.inlineHelpText}" rendered="{!AND( geopointe__Action__c.geopointe__Apply_To__c != '' ,   NOT(isStandardAction))}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Action_Type__c.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:selectList value="{!geopointe__Action__c.geopointe__Action_Type__c}" size="1">
+                            <apex:selectOption itemValue="" itemLabel="--None--"/>
+                            <apex:selectOption itemValue="URL" itemLabel="URL" rendered="{!geopointe__Action__c.geopointe__Apply_To__c == 'Record'}"/>
+                            <apex:selectOption itemValue="Apex" itemLabel="Apex"/>
+                            <apex:actionSupport event="onchange" rerender="pageBlock"/>
+                        </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Link_URL__c.InlineHelpText}" rendered="{!AND( NOT(isStandardAction) , geopointe__Action__c.geopointe__Action_Type__c == 'URL')}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Link_URL__c.Label}"/>
+                    <apex:outputPanel >
+                        <apex:outputPanel styleClass="requiredInput" layout="block">
+                            <div class="requiredBlock"></div>
+                            <apex:inputField id="linkURL" value="{!geopointe__Action__c.geopointe__Link_URL__c}" style="width:600px"/>
+                        </apex:outputPanel>
+                        
+                        <a href="#" id="showHideMergeFields">[Show Merge Fields]</a>
+
+                        <div id="mergeFieldList">
+                            <a href="#" class="mergeField">&#123;!Id&#125;</a>
+                            <a href="#" class="mergeField">&#123;!Name&#125;</a>
+                            <a href="#" class="mergeField">&#123;!Company&#125;</a>
+                            <a href="#" class="mergeField">&#123;!Latitude&#125;</a>
+                            <a href="#" class="mergeField">&#123;!Longitude&#125;</a>
+                            <a href="#" class="mergeField">&#123;!Street&#125;</a>
+                            <a href="#" class="mergeField">&#123;!City&#125;</a>
+                            <a href="#" class="mergeField">&#123;!PostalCode&#125;</a>
+                            <a href="#" class="mergeField">&#123;!State&#125;</a>
+                            <a href="#" class="mergeField">&#123;!Country&#125;</a>
+                            <div style="margin-top:4px; font-size: 10px;">
+                                * &#123;!Company&#125; is only supported for Lead, Opportunity, and Account objects.
+                            </div>
+                        </div>
+
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Behavior__c.InlineHelpText}" rendered="{!geopointe__Action__c.geopointe__Action_Type__c == 'URL'}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Behavior__c.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:inputField value="{!geopointe__Action__c.geopointe__Behavior__c}" >
+                            <apex:actionSupport event="onchange" rerender="pageBlock"/>
+                        </apex:inputField>  
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Apex_Class__c.InlineHelpText}" rendered="{!geopointe__Action__c.geopointe__Action_Type__c == 'Apex'}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Apex_Class__c.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:inputField value="{!geopointe__Action__c.geopointe__Apex_Class__c}"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem helpText="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Status_Message__c.InlineHelpText}" rendered="{!geopointe__Action__c.geopointe__Action_Type__c == 'Apex'}">
+                    <apex:outputLabel value="{!$ObjectType.geopointe__Action__c.Fields.geopointe__Status_Message__c.Label}"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block">
+                        <div class="requiredBlock"></div>
+                        <apex:inputField value="{!geopointe__Action__c.geopointe__Status_Message__c}" />
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:inputField value="{!geopointe__Action__c.geopointe__Batch_Size__c}" rendered="{!AND(geopointe__Action__c.geopointe__Action_Type__c == 'Apex',geopointe__Action__c.geopointe__Apply_To__c == 'List')}"/>
+                <apex:inputField value="{!geopointe__Action__c.geopointe__Modal_Width__c}" rendered="{!OR( geopointe__Action__c.geopointe__Behavior__c == 'Modal Window' , geopointe__Action__c.geopointe__Action_Type__c == 'Apex' )}"/>
+                <apex:inputField value="{!geopointe__Action__c.geopointe__Modal_Height__c}" rendered="{!OR( geopointe__Action__c.geopointe__Behavior__c == 'Modal Window' , geopointe__Action__c.geopointe__Action_Type__c == 'Apex' )}"/>
+
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+
+    <!-- object fields for use in the extension -->
+    <apex:outputField value="{!geopointe__Action__c.geopointe__Map_Objects__c}" rendered="false"/>
+    <apex:outputField value="{!geopointe__Action__c.geopointe__Standard_Action__c}" rendered="false"/>
+
+    <script type="text/javascript">
+        jQuery(document).ready(function(){
+            
+            //Show hide merge fields
+            jQuery("body").on("click","#showHideMergeFields",function(){
+                if(jQuery("#mergeFieldList").is(":visible")){
+                    jQuery("#mergeFieldList").hide();
+                    jQuery(this).text("[Show Merge Fields]");
+                }else{
+                    jQuery("#mergeFieldList").show();
+                    jQuery(this).text("[Hide Merge Fields]");
+                }
+            });
+
+            //Insert merge field
+            jQuery("body").on("click",".mergeField",function(e){
+                
+                var mergeValue = jQuery(this).text();
+                console.log(mergeValue);
+
+                //Find cursor position in
+                var $urlInput = jQuery("input[id$='linkURL']");
+                var cursorPos = $urlInput.getCursorPosition();
+                
+                //Get val and split it into two parts based on position of cursor
+                var val = $urlInput.val();
+                var val1 = val.substring(0,cursorPos);
+                var val2 = val.substring(cursorPos,val.length);
+
+                //Place merge field where the cursor was and update the value
+                var newVal = val1 + mergeValue + val2;
+                $urlInput.val(newVal);
+
+                //Prevent normal link behavior
+                e.preventDefault();
+            });
+        });
+
+        //Extend jquery with a getCursorPosition function - http://stackoverflow.com/questions/1891444/how-can-i-get-cursor-position-in-a-textarea
+        (function ($, undefined) {
+            $.fn.getCursorPosition = function() {
+                var el = $(this).get(0);
+                var pos = 0;
+                if('selectionStart' in el) {
+                    pos = el.selectionStart;
+                } else if('selection' in document) {
+                    el.focus();
+                    var Sel = document.selection.createRange();
+                    var SelLength = document.selection.createRange().text.length;
+                    Sel.moveStart('character', -el.value.length);
+                    pos = Sel.text.length - SelLength;
+                }
+                return pos;
+            }
+        })(jQuery);
+    </script>
+</apex:page>

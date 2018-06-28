@@ -1,0 +1,264 @@
+<apex:component >
+     <apex:attribute name="parentId"  type="String" description="Parent record where attachment would be attached" />
+     <apex:attribute name="DragDropHeight" type="String" description="Height in Pixel for Drag and Drop Section"/>  
+    
+     <script type="text/javascript">
+         var __sfdcSessionId = '{!GETSESSIONID()}';
+     </script>
+     <script src="/soap/ajax/35.0/connection.js" type="text/javascript"></script>
+     <script src="/soap/ajax/35.0/apex.js" type="text/javascript"></script>
+           
+    <style>
+       #holder { 
+            border-color : #ccc;
+            border-style : dotted;
+            border-size : 1px;
+            padding : 5px;
+            width: 98%; 
+            height:95%;  
+            background-color:#fff; 
+            -webkit-border-radius: 8px 8px 8px 8px;
+            text-align: center; 
+            }
+        #holder span, #uploadCompleted span { 
+            position: relative;
+            top: 30%;
+            transform: translateY(-50%);
+            text-shadow: 2px 2px 2px #525252;
+            font-size:3em;
+            color:#A3A3A3; 
+            }   
+        #holder.hover { border: 2px dashed #636363; }
+   
+        #uploadStatus span{  
+            text-shadow: 2px 2px 2px #525252;
+            font-size:1em;
+             }
+        
+        #holder p { margin: 10px; font-size: 14px; }
+        progress { width: 100%;  height:2em;  }  
+        progress:after { content: '%'; }
+        .fail { background: #c00; padding: 2px; color: #fff; }
+        .hidden { display: none;}
+        .dragDropComponentSize{ height:{!DragDropHeight} ; overflow-y:auto; }
+        body{width:98%;font-family: Helvetica,"Helvetica Neue",Arial,sans-serif;}
+        #loadingDiv{
+            top           :     20%;
+            bottom        :     0;
+            left          :     45%;
+            right         :     0;
+            margin        :     auto;
+            position      :     fixed;
+            display       :     none;
+            z-index       :     101;
+            
+        }
+    </style>
+
+<article class="dragDropComponentSize" id="dndContainer">
+    <div id="holder" >
+        <span id="holder_txt1"> Drag and Drop files or click here to browse </span>
+         <span  id="holder_txt2" class="hidden"> Upload </span>
+    </div> 
+ 
+    
+     <div id='loadingDiv'>
+         <img src="{!URLFOR($Resource.MultiFileUploadResources,'MultiFileUploadResources/loadingImg.gif')}" />
+     </div>
+    
+    
+    
+    <p id="upload" class="hidden"><label>Drag &amp; drop not supported by your browser, but you can still upload via this input field:<br /><input multiple='true' id='inpFile' type="file" /></label></p>
+    <p id="filereader">File API &amp; FileReader API not supported</p>
+    <p id="formdata">XHR2's FormData is not supported</p>
+    <p id="progress">XHR2's upload progress isn't supported</p>
+    <p id="uploadStatus" class="hidden"><span>Upload progress:</span> <progress id="uploadprogress" min="0" max="100" value="0">0</progress></p> 
+</article>
+
+    <script src="{!URLFOR($Resource.MultiFileUploadResources,'MultiFileUploadResources/jQuery-11/jQuery-11.js')}"></script>
+<script>
+    //=============================
+    $(document).ready(function(){
+        $('#holder_txt1').click(function() {
+            $('#inpFile').click();
+       
+        })
+        $('#inpFile').change(function(){
+              readfiles(this.files);
+        })
+    });
+    var holder = document.getElementById('holder');
+    var holder_txt1 = document.getElementById('holder_txt1');
+    var holder_txt2 = document.getElementById('holder_txt2');
+    var uploadStatus = document.getElementById('uploadStatus'); 
+
+   
+    tests = {
+      filereader: typeof FileReader != 'undefined',
+      dnd: 'draggable' in document.createElement('span'),
+      formdata: !!window.FormData,
+      progress: "upload" in new XMLHttpRequest
+    }, 
+    support = {
+      filereader: document.getElementById('filereader'),
+      formdata: document.getElementById('formdata'),
+      progress: document.getElementById('progress')
+    }, 
+    progress = document.getElementById('uploadprogress'),
+    fileupload = document.getElementById('upload');
+
+"filereader formdata progress".split(' ').forEach(function (api) {
+  if (tests[api] === false) {
+    support[api].className = 'fail';
+  } else { 
+    support[api].className = 'hidden';
+  }
+});
+
+
+ 
+
+function textBeforeDrag(flag){
+    if(flag)
+    {
+        holder_txt1.className = '';
+        holder_txt2.className = 'hidden';
+    }else{
+        holder_txt1.className = 'hidden';
+        holder_txt2.className = '';
+    }
+}
+
+function resetAll()
+{
+    holder.className = holder_txt1.className = '';  
+    holder_txt2.className = uploadStatus.className = 'hidden';
+}
+
+function readfiles(files) { 
+    //alert('read files called')
+    var formData = tests.formdata ? new FormData() : null;
+    
+    // ===== Cheking file size =====
+    var filesSize = 0;
+    for (var i = 0; i < files.length; i++) {
+        filesSize += files[i].size;
+    }
+   
+    if(filesSize > 0) {
+        filesSize = (filesSize/1024)/1024;
+    }
+    //alert('FileSize : '+ filesSize +'MB');
+      
+    if(filesSize > 10)
+    {
+        alert('Files should not be large from 10 MB.');
+        return;
+    }
+    
+    
+    //=========== File uploading loop ===========
+    if(files.length > 0) {
+        totalFile = 0;       
+        attachments = [];
+        for (var i = 0, f; f = files[i]; i++) {
+            var reader = new FileReader(); 
+            reader.file = f;
+            reader.onload = function(e) {
+                var atc = new sforce.SObject("Attachment");
+                atc.Name = this.file.name;
+                atc.ContentType = this.file.type;
+                atc.parentId = '{!parentId}';
+
+                var binary = "";
+                var bytes = new Uint8Array(e.target.result);
+                var length = bytes.byteLength;
+
+                for (var index = 0; index < length; index++) {
+                    binary += String.fromCharCode(bytes[index]);
+                }
+                atc.Body = (new sforce.Base64Binary(binary)).toString();  
+                attachments.push(atc);       
+            };         
+            
+            reader.onloadend = function(e) {
+                totalFile++;                    
+                //alert(totalFile +'----'+ files.length);
+                if(totalFile == files.length){                               
+                    middleEvent();
+                } 
+            };                                    
+            reader.readAsArrayBuffer(f);
+        } 
+    } 
+   
+    
+}
+//=========== Middel Event =======
+function middleEvent(){
+    //alert('middleEvent');
+    for(var i=0;i<attachments.length;i++)
+        uploadEachFile(attachments[i]);
+}
+//===========Upload each file==================
+var fileIndex = 0;
+function uploadEachFile(atc) {
+    //alert('updateEachFile');
+    document.getElementById('loadingDiv').style.display = 'block';
+    sforce.connection.create([atc], { 
+        onSuccess : function(result, source) {                              
+            if (result[0].getBoolean("success")){
+                //console.log('succesfull');
+                //console.log("new attachment created with id " + result[0].id);                        
+                fileIndex++;                        
+                if(fileIndex == attachments.length){   
+                    //console.log('file upload done');    
+                    doneUpload();      
+                }                                 
+            } else {
+                //console.log('failed');
+                //console.log("failed to create attachment " + result[0]);
+            }
+        },
+                
+        onFailure : function(error, source) {
+            //console.log('error');
+            //console.log("an error has occurred " + error);
+        }            
+    });        
+}
+
+function doneUpload(){
+    //window.location.reload();
+    window.top.location.href = '/{!parentId}';
+}
+
+if (tests.dnd) { 
+  holder.ondragover = function () { 
+        this.className = 'hover'; 
+        //textBeforeDrag(false); 
+        return false; 
+      };
+  holder.ondragend = function () { 
+        this.className = ''; 
+        //textBeforeDrag(true); 
+        return false; 
+      };
+  holder.ondrop = function (e) {
+        //textBeforeDrag(true);
+        this.className = '';
+        
+        e.preventDefault();
+        readfiles(e.dataTransfer.files);
+  }
+} else {
+        fileupload.className = 'hidden';
+        fileupload.querySelector('input').onchange = function () {
+            readfiles(this.files);
+        };
+}
+
+
+
+</script>
+</apex:component>

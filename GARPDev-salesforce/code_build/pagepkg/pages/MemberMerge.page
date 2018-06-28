@@ -1,0 +1,223 @@
+<apex:page name="News Feed Publisher" controller="MemberMerge">
+<apex:form >    
+    <apex:pageblock >
+        Contact 1: <apex:inputfield value="{!claim1.Member__c}"/>
+        Contact 2: <apex:inputfield value="{!claim2.Member__c}"/>
+        
+        <apex:commandButton value="Show Details" action="{!fetchRecords}" rerender="proc, contTable1, acctTable1, expTable1, eaTable1, opTable1, cpeTable1,conTable1, contTable2, acctTable2, expTable2, eaTable2, opTable2, cpeTable2,conTable2"/>
+        <apex:commandButton value="Merge" action="{!combineContacts}" rerender="proc"/>  
+        <apex:commandButton value="Report" action="{!combineContacts}" rerender="proc"> <apex:param name="mode" value="readonly"/>  </apex:commandButton>
+		<apex:pageblock id="proc">
+            <p>
+				{!processStatus}
+            </p>
+        </apex:pageblock>
+        
+        <apex:pageblock >
+            <apex:panelGrid columns="2">
+                <apex:pageblock >
+                    Contact 1
+                    <apex:pageblocktable value="{!cont1Lst}" var="cont" id="contTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!cont.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!cont.obj.Id}">{!cont.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!cont.obj.GARP_Member_ID__c}"/>
+                        <apex:column value="{!cont.obj.MailingCity}"/>
+                        <apex:column value="{!cont.obj.Membership_Type__c}"/>
+                        <apex:column headerValue="Payment">
+                        	{!cont.obj.KPI_Membership_Payment_Status__c}
+                        </apex:column>
+                        <apex:column headerValue="Exam Reg">
+                        	{!cont.obj.KPI_Current_Exam_Registration__c}
+                        </apex:column>
+                        <apex:column value="{!cont.obj.KPI_ERP_Certified_Date__c}"/>
+                        <apex:column value="{!cont.obj.KPI_FRM_Certified_Date__c}"/>
+                    </apex:pageblocktable>
+
+                    Account
+                    <apex:pageblocktable value="{!acct1Lst}" var="acct" id="acctTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!acct.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!acct.obj.Id}">{!acct.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!acct.obj.BillingCity}"/>
+                    </apex:pageblocktable>
+
+                    Programs
+                    <apex:pageblocktable value="{!con1Lst}" var="con" id="conTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!con.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!con.obj.Id}">{!con.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!con.obj.RecordTypeId}"/>
+                        <apex:column value="{!con.obj.StartDate}"/>
+                        <apex:column value="{!con.obj.EndDate}"/> 
+                        <apex:column value="{!con.obj.Status}"/> 
+                        
+                    </apex:pageblocktable>
+
+                    Opportunity
+                    <apex:pageblocktable value="{!op1Lst}" var="op" id="opTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!op.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!op.obj.Id}">{!op.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!op.obj.Amount}"/>
+                        <apex:column value="{!op.obj.StageName}"/>
+                        <apex:column value="{!op.obj.CreatedDate}"/> 
+                    </apex:pageblocktable>
+
+   					Exam Registrations
+                    <apex:pageblocktable value="{!ea1Lst}" var="ea" id="eaTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!ea.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!ea.obj.Id}">{!ea.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!ea.obj.Exam_Site__r.Exam__r.Name}"/>
+                        <apex:column value="{!ea.obj.Exam_Site__r.Site__r.Display_Address__c}"/>
+                        <apex:column value="{!ea.obj.Exam_Site__r.Exam_Date__c}"/> 
+					</apex:pageblocktable>
+
+                    Experience
+                    <apex:pageblocktable value="{!exp1Lst}" var="exp" id="expTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!exp.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!exp.obj.Id}">{!exp.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!exp.obj.Company__c}"/>
+                    </apex:pageblocktable>
+
+					CPE Credits
+                    <apex:pageblocktable value="{!cpe1Lst}" var="cpe" id="cpeTable1">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!cpe.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!cpe.obj.Id}">{!cpe.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!cpe.obj.EventTitle__c}"/>
+                        <apex:column value="{!cpe.obj.Credits_Earned__c}"/>
+                        <apex:column value="{!cpe.obj.Approved__c}"/> 
+                        
+                    </apex:pageblocktable>
+
+                </apex:pageblock>
+                <apex:pageblock >
+                    Contact 2
+                    <apex:pageblocktable value="{!cont2Lst}" var="cont" id="contTable2">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!cont.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!cont.obj.Id}">{!cont.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!cont.obj.GARP_Member_ID__c}"/>
+                        <apex:column value="{!cont.obj.MailingCity}"/>
+                        <apex:column value="{!cont.obj.Membership_Type__c}"/>
+                        <apex:column headerValue="Payment">
+                        	{!cont.obj.KPI_Membership_Payment_Status__c}
+                        </apex:column>
+                        <apex:column headerValue="Exam Reg">
+                        	{!cont.obj.KPI_Current_Exam_Registration__c}
+                        </apex:column>
+                        <apex:column value="{!cont.obj.KPI_ERP_Certified_Date__c}"/>
+                        <apex:column value="{!cont.obj.KPI_FRM_Certified_Date__c}"/>
+                    </apex:pageblocktable>
+                    
+                    Account
+                    <apex:pageblocktable value="{!acct2Lst}" var="acct" id="acctTable2">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!acct.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!acct.obj.Id}">{!acct.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!acct.obj.BillingCity}"/>
+                    </apex:pageblocktable>
+
+                    Experience
+                    <apex:pageblocktable value="{!exp2Lst}" var="exp" id="expTable2">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!exp.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!exp.obj.Id}">{!exp.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!exp.obj.Company__c}"/>
+                    </apex:pageblocktable>
+
+					Exam Registrations
+                    <apex:pageblocktable value="{!ea2Lst}" var="ea" id="eaTable2">
+                        
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!ea.obj.Id}">{!ea.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!ea.obj.Exam_Site__r.Exam__r.Name}"/>
+                        <apex:column value="{!ea.obj.Exam_Site__r.Site__r.Display_Address__c}"/>
+                        <apex:column value="{!ea.obj.Exam_Site__r.Exam_Date__c}"/> 
+					</apex:pageblocktable>
+                    
+					Opportunity
+                    <apex:pageblocktable value="{!op2Lst}" var="op" id="opTable2">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!op.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!op.obj.Id}">{!op.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!op.obj.Amount}"/>
+                        <apex:column value="{!op.obj.StageName}"/>
+                        <apex:column value="{!op.obj.CreatedDate}"/> 
+                        
+                    </apex:pageblocktable>
+
+                    Programs
+                    <apex:pageblocktable value="{!con2Lst}" var="con" id="conTable2">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!con.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!con.obj.Id}">{!con.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!con.obj.RecordTypeId}"/>
+                        <apex:column value="{!con.obj.StartDate}"/>
+                        <apex:column value="{!con.obj.EndDate}"/> 
+                        <apex:column value="{!con.obj.Status}"/> 
+                        
+                    </apex:pageblocktable>
+
+					CPE Credits
+                    <apex:pageblocktable value="{!cpe2Lst}" var="cpe" id="cpeTable2">
+                        <apex:column headerValue="Select">
+                    		<apex:inputCheckbox value="{!cpe.selected}"/>
+                		</apex:column>
+                        <apex:column headerValue="Name">
+	                        <apex:outputLink value="/{!cpe.obj.Id}">{!cpe.obj.Name}</apex:outputLink>
+						</apex:column>
+                        <apex:column value="{!cpe.obj.EventTitle__c}"/>
+                        <apex:column value="{!cpe.obj.Credits_Earned__c}"/>
+                        <apex:column value="{!cpe.obj.Approved__c}"/> 
+                        
+                    </apex:pageblocktable>                    
+                </apex:pageblock>
+            </apex:panelGrid>
+        </apex:pageblock>
+
+		<apex:commandButton value="Merge" action="{!combineContacts}" rerender="proc"/>  
+    </apex:pageblock>
+    
+</apex:form>
+</apex:page>

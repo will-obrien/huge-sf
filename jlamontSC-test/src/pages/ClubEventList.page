@@ -1,0 +1,331 @@
+<apex:page sidebar="false" showheader="false" docType="html-5.0"
+    Controller="ClubEventListController"
+    title="Sierra Club Events"
+    id="ClubEventList"
+    applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <script src="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.js')}" type="text/javascript"></script>
+      <apex:stylesheet value="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.css')}"/> 
+      <style>
+        .columnHeader {
+            text-align:right;
+            font-weight:bold;
+        }
+        th, td {
+            padding: 2px;
+        }
+        .eventLabel {
+            font-weight:bold;
+            margin-left:20px;
+        }
+        table.tablesorter thead tr .header {
+            background-image: url({!URLFOR($Resource.TableSorter, '/themes/blue/bg.gif')})!important;
+            background-repeat: no-repeat !important;
+            background-position: center right !important;
+            cursor: pointer;
+        }       
+        table.tablesorter thead tr .headerSortUp {
+            background-image: url({!URLFOR($Resource.TableSorter, '/themes/blue/asc.gif')})!important;
+            background-repeat: no-repeat !important;
+            background-position: center right !important;
+        }
+        table.tablesorter thead tr .headerSortDown {
+            background-image: url({!URLFOR($Resource.TableSorter, '/themes/blue/desc.gif')})!important;
+            background-repeat: no-repeat !important;
+            background-position: center right !important;
+        }
+        table.tablesorter thead tr .header div {
+           padding-right: 15px;
+        }
+        
+    </style>
+    <title>Sierra Club Events</title>
+  </apex:define>
+  <apex:define name="constituent_username_and_home">
+    <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+  </apex:define>
+  <apex:define name="body">
+    <h3>Events</h3>
+    <apex:form >
+      <div class="row">
+        <div class="col-xs-12 col-sm-4 col-md-3 form-group">
+          <apex:commandButton value="New Event" action="{!newActivity}" styleClass="btn btn-primary btn-block" />
+        </div>
+        <div class="col-xs-12 col-sm-4 col-md-3 form-group">
+          <apex:commandButton value="My Event Attendance" action="{!eventLeadership}" styleClass="btn btn-success btn-block" />
+        </div>
+        <div class="col-xs-12 col-sm-4 col-md-3 form-group">
+          <apex:commandButton value="Administration" action="{!administration}" styleClass="btn btn-warning btn-block" />
+        </div>
+      </div>      
+      <div class="well well-sm form-group">
+        <div class="row">
+          <div id="show-filter-wrapper" class="col-md-12">
+            <a id="showFilter" href="#"><strong><i class="fa fa-caret-down"></i> Filter Options</strong></a>
+          </div>
+        </div>
+        <div id="filterCriteria" style="display:none">
+          <apex:actionRegion id="searchParmsRegion">
+            <apex:outputPanel id="searchParmsPanel">
+              <div class="row">
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Earliest Start Date" for="earliestDate" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:inputText value="{!earliestDateString}" size="10" id="earliestDate" 
+                                  styleClass="dateInput form-control" />
+                </div>
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Latest Start Date" for="latestDate" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:inputText value="{!latestDateString}" size="10" id="latestDate" 
+                                  styleClass="dateInput form-control" />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Earliest Modified Date" for="earliestChangeDate" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:inputText value="{!earliestChangeDateString}" size="10" id="earliestChangeDate" 
+                                  styleClass="dateInput form-control" />
+                </div>
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Latest Modified Date" for="latestChangeDate" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:inputText value="{!latestChangeDateString}" size="10" id="latestChangeDate" 
+                                  styleClass="dateInput form-control" />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Match in Leader Name" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:inputText value="{!leaderName}" 
+                                  styleClass="form-control" />
+                </div>
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Match in Event Title" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:inputText value="{!eventTitle}" size="10"
+                                  styleClass="form-control" />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Status" for="" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:selectList value="{!eventStatus}" size="1" styleClass="form-control">
+                    <apex:selectOptions value="{!statusOptions}"/>
+                  </apex:selectList>
+                </div>
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Category"  />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:selectList value="{!eventCategory}" size="1" styleClass="form-control">
+                    <apex:selectOptions value="{!categoryOptions}"/>
+                  </apex:selectList>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-2">  
+                  <apex:outputLabel value="Club Entity" />
+                </div>
+                <div class="col-md-4 form-group">  
+                  <apex:selectList value="{!eventSponsor}" size="1" styleClass="form-control">
+                    <apex:selectOptions value="{!sponsorOptions}"/>
+                  </apex:selectList>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-2 col-md-offset-8 form-group">  
+                  <apex:commandButton id="filterButton"
+                                      value="Filter Events"
+                                      action="{!filterEvents}"
+                                      reRender="listTitle, listPanel, headerMessagePanel, createFileLink"
+                                      oncomplete="sortTable()"
+                                      styleClass="btn btn-info btn-block"
+                  />
+                </div>
+                <div class="col-md-2 form-group">  
+                  <apex:commandButton value="Start Over"
+                                      action="{!resetFilter}"
+                                      reRender="listTitle, listPanel, searchParmsPanel"
+                                      oncomplete="sortTable()"
+                                      styleClass="btn btn-default btn-block"
+              
+                  /> 
+                </div>
+              </div>
+            </apex:outputPanel>
+            <apex:actionStatus for="searchParmsRegion">
+              <apex:facet name="start">
+                <c:Waiting />
+              </apex:facet>
+            </apex:actionStatus>
+          </apex:actionRegion>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xs-10 col-sm-4 col-md-3 form-group">
+          <div class="dropdown">
+            <button id="dLabel" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" class="form-control" >
+              Print/Download <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="dLabel">
+              <li>
+                <apex:commandLink value="Print View" 
+                                  action="{!createPrintView}"
+                                  target="_blank"
+                  />
+              </li>
+              <li>
+                <apex:commandLink value="Events File" 
+                                  action="{!createCSV}"
+                                  target="_blank"
+                  />
+              </li>
+              <li>
+                <apex:commandLink value="Registrations File" 
+                                  action="{!createRegistrationList}"
+                                  target="_blank"
+                />
+              </li>
+              <li>
+                <apex:commandLink value="Registration Summary File" 
+                                  action="{!createRegistrationSummary}"
+                                  target="_blank"
+                />
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-2 form-group">
+          <i class="fa fa-question-circle text-info" data-placement="right" data-toggle="tooltip" 
+             title="Print or download the results listed in the table below" ></i>
+        </div>
+      </div>
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <div class="row">
+            <div class="col-xs-10 col-sm-4 col-md-3">
+              <div>
+                <strong><apex:outputText id="listTitle" value="{!listTitle}"/></strong>&nbsp;&nbsp;&nbsp;
+                <i class="fa fa-question-circle text-info" data-placement="right" data-toggle="tooltip" 
+                 title="Sort list by clicking column header. Shift and click a second column header for secondary sort." ></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <apex:outputPanel id="listPanel">
+          <apex:pageBlock >
+            <apex:outputPanel rendered="{! (activityListSize > 0) }">
+              <div class="table-responsive">
+                <apex:pageBlockTable id="eventList" 
+                                     styleClass="tablesorter table table-striped" 
+                                     value="{!activityList}" var="a"
+                >
+                  <apex:column width="10px" value="{!a.Date_Begin__c}" styleClass="col-sm-1" />
+                  <apex:column headerValue="Title" width="50px" styleClass="col-sm-3">
+                    <apex:outputLink value="ClubEventEntry?id={!a.Id}">
+                      {!a.Event_Title__c}
+                    </apex:outputLink>
+                  </apex:column>
+                  <apex:column value="{!a.Status__c}" styleClass="col-sm-2" />
+                  <apex:column value="{!a.Club_Entity__r.Name}" styleClass="col-sm-2" />
+                  <apex:column value="{!a.LastModifiedDate}" styleClass="col-sm-2" />
+                  <apex:column styleClass="col-sm-1" >
+                    <apex:outputLink value="ClubEventEntry?id={!a.id}&amp;copy=true"
+                                     styleClass="btn btn-info btn-block"
+                    >
+                      <apex:outputText value="Copy"/>
+                    </apex:outputLink>
+                  </apex:column>
+                  <apex:column styleClass="col-sm-1" >
+                    <apex:commandLink onclick="if(!confirm('Are you sure you want to delete this event: {!a.Event_Title__c}?')){return false};"
+                                      action="{!deleteActivity}"
+                                      rendered="{!a.Deletion_Allowed__c}" 
+                                      styleClass="btn btn-danger btn-block"
+                    >
+                      Delete 
+                      <apex:param name="id" value="{!a.Id}"/>
+                    </apex:commandLink>
+                  </apex:column>
+                </apex:pageBlockTable>
+              </div>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{! (activityListSize == 0) }">
+              <div class="alert alert-warning" role="alert">
+                No events found
+              </div>
+            </apex:outputPanel>
+          </apex:pageBlock>
+        </apex:outputPanel>
+      </div>
+    </apex:form>
+    </apex:define>
+    <apex:define name="footer">
+      <script src="{!URLFOR($Resource.TableSorter, '/jquery.tablesorter.min.js')}" type="text/javascript"></script>
+      <script type="text/javascript" async="async">
+        var j$ = jQuery.noConflict();
+        j$(document).ready(function() {
+          j$("#showFilter").bind('click',function() {
+            toggleFilter();
+          });
+          sortTable();
+          j$('.dateInput').datetimepicker({
+            timepicker: false, 
+            format: 'm/d/Y',
+            onSelectDate:function(dp,$input){
+              $input.datetimepicker('hide');
+            }
+          });
+            j$('#filterCriteria input').keypress(function(e) {
+                if (window.event && window.event.keyCode == 13 || e.which == 13) {
+                    j$('[id$=filterButton]').click();
+                    return false;
+                 } else {
+                    return true;
+                 }
+            });
+        });
+    
+        function sortTable() {
+          j$("[id$=eventList]").tablesorter({
+            headers: { 
+              5: {sorter: false},
+              6: {sorter: false} 
+            },
+            sortList: [[0,1]] 
+          }); 
+        }
+    
+        function toggleFilter() {
+          if(j$("#filterCriteria").css("display") == "none") {
+            j$("#filterCriteria").show( "blind",{},500,function(){j$("#showFilter").html('<strong><i class="fa fa-caret-down"></i> Filter Options</strong>');});
+            j$("#show-filter-wrapper").addClass("form-group");
+          }
+          else {
+            j$( "#filterCriteria" ).effect( "blind",{},500,function(){
+              j$("#showFilter").html('<strong><i class="fa fa-caret-down"></i> Filter Options</strong>');
+              j$("#show-filter-wrapper").removeClass("form-group");
+            });  
+          }
+        }
+
+        // initialize tooltips
+        j$(function () {
+          j$('[data-toggle="tooltip"]').tooltip();
+        });
+      </script>
+    </apex:define>
+  </apex:composition>
+</apex:page>

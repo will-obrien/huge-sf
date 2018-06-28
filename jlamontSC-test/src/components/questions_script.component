@@ -1,0 +1,62 @@
+<apex:component layout="none">
+
+        <script>
+        window.customQuestions = [];
+        
+        // Script to make sure custom field info is transferred to the
+        // hidden field being used by the controller.
+        // can't pass dynamic form names to the component.
+        // ### need this to run on submit. before submit.
+        // each custom question that is visible.
+        function getFieldValuesSelections(questionName) {
+            if (jQuery('.' + questionName + '')[0].nodeName == 'TABLE') {
+                var values = [];
+                jQuery('.' + questionName + ' INPUT:checked').each( function() {
+                    if (jQuery(this).val() == "Other" && jQuery('.' + questionName + '_other').length > 0) {
+                        var otherValue = 'none entered';
+                        if (jQuery('.' + questionName + '_other').val() != '') {
+                            otherValue = jQuery('.' + questionName + '_other').val();
+                        }
+                        values.push(jQuery(this).val() + ': ' + otherValue);
+                    } else {
+                        values.push(jQuery(this).val());
+                    }                  
+                  } );
+
+                  if (values.length > 0 ) {
+                      jQuery('[data-id=' + questionName + ']').val(values.join(', '));
+                  } else {
+                      jQuery('[data-id=' + questionName + ']').val('');
+                  }
+            } else {
+                 var singleValue = jQuery('.' + questionName + '').val();
+                 var otherValue = '';
+                 if (jQuery('.' + questionName + '').val() == "Other" && jQuery('.' + questionName + '_other').length > 0) {
+                      otherValue = 'none entered';
+                      if (jQuery('.' + questionName + '_other').val() != '') {
+                          otherValue = ': ' + jQuery('.' + questionName + '_other').val();
+                      }
+                 }                 
+                 jQuery('[data-id=' + questionName + ']').val(singleValue + otherValue);
+            }
+        }        
+        
+        function customFieldReponseTransfer(questionName) {
+          jQuery('.' + questionName + '_other').change(function() {
+              getFieldValuesSelections(questionName);
+          });
+
+          jQuery('.' + questionName + '').change(function() {
+              getFieldValuesSelections(questionName);
+          });  
+        }      
+        
+        jQuery('FORM').submit( function() { 
+            for (var q in window.customQuestions) {
+                getFieldValuesSelections(window.customQuestions[q]);
+            }
+        });        
+        </script>
+
+  <!-- End custom_question_scripts -->
+</apex:component>

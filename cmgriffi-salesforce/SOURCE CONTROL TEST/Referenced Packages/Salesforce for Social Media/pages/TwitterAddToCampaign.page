@@ -1,0 +1,227 @@
+<apex:page controller="sf4twitter.TwitterAddToCampaignController" tabStyle="Campaign" title="{!$Label.Add_to_a_Campaign}" showHeader="{!!consoleDetector.inConsole}" sidebar="{!!consoleDetector.inConsole}" >
+
+<apex:includeScript value="{!URLFOR($Resource.sf4twitter__jQueryLibrary)}" />
+
+<c:TwitterStyles />
+
+<c:TwitterErrorMessage msgTitle="{!$Label.TWITTER_INSUFFICIENT_PRIVILEGES}" msg="{!msg}" retUrl="{!retUrl}" rendered="{!NOT(ISBLANK(msg))}"/>
+
+<apex:outputPanel layout="none" rendered="{!ISBLANK(msg)}"> 
+
+<apex:sectionHeader title="{!HTMLENCODE($Label.Add_to_a_Campaign)}" />
+
+    <apex:pageBlock title="{!$Label.Select_Campaign} ">
+        <apex:outputPanel rendered="{!AND(campaignExists, $ObjectType.Campaign.Accessible)}">
+            <apex:form >
+                <div id="comboboxHolder" style="display:inline">
+                    {!$Label.Select_Campaign}:
+                    <apex:inputField value="{!fakeSelectCampaign.CampaignId}" />
+                </div>
+                <br/>
+                <apex:outputPanel id="buttonsPanel" layout="block">
+                    <span id="buttonSpan" >
+                        <apex:commandButton value="{!$Label.Add_Members_to_Campaign}" action="{!addToCampaigns}" onclick="javascript:showLoadingGif();"/>
+                        <input type="button" onclick="javascript:goToCampaign();" class="btn" value="{!$Label.Go_To_Campaign}"/>
+                    </span>
+                    <div id="loadingHolder" style="display:none">
+                        <img src="{!URLFOR($Resource.Loading)}" alt="" class="loadingImage"/>{!$Label.Loading}
+                    </div>
+                </apex:outputPanel>
+                <br />
+                <br />
+                <div class="returnLink" style="margin-top:20px;display:block">
+                	<c:SocialOutputLink linkValue="{!$Label.TWITTER_RETURN}" linkURL="{!retUrl}"></c:SocialOutputLink>
+                </div>
+            </apex:form>
+        </apex:outputPanel>
+        
+        <apex:outputPanel rendered="{!!campaignExists}">
+            <p>{!$Label.No_active_campaigns}</p>
+            <div class="returnLink" style="margin-top:20px;display:block">
+            	<c:SocialOutputLink linkValue="{!$Label.TWITTER_RETURN}" linkURL="{!retUrl}"></c:SocialOutputLink>
+            </div>
+        </apex:outputPanel>
+        
+    </apex:pageBlock>
+
+
+<script type="text/javascript">
+function openUrl(url,inWindow) {
+    window.open(url, inWindow);
+}
+
+function goToCampaign(){
+	var campaignHolder = $(document.getElementById('comboboxHolder').childNodes[1]);
+	var select = campaignHolder.find('select');
+	var id;
+	if (select.size() > 0) {
+		id = select.val();
+	} else {
+		id = campaignHolder.find('input').eq(0).val(); 
+	}
+    if(id && id != '000000000000000'){
+        openUrl("/"+id+"{!IF(consoleDetector.inConsole,'?isdtp=vw','')}",'_self');
+    }
+    else {
+        alert('{!$Label.Select_Campaign_first}');
+    }
+}
+
+function showLoadingGif() {
+    document.getElementById('buttonSpan').style.display = 'none';
+    document.getElementById('loadingHolder').style.display = 'inline';
+}
+
+function hideDiv(selector,clicked){
+    $(selector).toggle()
+    $(clicked).toggleClass('hideListButton').toggleClass('showListButton');
+}
+</script>
+
+<apex:outputPanel layout="block" id="willCreate" >
+    <apex:outputPanel layout="block" rendered="{!AND(renderWillCreate, $ObjectType.Lead.createable)}">
+        
+        <apex:pageBlock title="{!$Label.Leads_created_for_Conversations}">
+            <table class="table results list">
+                <thead>  
+                    <tr class="headerRow">
+                        <td>{!$Label.TWITTER_TARGET_CONVERSATION}</td>
+                        <td>{!$Label.Content}</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <apex:repeat value="{!willCreateLeadsIteration}" var="conv" id="theRepeat">
+                        <tr>
+                            <td>
+                            	<c:SocialOutputLink linkValue="{!conv.Name}" linkURL="/{!conv.Id}"></c:SocialOutputLink>
+                            </td>
+                            <td>
+                                <span class="conversation">
+                                    <apex:outputText value="{!conv.sf4twitter__Message__c}" rendered="{!$ObjectType.sf4twitter__Twitter_Conversation__c.fields.sf4twitter__Message__c.Accessible}" />
+                                </span>
+                            </td>
+                        </tr>  
+                    </apex:repeat>  
+                </tbody>
+            </table>
+        </apex:pageBlock>
+    </apex:outputPanel>
+</apex:outputPanel>
+
+<apex:outputPanel layout="block" id="result">
+
+    <apex:outputPanel layout="block" rendered="{!showResAdd}">
+        <apex:pageBlock title="{!$Label.Results}">
+            <h2>{!$Label.Added_to} "<c:SocialOutputLink linkValue="{!campaignInfo.Name}" linkURL="/{!campaignInfo.Id}"></c:SocialOutputLink>" {!amountAdded} {!$Label.new_Members}
+            <apex:outputPanel rendered="{!showAlreadyExisted}">
+                <br/>{!countCAlreadyExisted+countLAlreadyExisted} {!$Label.Contacts_Leads_already_existed}
+            </apex:outputPanel>
+            </h2> 
+            <br />
+            <apex:outputPanel rendered="{!renderAddedContacts}">
+                <div class="hiddenBlock" id="resultSection">
+                    <div class="pbSubheader first tertiaryPalette">
+                        <img class="hideListButton" title="{!$Label.TS_Search_Results}" onclick="hideDiv('.innerResults.lead',this);" style="cursor: pointer;" alt="{!$Label.TS_Search_Results}" src="/s.gif"/>
+                        <h3>{!$Label.Added} {!countContactsAdded} {!$Label.Contacts}</h3>
+                    </div>
+                    <div class="innerResults lead">
+                        <p>
+                            <apex:repeat value="{!contactsAddedSucccesfully}" var="obj" id="theRepeatContact" rendered="{!$ObjectType.Contact.fields.Name.Accessible}">
+                                <c:SocialOutputLink linkValue="{!obj.firstName} {!obj.lastName}" linkURL="/{!obj.Id}"></c:SocialOutputLink>,
+                            </apex:repeat>  
+                        </p>
+                    </div>
+                </div>  
+            </apex:outputPanel>
+            <br />
+            <apex:outputPanel rendered="{!renderAddedLeads}">
+                <div class="hiddenBlock" id="resultSection">
+                    <div class="pbSubheader first tertiaryPalette">
+                        <img class="hideListButton" title="{!$Label.TS_Search_Results}" onclick="hideDiv('.innerResults.contact',this);" style="cursor: pointer;" alt="{!$Label.TS_Search_Results}" src="/s.gif"/>
+                        <h3>{!$Label.Added} {!countLeadsAdded} {!$Label.Leads}</h3>
+                    </div>
+                    <div class="innerResults contact">
+                        <p>
+                            <apex:repeat value="{!leadsAddedSuccesfully}" var="obj" id="theRepeatLead" rendered="{!$ObjectType.Lead.fields.Name.Accessible}">
+                                <c:SocialOutputLink linkValue="{!obj.firstName} {!obj.lastName}" linkURL="/{!obj.Id}"></c:SocialOutputLink>,
+                            </apex:repeat>  
+                        </p>
+                    </div>
+                </div> 
+            </apex:outputPanel>
+            <br />
+            
+            <apex:outputPanel rendered="{!showAlreadyExisted}">
+                <apex:outputPanel rendered="{!IF(countLAlreadyExisted>0,true,false)}">
+                    <div class="hiddenBlock" id="resultSection">
+                        <div class="pbSubheader first tertiaryPalette">
+                            <img class="hideListButton" title="{!$Label.TS_Search_Results}" onclick="hideDiv('.innerResults.xlead',this);" style="cursor: pointer;" alt="{!$Label.TS_Search_Results}" src="/s.gif"/>
+                            <h3>{!$Label.Existing_members_from} {!$Label.Leads}</h3>
+                        </div>
+                        <div class="innerResults xlead">
+                            <p>
+                                <apex:repeat value="{!leadsAlreadyMember}" var="obj" rendered="{!$ObjectType.Lead.fields.Name.Accessible}">
+                                    <c:SocialOutputLink linkValue="{!obj.firstName} {!obj.lastName}" linkURL="/{!obj.Id}"></c:SocialOutputLink>,
+                                </apex:repeat>  
+                            </p>
+                        </div>
+                    </div>
+                </apex:outputPanel><br />
+                <apex:outputPanel rendered="{!IF(countCAlreadyExisted>0,true,false)}">
+                    <div class="hiddenBlock" id="resultSection">
+                        <div class="pbSubheader first tertiaryPalette">
+                            <img class="hideListButton" title="{!$Label.TS_Search_Results}" onclick="hideDiv('.innerResults.xcontact',this);" style="cursor: pointer;" alt="{!$Label.TS_Search_Results}" src="/s.gif"/>
+                            <h3>{!$Label.Existing_members_from} {!$Label.Contacts}</h3>
+                        </div>
+                        <div class="innerResults xcontact">
+                            <p>
+                                <apex:repeat value="{!contactsAlreadyMember}" var="obj" rendered="{!$ObjectType.Contact.fields.Name.Accessible}">
+                                    <c:SocialOutputLink linkValue="{!obj.firstName} {!obj.lastName}" linkURL="/{!obj.Id}"></c:SocialOutputLink>,
+                                </apex:repeat>  
+                            </p>
+                        </div>
+                    </div>
+                </apex:outputPanel>
+            </apex:outputPanel>
+        </apex:pageBlock>
+    </apex:outputPanel>
+    
+    <apex:outputPanel layout="block" rendered="{!leadCreateAction}">
+        <apex:outputPanel layout="block" rendered="{!IF(tlead.tcId != null && tlead.tcId != '',true,false)}">
+            <apex:pageBlock title="{!tlead.msgTitle}">
+                <c:EscapedTextWithAnchors value="{!tlead.msg}" />
+            </apex:pageBlock>
+        </apex:outputPanel>
+        
+        <apex:outputPanel layout="block" rendered="{!IF(tlead.tcList != null && tlead.tcList != '',true,false)}">
+            <apex:pageBlock title="{!$Label.Create_Lead_Results}">
+                <table class="table results list">
+                    <thead>  
+                        <tr class="headerRow">
+                            <td>{!$Label.TWITTER_TARGET_CONVERSATION}</td>
+                            <td>{!$Label.Results}</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <apex:repeat value="{!tlead.resultsIteration}" var="result" id="theRepeat">
+                            <tr>
+                                <td>
+                                	<c:SocialOutputLink linkValue="{!result.tcname}" linkURL="/{!result.Id}"></c:SocialOutputLink>,
+                                </td>
+                                <td>
+                                    <span class="{!result.title}">
+                                    	<c:EscapedTextWithAnchors value="{!result.msg}" />                                        
+                                    </span>
+                                </td>
+                            </tr>  
+                        </apex:repeat>  
+                    </tbody>
+                </table>
+            </apex:pageBlock>
+        </apex:outputPanel>
+    </apex:outputPanel>
+</apex:outputPanel>
+
+</apex:outputPanel>
+
+</apex:page>

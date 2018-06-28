@@ -1,0 +1,527 @@
+<apex:page id="ring_admin_page" sidebar="true" controller="qbdialer.InsideSalesSetup" tabStyle="is_links__tab">
+    <script type="text/javascript" src="https://sforce.insidesales.com/js/overlib.js"></script>
+    <script type="text/javascript" src="/soap/ajax/19.0/connection.js"></script>
+    <script src="/js/functions.js"></script>
+	<script type="text/javascript"> __jQuery = null;if(typeof(jQuery) != "undefined") __jQuery = jQuery; jQuery = null; </script>
+	<script type="text/javascript" src="{!URLFOR($Resource.c2c_resources, '/lib/jquery.min.js')}"></script>
+    <script type="text/javascript" src="/soap/ajax/19.0/apex.js"></script>
+    <script type="text/javascript">
+    	var qbjq = jQuery.noConflict();
+		jQuery = __jQuery;
+        var user = null;
+        var theme = null;
+        var user_oauth_token = '{!JSENCODE($User.is_token__c)}';
+        if (!user_oauth_token) {
+            window.location.href="/apex/InsideSales_OAuth_Setup";
+        }
+
+        qbjq(function() {
+            if (!triggerSFUserUpdateIfNeeded()) {
+                getPermissions();
+            }
+        });
+
+        function getTabClass() {
+			try {
+				if(theme == null){
+					try {
+						sforce.connection.sessionId="{!$Api.Session_ID}";
+					} catch (e) {
+						//
+					}
+					user  = sforce.connection.getUserInfo();
+					theme = user.userUiSkin;
+				}
+
+				var classes = qbjq('body:first').attr('class').split(' ');
+				var classes = qbjq.grep(classes, function(elem, idx) {
+					var ret = false;
+					if (elem != '' && elem != 'hasMotif' && elem != 'sfdcBody') {
+						ret = true;
+					}
+					return ret;
+				});
+				var hostname = window.location.hostname;
+				return {
+					"css_base"  : "https://"+window.location.hostname,
+					"css_theme" : theme,
+					"css_class" : classes[0]};
+			} catch (e) {
+				return false;
+			}
+        }
+
+        function getElementsByClassName(classname, node)  {
+            if(!node){
+                node = document.getElementsByTagName("body")[0];
+            }
+
+            var a = [];
+            var re = new RegExp('\\b' + classname + '\\b');
+            var els = node.getElementsByTagName("*");
+
+            for(var i=0; i < els.length; i++)
+            {
+                if(re.test(els[i].className))
+                {
+                    a.push(els[i]);
+                }
+            }
+
+            return a;
+        }
+
+
+        function openInsideSalesLink(view, height){
+            var css_info = getTabClass();
+
+            var url = "/apex/InsideSales_Setup?target_page="+escape(view);
+			if (css_info) {
+			url += "&css_base="+encodeURIComponent(css_info.css_base) +
+                "&css_theme="+encodeURIComponent(css_info.css_theme)+
+                "&css_class="+encodeURIComponent(css_info.css_class);
+			} else {
+				var bodytags = document.getElementsByTagName("body");
+				var classes  = bodytags[0].className.split(' ');
+				url += '&css_base='+encodeURIComponent("https://"+window.location.hostname);
+				url += "&css_class="+encodeURIComponent(classes[0]);
+			}
+            if (height) {
+                url = url + "&ch="+height;
+            }
+            window.location = url;
+        }
+
+        function popOpenInsideSalesLink(view, window_name, width, height, extras) {
+            var extra_settings = "";
+            var tmp_host = '{!JSENCODE(InsideSalesHostSmart)}';
+            var css_info = getTabClass();
+            var target_location = '';
+            var parts = tmp_host.split('.');
+            if(parts[2] == 'dev' || parts[0] == 'https://beta') {
+                target_location = tmp_host + view + "?token={!JSENCODE($User.is_token__c)}";
+            }
+            else {
+                target_location = "https://{!JSENCODE($User.is_subdomain__c)}.insidesales.com/" + view + "?token={!JSENCODE($User.is_token__c)}";
+            }
+
+			if (css_info) {
+            target_location += "&css_class="+encodeURIComponent(css_info.css_class)+
+                "&css_base="+encodeURIComponent(css_info.css_base)+
+                "&css_theme="+encodeURIComponent(css_info.css_theme);
+			} else {
+				var bodytags = document.getElementsByTagName("body");
+				var classes  = bodytags[0].className.split(' ');
+				target_location += '&css_base='+encodeURIComponent("https://"+window.location.hostname);
+				target_location += "&css_class="+encodeURIComponent(classes[0]);
+			}
+
+
+            if(typeof(width) == "undefined" || width == null) width = 1030;
+            if(typeof(height) == "undefined" || height == null) height = 710;
+
+            if (extras && typeof extras === "object") {
+                for (var ex in extras) {
+                    extra_settings += ", " + ex + "=" + extras[ ex ];
+                }
+            }
+
+            window.open(target_location, window_name.replace(" ", "_"), "resizable=yes,height="+height+",width="+width + extra_settings);
+        }
+		function ivr_available() {
+        	if ("{!$User.InsideSales_Admin__c}" == "true") {
+ 				qbjq('#ivr_link').show();
+ 			}
+        }
+		function enableFieldSyncManager() {
+            if ("{!$User.InsideSales_Admin__c}" == "true") {
+                qbjq('.manage_field_sync_link').show();
+            }
+        }
+
+		function enableCallRecordingManager() {
+			if ("{!$User.InsideSales_Admin__c}" == "true") {
+				qbjq('.manage_call_recording').show();
+			}
+		}
+
+        function enableELFCampaigns() {
+            qbjq('.manage_elf_campaigns').show();
+        }
+
+        function getPermissions() {
+        	var script_element = document.createElement("script");
+        	var user_oauth_token = '{!JSENCODE($User.is_token__c)}';
+			var user_subdomain = '{!JSENCODE($User.is_subdomain__c)}';
+        	script_element.type = "text/javascript";
+        	var s = 's';
+        	if (user_subdomain.search('\\.') > -1) {
+        		s = false;
+        	}
+
+            // SF is always secure, dev accounts should be too, otherwise blocked content
+            s = 's';
+
+        	var permissions_check_loc = '/admin/salesforce/permission_checks?token='+user_oauth_token+'&package_version='+encodeURIComponent('6.4.34');
+        	if (!s) {
+      			var org_host = document.getElementById('org_host');
+       			if (org_host && org_host.value) {
+       				script_element.src = org_host.value + permissions_check_loc;
+     			}
+       		} else {
+     			script_element.src = "http"+s+"://"+user_subdomain+".insidesales.com" + permissions_check_loc;
+       		}
+       		document.body.appendChild(script_element);
+        }
+
+        var help = {
+            "agent_tools"          : "<div class=\"sf_help_doc\">Agent Tools</div>",
+            "agent_dialing"        : "<div class=\"sf_help_doc\">Agent Dialing</div>",
+            "administrative_tools" : "<div class=\"sf_help_doc\">Administrative Tools</div>",
+            "monitoring"           : "<div class=\"sf_help_doc\">Monitoring</div>"};
+
+        function triggerSFUserUpdateIfNeeded() {
+            {!triggerSFUserUpdateIfNeeded}
+        }
+
+        jQuery(function () {
+            // IE9 had issues with anchor tags with onClick events settings
+            // window.location when they already had an 'href' attribute.
+            // href='#' was being favored over window.location = '?'
+            // https://insidesales.mingle.thoughtworks.com/projects/isdcdev/cards/10494
+            jQuery('a[onclick*=openInsideSalesLink]').click(function (e) {
+                e.preventDefault();
+            });
+        });
+    </script>
+    <script type="text/javascript">
+        pd.event_bus.one('ready:user_info', function () {
+            if (pd.user_info && pd.user_info.new_comms_platform) {
+                // show new elements
+                qbjq('.new_comms_platform').show();
+            } else {
+                // show old elements
+                qbjq('.old_comms_platform').show();
+            }
+        });
+    </script>
+    <style>
+        li.is_link {
+            padding: 3px 3px 3px 3px;
+        }
+        .sf_help_doc {
+            max-width: 400px;
+            background-color: #fefdb9;
+            border: 1px solid #000;
+            padding: 5px 7px 5px 7px;
+        }
+        .sf_help_icon {
+            background:url('https://sforce.insidesales.com/images/help_icon_blue_circle.png') no-repeat transparent;
+            width:14px;
+            height:14px;
+            margin-left:5px;
+            float:right;
+            display:none;
+        }
+
+		.apexp .bPageBlock {
+			border-color: #cccccc !important;
+			padding-bottom: 12px;
+			margin: 0px;
+			padding: 0px;
+			background-color: white !important;
+			border-top-width: 1px;
+			margin-top: 20px;
+			margin-bottom: 20px;
+		}
+
+		.apexp .bPageBlock table {
+			margin: 0px !important;
+			padding: 0px !important;
+			width: 100%;
+		}
+
+		.apexp .bPageBlock table td {
+			width: 33%;
+		}
+
+		.apexp .bPageBlock .pbTitle {
+			padding: 0px !important;
+		}
+
+		.apexp .bPageBlock .pbTitle .mainTitle {
+			font-size: 1.23em;
+			font-weight: bold;
+			position: relative;
+			top: 1px;
+			left: 10px;
+		}
+
+		.apexp .bPageBlock .pbHeader {
+			border-bottom: 1px solid #cccccc !important;
+			background-color: #DEDEDE !important;
+			cursor: default;
+		}
+
+        .apexp .bPageBlock .pbHeader table{
+            padding: 1px 0 !important;
+            background-color: #DEDEDE !important;
+        }
+
+		.apexp .apexp .bPageBlock {
+			border-width: 0px;
+			margin: 0px !important;
+		}
+
+		.apexp .bPageBlock .pbBody {
+			margin: 7px 12px 0px !important;
+		}
+
+		.apexp .apexp .pbBody {
+			margin: 0px !important;
+			padding-left: 19px;
+			padding-bottom: 10px;
+		}
+
+		.apexp .apexp .pbBody span.is_links_section_header {
+			display: block;
+			margin: -10px -15px 4px -34px;
+			color: #636363;
+			font-weight: bold;
+			padding: 6px 21px 11px 10px;
+			cursor: default;
+			background-color: #F8F8F8;
+			*background-color: white;
+		}
+
+		.apexp .apexp .pbBody span.is_links_section_header img {
+			margin-right: 4px;
+			position: relative;
+			top: 4px;
+		}
+
+		.apexp .apexp .pbBody a {
+			text-decoration: none;
+			color: #015BA7;
+			padding: 3px 0px;
+			display: table;
+			*display: block;
+		}
+
+		.apexp .apexp .pbBody a:hover {
+			text-decoration: underline;
+		}
+
+		div.insidesales_logo {
+			float: right;
+			height: 0px;
+			width: 0px;
+			position: relative;
+			top: -60px;
+		}
+
+		div.insidesales_logo img {
+			display: inline-block;
+			margin-top: -28px;
+			margin-left: -80px;
+		}
+
+        .new_comms_platform {
+            display: none;
+        }
+
+        .old_comms_platform {
+            display: none;
+        }
+    </style>
+    <apex:sectionHeader title="PowerDialer Administration and Tools"/>
+    <div style="margin-bottom:5px"></div>
+    <input type="hidden" id="org_host" value="{!InsideSalesHostSmart}"/>
+    <apex:pageMessages id="pageMsgs" />
+	<!-- agent dialing tool section -->
+	<apex:pageBlock title="Agent Dialing Tools" rendered="{!shouldShowAgentDialingTools}">
+		<apex:panelGrid columns="3">
+			<!-- outbound links -->
+			<apex:pageBlock rendered="{!shouldShowOutboundDialingLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/phone.png" />
+					<span>Outbound Dialing Links</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowDominoListsLink}" value="Query_Builder_List_View" title="Create and edit static Domino dialing lists.">Domino Lists</apex:outputLink>
+				<apex:outputLink value="Seek_Initiative_List_View" title="Create and edit dynamic Seek dialing lists." rendered="{!shouldShowSeekListsLink}">Seek Lists</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- inbound links -->
+			<apex:pageBlock rendered="{!shouldShowInboundLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/inbound.png" />
+					<span>Inbound</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowInboundLoginLink}" value="#" onclick="popOpenInsideSalesLink('dialer/agent_login', 'agent_login', 500, 450)" title="Login to take inbound calls only.">Inbound Login</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- tool links -->
+			<apex:pageBlock rendered="{!shouldShowToolsLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/tools.png" />
+					<span>Tools</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowManageVoiceMessagesLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/voice_messages')" title="Record and delete voice messages to use in the PowerDialer.">Manage Voice Messages</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowManageEmailsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/email_templates', '650')" title="Create new templates to use in the PowerDialer.">Manage Emails</apex:outputLink>
+				<apex:outputLink value="InsideSales_OAuth_Setup" title="Reauthorize InsideSales.com to access Salesforce.">Re-Authorize PowerDialer{!IF(notProfessional, " with OAuth", "")}</apex:outputLink>
+                <apex:outputLink rendered="{!shouldShowNeuraliticsLink}" value="#" onclick="popOpenInsideSalesLink('resources/plugins/analytics/presentation/neuralytics.html#/model', 'neural_pop', 1200, 600, {menubar:1,toolbar:1,location:1,scrollbars:1})" title="NeuralView">NeuralView</apex:outputLink>
+			</apex:pageBlock>
+		</apex:panelGrid>
+	</apex:pageBlock>
+
+	<!-- power standings section -->
+	<style>
+		[id="ring_admin_page:powerstandings_section"] {display:none;}
+		.apexp .apexp .pbBody a.powerstandings_pro {display:none;}
+		.apexp .apexp .pbBody a.powerstandings_admin {display:none;}
+	</style>
+	<apex:pageBlock title="PowerStandings" id="powerstandings_section" rendered="{!shouldShowPowerStandings}">
+		<apex:panelGrid columns="3">
+			<!-- Teams -->
+			<apex:pageBlock id="teams_section" rendered="{!shouldTeamsLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/team.png" />
+					<span>Team Tools</span>
+				</apex:outputPanel>
+				<apex:outputLink value="#"
+                                 rendered="{!shouldShowMangeTeamsLink}"
+								 onclick="openInsideSalesLink('admin/standings/manage_teams', '920')"
+								 title="Manage your PowerStandings Team(s)">Manage Teams
+				</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- Leaderboards -->
+			<apex:pageBlock id="leaderboards_section" rendered="{!shouldShowBoardsLink}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/monitor.png" />
+					<span>Dashboards</span>
+				</apex:outputPanel>
+				<!--apex:outputLink value="#"
+								 onclick="popOpenInsideSalesLink('admin/standings/dashboard', 'NewLeaderboard', 1400, 750, { 'resizable': 'yes' })"
+								 title="Create a New Dashboard">New Dashboard
+				</apex:outputLink-->
+				<apex:outputLink value="#"
+								 onclick="openInsideSalesLink('admin/standings/manage_dashboards', '750')"
+								 title="Manage your PowerStandings Dashboards"
+                                 rendered="{!shouldShowManageDashboardsLink}">Manage Dashboards
+				</apex:outputLink>
+                <apex:outputLink value="#"
+                                 onclick="openInsideSalesLink('admin/standings/leaderboard/manage_leaderboards', '750')"
+                                 title="Manage your PowerStandings Leaderboards"
+                                 rendered="{!shouldShowLeaderboardsLink}">Manage Leaderboards
+                </apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- Settings -->
+			<apex:pageBlock rendered="{!ShouldShowSettingsLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/settings.png" />
+					<span>Settings</span>
+				</apex:outputPanel>
+                <apex:outputLink value="#"
+                                 rendered="{!ShouldShowAchievementsLink}"
+								 styleClass="powerstandings_pro"
+								 onclick="openInsideSalesLink('admin/standings/manage_achievements', '750')"
+								 title="Achievements">Achievements
+				</apex:outputLink>
+				<apex:outputLink value="#"
+                                 rendered="{!ShouldShowChallengesLink}"
+								 styleClass="powerstandings_pro"
+								 onclick="openInsideSalesLink('admin/standings/manage_challenges', '750')"
+								 title="Challenges">Challenges
+				</apex:outputLink>
+				<apex:outputLink value="#"
+                                 rendered="{!ShouldShowMangeKPILink}"
+								 onclick="openInsideSalesLink('admin/standings/manage_kpis', '750')"
+								 title="Manage Key Performance Indicators">Key Performance Indicators
+				</apex:outputLink>
+			</apex:pageBlock>
+
+		</apex:panelGrid>
+	</apex:pageBlock>
+	<!-- administrator tools section -->
+	<apex:pageBlock title="Administrator Tools" rendered="{!shouldShowAdminTools}">
+		<apex:panelGrid columns="3">
+			<!-- billing links -->
+			<apex:pageBlock rendered="{!shouldShowBillingLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/billing.png" />
+					<span>Billing</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!isBillingAdmin}" value="#" onclick="openInsideSalesLink('admin/salesforce/billing_licenses', '920')">Manage License Quantities</apex:outputLink>
+				<apex:outputLink rendered="{!isBillingAdmin}" value="#" onclick="openInsideSalesLink('admin/salesforce/billing_buy_minutes', '920')">Purchase Dialer Minutes</apex:outputLink>
+				<apex:outputLink value="#" onclick="openInsideSalesLink('admin/salesforce/billing', '920')">Billing Summary</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- user management links -->
+			<apex:pageBlock rendered="{!shouldShowUserManagementLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/usermanagement.png" />
+					<span>User Management</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowManageUsersLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/employee_settings', '750')" title="Assign the designated access user in InsideSales, view OAuth status, activate or deactivate users.">Manage Users</apex:outputLink>
+                <apex:outputLink rendered="{!shouldShowManagePermissionGroupsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/permission_groups', '750')">Permission Groups</apex:outputLink>
+                                <apex:outputLink rendered="{!shouldShowLicenseAssignments}" value="#" onclick="openInsideSalesLink('admin/salesforce/billing_assign_licenses', '920')">License Assignments</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- call monitoring and recording links -->
+			<apex:pageBlock rendered="{!shouldShowCallMonitoringAndRecordingLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/callmonitoring.png" />
+					<span>Call Monitoring &amp; Recording</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowCallRecordingsLink}" value="#" onclick="openInsideSalesLink('files/view_files', '800')" title="Download recorded calls, upload files to be used in emails.">Call Recordings</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowMonitorCallsLink}" value="#" onclick="popOpenInsideSalesLink('dialer/dialer_manager_console', 'MonitorCalls', '1280', '720')">Monitor Calls</apex:outputLink>
+				<!--<apex:outputLink value="#" onclick="openInsideSalesLink('dialer/dialer_console')" title="Listen to and record agents making outbound calls.">Monitor Outbound Calls</apex:outputLink>-->
+				<!--<apex:outputLink value="#" onclick="popOpenInsideSalesLink('dialer/inbound_dialer_manager_console')">Monitor Inbound Calls</apex:outputLink>-->
+				<apex:outputLink rendered="{!shouldShowManageCallRecordingSettingsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/manage_call_recording')" title="Configure how call recordings should work." style="display: none;" styleClass="manage_call_recording">Manage Call Recording Settings</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowListProgressReportLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/dialer_dashboard')">List Progress Report</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowManageCallRecordingSettingsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/recording_settings')" title="Prohibit call recordings in specified area codes.">Manage Call Recording Settings</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- additional settings links -->
+			<apex:pageBlock rendered="{!shouldShowAdditionalSettingsLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/additionalsettings.png" />
+					<span>Additional Settings</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowManageCompanySettingsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/company_information', '700')" title="Update company SMTP information.">Manage Company Settings</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowManageDialerScriptsLink}" value="#" onclick="openInsideSalesLink('scripts/scripts', '650')" title="Create and edit dialer scripts to use in the PowerDialer.">Manage Dialer Scripts</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowManageElfCampaignsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/elf_campaigns', '900')" title="Manage your automated services used in the dialer." style="display: none;" styleClass="manage_elf_campaigns">Manage ELF Campaigns</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowManageDialerPanelsLink}" value="#" onclick="openInsideSalesLink('dialer/manager/ui/dialer_panel', '900')" title="Edit what buttons and panel sections show up in the PowerDialer/Click-to-Call.">Manage Dialer Panels</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowManageFieldExclusionsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/manage_fields', '800')" title="Manage which objects and fields are available in the PowerDialer." style="display: none;" styleClass="manage_field_sync_link">Manage Field Exclusions</apex:outputLink>
+				<apex:outputLink rendered="{!ShouldShowManageAreaCodeGroupsLink}" value="#" onclick="openInsideSalesLink('area_code/manager/ui/area_code_list', '800')" title="Manage area code groups." style="display: none;" styleClass="employee_area_code_restrictions_for_inbound_calls">Manage Area Code Groups</apex:outputLink>
+			</apex:pageBlock>
+
+			<!-- inbound call settings links -->
+			<apex:pageBlock rendered="{!ShouldShowInboundCallSettingsLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/inbound.png" />
+					<span>Inbound Call Settings</span>
+				</apex:outputPanel>
+				<div class="old_comms_platform"><apex:outputLink rendered="{!shouldShowManageIvrsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/ivr_manager', '800')" title="View and create inbound IVRs.">Manage IVRs</apex:outputLink></div>
+				<div class="old_comms_platform"><apex:outputLink rendered="{!shouldShowManageAcdsLink}" value="#" onclick="openInsideSalesLink('admin/salesforce/inbound_initiatives', '800')" title="View and create inbound ACDs.">Manage ACDs</apex:outputLink></div>
+				<div class="new_comms_platform"><apex:outputLink rendered="{!shouldShowManageCallPathsLink}" value="#" onclick="openInsideSalesLink('dialer/manager/CallPathManager', '800')" title="View and create inbound Rep Queues.">Manage Call Paths</apex:outputLink></div>
+			</apex:pageBlock>
+
+			<!-- support links -->
+			<apex:pageBlock rendered="{!ShouldShowSupportLinks}">
+				<apex:outputPanel styleClass="is_links_section_header">
+					<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/sf/homepage/support.png" />
+					<span>Support</span>
+				</apex:outputPanel>
+				<apex:outputLink rendered="{!shouldShowSubmitSupportCaseLink}" value="#" onclick="popOpenInsideSalesLink('help/support', '900')">Submit Support Case</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowViewSupportCaseLink}" value="#" onclick="popOpenInsideSalesLink('help/case_progress', '900')">View Support Cases</apex:outputLink>
+				<apex:outputLink rendered="{!shouldShowViewSupportCenterLink}" value="http://community.insidesales.com/insidesales" target="_blank">View Support Center</apex:outputLink>
+			</apex:pageBlock>
+		</apex:panelGrid>
+		<!--<div class="insidesales_logo">
+			<img src="{!JSENCODE(InsideSalesHostSmart)}/resources/images/is_icons/grayis.png" />
+		</div>-->
+	</apex:pageBlock>
+</apex:page>

@@ -1,0 +1,79 @@
+trigger update_Property_Owner on Property__c (before update, before insert) {
+/*
+    We use object ownership to allow limited read access to properties by
+    all crew capos. Therefore when a new property is created
+    or an existing property changes crew then we need to change the Owner Id of the property
+    to that of the Queue by the same name
+    
+    
+*/
+ Property__c oldProperty;
+ Crew__c c;    
+      for (Property__c p : Trigger.new) {
+          if (Trigger.isUpdate) {
+          oldProperty = Trigger.oldmap.get(p.Id);
+
+//        If we've changed the property status to 'inactive' then we want to null a few fields         
+          if (p.Inactive__c && (oldproperty.Inactive__c != true)) {
+              p.Property_Contact_1__c = null;
+              p.Property_Contact_2__c = null;
+              p.Client__c = null;
+              p.Crew__c = null;
+              }
+          }
+//        if the Property is being created or the crew has been changed  
+          if ((Trigger.isInsert) || (p.Crew__c != oldProperty.Crew__c)) {
+              // then change OwnerID of property to match the (new) Crew Queue name
+              if (p.Crew__c != Null) {
+              c = [select Name from Crew__c where id = :p.Crew__c];
+              id queueGroupId= [Select Id from Group where type='Queue' and Name= :c.Name LIMIT 1].Id;
+              p.OwnerId = queueGroupId;
+              }
+
+                  }
+              
+               }
+}
+
+                                            
+/*
+trigger update_Property_Owner on Property__c (before update, before insert) {
+
+    We use object ownership to allow limited read access to properties by
+    all crew capos. Therefore when a new property is created
+    or an existing property changes crew then we need to change the Owner Id of the property
+    to that of the Queue by the same name
+    
+    
+
+ Property__c oldProperty;
+ Crew__c c;    
+      for (Property__c p : Trigger.new) {
+          if (Trigger.isUpdate) {
+          oldProperty = Trigger.oldmap.get(p.Id);
+          }
+//        if the Property is being created or the crew has been changed  
+          if ((Trigger.isInsert) || (p.Crew__c != oldProperty.Crew__c)) {
+              // then change OwnerID of property to match the (new) Crew Queue name
+              if (p.Crew__c != Null) {
+              c = [select Name from Crew__c where id = :p.Crew__c];
+              try {
+              id queueGroupId= [Select Id from Group where type='Queue' and Name= :c.Name LIMIT 1].Id;
+              p.OwnerId = queueGroupId;
+              }
+              catch (Exception e) {
+
+              Group g = new Group(Type='Queue', Name=c.Name);
+              insert g;
+              QueueSObject q = new QueueSObject(SobjectType='Property__c', QueueId=g.Id);
+              insert q;
+              p.OwnerId = g.Id;
+              
+              }
+              }
+
+                  }
+             
+               }
+}
+*/

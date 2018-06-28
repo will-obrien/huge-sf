@@ -1,0 +1,330 @@
+<apex:component layout="none" allowDML="TRUE">
+<apex:attribute name="AdvocacyActionObject" type="kweos__EOCS_Data__c" description="eocsrequest Advocacy Action Custom Object - Provides user info"/>
+<apex:attribute name="KWCampaign" type="kwac.KWAC_CampaignManager" description="Advocacy Campaign Object" />
+<apex:attribute name="KWActionCenter" type="kwac.KWAC_ActionCenterDisplayBuilder" description="Advocacy Campaign Object" />
+<apex:attribute name="ValidState" type="boolean" description="Boolean as to whether the action state match the user's state" />
+<apex:attribute name="ShowStateAction" type="boolean" description="Boolean as to whether a state action should show" />
+<apex:attribute name="ShowThanks" type="boolean" description="Boolean to show thank you or not." />
+<apex:attribute name="ShowMainForm" type="boolean" description="Boolean to show thank you or not." />
+<apex:attribute name="SelectedStates" type="SelectOption[]" description="Boolean to show thank you or not." />
+<apex:attribute name="Token" type="string" description="A token" />
+<apex:attribute name="RefreshButtonText" type="string" description="Text for refresh button" />
+<apex:attribute name="ShowMessageButton" type="boolean" description="Boolean to show thank you or not." />
+<apex:attribute name="submitRequest" type="ApexPages.Action" description="Action Request for submission" />
+<apex:attribute name="refreshRequest" type="ApexPages.Action" description="Action Request for refreshing data" />
+<apex:attribute name="state" type="string" description="The two letter abbreviation of the U.S. State this page should find." />
+
+<apex:variable var="testThanks" value="{!$CurrentPage.parameters.testthanks == 'TESTING'}" />
+
+<!-- start KnowWho_form_entire -->
+<apex:pageMessages id="pmessages"/>
+
+<div id="stateError" style="padding-top: 10px;">
+<apex:outputPanel id="stateError2" rendered="{!!ValidState}" layout="block">
+<h4>Sorry - that action wasn't valid for your address - but here's a list of actions you can take right now! </h4> 
+</apex:outputPanel>
+</div>
+
+
+<apex:outputPanel id="thanks" layout="block" style="padding-top: 10px;">
+    <apex:outputPanel rendered="{!ShowThanks || testThanks}" layout="block">
+        
+            <h1 id="tatHeader">Thank you for taking action!</h1>
+            <h2 id="tatSubHeader">You can do more</h2>
+                    
+            <apex:outputPanel rendered="{!KWCampaign.camp.kwac__Thank_You_Page_Text__c != ''}" layout="none">
+                <div class="thanks_language"><apex:outputText escape="FALSE" value="{!KWCampaign.camp.kwac__Thank_You_Page_Text__c}"></apex:outputText></div>
+            </apex:outputPanel>
+            
+           
+ <apex:outputPanel rendered="{!KWCampaign.camp.Backend_Donation_Form__c != null}" layout="none">
+            
+            <form action="https://sierra.secure.force.com/donate/rc_connect__Campaign_DesignForm" method="get" id="tatDonationForm">
+                    <input value="{!KWCampaign.camp.Backend_Donation_Form__c}" name="formcampaignid" id="form_id" type="hidden" />
+                    <input value="{!IF($CurrentPage.parameters.id == '', KWCampaign.camp.id, $CurrentPage.parameters.id)}" name="id" id="source_id" type="hidden" />
+                    <input value="{!$CurrentPage.parameters.data}" name="data" id="data" type="hidden" />
+            
+            <div class="row">
+                <div class="col-md-2 col-xs-3"><apex:image url="{!$Resource.LabelMakeAGift}" html-class="img-responsive"  alt="Please make a gift" /></div>
+                
+                <div class="col-md-10 col-xs-9">
+                    <!-- NEW FIELD -- donation language -->
+                    <div class="donation_language"><apex:outputField value="{!KWCampaign.camp.Donation_Language__c}"/></div>
+                    <c:DonationLevels DonationAsks="{!KWCampaign.camp.Backend_Ask_String__c}" />
+
+                </div>
+            </div>
+            </form>
+            </apex:outputpanel>            
+            
+            
+            <div class="row">
+                <div class="col-md-2 col-xs-3"><apex:image url="{!$Resource.LabelShoutItOut}" html-class="img-responsive"  alt="Shout it out! Please share." /></div>
+                <div class="col-md-10 col-xs-9">
+                    <!-- NEW FIELD -- sharing language -->
+                    <apex:outputPanel rendered="{!KWCampaign.camp.Backend_Donation_Form__c != null}" layout="none">
+                    <div class="sharing_language"><apex:outputField value="{!KWCampaign.camp.Sharing_Language__c}"/></div>
+                    </apex:outputpanel>            
+                    <apex:outputPanel rendered="{!KWCampaign.camp.Backend_Donation_Form__c == null}" layout="none">
+                    <div class="sharing_language">Please share this page with your friends.</div>
+                    </apex:outputpanel>
+
+                    <a class="addthis_button_facebook"><apex:image url="{!$Resource.ButtonFacebookShare}"  alt="Share on Facebook" width="100" height="46" style="width:100px !important; height: 46px !important"  /></a><a class="addthis_button_twitter"><apex:image url="{!$Resource.ButtonTwitterShare}"  alt="Share on Twitter" width="100" height="46" style="width:100px !important; height: 46px !important"  /></a><a class="addthis_button_email"><apex:image url="{!$Resource.ButtonEmailShare}" alt="Share on Facebook" width="100" height="46" style="width:100px !important; height: 46px !important" /></a>
+                </div>
+            </div>          
+
+            
+            <h3>Your message was sent to:</h3> 
+            <apex:form >
+            <apex:repeat value="{!KWActionCenter.KW_ActionCenterDisplayWrapperList}" var="kw_wrapper">
+
+              <div class="row top-buffer message-thanks">        
+                <apex:repeat value="{!kw_wrapper}" var="kwus">
+                  <apex:outputPanel rendered="{!kw_wrapper.size == 1}">
+                    <div class="col-md-12">
+                      <div>
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+
+                  <apex:outputPanel rendered="{!kw_wrapper.size == 2}">
+                    <div class="col-md-6">
+                      <div>
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+
+                  <apex:outputPanel rendered="{!kw_wrapper.size >= 3}">
+                    <div class="col-md-4">
+                      <div>
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+                </apex:repeat>  
+
+              </div>
+              <br/>
+            </apex:repeat>            
+</apex:form>            
+            
+    </apex:outputPanel>   
+</apex:outputPanel>
+
+<c:knowwho_campaign_list state="{!state}" rendered="{!ShowStateAction}" />
+
+<apex:form id="action" html-role="form" html-class="row">
+
+<apex:outputPanel id="mainform">
+<apex:outputPanel id="mainformshow" rendered="{!ShowMainForm}">
+
+<div class="col-md-6">
+    <h1>{!KWCampaign.camp.kwac__Tagline__c}</h1>
+    <apex:outputText escape="FALSE" value="{!KWCampaign.camp.kwac__Call_to_Action_Text__c}" styleClass="maintext"></apex:outputText>
+</div>
+
+<div class="col-md-6">
+
+<!-- begin contact -->
+<apex:outputPanel id="PersName">
+    <legend>Your Information</legend>
+    <fieldset class="control-group add-icons">
+        <div class="row">
+            <div class="col-sm-3">
+                <div class="form-group">
+                    <apex:inputField id="nmSalutationf" value="{!AdvocacyActionObject.kweos__Prefix__c}" styleclass="form-control" required="true" html-placeholder="Prefix "/>
+                    <span class="form-control-icon fa-bars"></span>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="form-group">
+                    <apex:inputField type="text" styleclass="form-control" id="nmFirstnamef" value="{!AdvocacyActionObject.kweos__First_Name__c}" required="true" html-maxlength="40" html-placeholder="First Name"/>
+                    <span class="form-control-icon fa-user"></span>
+                </div>
+            </div>
+            <div class="col-sm-5">
+                <div class="form-group">
+                    <apex:inputField type="text" styleclass="form-control" id="nmLastnamef" value="{!AdvocacyActionObject.kweos__Last_Name__c}" required="true" html-maxlength="80" html-placeholder="Last Name"/>
+                    <span class="form-control-icon fa-user"></span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-7">
+                <div class="form-group">
+                    <apex:inputField type="text" styleclass="form-control" id="adAddress1f" value="{!AdvocacyActionObject.kweos__Address1__c}" required="true" html-maxlength="40" html-placeholder="Street Address"/>
+                    <span class="form-control-icon fa-building-o"></span>
+                </div>
+            </div>
+            <div class="col-sm-5">
+                <div class="form-group">
+                    <div class="requiredInput">
+                        <apex:inputField type="text" styleclass="form-control" id="adCityf" value="{!AdvocacyActionObject.kweos__City__c}" required="true" html-maxlength="40" html-placeholder="City"/>
+                        <span class="form-control-icon fa-building-o"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-4">
+                <div class="form-group">
+                    <apex:selectList size="1" styleclass="form-control" id="adState" value="{!AdvocacyActionObject.kweos__State__c}" required="true" html-placeholder="State">
+                        <apex:selectOptions value="{!SelectedStates}"/>
+                    </apex:selectList>
+                    <span class="form-control-icon fa-flag-checkered"></span>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="form-group">
+                    <apex:inputField type="text" styleclass="form-control" id="adZipf" value="{!AdvocacyActionObject.kweos__Postal_Code__c}" required="true" html-maxlength="5" html-placeholder="Zip Code"/>
+                    <span class="form-control-icon fa-location-arrow"></span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <apex:inputField type="email" styleclass="form-control emailaddress" id="ciEmailf" value="{!AdvocacyActionObject.kweos__Email__c}" required="true" html-maxlength="80" html-placeholder="Email Address"/>
+                    <span class="form-control-icon fa-envelope"></span>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <apex:inputField type="tel" styleclass="form-control" id="ciPhonef" value="{!AdvocacyActionObject.kweos__Phone__c}" required="true" html-maxlength="15" html-placeholder="Phone Number"/>
+                    <span class="form-control-icon fa-phone"></span>
+                </div>
+            </div>
+        </div>
+        <div class="row">        
+            <div class="col-sm-12">
+                <p>By taking action, you will also receive periodic communications from the Sierra Club. You can unsubscribe at any time.</p>                
+                <div class="checkbox" style="display:none">
+                    <label for="form-contact-subscribe"></label>
+                    <input type="checkbox" id="form-contact-subscribe" name="ciSubscribe" checked="checked" />
+                </div>
+            </div>
+        </div>
+    </fieldset>
+</apex:outputPanel>
+<!-- end contact -->
+
+<!-- begin message -->
+<apex:outputPanel id="MessagetoOfficials" styleClass="message-to-officials">
+    <legend>Your Message</legend>
+    <fieldset class="control-group add-icons">
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="form-group">
+                    <label class="required" for="ciSubjects">Subject</label>
+                    <apex:inputText styleclass="form-control" id="ciSubjects" value="{!AdvocacyActionObject.kweos__Subject__c}" disabled="{!!KWCampaign.camp.kwac__User_Can_Edit_Subject__c}" html-placeholder="Subject" required="true"/>
+                    <span class="form-control-icon fa-pencil"></span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="form-group">
+                    <label class="required" for="ciMessages">Message</label>
+                    <apex:inputTextarea styleclass="form-control" id="ciMessages" rows="{!KWCampaign.camp.kwac__Message_Box_Rows__c}" value="{!AdvocacyActionObject.kweos__Message__c}" disabled="{!!KWCampaign.camp.kwac__User_Can_Edit_Message__c}" html-placeholder="Message" required="true" />
+                    <span class="form-control-icon fa-pencil-square-o"></span>
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="form-group align-center" id="actionbutton">
+                    <apex:actionStatus id="saveStatus">
+                    <apex:facet name="stop">
+                    <apex:commandButton status="saveStatus" action="{!refreshRequest}" id="refreshbutton2" value="Check Your Info" styleclass="btn btn-danger btn-lg" onclick="validate()" reRender="MatchedOfficialsPanel,PersName,campaignlist,mainform" oncomplete="kwscrolldown()"/> 
+                    </apex:facet>
+                    <apex:facet name="start">
+                    <apex:commandButton status="saveStatus" value="Refreshing Data..." styleclass="btn btn-danger btn-lg" disabled="TRUE"/>
+                    </apex:facet>
+                    </apex:actionStatus>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+</apex:outputPanel>
+<!-- end message -->
+
+
+      <div id="MatchedElectedOfficials">
+            
+            <apex:outputPanel id="MatchedOfficialsPanel" layout="block">
+         
+            <!-- legend Ready to Send! /legend -->
+            <div id="MatchedOfficialsList">
+
+            <apex:repeat value="{!KWActionCenter.KW_ActionCenterDisplayWrapperList}" var="kw_wrapper">
+
+              <div class="row top-buffer">        
+                <apex:repeat value="{!kw_wrapper}" var="kwus">
+                  <apex:outputPanel rendered="{!kw_wrapper.size == 1}">
+                    <div class="col-md-12">
+                      <div class="col-centered" >
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+
+                  <apex:outputPanel rendered="{!kw_wrapper.size == 2}">
+                    <div class="col-md-6">
+                      <div class="col-centered" >
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+
+                  <apex:outputPanel rendered="{!kw_wrapper.size >= 3}">
+                    <div class="col-md-4">
+                      <div class="col-centered" >
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+                </apex:repeat>  
+
+              </div>
+              <br/>
+            </apex:repeat>  
+            </div>
+       
+            <div class="form-group col-centered" id="ciSubmission">
+                 <apex:commandButton rendered="{!ShowMessageButton}" styleclass="btn btn-danger btn-lg"  action="{!submitRequest}" id="submitbutton" value="{!KWCampaign.camp.kwac__Action_Button_Text__c}"/>
+            </div>        
+       
+          </apex:outputPanel>
+
+</div>
+</div>
+
+</apex:outputPanel>
+</apex:outputPanel>
+</apex:form>
+
+<script>
+(function($, window, document, undefined) {
+    $(document).ready( function() { 
+        window.console && window.console.log("ready");
+        if($(".emailaddress").val()!="") {
+            window.console && window.console.log("email not empty");
+            $("#actionbutton").hide();
+            $("#MatchedOfficialsList").hide();
+        } else {
+            window.console && window.console.log("email empty");
+        
+        }
+    });
+})(jQuery, window, document);
+
+var kw = (kw) || {};
+kw.campaign_id = '{!KWCampaign.camp.id}';
+</script>
+
+<!-- End KnowWho Form Entire -->
+</apex:component>

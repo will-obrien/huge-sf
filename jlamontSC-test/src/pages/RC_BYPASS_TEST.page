@@ -1,0 +1,571 @@
+<apex:page showHeader="FALSE" sidebar="FALSE" standardStylesheets="FALSE" docType="html-5.0" cache="FALSE" title="Take Action Today!" applyHTMLTag="FALSE">
+<apex:define name="head_tags">
+<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+<script>
+//var j$ = jQuery.noConflict();
+$(function() {
+    var url = 'https://sierra.secure.force.com/donate/apexremote';
+    var testSend = function() {
+        $.ajax({
+            type: 'POST',
+            url: url,
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            data: JSON.stringify(collectData('processLitlePayment'))
+        }).then(function(data) {
+            console.dir(data);
+        });
+    }
+    var data = {"action":"rC_Connect.Campaign_DesignForm","method":"processLitlePayment","data":[{"address":"712 Bancroft Rd #172","address_city":"","address_country":"","address_postal_code":"94598","address_state":"ca","contact_1_email":"erick.meline@sierraclub.org","payment_method_card_holder_name":"Jimmy Jones","payment_method_card_number":"4111 1111 1111 1111","payment_method_card_expiration_month":"01","payment_method_card_expiration_year":"2017","payment_method_card_security_code":"111","amount":10,"merchant_name":"NATIONAL","isAdvancedFraudDetection":"true","sessionId":"0000s-ad76d32a94d0dfb8e857a47fa34e2821dfcaf1937154683af10b20ab2fc7070a","__action":"rC_Connect.Campaign_DesignForm.processLitlePayment"}],"type":"rpc","tid":11,"ctx":{"csrf":"VmpFPSxNakF4TmkweE1DMHhORlF4Tnpvd09Eb3pOaTR6TlRGYSxVU1NkNDV1dGVZby1XYUo4cW5zSzllLE56Y3hOR1Jq","vid":"066i0000004eAdW","ns":"rC_Connect","ver":28}};
+
+    $('#donation-info label').mouseup(function() {
+        $('#donation-info label').removeClass('selected');
+        $('#donation-info input[type="radio"]').prop('checked',false).removeAttr('checked');
+        $('input[type="radio"]',this).prop('checked',true).attr('checked','checked');
+        $(this).addClass('selected');
+        if($('#donation-info label:last').hasClass('selected')){
+            if(!$('input[type="number"]',this).length){
+                $(this).append('<input type="number" name="donationAmountOther" value="" min="5" step="1" required="required" />');
+                $('#donation-info label:last span').addClass('symbol-dollar-after');
+                $('input[name="donationAmountOther"]').on('change', function() {
+                    $('input[name="donationAmount"]:checked').val($(this).val());
+                });
+            }
+        }
+        else {
+            $('#donation-info label:last span').removeClass('symbol-dollar-after');
+            $('#donation-info label:last input[type="number"]').remove();
+        }
+    });
+    $('form button').mouseup(function(){
+        console.log(basicValidation('#donation-form'));
+        if(!basicValidation('#donation-form')) {
+            $('.has-error:first').focus();
+        }
+        else {
+            console.dir(collectData());
+            testSend();
+        }
+    });
+
+    var collectData = function(method) {
+        var method = method || 'upsertData', 
+            dataObject = {
+            "action": "rC_Connect.Campaign_DesignForm",
+            "method": method,
+            "data": [{
+                "general_accounting_unit__c":$('input[name="giving_type"]:checked').val(),
+                "rc_connect__address_city__c":$('input[name="city"]').val(),
+                "rc_connect__address_country__c":$('select[name="country"]').val(),
+                "rc_connect__address_postal_code__c":$('input[name="zipcode"]').val(),
+                "rc_connect__address_state__c":$('select[name="state"]').val(),
+                "rc_connect__address_street_line_1__c":$('input[name="street_address"]').val(),
+                "rc_connect__address_street_line_2__c":$('input[name="additional_address"]').val(),
+                "rc_connect__contact_1_email__c":$('input[name="email"]').val(),
+                "rc_connect__contact_1_first_name__c":$('input[name="first_name"]').val(),
+                "rc_connect__contact_1_last_name__c":$('input[name="last_name"]').val(),
+                "rc_connect__giving_giving_amount__c":$('input[name="donationAmount"]:checked').val(),
+                "rc_connect__merchant_name__c":"NATIONAL",
+                "rc_connect__payment_method_card_expiration_month__c":$('select[name="exp_month"]').val(),
+                "rc_connect__payment_method_card_expiration_year__c":$('select[name="exp_year"]').val(),
+                "rc_connect__payment_method_card_holder_name__c":$('input[name="first_name"]').val()+' '+$('input[name="last_name"]').val(),
+                "rc_connect__payment_method_card_number__c":$('input[name="card_number"]').val(),
+                "rc_connect__payment_method_card_security_code__c":$('input[name="cvv"]').val(),
+            }],
+            "type": "rpc",
+            "tid": 10,
+            "ctx": {
+                "csrf": "VmpFPSxNakF4Tnkwd01TMHlObFF4T0RveE1Eb3hNUzQxTkRoYSx2XzZqamlpY3hCdThUUUZuU2VnZlJELE56Y3hOR1Jq",
+                "vid": "066i0000004eAdW",
+                "ns": "rC_Connect",
+                "ver": 28
+            }
+        };
+        return dataObject;
+    };
+    var basicValidation = function(whichForm){ // flags all null required fields and invalid email pattern
+        var thisForm = $(whichForm),formElements = [],
+            errorState = false;
+        $.each(thisForm[0].elements, function(index, elem){
+            formElements.push(elem);
+        });
+        for(var i=0;i<formElements.length;i++){
+            var selector = formElements[i].localName + '[name = "' + formElements[i].name + '"]',
+                emailRegex = /^([a-zA-Z0-9_\.\-\+])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/
+            if(((formElements[i].required === true) && (!formElements[i].value))||((formElements[i].type === 'email') && (!emailRegex.test(formElements[i].value)))){
+                $(selector).addClass('has-error');
+                errorState = true;
+            } else {
+                $(selector).removeClass('has-error');
+            }
+        }
+        return !errorState;
+    };
+});
+</script>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css?family=Oswald" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" />
+<style>
+body {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 16px;
+    letter-spacing: .2px;
+    line-height: 140%;
+}
+img {
+    max-width: 100%;
+}
+h1 {
+    font-family: 'Oswald', sans-serif;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 1px;
+    line-height: 140%;
+    margin-top: 0;
+    padding-top: 0;
+    text-transform: uppercase;
+}
+fieldset {
+    border: 0;
+    color: #363636;
+    font-family: 'Open Sans', sans-serif;
+    margin: 0 0 2.5% 0;
+    padding: 0;
+}
+legend {
+    border: none;
+    font-size: 140%;
+    font-weight: 400;
+    line-height: 120%;
+    margin: 0;
+    padding: 4% 0 2% 0;
+}
+label {
+    display: block;
+    font-weight: 400;
+    margin-bottom: 2.5%;
+}
+select {
+    width: 100%;
+}
+input[type="text"], input[type="password"], input[type="email"], input[type="date"], input[type="number"], input[type="search"], input[type="tel"], textarea {
+    border: 1px solid #7c7c7c;
+    border-radius: 0;
+    box-sizing: border-box;
+    color: #444;
+    font-family: 'Open Sans', sans-serif;
+    font-style: normal;
+    font-weight: 300;
+    letter-spacing: 1px;
+    margin: 0;
+    min-height: 40px;
+    padding: 8px 4px 8px 10px;
+    vertical-align: middle;
+    width: 100%;
+}
+#contact-info input, #contact-info select, paymant-info input, paymant-info select {
+    display: block;
+    margin-top: .5%;
+}
+#donation-info label, #donation-form button {
+    border: 2px solid #e95d1f;
+    border-radius: 5px;
+    color: #e95d1f;
+    cursor: pointer;
+    float: left;
+    font-family: Oswald, sans-serif;
+    font-size: 120%;
+    font-weight: 500;
+    margin: .25%;
+    padding: 9px 15px 10px 15px;
+    position: relative;
+    text-transform: uppercase;
+}
+#donation-form button {
+    background-color: #e95d1f;
+    color: #872e06;
+    display: block;
+    float: none;
+    margin: 0 auto 10% auto;
+}
+#donation-form button:hover {
+    background-color: #872e06;
+    color: #e95d1f;
+}
+#donation-info input[type='radio'] {
+    position: absolute;
+    left: -9999px;
+}
+#donation-info label.selected:last-child {
+    padding: 1px 15px;
+}
+#donation-info label:hover {
+    background-color: #eee;
+}
+#donation-info label.selected {
+    background-color: #e95d1f;
+    color: #872e06;
+}
+#donation-info label.selected:hover {
+    background-color: #872e06;
+    color: #e95d1f;
+}
+#donation-info label input[type='number'] {
+    font-family: Oswald, sans-serif;
+    font-size: 100%;
+    padding: 0 0 0 20px;
+    width: 100px;
+}
+#donation-info label .symbol-dollar-after {
+    float: left;
+    padding: 9px 10px 0 0;
+}
+
+.symbol-dollar-after {
+    position: relative;
+}
+.symbol-dollar-after::after {
+    color: #444;
+    content: '$';
+    position: absolute;
+    top: 9px;
+    right: -20px;
+}
+/* addup specific */
+#page-header {
+    background: #363636;
+    background: rgba(54,54,54,0.9);
+    color: white;
+    
+    
+    width: 100%;
+    
+    height: 65px;
+    line-height: 65px;
+    margin-bottom: 30px;
+    box-shadow: 0px 0px 0px 3px rgba(68,68,68,0.38);
+}
+.sierra-club-logo {
+    color: white !important;
+    float: left;
+    margin: 0 0 0 1em;
+    min-width: 100px;
+    overflow: hidden;
+    position: relative;
+    text-indent: -999em;
+    width: 120px;
+
+    background: url(https://www.addup.org/img/svg/AddUpLogo.svg?1) no-repeat 50%;
+
+    background-size: 100%;
+}
+.main-nav {
+    padding: 0 2em 0 0;
+    height: 70px;
+}
+nav {
+    float: right;
+}
+nav ul {
+    list-style: none;
+}
+.nav-item {
+    display: block;
+    padding: 0 1em;
+    position: relative;
+    text-transform: uppercase;
+    display: inline-block;
+    padding: 0 5px 0 5px;
+    vertical-align: top;
+}
+.nav-item a {
+    color: #7ecdd1;
+    display: inline-block;
+    padding: 0;
+    font-size: 20px;
+    transition: .1s .1s linear;
+    font-family: 'Oswald', sans-serif;
+    font-style: normal;
+    font-weight: 700;
+}
+.nav-item a:hover {
+    color: #fff;
+    text-decoration: none;
+}
+.nav-item.divider:after {
+    content: '';
+    border-right: 1px dotted white;
+    display: inline-block;
+    height: 25px;
+    padding-right: 10px;
+    position: relative;
+    top: 5px;
+}
+.nav-dropdown {
+    background: #2e2e2e;
+    -webkit-box-shadow: 2px 3px 0 0 rgba(68,68,68,0.5);
+    box-shadow: 2px 3px 0 0 rgba(68,68,68,0.5);
+    left: -999em;
+    line-height: 1;
+    opacity: 0;
+    position: absolute;
+    top: 70px;
+    width: 300px;
+    z-index: 100;
+    -webkit-transition: opacity .2s linear;
+    transition: opacity .2s linear;
+}
+.nav-item a.arrow-down:after {
+    display: inline-block;
+    font-size: 11px;
+    margin: 0 5px 0 10px;
+    position: relative;
+    top: -5px;
+    -webkit-transform: rotate(90deg);
+    -ms-transform: rotate(90deg);
+    transform: rotate(90deg);
+    font-weight: bold;
+}
+.branding-sc {
+    background-color: #000;
+    height: 40px;
+    padding: 0;
+    overflow: hidden;
+    text-align: right;
+    white-space: nowrap;
+}
+.branding-sc span {
+    color: #fff;
+    display: inline-block;
+    font-family: ProximaNovaT-Thin,helvetica neue,helvetica,arial,sans-serif;
+    font-size: 13px;
+    font-weight: 300;
+    line-height: 35px;
+}
+.branding-sc img {
+    float: right;
+    max-width: 100%;
+    max-height: 40px;
+}
+</style>
+
+</apex:define>
+
+
+
+<div class="branding-sc">
+<span>Explore, enjoy and protect the planet</span>
+<img src="//www.sierraclub.org/sites/www.sierraclub.org/themes/dotOrg/logo.png" />
+</div>
+
+<header id="page-header" role="banner">
+<a role="logo" class="sierra-club-logo" href="/">AddUp.org</a>
+
+<nav class="user-info main-nav" data-template="nav-main" data-resize-threshold="768" data-mobile-resize="true">
+
+<ul id="nav-desktop">
+<li class="nav-item nav-donate divider">
+<a href="https://sierra.secure.force.com/donate/rc_connect__campaign_designform?id=70131000001ReZA#!form=00P3100000T5ER6EAN&amp;promoid=70131000001DrEyAAK&#10;" target="_blank">Donate</a>
+</li>
+<li class="nav-item nav-resist divider">
+<a href="/resist">Resist</a>
+</li>
+
+<li class="nav-item nav-cgal divider">
+<a href="/campaigns">Campaigns</a>
+</li>
+<li class="nav-item nav-cgal divider">
+<a href="/events">Events</a>
+</li>
+<li class="nav-item nav-signup divider">
+<a data-event="registration-modal" data-skipclose="true" action="#issues-you-care-about">Sign Up</a>
+</li>
+<li class="nav-item nav-login">
+<a data-toggle-dropdown="nav-login-options" class="arrow-down">Log In</a>
+<ul class="nav-dropdown nav-login-options login-options">
+<li class="facebook-login">
+<button class="button fb-button" data-event="request-fbconnect" data-addperms=""><i></i><span>Connect</span></button>
+
+<span class="login-divider"><em>or</em></span>
+</li>
+<li class="signin-account">
+<button href="/saml/login" class="clickthrough popup saml button">Log In</button>
+
+</li>
+</ul>
+</li>
+
+</ul>
+
+
+</nav></header>
+
+
+<div class="container-fluid">
+
+<div class="col-sm-7">
+<h1>Every penny counts.<br/>Your donation helps add up to a better world.</h1>
+<p>The Sierra Club is fueled by the power of people like you. Every petition you sign, every rally you attend, and every dollar you donate - <strong>it all adds up to more wildlife protected, pollution-free air and water, and a clean energy future.</strong></p>
+<p>We are building a movement for a sustainable world and we need you.</p>
+<p>When you stand up and chip in today, you will be giving our movement the power it needs to keep achieving environmental victories on the issues that matter most.</p>
+
+<form id="donation-form">
+    <fieldset id="donation-info">
+        <legend>Can you chip in today?</legend>
+            <div class="col-sm-12">
+            <label>
+                <input type="radio" name="donationAmount" value="5" />
+                $5
+            </label>
+            <label class="selected">
+                <input type="radio" name="donationAmount" value="10" checked="checked" />
+                $10
+            </label>
+            <label>
+                <input type="radio" name="donationAmount" value="25" />
+                $25
+            </label>
+            <label>
+                <input type="radio" name="donationAmount" value="50" />
+                $50
+            </label>
+            <label>
+                <input type="radio" name="donationAmount" value="100" />
+                $100
+            </label>
+            <label>
+                <input type="radio" name="donationAmount" value="" />
+                <span>Other</span>
+            </label>
+            </div>
+    </fieldset>
+    <fieldset id="contact-info">
+        <legend>Your Information:</legend>
+        <div class="col-sm-12">
+        <label>
+            First Name
+            <input type="text" name="first_name" value="" pattern="^.{1,20}$" placeholder="First Name" maxlength="20" title="Enter your first name" required="required" />
+        </label>
+        <label>
+            Last Name
+            <input type="text" name="last_name" value="" pattern="^.{1,20}$" placeholder="Last Name" maxlength="20" title="Enter your last name" required="required" />
+        </label>
+        <label>
+            Email
+            <input type="email" name="email" value="" placeholder="Email Address" maxlength="254" title="Enter your email address" required="required" />
+        </label>
+        <label>
+            Street Line 1
+            <input type="text" name="street_address" value="" placeholder="Street Address" maxlength="120" title="Enter your street address" required="required" />
+        </label>
+        <label>
+            Street Line 2 <small>(optional)</small>
+            <input type="text" name="additional_address" value="" placeholder="Street Address" maxlength="120" title="Enter your street address" required="required" />
+        </label>
+        <label>
+            City
+            <input type="text" name="city" value="" pattern="^[a-zA-Z0-9]{2,}.*" placeholder="City" maxlength="52" title="Enter your city" required="required" />
+        </label>
+        </div>
+        <div class="col-sm-4">
+        <label>
+            State
+            <select name="state" title="Select your state" required="required">
+                <option value="" selected="selected">Select</option>
+                <option>CA</option>
+            </select>
+        </label>
+        </div>
+        <div class="col-sm-4">
+        <label>
+            Country
+            <select name="country" title="Select your country" required="required">
+                <option value="Select" selected="selected">Select</option>
+                <option>US</option>
+            </select>
+        </label>
+        </div>
+        <div class="col-sm-4">
+        <label>
+            Postal Code
+            <input type="tel" name="zipcode" value="" pattern="^\d{5}(-\d{4})?$" maxlength="10" title="Enter your 5 or 9 digit zip code." required="required" />
+        </label>
+        </div>
+    </fieldset>
+    <fieldset id="paymant-info">
+    <legend>Payment Information:</legend>
+        <div class="col-sm-12">
+        <label>
+            Card Number
+            <input type="text" name="card_number" value="" placeholder="Credit Card" title="Enter your credit card nember" pattern="^(\d{12,19})$" required="required" />
+        </label>
+        </div>
+        <div class="col-sm-4">
+        <label>
+            Expiration Date
+            <select name="exp_month" title="Enter expiration month" required="required">
+                <option value="" selected="selected">Select</option>
+                <option>01</option>
+                <option>02</option>
+                <option>03</option>
+                <option>04</option>
+                <option>05</option>
+                <option>06</option>
+            </select>
+        </label>
+        </div>
+        <div class="col-sm-4">
+        <label>
+            &nbsp;
+            <select name="exp_year" title="Enter expiration year" required="required">
+                <option value="" selected="selected">Select</option>
+                <option>2017</option>
+                <option>2018</option>
+                <option>2019</option>
+                <option>2020</option>
+            </select>
+        </label>
+        </div>
+        <div class="col-sm-4">
+        <label>
+            <input type="text" name="cvv" value="" placeholder="CVV" title="Enter security number" maxlength="4" pattern="^\d{3,4}$" required="required" />
+        </label>
+        </div>
+    </fieldset>
+    <fieldset id="direction-info">
+        <legend>Direct Your Donation:</legend>
+        <div class="col-sm-12">
+        <label>
+            <input type="radio" name="giving_type" value="a0ii00000090xuk" checked="checked" />
+            Give to Sierra Club where it's needed most.
+        </label>
+        <label>
+            <input type="radio" name="giving_type" value="a0ii00000090ye9" />
+            Give to the Sierra Club Foundation's Educational Work.
+        </label>
+        <label>
+            <input type="radio" name="giving_type" value="a0ii00000090xuk" />
+            Give to the Sierra Club's Advocacy Work.
+        </label>
+        </div>
+    </fieldset>
+    <div class="col-sm-12">
+        <button type="button">Donate</button>
+    </div>
+</form>
+
+</div>
+
+<div class="col-sm-5">
+<img src="https://s.bsd.net/addup/main/page/-/images/resist-hero-immigration-protest-2-1440-956.jpg/@mx_2800" alt="" />
+</div>
+
+<div class="col-sm-12">
+    <p>Thank you for your contribution! Your gift will help support our many efforts, including protecting our wildlands and wildlife, keeping our air and water free from pollution, and promoting a clean energy future.</p>
+    <p>Note: Contributions, donations, gifts, and dues to the Sierra Club are not tax deductible. They support our effective, citizen-based advocacy and lobbying efforts. The Sierra Club is a non-profit, tax-exempt, 501(c)(4) organization. (<a title="Additional financial and regulatory information" href="http://www.sierraclub.org/financial/financial-regulatory-info" target="_blank">Additional financial and regulatory information</a>.)</p>
+    <p>Please note that free premiums and membership benefits including newsletters and SIERRA magazine will not be shipped outside the U.S. due to shipping costs, allowing us to more effectively use your contribution.</p>
+</div>
+
+</div>
+</apex:page>

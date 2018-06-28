@@ -1,0 +1,45 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com - 2/24/2010 -->
+
+<apex:component allowDML="true" controller="ComboPack.followObject" access="global">
+    <apex:attribute name="oid" type="string" description="ID of user or object to follow" required="true" assignto="{!toFollow}" access="global" />
+    <apex:attribute name="rerender" type="string" description="ID of element to rerender" required="false" access="global"/>
+    <apex:attribute name="oncomplete" type="string" description="additional oncomplete javascript to run" required="false" access="global" />
+    
+    <apex:attribute name="followVerb" type="string" description="action to display when following" required="false" access="global"/>
+    <apex:attribute name="unfollowVerb" type="string" description="action to display when unfollowing" required="false" access="global"/>
+
+    <apex:stylesheet value="{!URLFOR( $Resource.ComboPack__followObject, 'styles.css' )}" />
+    <apex:includescript value="{!URLFOR( $Resource.ComboPack__followObject, 'jquery_142.js' )}" />
+    
+    <!-- You can't follow yourself. No, really. Like, don't even try it, man. -->
+    <apex:outputpanel layout="none" id="followPanel" rendered="{!!CONTAINS( toFollow, $User.Id )}">
+        <div style="height:20px">
+	        <div id="unfollow{!toFollow}" style="display:none;">
+	           <apex:commandbutton value="{!if( unfollowVerb != null, unfollowVerb, 'Unfollow' )}" action="{!toggleFollow}" rerender="{!rerender}"
+	               styleclass="btn btnPrimary"
+	               onclick="jQuery(this).parent().hide(); jQuery('#loader{!toFollow}').show();"
+	               oncomplete="jQuery('#follow{!toFollow}').show(); jQuery('#loader{!toFollow}').hide(); {!oncomplete}" />
+	        </div>             
+	        <div id="follow{!toFollow}" style="display:none;">
+	           <apex:commandbutton value="{!if( followVerb != null, followVerb, 'Follow' )}" action="{!toggleFollow}" rerender="{!rerender}"
+	               styleclass="btn btnPrimary" 
+	               onclick="jQuery(this).parent().hide(); jQuery('#loader{!toFollow}').show();"
+	               oncomplete="jQuery('#unfollow{!toFollow}').show(); jQuery('#loader{!toFollow}').hide(); {!oncomplete}" />
+	        </div>
+	        <div id="loader{!toFollow}" style="display:none">
+		    	<apex:image value="{!URLFOR( $Resource.ComboPack__followObject, 'loader.gif' )}" height="18" />
+		    </div>
+        </div>
+    </apex:outputpanel>
+    
+    <script type="text/javascript">
+    	// Sets the initial state of this toggle
+        var doesFollow{!toFollow} = {!Follow};
+        
+        if( doesFollow{!toFollow} )
+            jQuery('#unfollow{!toFollow}').show();
+        else
+            jQuery('#follow{!toFollow}').show();
+    </script>
+    
+</apex:component>

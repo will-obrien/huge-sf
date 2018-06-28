@@ -1,0 +1,843 @@
+<apex:page controller="TIMBASURVEYS.SurveyListController" sidebar="false" tabstyle="Timba_Surveys__tab">
+    <script type="text/javascript" src="{!URLFOR($Resource.jqTransform, 'required/jquery-1.4.2.min.js')}" ></script>
+    <script type="text/javascript" src="{!URLFOR($Resource.SurveyPublicResources, 'inc/js/rte/jquery.rte.js')}" ></script>
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, 'inc/js/rte/rte.css')}" />
+
+    <style type="text/css">
+        #recordTypeSelector{
+            display: none;
+        }
+
+        .listContainer{
+            clear:both;
+            overflow:hidden;
+            position:relative;
+        }
+        .overlay{
+            background:#FFF;
+            height:100%;
+
+            opacity:0.5;
+            position:absolute;
+            top:0;
+            width:100%;
+
+            display:none;
+        }
+        .overlay img{
+            left:50%;
+            opacity:10;
+            position:relative;
+            top:50%;
+        }
+        .timbasurvey_list tr.selected {
+            background-repeat:repeat-x;
+            background-color:#6DD3EC;
+            background-image: none;
+            color:#FFFFFF;
+        }
+
+        #newSurvey {
+            width: 548px;
+        }
+
+
+        #cloneSurvey, #deleteSurvey{
+            width: 264px;
+            height: 104px;
+        }
+
+
+        .dijitButtonContents{
+            margin: 3px;
+        }
+
+
+        .listnavigator{
+            height: 30px;
+        }
+
+        iframe{
+        z-index:99999;
+        }
+
+        .selectContainer:hover {
+            cursor:pointer;cursor:hand;
+        }
+
+        .listnavigator .selectList li:hover {
+            background:#D7EEF5;
+        }
+
+    </style>
+
+    &lt;!--[if IE 7]&gt;
+        <style type="text/css">
+            .selectList {
+                left: 0px;
+            }
+        </style>
+    &lt;![endif]--&gt;
+
+    <apex:composition template="TIMBASURVEYS__timbaSurveysTemplate">
+        <apex:define name="customJs">
+            <script  type="text/javascript">
+		// add required dojo widgets
+		dojo.require("dijit.form.Button");
+		dojo.require("dijit.form.Form");
+		dojo.require("dijit.form.ValidationTextBox");
+		dojo.require("dojo.NodeList-traverse");
+
+                var rich_text_displayed = false;
+
+                function richtextDisplay(){
+                    if (!rich_text_displayed){
+                        $(".rte-zone").rte({
+                                content_css_url: "rte.css",
+                                media_url: "{!URLFOR($Resource.SurveyPublicResources, 'inc/js/rte/')}"
+                            });
+
+                        $(".rte-toolbar .link").css('display','none');
+                        rich_text_displayed=true;
+                        $(".rte-zone").css('height', '100px');
+                    }
+                }
+
+                //Function to remove item from an Array:
+                function arrayRemoveItem(array, item){
+                    if(array.length > 0){
+                        var index = -1;
+                        for(var i = 0; i < array.length; i++){
+                            if(array[i] == item){
+                                index = i;
+                            }
+                        }
+                        if(index > -1){
+                            array.splice(index, 1);
+                        }
+                    }
+                }
+
+
+                function proccesBar(i){
+                    /* Constructor */
+                    this.total = i;
+                    var step = 0;
+                    var unitVal = 100 / i;
+                    /* Methods */
+                    this.stepComplete = function(){
+                        step++;
+                    };
+                    this.getPercentage = function(){
+                        return step * unitVal;
+                    };
+                }
+                // Current Survey
+                var currentSurveyID = '';
+
+                dojo.addClass(dojo.query('body')[0],'timbaSurveys');
+                function clearSurvey(sId){
+                    currentSurveyID = sId;
+                    dijit.byId("confirmSurveyClear").show();
+                    dojo.connect(cancelClear, 'onClick', function(){
+                        dijit.byId("confirmSurveyClear").hide();
+                    });
+                }
+                /* deleteSurveyCall */
+                function deleteSurveyCall() {
+                    closeDialog('deleteSurvey');
+                    listOverlay.show();
+                    currentSurveyID = selectedSurveys[0];
+                    periodicResponseEraser('delete');
+                }
+
+                function deleteSurveyCallFinalCompleted(){
+                    refreshSurveyList();
+                }
+
+                function deleteSurveyTemplateCallCompleted(){
+                    deleteSurveyCallFinalOperation('delete', String(selectedSurveys));
+                }
+
+                function periodicResponseEraserCompleted(action, recordsLeft, success){
+                    if(success == 'true'){
+                        if(recordsLeft == 'true'){
+                            periodicResponseEraser(action);
+                        }else{
+                            if(action == 'delete'){
+                                deleteSurveyTemplateCallOperation('deleteTemplate', String(selectedSurveys));
+                            }
+                            if(action == 'clear'){
+                                clearSurveyCallFinal();
+                            }
+                        }
+                    }else{
+                        alert('{!$Label.timbasurvey_surveylist_Error_found_during_response_erase}.');
+                        listOverlay.hide();
+                    }
+                }
+
+                function periodicResponseEraser(action){
+                    periodicResponseEraserOperation('periodicErase', String(selectedSurveys), action)
+                }
+
+                function stopCollecting(sId){
+                    currentSurveyID = sId;
+                    dijit.byId("stopCollecting").show();
+                    dojo.connect(cancelStopCollect, 'onClick', function(){
+                        dijit.byId("stopCollecting").hide();
+                    });
+                }
+                // Replace Html entities
+                String.prototype.htmlEntities = function () {
+                return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/\'/g,'&apos;');
+                };
+                // convertHTMLEntity
+                String.prototype.convertHTMLEntity = function () {
+                    var myString = this;
+                    myString = myString.replace( /\&amp;/g, '&' );
+                    myString = myString.replace( /\&lt;/g, '<' );
+                    myString = myString.replace( /\&gt;/g, '>' );
+                    myString = myString.replace( /\&quot;/g, '"' );
+                    myString = myString.replace( /\&copy;/g, '©' );
+                    myString = myString.replace( /\&reg;/g, '®' );
+                    myString = myString.replace( /\&laquo;/g, '«' );
+                    myString = myString.replace( /\&raqou;/g, '»' );
+                    myString = myString.replace( /\&apos;/g, "'" );
+                    myString = myString.replace( /\&nbsp;/g, ' ' );  //is new
+                    return myString;
+                }
+                // Escape Html entities
+                String.prototype.escapeEntities = function () {
+                return this.replace(/&/g,'\\&').replace(/</g,'\\<').replace(/>/g,'\\>').replace(/\"/g,'\\"').replace(/\'/g,'\\'+'\'');
+                };
+
+                // Validate | Illegal Characters | Returns True if Input is Valid
+                function ValidateInput(Arrayinvalidchar, inputValue){
+                	inputValue = inputValue.replace(/<br\/>/g,'').replace(/<br>/g,'');
+                    for(var i = 0 ; i< Arrayinvalidchar.length ; i++){
+                        if(inputValue.match(Arrayinvalidchar[i])!= null){
+                            //Input Have an Invalid Char
+                            return false;
+                        }
+                    }
+                    //Input Validation correct
+                    return true;
+                }
+
+                function validateDescriptionInput(){
+                    var frame = document.getElementById('surveyDescription-rte');
+					var body = frame.getElementsByTagName('body');
+					var win = frame.contentWindow.document;
+					var fbody = win.getElementsByClassName('frameBody');
+					var description = fbody[0].innerHTML;
+
+                    if ((description == "<br>") || (description == "<BR>") || (description == "")){
+                        return true;
+                    }
+                    return (ValidateInput(['<','>','"','\''],description) == true);
+                }
+
+                // Create new survey
+                function createNewSurvey(){
+                    dijit.byId("newSurveyName").required = true;
+                    
+                 
+                    if (((newSurveyForm.validate() == true) && (ValidateInput(['<','>','"'],dojo.byId('newSurveyName').value) == true)) && (dojo.byId('newSurveyName').value.trim()!='')){
+                        // Hide the form then appear the loading.. message
+                        var loaderDiv = dojo.byId('loaderDiv');
+                        var formContainer = dojo.byId('formContainer');
+
+                        var surveyName = dojo.byId('newSurveyName');
+                        dojo.byId('surveyDescription').value = limitText($('#surveyDescription-rte')[0].contentWindow.document.body.innerHTML,30000);
+                        var surveyDescription = dojo.byId('surveyDescription');
+
+                        // Check the lengths with entities
+                        var encodedName = (surveyName.value.trim()).htmlEntities();
+                        if(encodedName.length > 80){
+                            encodedName = encodedName.substr(0,80);
+                        }
+                        encodedName = encodedName.convertHTMLEntity();
+                        var encodedDescription = surveyDescription.value;
+                        if(encodedDescription.length > 30000){
+                            encodedDescription = encodedDescription.substr(0,30000);
+                        }
+                        encodedDescription  = encodedDescription.convertHTMLEntity();
+                        surveyName.value = encodedName;
+
+                        surveyDescription.value = encodedDescription;
+
+                        loaderDiv.style.display = '';
+                        formContainer.style.display = 'none';
+                        createSurveyOperation('createSurvey', encodedName, encodedDescription);
+                    }else {
+                        alert('{!$Label.timbasurvey_surveylist_Form_contains_invalid_data}');
+                    }
+                }
+
+                function createSurveyCompleted(Error, SurveyCreated, Id, NameTaken){
+                    var loaderDiv = dojo.byId('loaderDiv');
+                    var formContainer = dojo.byId('formContainer');
+                    if(typeof(Error) != 'undefined'){
+                        if(Error.indexOf('STORAGE_LIMIT_EXCEEDED') != -1){
+                            dijit.byId('newSurvey').hide();
+                            loaderDiv.style.display = 'none';
+                            alert("{!$Label.timbasurvey_surveylist_Organization_limit_exceeded}.");
+                            refreshSurveyList();
+                            listOverlay.hide();
+                            formContainer.style.display = '';
+                        }
+                    }
+                    if(SurveyCreated == 'true'){
+                        // Show Notification of creation
+                        buildTemplateOperation(Id, 'new');
+                    }else{
+                        if(NameTaken == 'true'){
+                            alert("{!$Label.timbasurvey_surveylist_The_Survey_name_its_already_taken}.");
+                            loaderDiv.style.display = 'none';
+                            formContainer.style.display = '';
+                        }else{
+                            dojo.byId("toBeReplaced").innerHTML = "{!$Label.timbasurvey_surveylist_The_Survey_cannot_be_created}.";
+                        }
+                    }
+                    newSurveyForm.reset();
+                }
+
+                function buildTemplateCompleted(success, SendTemplateId, action, surveyId){
+                    if(success){
+                        switch(action){
+                            case 'new':
+                                window.location = '{!$Page.DesignSurvey}?id=' + encodeURIComponent(surveyId);
+                                break;
+                            case 'clone':
+                                cloneSurvey();
+                                break;
+                        }
+                    }else{
+                        alert('{!$Label.timbasurvey_surveylist_Error_found_to_create}.');
+                        listOverlay.hide();
+                    }
+                }
+
+                function cloneSurvey(){
+                    closeDialog('cloneSurvey');
+                    listOverlay.show();
+                    if(selectedSurveys.length > 0){
+                        var sId = selectedSurveys.pop();
+                        new CloneSurveyProccess(sId);
+                    }else{
+                        refreshSurveyList();
+                        listOverlay.hide();
+                    }
+                }
+
+
+                var SURVEY_ID;
+                var CLONED_SURVEY_ID = '';
+                var CURRENT_STAGE_INDEX = 0;
+                var CURRENT_STAGE_RETRIES = 0;
+                var stages = [];
+                stages.push('complete');
+                var CloneSurveyProccess = function(sId){
+                     SURVEY_ID = sId;
+                    //listOverlay.show();
+                    // Constants
+                    // Stage Order
+                    proccessStage(stages[CURRENT_STAGE_INDEX]);
+                }
+
+                // Proccess Stages
+                function proccessStage(stage_name){
+                    // Fix to add CLONED SURVEY ID
+                    if(CLONED_SURVEY_ID.length > 0){
+                        cloneSurveyOperation('clone','survey', SURVEY_ID ,CLONED_SURVEY_ID, stage_name);
+                    }else{
+                        cloneSurveyOperation('clone','survey', SURVEY_ID ,'', stage_name);
+                    }
+                }
+
+                //function stageControl(stage_name, response){
+                function stageControl(success, stage_name, error, CloneSurveyId){
+                    switch(stage_name){
+                        case 'complete':
+                        break;
+                    }
+                    // All went ok with the request
+                    if(success == 'true'){
+                        switch (CURRENT_STAGE_INDEX){
+                            case (stages.length - 1):
+                                buildTemplateOperation(CloneSurveyId, 'clone');
+                                break;
+                            default:
+                                CURRENT_STAGE_INDEX++;
+                                proccessStage(stages[CURRENT_STAGE_INDEX]);
+                                break;
+                        }
+                    }else{
+                        //this happends when try clone a lot of surveys
+                        if(error.indexOf('STORAGE_LIMIT_EXCEEDED') > 0){
+                            alert('{!$Label.timbasurvey_surveylist_Storage_limit_exceeded}');
+                            //maybe some surveys was cloned
+                            refreshSurveyList();
+                            listOverlay.hide();
+                        }else {
+                            // If the stage failed, try again a few more times
+                            if(CURRENT_STAGE_RETRIES < 2){
+                                proccessStage(stages[CURRENT_STAGE_INDEX]);
+                                CURRENT_STAGE_RETRIES++;
+                            }else{
+                                alert('{!$Label.timbasurvey_surveylist_Failed_to_perform_this_stage_several_times}: ' + stages[CURRENT_STAGE_INDEX]);
+                                listOverlay.hide();
+                            }
+                        }
+                    }
+                }
+
+                function cloneSurveyCompleted(success, stage_name, error, CloneSurveyId){
+                    stageControl(success, stage_name, error, CloneSurveyId);
+                }
+
+                function choose_filler(survey_id){
+                    dojo.query('#contact_fill_link').onclick( function(evt) {
+                        window.location = '{!$Page.CustomSurveyFiller}?collection_type=contact&survey_id=' + encodeURIComponent(survey_id);
+                    });
+
+                    dojo.query('#lead_fill_link').onclick( function(evt) {
+                        window.location = '{!$Page.CustomSurveyFiller}?collection_type=lead&survey_id=' + encodeURIComponent(survey_id);
+                    });
+
+                    dijit.byId('fill_survey_dialog').show();
+                }
+
+                function alertSurveyNoControls(){
+                    alert("{!$Label.timbasurvey_surveylist_Your_Survey_has_no_questions}.\nGo_to_Design_page_and_add_at_least_one_question.");
+                }
+
+                function closeDialog(obj){
+                    dijit.byId(obj).hide();
+                }
+
+                function showDialog(objId){
+                    if(selectedSurveys.length != 0){
+                        var msg = ' {!$Label.timbasurvey_surveylist_this_Survey}';
+                        if(selectedSurveys.length > 1){
+                            msg = " {!$Label.timbasurvey_surveylist_these} " + selectedSurveys.length + " {!$Label.timbasurvey_surveylist_surveys}";
+                        }
+                        if( objId == "deleteSurvey"){
+                            msg = "{!$Label.timbasurvey_surveylist_Are_you_sure_you_want_to_delete}" + msg + "?"
+                        }else{
+                            msg = "{!$Label.timbasurvey_surveylist_Are_you_sure_you_want_to_clone}" + msg + "?"
+                        }
+                        var n = dojo.query('span.msg', dojo.byId(objId))[0];
+                        if(n != null){
+                            n.innerHTML = msg;
+                        }
+
+                        dijit.byId(objId).show();
+                    }else{
+                        alert("{!$Label.timbasurvey_surveylist_You_have_to_select_at_least_one_Survey}");
+                    }
+                }
+
+                function attachPaginationEvents(){
+                    headers = dojo.query('.timbasurvey_list tr.header');
+                    var checkBoxArray = dojo.query('.timbasurvey_list input:checkbox');
+
+                    checkBoxArray.onclick(function(e){
+                        var surveyRow = dojo.query('#' + this.id).parents('tr')[0];
+                        if(this.id == 'head-checkbox'){
+                            if(this.checked){
+                                selectedSurveys = new Array();
+                                dojo.forEach(checkBoxArray,function(o,i,a){
+                                    var surveyId =  o.id.split('-')[0];
+                                    if(o.id != 'head-checkbox'){
+                                        dojo.addClass(dojo.query('#' + o.id).parents('tr')[0],'selected');
+                                        o.checked = true;
+                                        selectedSurveys.push(surveyId);
+                                    }
+                                });
+                            }else{
+                                dojo.forEach(checkBoxArray,function(o,i,a){
+                                    var surveyId = o.id.split('-')[0];
+                                    dojo.removeClass(dojo.query('#' + o.id).parents('tr')[0],'selected');
+                                    o.checked = false;
+                                    arrayRemoveItem(selectedSurveys, surveyId);
+                                });
+                            }
+                        }else{
+                            var surveyId =  this.id.split('-')[0];
+                            if(this.checked){
+                                selectedSurveys.push(surveyId);
+
+                                dojo.addClass(surveyRow,'selected');
+                                dojo.removeClass(surveyRow, 'hover');
+                                /* If All Survey Checks Are Checked Then Check The Head CheckBox */
+                                if(selectedSurveys.length == checkBoxArray.length - 1 ){
+                                    dojo.byId('head-checkbox').checked = true;
+                                }
+                            }else{
+                                arrayRemoveItem(selectedSurveys, surveyId);
+                                dojo.byId('head-checkbox').checked = false;
+                                dojo.removeClass(surveyRow,'selected');
+                            }
+                        }
+                    });
+                    dojo.query('.selectList li').onclick(function(e){
+                        var currentPage = parseInt(this.innerHTML,10);
+                        var destinationPage = {!surveySetController.Page};
+                        if (currentPage != destinationPage) {
+                            listOverlay.show();
+                            paginationSetPage(parseInt(this.innerHTML,10));
+                        }
+                    });
+                    dojo.forEach(headers,function(o,i,a){
+                        dojo.query('th:first-child',o).addClass('first');
+                        dojo.query('th:last-child',o).addClass('last');
+                    });
+                    /* Add Visual Functionality*/
+                    dojo.query('.timbasurvey_list tbody tr').onmouseover(function(e){
+                        if (!dojo.hasClass(this,'selected')) {
+                            dojo.addClass(this, 'hover');
+                        }
+                    });
+                    dojo.query('.timbasurvey_list tbody tr').onmouseout(function(e){
+                        if (!dojo.hasClass(this,'selected')) {
+                            dojo.removeClass(this, 'hover');
+                        }
+                    });
+                    dojo.query('.timbasurvey_list tbody tr').onclick(function(e){
+
+                    });
+                    dojo.query('.listnavigator .selectContainer').onclick(function(e){
+                        dojo.toggleClass(dojo.query('.selectList',this)[0],'displayBlock');
+                    });
+                    dojo.query('tr td .actionPanel a').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+                    dojo.query('tr td .actionPanel a').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+                    dojo.query('.actionPanel a.disable').forEach(function(o){
+                        o.href = 'javascript:;';
+                    });
+                    dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+                    dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+                    selectedSurveys = new Array();
+
+                    listOverlay.hide();
+                }
+                var init = function(){
+                    /* GLOBAL VARS */
+                    selectedSurveys = new Array();
+
+                    /* EVENT LISTENERS */
+                    attachPaginationEvents();
+                }
+
+                dojo.addOnLoad(init);
+
+                function limitText(text, limitNum) {
+                    if (text.length > limitNum) {
+                        text = text.substring(0, limitNum);
+                    }
+                    return text;
+                }
+
+                function resetNewSurveyForm(){
+                    dijit.byId("newSurveyName").required = false;
+                    dojo.byId("newSurveyName").value = "";
+                    var descriptionBox = $('#surveyDescription-rte')[0].contentWindow.document.body;
+                    if(descriptionBox != null){
+                        descriptionBox.innerHTML = "";
+                    }
+                }
+
+                </script>
+        </apex:define>
+
+        <apex:define name="breadCrumb">
+            <c:timbaSurveysBreadCrumb steps="{!$Label.timbasurveys__timbasurveys_Survey_List}:::{!$Page.TIMBASURVEYS__SurveyList}"/>
+        </apex:define>
+
+        <apex:define name="body">
+            <!-- Survey list -->
+            <div class="leftContainer">
+                <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.createable}">
+                    <button class="surveyButton" style="padding: 4px;" onclick="javascript:showDialog('cloneSurvey');"><img alt="check" src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/clone.png')}" />{!$Label.timbasurvey_SurveyList_Clone}</button>
+                </apex:outputpanel>
+                <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.deletable}">
+                    <button class="surveyButton cancel" style="padding: 4px;" onclick="javascript:showDialog('deleteSurvey');"><img alt="check" src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/delete.png')}" />{!$Label.timbasurveys_surveypreview_Delete}</button>
+                </apex:outputpanel>
+            </div>
+            <div class="rightContainer">
+                <apex:outputpanel layout="none" rendered="{!($ObjectType.TIMBASURVEYS__Survey__c.createable && $ObjectType.TIMBASURVEYS__Survey__c.updateable)}">
+                    <button class="surveyButton" style="padding: 4px;" onclick="javascript:dijit.byId('newSurvey').show(); richtextDisplay(); resetNewSurveyForm();"><img alt="check" src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/new.png')}" />{!$Label.timbasurvey_SurveyList_New_Survey}</button>
+                </apex:outputpanel>
+            </div>
+
+            <style type="text/css">
+            .timbasurvey_list,
+            .timbasurvey_list th{
+                height:auto;
+                background-color:#1F79B4;
+                background-repeat:repeat-x;
+                background-position:top;
+                background-image:url({!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/shared/thbackground.png')});
+            }
+            .timbasurvey_list tr.header th.last {
+                height:auto;
+                background-position:top right;
+                background-repeat: no-repeat;
+                background-image:({!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/shared/tcornerright.png')});
+            }
+            .timbasurvey_list tr td{
+                border-bottom:1px solid #D2E9EE;
+            }
+
+            .survey_link{
+                font-weight:normal;
+                font-family:Arial,Helvetica,sans-serif;
+                font-size:100%;
+                text-decoration:none;
+                text-align:left;
+                color:#888888;
+            }
+            a:link.survey_link{
+                font-weight:bold;
+                font-family:Arial,Helvetica,sans-serif;
+                font-size:100%;
+                text-decoration:none;
+                text-align:left;
+                color:#888888;
+            }
+            a:hover.survey_link{
+                font-weight:bold;
+                font-family:Arial,Helvetica,sans-serif;
+                font-size:101%;
+                text-decoration:underline;
+                text-align:left;
+                color:#888888;
+            }
+            a:visited.survey_link{
+                font-weight:bold;
+                font-family:Arial,Helvetica,sans-serif;
+                font-size:100%;
+                text-decoration:none;
+                text-align:left;
+                color:#888888;
+            }
+            a:active.survey_link{
+                font-weight:bold;
+                font-family:Arial,Helvetica,sans-serif;
+                font-size:100%;
+                text-decoration:none;
+                text-align:left;
+                color:#f88888;
+            }
+            </style>
+            <apex:outputPanel id="listContainer" styleClass="listContainer" layout="block">
+                <table class="timbasurvey_list" >
+                    <thead>
+                        <tr class="header">
+                            <th><input id="head-checkbox" type="checkbox" /></th>
+                            <th class="tableName"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_001overview_surveyTitle}" /></th>
+                            <th><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Responses}" /></th>
+                            <th><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Status}" /></th>
+                            <th><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Created_On}" /></th>
+                            <th><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Actions}" /></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <apex:repeat value="{!survey_list}" var="survey" >
+                        <tr>
+                            <td><input id="{!survey.Id}-Checkbox" type="checkbox" /></td>
+                            <td class="tableName">
+                                <apex:outputLink styleClass="survey_link" value="{!$Page.TIMBASURVEYS__SurveyOverview}">
+                                	<apex:param name="id" value="{!survey.Id}" />
+                                    <apex:outputText value="{!survey.name}" />
+                                </apex:outputLink>
+                                <apex:outputText styleClass="description" value="{!IF(LEN(IF(!ISNULL(survey.TIMBASURVEYS__Description__c) && ISNULL(survey.TIMBASURVEYS__Description2__c), survey.TIMBASURVEYS__Description__c, survey.TIMBASURVEYS__Description2__c)) > 120, LEFT(IF(!ISNULL(survey.TIMBASURVEYS__Description__c) && ISNULL(survey.TIMBASURVEYS__Description2__c), survey.TIMBASURVEYS__Description__c, survey.TIMBASURVEYS__Description2__c), 120) & '...', IF(!ISNULL(survey.TIMBASURVEYS__Description__c) && ISNULL(survey.TIMBASURVEYS__Description2__c), survey.TIMBASURVEYS__Description__c, survey.TIMBASURVEYS__Description2__c))}" />
+                            </td>
+                            <td><apex:outputText styleClass="survey_link" value="{!IF(ROUND(survey.TIMBASURVEYS__CollectedResponses__c, 0) > 0, ROUND(survey.TIMBASURVEYS__CollectedResponses__c, 0), 0)}" /> </td>
+                            <td><span class="status {!IF(survey.CollectingData__c, 'on','off')}"></span></td>
+                            <td>
+                                <apex:outputText styleClass="survey_link" value="{0,date,yyyy.MM.dd}">
+                                    <apex:param value="{!survey.CreatedDate}" />
+                                </apex:outputText>
+                            </td>
+                            <td>
+                                <div class="actionPanel">
+                                    <a id="{!HTMLENCODE(survey.Id)}-CollectSurveyButton" class="collect {!IF(ISNULL(survey.NumberOfQuestions__c) || ( survey.NumberOfQuestions__c == 0 ) || (!$ObjectType.Survey__c.updateable), 'disable' ,'')}" href="{!$Page.SurveyCollect}?id={!URLENCODE(survey.Id)}" title="{!$Label.timbasurvey_surveylist_Collect}">{!$Label.timbasurvey_surveylist_Collect}</a>
+                                    <a id="{!HTMLENCODE(survey.Id)}-PreviewSurveyButton" class="preview {!IF(ISNULL(survey.NumberOfQuestions__c) || ( survey.NumberOfQuestions__c == 0 ) || (!$ObjectType.Survey__c.updateable), 'disable','')}" href="{!$Page.SurveyPreview}?id={!URLENCODE(survey.Id)}" title="{!$Label.timbasurvey_surveylist_Preview}">{!$Label.timbasurvey_surveylist_Preview}</a>
+                                    <a id="{!HTMLENCODE(survey.Id)}-EditSurveyButton"  class="edit {!IF((survey.CollectedResponses__c > 0) || (survey.CollectingData__c) || (!$ObjectType.Survey__c.updateable),'disable','')}" href="{!$Page.DesignSurvey}?id={!URLENCODE(survey.Id)}" title="{!$Label.timbasurvey_surveylist_Edit}">{!$Label.timbasurvey_surveylist_Edit}</a>
+                                    <a id="{!HTMLENCODE(survey.Id)}-AnalyzeSurveyButton" class="analyze {!IF(survey.CollectedResponses__c == 0,'disable','')}" href="{!$Page.SurveyAnalyze}?id={!URLENCODE(survey.Id)}" title="{!$Label.timbasurvey_surveyCollect_Analyze}">{!$Label.timbasurvey_surveylist_Analyze}</a>
+                                    <a id="{!HTMLENCODE(survey.Id)}-FillSurveyButton" class="fill {!IF((!survey.CollectingData__c),'disable','')}" href="javascript:choose_filler('{!URLENCODE(survey.Id)}');" title="{!$Label.timbasurvey_surveylist_Fill_Survey}">{!$Label.timbasurvey_surveylist_Fill_Survey}</a>
+                                </div>
+                            </td>
+                        </tr>
+                        </apex:repeat>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td class="first"></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td class="last"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="listnavigator">
+                    <div class="begin {!IF(SurveySetController.renderPrevious,'','disabled')}" onclick="{!IF(SurveySetController.renderPrevious,'listOverlay.show();paginationFirst()','')}"></div>
+                    <div class="prev {!IF(SurveySetController.renderPrevious,'','disabled')}" onclick="{!IF(SurveySetController.renderPrevious,'listOverlay.show();paginationPrevious()','')}"></div>
+                    <div class="selectContainer">
+                        <ul class="selectList">
+                            <apex:repeat value="{!surveySetController.NumericPaginationSet}" var="Page">
+                                <li>
+                                    <apex:outputText value="{!Page}" />
+                                </li>
+                            </apex:repeat>
+                        </ul>
+                        <div class="count">
+                            <apex:outputText value="{!surveySetController.Page}/{!IF(surveySetController.TotalPages == 0, '1', TEXT(surveySetController.TotalPages))}" />
+                        </div>
+                    </div>
+                    <div class="next {!IF(SurveySetController.renderNext,'','disabled')}" onclick="{!IF(SurveySetController.renderNext,'listOverlay.show();paginationNext()','')}"></div>
+                    <div class="end {!IF(SurveySetController.renderNext,'','disabled')}" onclick="{!IF(SurveySetController.renderNext,'listOverlay.show();paginationLast()','')}"></div>
+                </div>
+                <div class="overlay">
+                    <img src="{!URLFOR($Resource.SurveyResources2, 'img/shared/overlay.gif')}" />
+                </div>
+            </apex:outputPanel>
+
+            <!--
+            Aux Dialogs and stuff of Dojo Dijit.
+            -->
+
+            <div style="width: 305px;" data-dojo-type="dijit.Dialog" id="deleteSurvey" title="{!$Label.timbasurvey_SurveyList_Delete_Survey}">
+                <span class="msg">{!$Label.timbasurvey_surveylist_msg_delete}</span>
+                <div style="height: 10px;" class="clear"></div>
+                <button class="rightContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:closeDialog('deleteSurvey');"><img alt="Cancel" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurvey_surveylist_no}</button>
+                <button class="leftContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:deleteSurveyCall();"><img alt="Ok" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/okicon.png')}"/>{!$Label.timbasurvey_surveylist_yes}</button>
+            </div>
+            <div style="width: 305px;" data-dojo-type="dijit.Dialog" id="cloneSurvey" title="{!$Label.timbasurvey_SurveyList_Clone_Survey}">
+                <span class="msg"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_msg_clone}" /></span>
+                <div style="height: 10px;" class="clear"></div>
+                <button class="rightContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:closeDialog('cloneSurvey');"><img alt="Cancel" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurvey_surveylist_no}</button>
+                <button class="leftContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="cloneSurvey();"><img alt="Ok" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/okicon.png')}"/>{!$Label.timbasurvey_surveylist_yes}</button>
+            </div>
+            <div data-dojo-type="dijit.Dialog" id="newSurvey" title="{!$Label.timbasurvey_SurveyList_Create_New_Survey}" onCancel="resetNewSurveyForm();">
+                <div class="newSurveyContainer">
+                    <!--  The overlay with "loading" message -->
+                    <div class="loaderDiv" id="loaderDiv" style="display:none;">
+                        <br /><br /><h2><center><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_msg_creating}" /></center></h2>
+                    </div>
+                    <!--  The form container -->
+                    <div class="formContainer" id="formContainer">
+                        <form data-dojo-type="dijit.form.Form" data-dojo-id="newSurveyForm" action="" name="createNewSurveyForm" onSubmit="createNewSurvey();return false;">
+                            <input type="hidden" value="create" name="op" />
+                            <table style="border: 1px solid #9f9f9f;" cellspacing="10">
+                                <tr>
+                                    <td>
+                                        <label for="name"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_001overview_surveyTitle}: "/></label>
+                                    </td>
+                                    <td>
+                                        <input type="text" id="newSurveyName" name="name" required="true" data-dojo-type="dijit.form.ValidationTextBox" maxlength="80" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="left" colspan="2">
+                                        <label for="description"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Description}:" /></label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="left" colspan="2">
+                                        <textarea id="surveyDescription" name="description" class="rte-zone" maxlength="30000" ></textarea>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="right" colspan="2">
+                                        <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_new}! " />
+                                        <apex:outputLink value="http://survey.timbasoftware.com/pdf-export-setup" target="blank_">
+                                        	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_New_Feature_Advertising}" />
+                                        </apex:outputLink>
+                                    </td>
+                                </tr>
+                            </table>
+                            <button class="rightContainer surveyButton" data-dojo-type="dijit.form.Button" type="reset" onclick="javascript:resetNewSurveyForm(); dijit.byId('newSurvey').hide();" ><img alt="{!$Label.timbasurvey_surveylist_cancel}" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurvey_surveylist_cancel}</button>
+                            <button class="rightContainer surveyButton" data-dojo-type="dijit.form.Button" type="submit" value="submit" ><img alt="{!$Label.timbasurvey_surveylist_create}" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/okicon.png')}"/>{!$Label.timbasurvey_surveylist_create}</button>
+                            <div id="toBeReplaced" ></div>
+                        </form>
+                    </div><!-- Here ends the form container div -->
+                </div>
+            </div>
+            <!-- Fill Survey on Behalf -->
+            <div id="fill_survey_dialog" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_surveylist_Fill_Survey}" data-dojo-id="fill_survey_dialog">
+                <div class="dialogContent" >
+                    <h2><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Fill_the_Survey_by} :"/></h2>
+                    <br /><br />
+                    <div class="centerContainer">
+                        <button class="surveyButton" id="contact_fill_link"><img height="18" width="20"  src="{!URLFOR($Resource.SurveyResources2,'img/collector/contacticon.png')}" /> {!$Label.timbasurvey_surveylist_Contact}</button>
+                        <button class="surveyButton" id="lead_fill_link"><img height="18" width="20" src="{!URLFOR($Resource.SurveyResources2,'img/collector/leadsicon.png')}" /> {!$Label.timbasurvey_surveylist_Lead}</button>
+                    </div>
+                </div>
+            </div>
+            <div id="helpDialog" data-dojo-id="helpDialog" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_SurveyList_Help_for_this_page}" style="display:none;">
+                <iframe src="" id="help_iframe"></iframe>
+                <div style="clear:both;"></div>
+            </div>
+            <div data-dojo-id="listOverlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'bodyTable', color: 'white'"></div>
+        </apex:define>
+    </apex:composition>
+    <apex:outputPanel id="myStateSurveyList" rendered="false" />
+    <apex:form id="surveyListActions">
+        <apex:actionFunction name="createSurveyOperation" action="{!doOperation}" rerender="myStateSurveyList" oncomplete="createSurveyCompleted('{!errorMsg}','{!success}','{!SurveyId}','{!NameTaken}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSSurveyName" value="" assignTo="{!TSSurveyName}" />
+            <apex:param name="TSSurveyDescription" value="" assignTo="{!TSSurveyDescription}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="periodicResponseEraserOperation" action="{!doOperation}" rerender="myStateSurveyList" oncomplete="periodicResponseEraserCompleted('{!TSaction}','{!TSrecordsLeft}','{!success}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSsurveyList" value="" assignTo="{!TSsurveyList}" />
+            <apex:param name="TSaction" value="" assignTo="{!TSaction}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="deleteSurveyTemplateCallOperation" action="{!doOperation}" rerender="myStateSurveyList" oncomplete="deleteSurveyTemplateCallCompleted()">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSsurveyList" value="" assignTo="{!TSsurveyList}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="deleteSurveyCallFinalOperation" action="{!doOperation}" rerender="myStateSurveyList" oncomplete="deleteSurveyCallFinalCompleted()">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSsurveyList" value="" assignTo="{!TSsurveyList}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="buildTemplateOperation" action="{!buildTemplate}" rerender="myStateSurveyList" oncomplete="buildTemplateCompleted({!success},'{!SendTemplateId}','{!TSaction}','{!SurveyId}')">
+            <apex:param name="SurveyId" value="" assignTo="{!SurveyId}" />
+            <apex:param name="TSaction" value="" assignTo="{!TSaction}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="cloneSurveyOperation" action="{!doOperation}" rerender="myStateSurveyList" oncomplete="cloneSurveyCompleted('{!success}','{!stageName}','{!TSexception}','{!TSclonedId}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSstage" value="" assignTo="{!TSstage}" />
+            <apex:param name="SurveyId" value="" assignTo="{!SurveyId}" />
+            <apex:param name="TSclonedId" value="" assignTo="{!TSclonedId}" />
+            <apex:param name="stageName" value="" assignTo="{!stageName}" />
+        </apex:actionFunction>
+        <!-- Pagination Functions -->
+        <apex:actionFunction name="paginationNext" action="{!surveySetController.GoNext}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationLast" action="{!surveySetController.GoLast}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationPrevious" action="{!surveySetController.GoPrevious}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationFirst" action="{!surveySetController.GoFirst}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationSetPage" action="{!surveySetController.setPage}" onComplete="attachPaginationEvents()" rerender="listContainer">
+            <apex:param name="Page" value="0" />
+        </apex:actionFunction>
+        <apex:actionFunction name="paginationSearchBy" action="{!surveySetController.searchBy}" onComplete="attachPaginationEvents()" rerender="listContainer">
+            <apex:param name="param" value="*" />
+            <apex:param name="op" value="" />
+            <apex:param name="field" value="" />
+        </apex:actionFunction>
+        <apex:actionFunction name="refreshSurveyList" action="{!surveySetController.refreshList}" rerender="listContainer" onComplete="attachPaginationEvents()" />
+    </apex:form>
+</apex:page>

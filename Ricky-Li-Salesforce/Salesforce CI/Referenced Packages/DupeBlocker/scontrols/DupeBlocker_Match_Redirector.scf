@@ -1,0 +1,110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<script type="text/javascript">
+var dList;
+
+// Resize the main iframe to match our window size.
+function resizeIframe()
+{
+    document.getElementById( 'displayFrame' ).style.height = document.body.clientHeight + "px";
+}
+
+// Set the window onresize event to resize the main iframe.
+function bodyLoad()
+{
+  window.onResize = resizeIframe;
+  loadDupes();
+}
+
+// Hide the dupe list box.
+function hideMatches()
+{
+  document.location = document.getElementById( 'displayFrame' ).contentWindow.location.href;
+}
+
+// Close our redirection warning.
+function closeWarning()
+{
+  document.getElementById( 'warningDiv' ).style.visibility = 'hidden';
+  if ( dList.length <= 1 )
+	  document.location = document.getElementById( 'displayFrame' ).contentWindow.location.href;
+}
+
+// Get a URL parameter by name.
+function getUrlParameter( paramName )
+{
+	paramName = paramName.replace( /[\[]/, "\\\[" ).replace( /[\]]/, "\\\]" );
+	var regexS = "[\\?&]" + paramName + "=([^&]*)";
+	var regex = new RegExp( regexS );
+	var results = regex.exec( window.location.href );
+	if( results == null )
+		return "";
+	else
+		return results[1];
+}
+
+// Load the list of dupes from a dupes URL parameter that is a URL encoded array HTML <A> elements.
+function loadDupes()
+{
+  var dupes = unescape( getUrlParameter( 'dupes' ) );
+  dList = dupes.split( '\f' );
+  var dupesDiv = document.getElementById( 'dupesList' );
+  
+  for ( var x = 0; x < dList.length; x++ )
+  {
+    var pair = dList[x].split( '\b' );
+    dupesDiv.innerHTML += '<A id="link_' + x + '" href="' +
+      pair[0].replace( /[^//A-Z0-9]/gi, '' ) + '" target="displayFrame">' +
+      pair[1].replace( /</g, '&lt;' ).replace( />/g, '&gt;' ) + '</A><BR/>';
+  }
+  
+  // Load the first dupe in the list.
+  document.getElementById( 'displayFrame' ).src = dList[0].split( '\b' )[0].replace( /[^//A-Z0-9]/gi, '' );
+  
+  // If there is more than one dupe, show our dupe list div.
+  if ( dList.length > 1 )
+  {
+    var iframe = document.getElementById( 'matchesIframe' );
+    iframe.style.width = '12em';
+    iframe.style.height = '6em';
+    iframe.style.visibility = '';
+    document.getElementById( 'matchesDiv' ).style.visibility = '';
+  }
+}
+</script>
+</head>
+<BODY style="margin: 0px; overflow: hidden; border: 0;" onresize="resizeIframe()" onload="bodyLoad()">
+	<DIV id="warningDiv" style="position: absolute; width:20em; height:10em; left: 50%; top: 50%;
+	  margin-left: -10em; margin-top: -5em; background-color:#F3F3EC; border:1px coral solid;
+	  border-color:black;" height="100px" width="200px">
+	  <DIV style="margin: 0.5em;">
+	    <FONT>
+	      You have been redirected to this page because a duplicate record was detected.<BR><BR>
+	      If more than one possible duplicate was found, they are displayed in the upper right corner.
+	    </FONT><BR>
+	    <P align="center"><BUTTON onClick='closeWarning()'>Close</BUTTON></P>
+	  </DIV>
+	</DIV>
+	<!--IFRAME IE HACK to cover SELECT dropdown list boxes. Iframe needs to be resized for menu height and width. -->
+	<div id="testdiv" >
+	<IFRAME id="matchesIframe" src="javascript:'';" marginwidth="0" marginheight="0" align="bottom" scrolling="no"
+		frameborder="0" style="position:absolute; width:0; height:0; top:1px; right:19px; display:block; filter:alpha(opacity=0);" ></IFRAME>
+	<DIV id="matchesDiv" style="position: absolute; width:12em; height:6em; top: 1px; visibility: hidden;
+	  right: 19px; background-color:#F3F3EC; border:1px coral solid; border-color:black; z-index: 99999;"
+	  height="100px" width="200px">
+	  <DIV style="margin: .3em; overflow: hidden; height: 5.4em; width: 11.4em;" >
+	    <B>Possible Duplicates:</B>
+	    <DIV id="dupesList" style="height: 4.1em; width: 100%; margin-bottom: 3em; overflow: auto;">
+	    </DIV>
+	  </DIV>
+	  <DIV style="position: absolute; top: 1px; right: 1px;">
+	    <a href="javascript:hideMatches();" title="Close this window.">[x]</a>&nbsp;
+	  </DIV>
+	</DIV>
+	</div>
+	<IFRAME onload="resizeIframe()" id="displayFrame" name="displayFrame" width="100%" height="100%"
+	    scrolling="auto" style="border:0;"
+	    src="https://www.salesforce.com/us/developer/docs/sforce70/wwhelp/wwhimpl/common/html/blank.htm" />
+</body>
+</html>

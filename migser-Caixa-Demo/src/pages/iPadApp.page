@@ -1,0 +1,431 @@
+<apex:page showHeader="false" standardStylesheets="false" standardController="iPadAppMaker__c" extensions="iPadAppController" cache="false">
+<html>
+<head>
+    
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<link rel="apple-touch-icon" href="{!instance.app_icon__c}" />
+<title>ipadApp</title>
+
+<script type="text/javascript" src="{!$Resource.jsLibs}/jquery-1.5.2.min.js"></script>
+<script type="application/javascript" src="{!$Resource.jsLibs}/iscroll-min.js"></script>
+<script type="text/javascript" src="{!$Resource.jsLibs}/jquery.cacheimage.js"></script>
+
+<script type="text/javascript">
+
+var scrollContent;
+var defaultContent = 1;
+var currentContentId = 1;
+
+$(document).ready(function(){
+	$.cacheImage([
+    	'{!instance.content_1__c}',
+    	'{!instance.sub_content_1__c}',
+    	'{!instance.content_2__c}',
+    	'{!instance.sub_content_2__c}',
+    	'{!instance.content_3__c}',
+    	'{!instance.sub_content_3__c}',
+    	'{!instance.content_4__c}',
+    	'{!instance.sub_content_4__c}',
+    	'{!instance.content_5__c}',
+    	'{!instance.sub_content_5__c}'
+  	])
+    if('{!instance.sidebar_button_1__c}' == '')
+        $('#b1').remove();
+    if('{!instance.sidebar_button_2__c}' == '')
+        $('#b2').remove();
+    if('{!instance.sidebar_button_3__c}' == '')
+        $('#b3').remove();
+    if('{!instance.sidebar_button_4__c}' == '')
+        $('#b4').remove();
+    if('{!instance.sidebar_button_5__c}' == '')
+        $('#b5').remove();
+    
+    resizeWrapper();
+    
+    var sidebarPosition = '{!instance.sidebar_position__c}';
+    var sidebar;
+   	switch(sidebarPosition){
+   	case 'right':
+   		sidebar = $('#sidebar').detach();
+   		sidebar.insertAfter( $('#content') );
+   		break;
+   	case 'top':
+   		$( '#sidebar' ).css('width', $('#wrapper').width());
+   		$( '#sidebar' ).css('height', '110px');
+   		$( '#wrapper' ).css('-webkit-box-orient','vertical');
+   		//$( '.current' ).css('box-shadow', 'inset 0px 20px 20px -25px #000000');
+   		//$( '.current' ).css('-webkit-box-shadow', 'inset 0px 20px 20px -25px #000000');
+   		break;
+   	case 'bottom':
+   		sidebar = $('#sidebar').detach();
+   		sidebar.insertAfter( $('#content') );
+   		$( '#sidebar' ).css('width', $('#wrapper').width());
+   		$( '#sidebar' ).css('height', '110px');
+   		$( '#wrapper' ).css('-webkit-box-orient','vertical');
+   		//$(' header ').css('-webkit-box-shadow', '0px 0px 8px rgba(000,000,000,0.8)');
+    	//$( 'header' ).css('box-shadow', '0px 0px 8px rgba(000,000,000,0.8)');
+   		break;
+   	}
+    
+    
+    $('#buttons').find('img').load(function(){
+        alignSidebar();
+    });
+    
+    sideBarSelection(defaultContent);
+    
+    setTimeout(function() {
+        scrollContent = new iScroll('contentWrapper');
+    }, 0);
+});
+
+function resizeWrapper(){
+    	$('#wrapper').height( $(window).height() - $('header').height() );
+    	$('#wrapper').width( $(window).width() );
+}
+
+function alignSidebar(){
+	var sidebarPosition = '{!instance.sidebar_position__c}';
+    if(sidebarPosition == 'left' || sidebarPosition == 'right'){
+	    var space = ( $('#wrapper').height() - $('#buttons').height() ) / 2;
+	    $('#buttons').css('padding-top', space + 'px');
+	}else{
+		//$( '#buttons' ).css('width', ( $( '#buttons li' ).length + 1 ) * $( '.current' ).width() );    	
+    	$( '#sidebar' ).css( 'width', $('#wrapper').width() );
+    	//var space = ( $('#wrapper').width() - $('#buttons').width() - $( '.current' ).width() ) / 2;
+	    //$('#buttons').css('padding-left', space + 'px');
+	}
+}
+
+function refreshIt(){
+    setTimeout(function() {
+        scrollContent.refresh();
+    }, 0);
+}
+
+
+document.addEventListener('touchmove', function (e) { e.preventDefault(); }, false);
+
+function loadImage(url, sideBarSelection){
+	sideBarSelection = typeof(sideBarSelection) != 'undefined' ? sideBarSelection : true;
+    $('#loadedContent').html("<img id='imgContent' />");
+
+	var videoContentNumber = ( '{!instance.youtube_tab_number__c}'.split('#')[1] ) ? '{!instance.youtube_tab_number__c}'.split('#')[1] : null;
+
+	if(sideBarSelection){
+		switch(currentContentId){
+		case 1:
+			if( !{!instance.youtube_enabled__c} || currentContentId != videoContentNumber){
+		    	$('#imgContent').click( function(){ contentSelection('{!instance.sub_content_1__c}'); });
+		    }
+		    break;
+		case 2:
+			if( !{!instance.youtube_enabled__c} || currentContentId != videoContentNumber){
+				$('#imgContent').click( function(){	contentSelection('{!instance.sub_content_2__c}'); });
+		    }
+		    break;
+		case 3:
+			if( !{!instance.youtube_enabled__c} || currentContentId != videoContentNumber){
+				$('#imgContent').click( function(){ contentSelection('{!instance.sub_content_3__c}'); });
+		    }
+		    break;
+		case 4:
+			if( !{!instance.youtube_enabled__c} || currentContentId != videoContentNumber){
+				$('#imgContent').click( function(){ contentSelection('{!instance.sub_content_4__c}'); });
+		    }
+		    break;
+		case 5:
+			if( !{!instance.youtube_enabled__c} || currentContentId != videoContentNumber){
+				$('#imgContent').click( function(){ contentSelection('{!instance.sub_content_5__c}'); });
+		    }
+		    break;
+		}
+	}
+    
+    $('#imgContent')
+        .load(function(){
+            $('#loadedContent').attr('width', 'auto');
+            $('#loadedContent').attr('height', $('#loadedContent').height() + 'px');
+            refreshIt();
+        })
+        .attr('src', url);
+}
+
+function sideBarSelection(id){
+    $('#sidebar').find('li').removeClass('current');
+    $('#b' + id).addClass('current');
+    
+    $("#loadedContent").empty(); //.html('<img src="/resource/loader" style="margin: auto;" />');
+	
+	currentContentId = id;
+	
+    switch(id){
+    case 1:
+        loadImage('{!instance.content_1__c}');
+        break;
+    case 2:
+        loadImage('{!instance.content_2__c}');
+        break;
+    case 3:
+        loadImage('{!instance.content_3__c}');
+        break;
+    case 4:
+        loadImage('{!instance.content_4__c}');
+        break;
+    case 5:
+        loadImage('{!instance.content_5__c}');
+        break;
+    }
+    
+    enableVideoContent(id);
+}
+
+function contentSelection(content_url){
+	if(content_url != ''){
+		loadImage(content_url,false);
+	}
+}
+
+function enableVideoContent(id){
+	if( {!instance.youtube_enabled__c} && '{!instance.youtube_tab_number__c}' != ''){
+		var videoContentNumber = ( '{!instance.youtube_tab_number__c}'.split('#')[1] ) ? '{!instance.youtube_tab_number__c}'.split('#')[1] : null;
+		if(id == videoContentNumber){
+			var youtubeURL = '{!instance.youtube_url__c}'.split('/')[ '{!instance.youtube_url__c}'.split('/').length - 1 ];
+			$('#loadedContent').append('<iframe width="{!instance.youtube_width__c}px" height="{!instance.youtube_height__c}px" style="position:absolute; z-index: 1; top:{!instance.youtube_top__c}px; left:{!instance.youtube_left__c}px;" src="http://www.youtube.com/embed/' + youtubeURL + '" frameborder="0" allowfullscreen></iframe>');
+		}
+	}
+	/*
+	if( $('#b4').hasClass('current') ){
+		$('#loadedContent').append('<iframe width="584" height="474" style="position:absolute; z-index: 1; top: 42px; right:19px;" src="http://www.youtube.com/embed/lLLiCeie4eQ" frameborder="0" allowfullscreen></iframe>');
+	}
+	*/
+}
+
+function detectIPadOrientation () {  
+    resizeWrapper();
+    alignSidebar();
+    
+    //alert($(window).width() - $('#sidebar').width() - 10);
+    /*
+    if(orientation == 0 || orientation == 180){
+        $('#imgContent').attr('width', $(window).width() - $('#sidebar').width() - 10);
+    } else{
+        $('#imgContent').removeAttr('width');
+    }
+    */
+    
+    /*
+    if ( orientation == 0 ) {  
+     alert ('Portrait Mode, Home Button bottom');
+    }  
+    else if ( orientation == 90 ) {  
+     alert ('Landscape Mode, Home Button right');  
+    }  
+    else if ( orientation == -90 ) {  
+     alert ('Landscape Mode, Home Button left');  
+    }  
+    else if ( orientation == 180 ) {  
+     alert ('Portrait Mode, Home Button top');  
+    }
+    */  
+} 
+
+window.onorientationchange = detectIPadOrientation; 
+
+</script>
+
+<style type="text/css" media="all">
+html,body {
+    height:100%;
+}
+
+body,ul,li,header,article,p {
+    padding:0;
+    margin:0;
+    border:0;
+}
+
+body {
+    font-size:12px;
+    -webkit-user-select:none;
+    -webkit-text-size-adjust:none;
+    font-family:helvetica;
+    background:#424242;
+}
+
+p {
+    margin-bottom:1.5em;
+    line-height:150%;
+}
+
+header,article {
+    display:block;
+}
+
+#page {
+    width:100%; height:100%;
+    position:relative;
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    background:#424242;
+}
+
+#wrapper {
+    width:100%; 
+    height:88%;
+    position:relative;
+    display:-webkit-box;
+    -webkit-box-orient:horizontal;
+    background:#424242;
+}
+
+#sidebar {
+    width:110px;
+    background-color: #{!instance.sidebar_bg_color__c};
+    //-webkit-box-shadow: inset -15px 20px 20px -20px #000000;
+    //-moz-box-shadow: inset -15px 20px 20px -20px #000000;
+    //box-shadow: inset -15px 20px 20px -20px #000000;
+    -moz-box-shadow:inset 0 0 10px #000000;
+    -webkit-box-shadow:inset 0 0 10px #000000;
+    box-shadow:inset 0 0 10px #000000;
+}
+
+#sidebar ul{
+    display:block;
+    margin: auto;
+    list-style-type:none;
+}
+
+
+#sidebar li {
+    margin: 0;
+    padding: 5px;
+}
+
+#sidebar img{
+    width: 100px;
+}
+
+.current{
+	background-color: #{!instance.content_bg_color__c};
+	-moz-box-shadow: 0px 0px 8px rgba(000,000,000,0.8);
+    -webkit-box-shadow: 0px 0px 8px rgba(000,000,000,0.8);
+    box-shadow: 0px 0px 8px rgba(000,000,000,0.8);
+    z-index: -2;
+}
+
+.bottom #buttons, .top #buttons{
+	text-align: center;
+}
+
+.bottom #buttons li, .top #buttons li{
+	display: inline-block;
+}
+
+#content {
+    -webkit-box-flex:1;
+    z-index: 1;
+}
+
+#sidebar, #content {
+    position:relative;
+    height:100%;
+}
+
+header {
+    //height:43px; line-height:43px;
+    //border-bottom:1px solid #838a9a;
+    //background:#424242 -webkit-gradient(linear, 0 0, 0 100, from(#f4f5f7), to(#999da9));
+    //color:#717880;
+    //font-size:18px; font-weight:bold;
+    //text-align:center;
+    //text-shadow:0 1px 0 #fff;
+    //-webkit-border-top-left-radius:4px;
+    //-webkit-border-top-right-radius:4px;
+    width: 100%;
+    height: 85px;
+    background-color: #{!instance.hd_bg_color_end__c};
+    background: -moz-linear-gradient(top, #{!instance.hd_bg_color_start__c} 0%, #{!instance.hd_bg_color_end__c});
+    background: -webkit-gradient(linear, left top, left bottom, from(#{!instance.hd_bg_color_start__c}), to(#{!instance.hd_bg_color_end__c}));
+    //-moz-box-shadow: 0px 2px 8px rgba(000,000,000,0.8), inset 0px 0px 2px rgba(255,255,255,1);
+    //-webkit-box-shadow: 0px 2px 8px rgba(000,000,000,0.8), inset 0px 0px 2px rgba(255,255,255,1);
+    position: relative;
+    z-index: 5;
+}
+
+header img{
+    height: 80px;
+}
+
+#contentScroller {
+    -webkit-box-sizing:border-box;
+    padding:5px;
+    padding-bottom: 10px;
+    -webkit-transform:translate3d(0,0,0);
+    
+    background-color: #{!instance.content_bg_color__c};
+}
+
+#loadedContent{
+    padding-bottom: 10px;
+    text-align: center;
+}
+
+article {
+    position:absolute;
+    top:0px; bottom:0; left:0; right:0;
+    font-size:15px;
+    background:#{!instance.content_bg_color__c};
+}
+
+.contentdiv{
+    display:none;
+}
+
+.currentcontent{
+    display: block;
+}
+</style>
+</head>
+<body>
+<div id="page">
+    <header>
+      <apex:image value="{!instance.logo_url__c}" onClick="javascript:window.location = '/apex/iPadAppAdmin?id={!instance.Id}'" />
+    </header>
+    <div id="wrapper">
+        
+        <div id="sidebar" class="{!instance.sidebar_position__c}">
+	        <ul id="buttons">
+	            <li class="current" id="b1" onClick="javascript: sideBarSelection(1);"><apex:image value="{!instance.sidebar_button_1__c}"/></li>
+	            <li id="b2" onClick="javascript: sideBarSelection(2);"><apex:image value="{!instance.sidebar_button_2__c}"/></li>
+	            <li id="b3" onClick="javascript: sideBarSelection(3);"><apex:image value="{!instance.sidebar_button_3__c}"/></li>
+	            <li id="b4" onClick="javascript: sideBarSelection(4);"><apex:image value="{!instance.sidebar_button_4__c}"/></li>
+	            <li id="b5" onClick="javascript: sideBarSelection(5);"><apex:image value="{!instance.sidebar_button_5__c}"/></li>
+	        </ul>
+        </div>
+    
+        <div id="content">
+	        <article id="contentWrapper">
+	                <div id="contentScroller">
+	                    <div id='loadedContent'></div>                                     
+	                </div>
+	        </article>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

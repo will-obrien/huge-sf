@@ -1,0 +1,74 @@
+<apex:page showHeader="true" sidebar="true" controller="Latency">
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.0/jquery.min.js"></script>
+
+	<apex:sectionHeader title="Force.com Latency Tester"/>
+
+	<p>This page uses JavaScript Remoting to invoke an Apex method on the salesforce.com servers 
+		which performs a basic HTTP GET request against the supplied URL. It is important to note
+		this is really testing <strong>application latency</strong>, not pure network latency, 
+		as this request must propagate through JavaScript and the salesforce.com software stack.
+	</p>
+	<p><strong>Server Latency</strong> is the approximate amount of time it takes for the 
+		salesforce.com server to get a response from the remote server. 
+	</p>
+	<p><strong>Client Latency</strong> is the time it takes for the entire transaction to complete
+		from the time the Ping! button is selected to when the local browser receives the response.
+	</p>
+	<p>
+		Be sure the remote URL you are trying to ping is listed and active in the <a href="/0rp">Remote Site Settings</a>.
+	</P>
+
+	<table>
+		<tr>
+			<td style="vertical-align:middle;"><strong>URL:</strong></td> 
+			<td>
+				<input type="text" id="url" style="width: 250px" value="http://forcelatencytester.herokuapp.com/"/> 
+				<input class="btn" type="button" value="Ping!" onclick="pingRemoteURL();"/>
+			</td>
+		</tr>
+	</table>
+
+	<table cellpadding="0" cellspacing="0" class="list" style="min-width: 600px;">
+		<thead>
+			<tr class="headerRow">
+				<th>URL</th>
+				<th>Server Latency</th>
+				<th>Client Latency</th>
+				<th>Date/Time</th>
+			</tr>
+		</thead>
+		<tbody id="resultBody"></tbody>
+	</table>
+
+	<script type="text/javascript">
+		function pingRemoteURL(){
+
+			var url = $("#url").val();
+			var startTime = new Date().getTime();
+
+			Visualforce.remoting.Manager.invokeAction(
+				'{!$RemoteAction.Latency.pingRemoteURL}', //Method name
+				url, //argument
+				function(result, event){ //Callback function on complete
+					//Get the stop time
+					var stopTime = new Date().getTime();
+
+					if(event.status){ //Success
+						//Add result to top of table 
+						$("#resultBody").prepend(
+							'<tr>' +
+								'<td>'+ url +'</td>' +
+								'<td>'+ result +'ms</td>' +
+								'<td>'+ (stopTime - startTime) +'ms</td>' +
+								'<td>'+ new Date().toLocaleDateString() + ' '+ new Date().toLocaleTimeString() +'</td>' +
+							'<tr>'
+						);
+					}else{ //Failure
+						alert('Something didn\'t work right: ' + event.message)
+					}
+				},
+				{escape: false} //False to remove any extra processing that may need to happen server side
+			);
+		}
+	</script>
+</apex:page>

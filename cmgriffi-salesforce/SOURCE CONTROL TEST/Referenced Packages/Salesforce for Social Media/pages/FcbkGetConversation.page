@@ -1,0 +1,78 @@
+<apex:page controller="sf4twitter.FcbkGetConversationController" tabstyle="sf4twitter__Twitter_Conversation__c" title="{!$Label.Get_Conversation}"
+	showHeader="{!!consoleDetector.inConsole}" sidebar="{!!consoleDetector.inConsole}">
+	
+	<apex:form >
+		
+		<script src="{!URLFOR($Resource.jQueryLibrary)}"></script>
+		
+		<apex:outputPanel layout="block" rendered="{!NOT(LoadFunction)}" >
+			<style>
+				body {
+					display:none;
+				}
+			</style>
+			<apex:actionFunction name="initFcbkGetConversationController" action="{!getConversation}" />
+			<script type="text/javascript">
+			    $(document).ready(function(){
+			    	initFcbkGetConversationController();
+			    });
+			</script>
+		</apex:outputPanel>
+	
+		<apex:outputPanel layout="block" rendered="{!NOT(ISBLANK(msg))}" >
+			<c:TwitterErrorMessage msgTitle="{!$Label.TWITTER_INSUFFICIENT_PRIVILEGES}" msg="{!msg}" retUrl="{!retUrl}"  />
+		</apex:outputPanel>
+	
+		<apex:outputPanel layout="none" rendered="{!AND( ISBLANK(msg), LoadFunction )}">
+	
+			<apex:sectionHeader title="{!HTMLENCODE($Label.Get_Conversation)}" />
+	
+			<apex:pageBlock title="{!$Label.Origin_Conversation}">
+				<apex:dataTable border="0" frame="none" rules="rows"
+					cellpadding="0px" cellspacing="0px" value="{!originConversations}"
+					var="c" width="100%" styleClass="list"
+					rowClasses="dataRow odd, dataRow even" headerClass="headerRow">
+					<apex:column headerValue="{!$Label.Facebook_Id}" width="15%">
+	
+						<apex:outputPanel rendered="{!$ObjectType.sf4twitter__Twitter_Conversation__c.fields.sf4twitter__TwitterID__c.Accessible}">
+							<c:SocialOutputLink linkValue="{!c.sf4twitter__TwitterID__c}" linkURL="/{!c.Id}"></c:SocialOutputLink>
+						</apex:outputPanel>
+							
+					</apex:column>
+					<apex:column headerValue="{!$Label.Content}" value="{!c.sf4twitter__Message__c}"
+						rendered="{!$ObjectType.sf4twitter__Twitter_Conversation__c.fields.sf4twitter__Message__c.Accessible}"/>
+				</apex:dataTable>
+			</apex:pageBlock>
+	
+			<apex:pageBlock title="{!$Label.New_Conversations}">
+				<apex:dataTable border="0" frame="none" rules="rows"
+					cellpadding="0px" cellspacing="0px" value="{!conversations}" var="c"
+					width="100%" styleClass="list"
+					rowClasses="dataRow odd, dataRow even" headerClass="headerRow"
+					rendered="{!hasConversations}">
+					<apex:column headerValue="{!$Label.Facebook_Id}" width="15%">
+						<apex:outputPanel rendered="{!$ObjectType.sf4twitter__Twitter_Conversation__c.fields.sf4twitter__TwitterID__c.Accessible}">
+							<c:SocialOutputLink linkValue="{!c.conversation.sf4twitter__TwitterID__c}" linkURL="/{!c.conversation.Id}"></c:SocialOutputLink>
+						</apex:outputPanel>
+					</apex:column>
+					<apex:column headerValue="{!$Label.Content}"
+						value="{!c.conversation.sf4twitter__Message__c}"
+						rendered="{!$ObjectType.sf4twitter__Twitter_Conversation__c.fields.sf4twitter__Message__c.Accessible}" />
+				</apex:dataTable>
+				<br />
+				<apex:outputPanel >
+					<apex:outputText value="{!errorMsg}" styleClass="errorMsg"
+						rendered="{!if(LEN(valueLink) = 0, true, false)}" />
+					<apex:outputPanel rendered="{!if( LEN(valueLink) = 0, false, true)}">
+						<c:SocialOutputLink linkValue="{!errorMsg}" linkURL="{!valueLink}"></c:SocialOutputLink>	
+					</apex:outputPanel>	
+				</apex:outputPanel>
+				<div class="returnLink" style="margin-top: 20px; display: block">
+					<c:SocialOutputLink linkValue="{!$Label.TWITTER_RETURN}" linkURL="{!retUrl}"></c:SocialOutputLink>	
+				</div>
+			</apex:pageBlock>
+	
+		</apex:outputPanel>
+		
+	</apex:form>	
+</apex:page>

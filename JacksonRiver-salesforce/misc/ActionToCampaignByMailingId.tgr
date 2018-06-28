@@ -1,0 +1,68 @@
+trigger ActionToCampaignByMailingId on Actions__c (before insert, before update) {
+    // create a set of all the mailing ids in the actions being inserted/updated
+    Set<String> mailingIds = new Set<String>();
+    for (Actions__c action : Trigger.new) {
+        if (action.Campaign_Source__c != null) {
+            mailingIds.add(action.Campaign_Source__c);
+        }
+    }
+    // create a map in the form of mailing id, campaign
+    Map<String, Campaign> campaigns = new Map<String, Campaign>();
+    // add the ids first because we can't do it with a single query
+    for (String id : mailingIds) {
+        campaigns.put(id, null);
+    }
+
+    // now add the campaigns
+    for (Campaign campaign : [SELECT silverpop__Silverpop_ID__c, Id FROM Campaign WHERE silverpop__Silverpop_ID__c in :campaigns.keySet()]) {
+        if (campaign.silverpop__Silverpop_ID__c != null) {
+            campaigns.put(campaign.silverpop__Silverpop_ID__c, campaign);   
+        }
+    }
+    
+    // clear out any campaigns that didn't have a matching mailing id
+    List<String> idsToRemove = new List<String>();
+    for (String mailId : campaigns.keySet()) {
+        if (campaigns.get(mailId) == null) {
+            idsToRemove.add(mailId);
+        }
+    }
+    
+    for (String mailId : idsToRemove) {
+        campaigns.remove(mailId);
+    }
+
+    // create a map to hold all contact id/campaign id combos we need to find
+    Map <Id, Id> members = new Map<Id, Id>();
+    // assign the found campaigns back to the action object
+    for (Actions__c action : Trigger.new) {
+        if (action.Campaign_Source__c != null && !campaigns.isEmpty()) { // actions without a mailing id can't be assigned a campaign
+            if (campaigns.containsKey(action.Campaign_Source__c)) {
+                action.Original_Campaign__c = String.valueOf(action.Campaign__c);
+                action.Campaign__c = campaigns.get(action.Campaign_Source__c).Id;
+            }
+        }
+        if (action.Contact__c != null) {
+            members.put(action.Contact__c, action.Campaign__c);
+        }
+    }
+    
+    // map of campaign member objects we need to update
+    Map <Id, CampaignMember> campaignMembers = new Map<Id, CampaignMember>();
+
+    List<CampaignMember> c = new List<CampaignMember>([SELECT Id, CampaignId, ContactId, Status FROM CampaignMember WHERE Status = 'Sent' AND HasResponded = FALSE AND ContactId IN :members.keySet()]);
+
+    // loop over list and create a new map of contacts and their associated campaign member object
+    for(CampaignMember cm : c) {
+        if (members.get(cm.ContactId) == cm.CampaignId) {
+            campaignMembers.put(cm.ContactId, cm);
+        }
+    } 
+
+    // now we can set the status of each campaign member to responded and update
+    for(CampaignMember campaignMember : campaignMembers.values()) {
+        campaignMember.Status = 'Responded';            
+    }
+    
+    update campaignMembers.values();
+}

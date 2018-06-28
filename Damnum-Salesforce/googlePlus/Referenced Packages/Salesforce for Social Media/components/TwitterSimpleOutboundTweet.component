@@ -1,0 +1,192 @@
+<apex:component controller="sf4twitter.TwitterOutboundTweetsController" 
+    extensions="sf4twitter.TwitterSimpleOutboundTweetExtension,sf4twitter.SocialTemplateController" 
+    allowDML="true" >
+    
+	<apex:stylesheet value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/style.css')}" />
+
+	<apex:variable var="outboundMessagesDisabled" value="{!NOT(AND(sufficientPrivileges, $ObjectType.sf4twitter__Twitter_Conversation__c.Createable))}" />
+
+	<apex:form styleClass="publishArea" >  
+	
+		<apex:actionFunction name="doInit" action="{!initTwitterOutboundTweetsController}" rerender="errorMsg" />
+		<script type="text/javascript"> $(document).ready(function(){ doInit(); }); </script>
+		
+		<div class="publishAreaContent">
+		
+			<table width="100%">
+				<tr>
+					<td>
+						<div id="input_overlay"
+							onclick="$(this).hide();$(document.getElementById('{!$Component.commentbody}')).focus()"
+							style="position: absolute; margin: 3px; display: {!IF(ISBLANK(MsgTextDescriptionError),'block','none')}">
+							{!$Label.TWITTER_WHAT_IS_HAPPENING}
+						</div>
+						<div>
+							<apex:inputTextarea id="commentbody" styleClass="newDesc newDescBackground" value="{!MsgTextDescription}"
+								disabled="{!outboundMessagesDisabled}"
+								onKeyup="countLeft();"
+								onclick="$('#input_overlay').hide();$('.newDesc').removeClass('newDescBackground');"
+								onchange="$('#input_overlay').hide()"
+								onkeypress="$('#input_overlay').hide();"
+								onkeydown="$('#input_overlay').hide()"
+								onblur="if (!this.value) $('#input_overlay').show()"/>
+						</div>	
+						<div><apex:outputText value="{!MsgTextDescriptionError}" id="errorMsg" styleClass="errorMsg"></apex:outputText></div>
+						<apex:outputPanel layout="block" style="clear:both" rendered="{!NOT(ISBLANK(resultMessage))}"> 
+					    	<p><apex:outputText value="{!resultMessage}" /></p>
+						</apex:outputPanel>
+					</td>	
+				</tr>	
+				<tr>	
+					<td>
+						<table width="100%" id="TableButtons">
+							<tr>
+								<td>
+									<apex:outputPanel layout="block" rendered="{!if( (NOT(SplashPageTemplatesList.size == 0)) && (NOT(twitterAccounts.size == 0) || NOT(facebookAccounts.size == 0)), true, false )}" styleClass="selectBox">  
+									     <apex:actionFunction action="{!generateNewTemplate}"
+									         name="generateTemplate" rerender="commentbody"
+									         oncomplete="countLeft(); $('.selectedTemplate option[value=\'0\']').attr('selected', 'selected'); completeFeature('.loadingGIFTemplate');">
+									     </apex:actionFunction>
+									     <apex:selectList value="{!selectedTemplate}" size="1" id="templateList" multiselect="false" styleClass="selectedTemplate"
+									     		onchange="$('.commentbody').val(''); $('#input_overlay').hide(); generateTemplate(); startFeature('.loadingGIFTemplate');"
+									     		disabled="{!outboundMessagesDisabled}" >
+									         <apex:selectOptions value="{!SplashPageTemplatesList}" />
+									     </apex:selectList>
+								    	&nbsp; <span class="loadingGIFTemplate"><img src="{!URLFOR($Resource.Loading)}" /></span>
+									</apex:outputPanel>  							
+								</td>						
+								<td>
+								    <apex:outputPanel layout="block" rendered="{!NOT(twitterAccounts.size == 0)}" styleClass="selectBox">
+										<apex:inputCheckbox value="{!postToTwitter}" id="sendATweetCheckBox" styleClass="sendATweetCheckBox" onClick="changeMaxSize();" />
+										<apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/Twitter_32x32.png')}" width="22" height="22" />
+										<apex:repeat value="{!twitterAccounts}" var="taccount" rendered="{!twitterAccounts.size = 1}">
+										    <c:SocialOutputLink linkValue="{!taccount.label}" linkURL="/{!taccount.value}"></c:SocialOutputLink>
+										</apex:repeat>
+										<apex:selectList value="{!contributingto}" size="1" multiselect="false" rendered="{!twitterAccounts.size > 1}" styleClass="selectedBox" >
+										    <apex:selectOptions value="{!twitterAccounts}" />
+										</apex:selectList>      
+									</apex:outputPanel>							
+								</td>						
+								<td>
+									<apex:outputPanel layout="block" rendered="{!NOT(facebookAccounts.size == 0)}" styleClass="selectBox">
+									    <apex:inputCheckbox value="{!postToFacebook}" styleClass="postToFcbkCheckBox" id="postToFcbkCheckBox" onClick="changeMaxSize();"/>        
+									    <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/FaceBook_32x32.png')}" width="22" height="22" />
+									    <apex:repeat value="{!facebookAccounts}" var="fbaccount" rendered="{!facebookAccounts.size = 1}">
+									        <c:SocialOutputLink linkValue="{!fbaccount.label}" linkURL="/{!fbaccount.value}"></c:SocialOutputLink>
+									    </apex:repeat>        
+									    <apex:selectList value="{!fbContributingTo}" size="1" multiselect="false" rendered="{!facebookAccounts.size > 1}" styleClass="selectedBox" >
+									        <apex:selectOptions value="{!facebookAccounts}" />
+									    </apex:selectList>    
+									</apex:outputPanel>							
+								</td>
+								
+								<td>
+									<apex:outputPanel layout="block" rendered="{!if( !outboundMessagesDisabled && isChatterEnabled && ( NOT(twitterAccounts.size == 0) || NOT(facebookAccounts.size == 0) ), true, false )}" styleClass="selectBox">
+									    <apex:inputCheckbox styleClass="postToChatter" id="postToChatter" value="{!postToChatter}" onClick="changeMaxSize();" />
+									    <apex:image value="{!URLFOR($Resource.sf4twitter__sfsocial, 'resources/icons/chatter.png')}" width="22" height="22" />
+									    <apex:repeat value="{!chatterChannels}" var="ch" rendered="{!chatterChannels.size = 1}">
+									        <c:SocialOutputLink linkValue="{!ch.label}" linkURL="/{!ch.value}"></c:SocialOutputLink>
+									    </apex:repeat>
+									    <apex:selectList value="{!chatterChannel}" size="1" multiselect="false" rendered="{!chatterChannels.size > 1}" styleClass="selectedBox" >
+									        <apex:selectOptions value="{!chatterChannels}" />
+									    </apex:selectList>   								
+								    </apex:outputPanel>							
+								</td>
+								<td style="text-align: right">
+									<apex:outputlabel id="countermsg" for="commentbody" styleClass="countermsg" style="{!IF(((messageMaxSize - LEN(MsgTextDescription)) < 0),'color:#FF0000;','')}" value="{!(messageMaxSize - LEN(MsgTextDescription))}" ></apex:outputlabel>
+					        		<apex:outputlabel value="{!$Label.SplashPage_Characters}"></apex:outputlabel> &nbsp;&nbsp;
+					        		<apex:commandbutton value=" {!$Label.Send} " action="{!sendFromLandingPage}" styleClass="btnPrimary publishersharebutton btn" disabled="{!outboundMessagesDisabled || (twitterAccounts.size == 0 && facebookAccounts.size == 0)}" />
+								</td>
+							</tr>					
+						</table>
+					</td>			
+				</tr>		
+			</table>
+		
+		</div>
+    	            
+		
+	</apex:form>
+         
+<script type="text/javascript">
+
+    function getMaxLengh(){
+        var TWITTER_MSG_MAX_SIZE = {!TWITTER_MSG_MAX_SIZE};
+        var FACEBOOK_MSG_MAX_SIZE = {!FACEBOOK_MSG_MAX_SIZE};
+        if( $('.sendATweetCheckBox').is(':checked') ) return TWITTER_MSG_MAX_SIZE;
+        if( $('.postToFcbkCheckBox').is(':checked') || $('.postToChatter').is(':checked') ) return FACEBOOK_MSG_MAX_SIZE;
+        else if ( !$('.postToFcbkCheckBox').is(':checked') && !$('.sendATweetCheckBox').is(':checked') ) 0;
+        return TWITTER_MSG_MAX_SIZE;
+    }
+    
+    function changeMaxSize(){
+        $('.countermsg').text( getMaxLengh() );
+        $('.selectBox').show('fast');
+        countLeft();
+    }
+
+    function startFeature( _image ){
+        $('input, textarea, select, .btn').attr('disabled','true');
+        $('.btn').addClass('btnDisabled');
+        if( _image != '' ) $( _image ).show();
+    }
+    
+    function completeFeature( _image ){
+        $('input, textarea, select, .btn').removeAttr('disabled');
+        $('.btn').removeClass('btnDisabled');
+        if( _image != '' ) $( _image ).hide();
+    }
+
+    function countLeft() {
+        if ( $('.postToFcbkCheckBox').is(':checked') || $('.sendATweetCheckBox').is(':checked') ){
+        var descriptionLength = getMaxLengh() - $('.newDesc').val().length;
+        if (descriptionLength >= 0) {
+        	$('.countermsg').css( 'color', '#069BCE' );
+        }else {
+       		$('.countermsg').css( 'color', '#FF0000' );
+        }
+        $('.countermsg').html( descriptionLength );
+    }
+        else{
+            $('.countermsg').html(0);
+            $('.countermsg').css( 'color', '#000000' );
+        }
+    }
+
+	$('.newDesc').each(function() {
+	    
+	    var $this       = $(this),
+	        minHeight   = $this.height(),
+	        lineHeight  = $this.css('lineHeight');
+	    
+	    var shadow = $('<div></div>').css({
+	        position:   'absolute',
+	        top:        -10000,
+	        left:       -10000,
+	        width:      $(this).width(),
+	        fontSize:   $this.css('fontSize'),
+	        fontFamily: $this.css('fontFamily'),
+	        lineHeight: $this.css('lineHeight'),
+	        resize:     'none'
+	    }).appendTo(document.body);
+	    
+	    var update = function() {
+	        
+	        var val = this.value.replace(/</g, '&lt;')
+	                            .replace(/>/g, '&gt;')
+	                            .replace(/&/g, '&amp;')
+	                            .replace(/\n/g, '<br/>');
+	        
+	        shadow.html(val);
+	        $(this).css('height', Math.max(shadow.height() + 20, minHeight));
+	    }
+	    
+	    $(this).change(update).keyup(update).keydown(update);
+	    
+	    update.apply(this);
+	    
+	});
+    
+</script>
+
+</apex:component>

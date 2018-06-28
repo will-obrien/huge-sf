@@ -1,0 +1,44 @@
+<apex:page standardController="lmscons__LMS_Content__c" showHeader="true" sidebar="true" title="{!title}"  extensions="lmscons.LMSContentDetailExt" action="{!initPage}" cache="false" >
+
+    <apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+
+    <apex:sectionHeader title="{!$ObjectType.lmscons__LMS_Content__c.label}" subtitle="{!title}"/>
+    <apex:pageMessages id="pagemessage"/>
+
+    <apex:detail title="false"/>
+    <script>
+        jQuery.noConflict();
+        //jQuery(document).ready(function() {
+        if({!LMScontent.verified__c}!=1){
+        	jQuery('input[name$=publish]').attr('class', 'btnDisabled').attr('disabled', 'disabled');
+        }
+        //});
+    </script>
+    <apex:form >
+
+        <apex:actionFunction name="Director" action="{!Director}" rerender="pagemessage, actionPoller, actionPublish, actionReleas" />
+
+        <apex:actionFunction name="Release" action="{!buyLicense}" rerender="pagemessage, actionReleas" />
+
+        <script type="text/javascript">
+        	if({!enableRelease}==true){
+            	window.onload = Release;
+            } else {
+            	window.onload = Director;
+            }
+        </script>
+
+        <apex:actionStatus id="publishStatus">
+            <apex:facet name="start">
+                <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+                                borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif"
+                                Message="{!$Label.LMSContentDetail_Message_Publishing}" messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+            </apex:facet>
+        </apex:actionStatus>
+
+        <apex:actionPoller action="{!Director}" rerender="pagemessage, actionReleas" enabled="{!enablePoller}" interval="5" id="actionPoller"/>
+        <!-- <apex:actionPoller action="{!buyLicense}" rerender="pagemessage" enabled="{!enableRelease}" interval="5" id="actionReleas"/> -->
+    </apex:form>
+
+
+</apex:page>

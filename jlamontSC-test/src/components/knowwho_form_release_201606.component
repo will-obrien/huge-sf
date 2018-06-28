@@ -1,0 +1,673 @@
+<apex:component layout="none" allowDML="TRUE">
+<apex:attribute name="eocsrequest" type="kweos__EOCS_Data__c" description="eocsrequest Advocacy Action Custom Object - Provides user info"/>
+<apex:attribute name="kwcamp" type="kwac.KWAC_CampaignManager" description="Advocacy Campaign Object" />
+<apex:attribute name="kwacdp" type="kwac.KWAC_ActionCenterDisplayBuilder" description="Advocacy Campaign Object" />
+<apex:attribute name="bValidState" type="boolean" description="Boolean as to whether the action state match the user's state" />
+<apex:attribute name="bShowStateAction" type="boolean" description="Boolean as to whether a state action should show" />
+<apex:attribute name="bshowthanks" type="boolean" description="Boolean to show thank you or not." />
+<apex:attribute name="bshowmainform" type="boolean" description="Boolean to show thank you or not." />
+<apex:attribute name="slStates" type="SelectOption[]" description="" />
+<apex:attribute name="sToken" type="string" description="A token" />
+<apex:attribute name="bShowMessageButton" type="boolean" description="Boolean to show thank you or not." />
+<apex:attribute name="bAddressError" type="boolean" description="If there was an error with the address" />
+<apex:attribute name="sAddressErrorCode" type="string" description="Error associated with address error" />
+<apex:attribute name="state" type="string" description="The two letter abbreviation of the U.S. State this page should find." />
+<apex:attribute name="bShowSubscribe" type="boolean" description="Show subscribe language" />
+<apex:attribute name="RefreshSubmitMethod" description="The save method from the parent controller" type="ApexPages.Action" required="true"/>
+
+<apex:attribute name="bShowExistingActionMessage" type="boolean" description="Already taken action" />
+
+
+<apex:attribute name="sRefreshButton" type="string" description="Text for refresh button" />
+
+<apex:variable var="bThanksPage" value="{!$CurrentPage.parameters.page == 'thanks'}" />
+<apex:variable var="testing" value="{!$CurrentPage.parameters.test == 'TESTING'}" />
+<apex:variable var="testThanks" value="{!$CurrentPage.parameters.testthanks == 'TESTING'}" />
+<apex:variable var="daisyChain" value="{!$CurrentPage.parameters.next == 'true'}" />
+<apex:variable var="isNotMarchWindow" value="{!MONTH(TODAY()) != 999}" />
+
+<apex:variable var="isAction" value="{!kwcamp.camp.kwac__Action_Type__c == 'Contact Officials - All info required'}" />
+<apex:variable var="isZDM" value="{!kwcamp.camp.kwac__Action_Type__c == 'No Delivery - Location required'}" />
+
+<apex:variable var="isNational" value="{!IF(contains(LOWER($CurrentPage.URL), "national"), true, false)}" />
+
+<apex:variable var="isAllFields" value="{!IF(contains(kwcamp.camp.kwac__Fields_to_Populate__c, 'All') || kwcamp.camp.kwac__Fields_to_Populate__c == '', true, false) }" />
+<apex:variable var="hasAddress" value="{!IF(contains(kwcamp.camp.kwac__Fields_to_Populate__c, 'Address') || isAllFields || isAction || isZDM, true, false)}" />
+<apex:variable var="hasCity" value="{!IF(contains(kwcamp.camp.kwac__Fields_to_Populate__c, 'City') || isAllFields || isAction || isZDM, true, false)}" />
+<apex:variable var="hasState" value="{!IF(contains(kwcamp.camp.kwac__Fields_to_Populate__c, 'State') || isAllFields || isAction || isZDM, true, false)}" />
+<apex:variable var="hasTitle" value="{!IF(contains(kwcamp.camp.kwac__Fields_to_Populate__c, 'Title') || isAllFields || isAction, true, false)}" />
+<apex:variable var="hasPhone" value="{!IF(contains(kwcamp.camp.kwac__Fields_to_Populate__c, 'Phone') || isAllFields || isAction, true, false)}" />
+
+
+<apex:variable var="isExpired" value="{!IF(kwcamp.camp.EndDate == null, false, IF(kwcamp.camp.EndDate > TODAY(), false, true))}" />
+
+<script>
+/* we only want to validate there is a state and title for actions (contact officials) */
+var validateTitle = {!hasTitle && isAction};
+var validateState = {!isAction || isZDM};
+</script>
+
+<style>
+/* This is for testing some tracking for mobile commons optin language. AdrianErick for MarieSarah */
+.action-70131000001uhboAAA .custom-questions, .action-70131000001uhboAAA .custom-questions-header { display:none; }
+</style>
+
+
+<apex:outputPanel id="perrors">
+    <apex:pageMessages id="pmessages"/>
+</apex:outputPanel>
+
+<div id="stateError" style="padding-top: 10px;">
+    <apex:outputPanel id="stateErrorInvalid" rendered="{!!bValidState}" layout="block">
+        <p class="alert alert-warning">Sorry - that action wasn't valid for your address - but here's a list of actions you can take right now! </p>
+    </apex:outputPanel>
+</div>
+
+<apex:outputPanel rendered="{!testing}" layout="none">
+<div class="alert alert-warning">
+<p>knowwho_form_release_201601 component. troubleshooting information</p>
+<ul>
+<li>Current form is of type "{!kwcamp.camp.kwac__Action_Type__c}"</li>
+<li>Fields to populate are: {!kwcamp.camp.kwac__Fields_to_Populate__c} -- show all fields? {!isAllFields}</li>
+<li>Has Address: {!hasAddress}</li>
+<li>Has City: {!hasCity}</li>
+<li>Has State: {!hasState}</li>
+<li>Has Title: {!hasTitle}</li>
+<li>Has Phone: {!hasPhone}</li>
+<li>isZDM: {!isZDM}</li>
+<li>isAction: {!isAction}</li>
+<li>First and Last name, email, and zip will always be on the form.</li>
+</ul>
+</div>
+</apex:outputPanel>
+
+
+<apex:outputPanel id="thanks" layout="block" style="padding-top: 10px;">
+    <apex:outputPanel html-class="daisy-chain" rendered="{!daisyChain && !(bShowThanks || testThanks || bThanksPage)}" layout="block">
+        <div style="background: #f5551e; color: white; font-size: 24px; text-align:center; font-weight: bold; padding: 8px 20px; margin: -20px -15px 0; "><strong>Thank you for taking action! Your help is also needed on this:</strong></div>
+    </apex:outputPanel>   
+
+    <apex:outputPanel rendered="{!bShowThanks || testThanks || bThanksPage }" layout="block">
+
+        <apex:outputPanel rendered="{!bShowThanks}" layout="none">
+            <!-- Google Code for RTI Conversions Conversion Page -->
+            <script type="text/javascript">
+                /* <![CDATA[ */
+                var google_conversion_id = 1061848142;
+                var google_conversion_language = "en";
+                var google_conversion_format = "3";
+                var google_conversion_color = "ffffff";
+                var google_conversion_label = "YZ8uCLzK2mAQzoiq-gM";
+                var google_remarketing_only = false;
+                /* ]]> */
+            </script>
+            <noscript>
+                <div style="display:inline;">
+                    <img height="1" width="1" style="border-style:none;" alt="" src="//www.googleadservices.com/pagead/conversion/1061848142/?label=YZ8uCLzK2mAQzoiq-gM&amp;guid=ON&amp;script=0"/>
+                </div>
+            </noscript>
+            <script type="text/javascript" src="//www.googleadservices.com/pagead/conversion.js"></script>
+            <script>
+                window['optimizely'] = window['optimizely'] || [];
+                window.optimizely.push(["trackEvent", "advocacy-send-message-clickers"]);
+            </script>
+        </apex:outputPanel>
+
+        <apex:outputPanel rendered="{!bThanksPage  && !bShowThanks}" layout="none">
+        <p><strong><a href="?actionId={!kwcamp.camp.kwac__Action_Request2_Id__c}">Take the action</a></strong></p>
+        </apex:outputPanel>
+        
+        <h1 id="tatHeader">Thank you for taking action!</h1>
+                    
+        <apex:outputPanel rendered="{!kwcamp.camp.kwac__Thank_You_Page_Text__c != ''}" layout="none">
+            <div class="thanks_language"><apex:outputText escape="FALSE" value="{!kwcamp.camp.kwac__Thank_You_Page_Text__c}"></apex:outputText></div>
+        </apex:outputPanel>            
+           
+        <apex:outputPanel rendered="{!kwcamp.camp.Backend_Donation_Form__c != null && isNotMarchWindow}" layout="none">            
+            <form action="{!IF(CONTAINS($CurrentPage.URL,'full-'),'https://full-sierra.cs40.force.com/donate','https://sierra.secure.force.com/donate')}/rc_connect__Campaign_DesignForm" method="get" id="tatDonationForm">
+                <input value="{!kwcamp.camp.Backend_Donation_Form__c}" name="formcampaignid" id="form_id" type="hidden" />
+                <input value="{!IF($CurrentPage.parameters.id == '', kwcamp.camp.id, $CurrentPage.parameters.id)}" name="id" id="source_id" type="hidden" />
+                <input value="{!$CurrentPage.parameters.data}" name="data" id="data" type="hidden" />
+                <input value="{!$CurrentPage.parameters.ddi}" name="ddi" id="ddi" type="hidden" />
+                            
+                <div class="row">
+                    <div class="col-md-2 col-xs-3"><apex:image url="{!$Resource.LabelMakeAGift}" html-class="img-responsive"  alt="Please make a gift" /></div>
+                    <div class="col-md-10 col-xs-9">
+                        <!-- NEW FIELD - - donation language -->
+                        <div class="donation_language"><apex:outputField value="{!kwcamp.camp.Donation_Language__c}"/></div>
+                        
+                        <c:DonationLevels DonationAsks="{!kwcamp.camp.Backend_Ask_String__c}" />
+                    </div>
+                </div>
+            </form>
+        </apex:outputpanel>            
+            
+        <div class="row">
+            <div class="col-md-2 col-xs-3"><apex:image url="{!$Resource.LabelShoutItOut}" html-class="img-responsive"  alt="Shout it out! Please share." /></div>
+            <div class="col-md-10 col-xs-9">
+                <!-- NEW FIELD - - sharing language -->
+                <apex:outputPanel rendered="{!kwcamp.camp.Backend_Donation_Form__c != null}" layout="none">
+                    <div class="sharing_language"><apex:outputField value="{!kwcamp.camp.Sharing_Language__c}"/></div>
+                </apex:outputpanel>            
+                <apex:outputPanel rendered="{!kwcamp.camp.Backend_Donation_Form__c == null}" layout="none">
+                    <div class="sharing_language">Please share this page with your friends.</div>
+                </apex:outputpanel>
+
+                <a class="addthis_button_facebook"><apex:image url="{!$Resource.ButtonFacebookShare}"  alt="Share on Facebook" width="100" height="46" style="width:100px !important; height: 46px !important"  /></a><a class="addthis_button_twitter"><apex:image url="{!$Resource.ButtonTwitterShare}"  alt="Share on Twitter" width="100" height="46" style="width:100px !important; height: 46px !important"  /></a><a class="addthis_button_email"><apex:image url="{!$Resource.ButtonEmailShare}" alt="Share on Facebook" width="100" height="46" style="width:100px !important; height: 46px !important" /></a>
+            </div>
+        </div>          
+
+            
+        <apex:outputPanel rendered="{!kwcamp.camp.kwac__Elected_Officials_to_Display__c != ''}">
+        <h3 id="message-sent-to-header" style="display:none;">Your message was sent to:</h3> 
+        
+        <apex:form >
+            <apex:repeat value="{!kwacdp.KW_ActionCenterDisplayWrapperList}" var="kw_wrapper">
+
+              <div class="row top-buffer message-thanks">        
+                <apex:repeat value="{!kw_wrapper}" var="kwus">
+                  <style>#message-sent-to-header { display: block !important; }</style>
+                  <apex:outputPanel rendered="{!kw_wrapper.size == 1}">
+                    <div class="col-md-12">
+                      <div>
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+
+                  <apex:outputPanel rendered="{!kw_wrapper.size == 2}">
+                    <div class="col-md-6">
+                      <div>
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+
+                  <apex:outputPanel rendered="{!kw_wrapper.size >= 3}">
+                    <div class="col-md-4">
+                      <div>
+                      <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                      </div>
+                    </div>
+                  </apex:outputPanel> 
+                </apex:repeat>  
+
+              </div>
+              <br/>
+            </apex:repeat>            
+        </apex:form>            
+        </apex:outputPanel>
+            
+    </apex:outputPanel>   
+</apex:outputPanel>
+
+<apex:outputPanel rendered="{!isExpired}" layout="none">
+<div class="alert alert-warning" style="margin-bottom: 15px;">
+
+<p>Thank you for your interest in taking action. However the alert, "{!kwcamp.camp.kwac__Tagline__c}," is no longer active.</p>
+
+<p>Still interested in helping? Please take a look at the list of actions below that still need help and add you name!</p>
+
+</div>
+</apex:outputPanel>
+
+<c:knowwho_campaign_list state="{!state}" rendered="{!bShowStateAction || isExpired}" />
+<style>
+#ciPersonalMessage {
+    border: 0;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    padding: 0;
+}
+#ciPersonalMessage textarea {
+    padding: 6px 10px;
+}
+</style>
+<apex:form id="action" html-role="form" html-class="apexForm row {!IF(isAction || isZDM, 'address-required','')}  action-{!kwcamp.camp.id}">
+    <apex:outputPanel id="mainform">
+        <apex:outputPanel id="mainformshow" rendered="{!bshowmainform && !bThanksPage && !isExpired}">
+
+            <div class="col-md-6">
+                <h1>{!kwcamp.camp.kwac__Tagline__c}</h1>
+
+                
+                <apex:outputPanel id="video_iframe" rendered="{!kwcamp.camp.Video_URL__c != ''}" layout="none">
+                    <!-- div class="video_iframe embed-responsive embed-responsive-4by3" -->
+                    <div class="video_iframe embed-responsive embed-responsive-16by9" style="margin-bottom: 15px;">
+                        <iframe class="embed-responsive-item" src="{!kwcamp.camp.Video_URL__c}" frameborder="0" border="0" width="800" height="600" >{!kwcamp.camp.Video_URL__c}</iframe>
+                    </div>
+                </apex:outputPanel>
+                
+                <apex:outputText escape="FALSE" value="{!kwcamp.camp.kwac__Call_to_Action_Text__c}" styleClass="maintext"></apex:outputText>
+            </div>
+
+            <div class="col-md-6">
+            <!-- begin contact -->
+
+                <apex:outputPanel id="already_taken" rendered="{!bShowExistingActionMessage}" layout="none">
+                    <div id="already_taken_alert" class="alert alert-warning" style="margin-bottom: 15px;">
+                        It looks like you&#39;ve already taken this action. <a href="/actions/{!$CurrentPage.Name}">Click here to find other ways to get involved.</a>
+                    </div>
+                </apex:outputPanel>
+                                
+                <apex:outputPanel id="PersName">
+                <legend>Your Information</legend>
+                <fieldset class="control-group">
+
+
+                <div class="row">
+                <apex:outputPanel rendered="{!hasTitle}" layout="none">
+                    <div class="col-md-3">
+                        <div class="form-group" id="nmSaluation">
+                            <apex:outputLabel for="nmSalutationf" value="Title" />
+                            <apex:inputField id="nmSalutationf" 
+                                value="{!eocsrequest.kweos__Prefix__c}" 
+                                type="text" 
+                                styleclass="form-control salutation"
+                                html-placeholder="Prefix"
+                                html-autocomplete="honorific-prefix"
+                                required="{!isAction}"
+                                />
+                        </div>
+                    </div>
+                </apex:outputPanel>
+            
+                    <div class="col-md-{!IF(hasTitle,'4','6')}">
+                        <div class="form-group" id="nmFirstname">
+                            <apex:outputLabel for="nmFirstnamef" value="First Name" />
+                            <apex:inputField required="true"  
+                                id="nmFirstnamef" 
+                                value="{!eocsrequest.kweos__First_Name__c}" 
+                                type="text" 
+                                styleclass="form-control fname"
+                                html-autocomplete="given-name"
+                                />
+                        </div>
+                    </div>
+                
+                <div class="col-md-{!IF(hasTitle,'5','6')}">
+                    <div class="form-group" id="nmLastname">
+                        <apex:outputLabel for="nmLastnamef" value="Last Name" />
+                        <apex:inputField required="true"  
+                            id="nmLastnamef" 
+                            label="Last Name" 
+                            value="{!eocsrequest.kweos__Last_Name__c}" 
+                            styleclass="form-control lname"
+                            html-autocomplete="family-name"
+                            />
+                    </div>
+                </div>
+            </div>
+            
+            <apex:outputPanel rendered="{!hasAddress || hasCity}" layout="none">                
+
+            <div class="row">
+                <apex:outputPanel rendered="{!hasAddress}" layout="none">                
+                <div class="col-md-7">
+                    <div class="form-group" id="adAddress1">
+                        <apex:outputLabel for="adAddress1f" value="Street Address" />  
+                        <apex:inputField id="adAddress1f" 
+                            value="{!eocsrequest.kweos__Address1__c}" 
+                            styleclass="form-control street1"
+                            html-autocomplete="street-address"  
+                            required="{!isAction || isZDM}"
+                            />
+                    </div>
+                </div>
+                </apex:outputPanel>
+
+                <apex:outputPanel rendered="{!hasCity}" layout="none">                
+                <div class="col-md-5">
+                    <div class="form-group" id="adCity">
+                        <apex:outputLabel for="adCityf" value="City" />  
+                        <apex:inputField id="adCityf" 
+                            label="City" 
+                            value="{!eocsrequest.kweos__City__c}" 
+                            styleclass="form-control city" 
+                            html-autocomplete="address-level2"  
+                            required="{!isAction || isZDM}"
+                            />                                
+                    </div>
+                </div>
+                </apex:outputPanel>
+                
+            </div>
+            </apex:outputPanel>
+            
+            
+            <div class="{!IF(!hasPhone && !hasState,'row','')}">
+            <div class="{!IF(hasState || (!hasState && hasPhone),'row','')}">
+                <apex:outputPanel rendered="{!hasState}" layout="none">                
+
+                <div class="col-md-4" id="adState">
+                    <div class="form-group"> 
+                        <apex:outputLabel for="adStatef" value="State" />  
+                        <apex:selectList size="1" 
+                            id="adStatef"
+                            value="{!eocsrequest.kweos__State__c}" 
+                            styleclass="form-control state"
+                            required="{!IF(isAction || isZDM, 'true', 'false')}"
+                            html-autocomplete="address-level1"                           
+                            >
+                            <apex:selectOptions value="{!slStates}"               
+                            />
+                        </apex:selectList>
+                    </div>
+                </div>
+                
+                </apex:outputPanel>
+ 
+                <div class="col-md-4">
+                    <div class="form-group" id="adZip">
+                        <apex:outputLabel for="adZipf" value="Zip" />  
+                        <apex:inputField id="adZipf" 
+                            required="true"  
+                            label="Zip/Postal Code" 
+                            value="{!eocsrequest.kweos__Postal_Code__c}" 
+                            styleclass="form-control zipcode"
+                            html-autocomplete="postal-code" 
+                            html-maxlength="5"                          
+                            />
+                    </div>
+                </div>    
+            </div>
+            <div class="{!IF(hasPhone || hasState,'row','')}">
+ 
+                <div class="col-md-{!IF(!hasPhone,'8','6')}">
+                    <div class="form-group" id="ciEmail">
+                        <apex:outputLabel for="ciEmailf" value="Email" />
+                        <apex:inputField required="true" 
+                            id="ciEmailf" 
+                            type="email" 
+                            value="{!eocsrequest.kweos__Email__c}" 
+                            styleclass="form-control emailaddress"
+                            html-autocomplete="email"                           
+                            />
+                    </div>
+                </div>
+                <apex:outputPanel rendered="{!hasPhone}" layout="none">           
+                <div class="col-md-6">
+                    <div class="form-group" id="ciPhone">
+                        <apex:outputLabel for="ciPhonef" value="Phone" />
+                        <apex:inputField required="{!isAction}" 
+                            id="ciPhonef" 
+                            value="{!eocsrequest.kweos__Phone__c}" 
+                            styleclass="form-control phone"
+                            html-autocomplete="tel-national"                           
+                            />
+ 
+
+                       
+                    </div>
+                </div>
+                </apex:outputPanel> 
+                </div>
+            </div>
+            <div class="row"> 
+                <div class="col-sm-12">
+                <p class="small">
+                    <apex:inputCheckbox selected="true" id="ciSubscribecb" label="Subscribe" value="{!eocsrequest.kwac__Subscribe_to_Email_Alerts__c}" style="display:none"/>
+                    By taking action, you will also receive periodic communications from the Sierra Club. You can unsubscribe at any time.
+                    <apex:outputPanel rendered="{!isNational && hasPhone}" layout="none">
+                        <!-- if national optin people to mobile list and display language -->
+                        <apex:inputCheckbox selected="true" id="ciMobilecb" html-class="hidden-mobile-optin" value="{!eocsrequest.Mobile_Opt_In__c}" label="Opt in to mobile alerts from the Sierra Club" style="display:none;" />
+                        By providing your mobile number you consent to receive cell phone and text communications from Sierra Club and its affiliated entities concerning environmental news and action opportunities.
+                    </apex:outputPanel>
+                </p>
+                </div>
+            </div>
+        </fieldset>
+    </apex:outputPanel>
+
+    <apex:outputPanel styleclass="custom-questions-header" layout="block" rendered="{!(kwcamp.camp.Display_Field_1__c || kwcamp.camp.Display_Field_2__c ||kwcamp.camp.Display_Field_3__c || kwcamp.camp.Display_Field_4__c ||kwcamp.camp.Display_Field_5__c   )}">
+        <legend>Additional Questions</legend>
+    </apex:outputPanel>
+
+    <apex:outputPanel styleclass="custom-questions" layout="block" rendered="{!(kwcamp.camp.Display_Field_1__c || kwcamp.camp.Display_Field_2__c ||kwcamp.camp.Display_Field_3__c || kwcamp.camp.Display_Field_4__c ||kwcamp.camp.Display_Field_5__c   )}">    
+
+        <c:questions_script />
+
+        <apex:outputPanel layout="none" rendered="{!(kwcamp.camp.Display_Field_1__c || kwcamp.camp.Require_Field_1__c)}">    
+            <c:events_extra_fields QuestionType="{!kwcamp.camp.Question_Type_1__c}" QuestionPossibleValues="{!kwcamp.camp.Possible_Answers_1__c}" QuestionValue="{!eocsrequest.Custom_Field_1_Response__c}" isDisplayed="{!kwcamp.camp.Display_Field_1__c}" isRequired="{!kwcamp.camp.Require_Field_1__c}" QuestionName="Custom_Field_1_Response__c" QuestionLabel="{!kwcamp.camp.Custom_Field_1_Label__c}" rendered="{!(kwcamp.camp.Display_Field_1__c || kwcamp.camp.Require_Field_1__c)}" />
+            <apex:inputHidden id="ciCustomField1" html-data-id="Custom_Field_1_Response__c" value="{!eocsrequest.Custom_Field_1_Response__c}" />
+        </apex:outputPanel>     
+
+         <apex:outputPanel layout="none" rendered="{!(kwcamp.camp.Display_Field_2__c || kwcamp.camp.Require_Field_2__c)}">    
+            <c:events_extra_fields QuestionType="{!kwcamp.camp.Question_Type_2__c}" QuestionPossibleValues="{!kwcamp.camp.Possible_Answers_2__c}" QuestionValue="{!eocsrequest.Custom_Field_2_Response__c}" isDisplayed="{!kwcamp.camp.Display_Field_2__c}" isRequired="{!kwcamp.camp.Require_Field_2__c}" QuestionName="Custom_Field_2_Response__c" QuestionLabel="{!kwcamp.camp.Custom_Field_2_Label__c}" rendered="{!(kwcamp.camp.Display_Field_2__c || kwcamp.camp.Require_Field_2__c)}" />
+            <apex:inputHidden id="ciCustomField2" html-data-id="Custom_Field_2_Response__c" value="{!eocsrequest.Custom_Field_2_Response__c}" />
+        </apex:outputPanel>     
+
+        <apex:outputPanel layout="none" rendered="{!(kwcamp.camp.Display_Field_3__c || kwcamp.camp.Require_Field_3__c)}">    
+            <c:events_extra_fields QuestionType="{!kwcamp.camp.Question_Type_3__c}" QuestionPossibleValues="{!kwcamp.camp.Possible_Answers_3__c}" QuestionValue="{!eocsrequest.Custom_Field_3_Response__c}" isDisplayed="{!kwcamp.camp.Display_Field_3__c}" isRequired="{!kwcamp.camp.Require_Field_3__c}" QuestionName="Custom_Field_3_Response__c" QuestionLabel="{!kwcamp.camp.Custom_Field_3_Label__c}" rendered="{!(kwcamp.camp.Display_Field_3__c || kwcamp.camp.Require_Field_3__c)}" />
+            <apex:inputHidden id="ciCustomField3" html-data-id="Custom_Field_3_Response__c" value="{!eocsrequest.Custom_Field_3_Response__c}" />
+        </apex:outputPanel>     
+
+        <apex:outputPanel layout="none" rendered="{!(kwcamp.camp.Display_Field_4__c || kwcamp.camp.Require_Field_4__c)}">    
+            <c:events_extra_fields QuestionType="{!kwcamp.camp.Question_Type_4__c}" QuestionPossibleValues="{!kwcamp.camp.Possible_Answers_4__c}" QuestionValue="{!eocsrequest.Custom_Field_4_Response__c}" isDisplayed="{!kwcamp.camp.Display_Field_4__c}" isRequired="{!kwcamp.camp.Require_Field_4__c}" QuestionName="Custom_Field_4_Response__c" QuestionLabel="{!kwcamp.camp.Custom_Field_4_Label__c}" rendered="{!(kwcamp.camp.Display_Field_4__c || kwcamp.camp.Require_Field_4__c)}" />
+            <apex:inputHidden id="ciCustomField4" html-data-id="Custom_Field_4_Response__c" value="{!eocsrequest.Custom_Field_4_Response__c}" />
+        </apex:outputPanel>     
+
+        <apex:outputPanel layout="none" rendered="{!(kwcamp.camp.Display_Field_5__c || kwcamp.camp.Require_Field_5__c)}">    
+            <c:events_extra_fields QuestionType="{!kwcamp.camp.Question_Type_5__c}" QuestionPossibleValues="{!kwcamp.camp.Possible_Answers_5__c}" QuestionValue="{!eocsrequest.Custom_Field_5_Response__c}" isDisplayed="{!kwcamp.camp.Display_Field_5__c}" isRequired="{!kwcamp.camp.Require_Field_5__c}" QuestionName="Custom_Field_5_Response__c" QuestionLabel="{!kwcamp.camp.Custom_Field_5_Label__c}" rendered="{!(kwcamp.camp.Display_Field_5__c || kwcamp.camp.Require_Field_5__c)}" />
+            <apex:inputHidden id="ciCustomField5" html-data-id="Custom_Field_5_Response__c" value="{!eocsrequest.Custom_Field_5_Response__c}" />
+        </apex:outputPanel>    
+
+     </apex:outputPanel>
+
+<!--
+ Message hidden under some circumstances: {!IF(!kwcamp.camp.Do_Not_Display_Message_Section__c || (kwcamp.camp.Do_Not_Display_Message_Section__c && kwcamp.camp.kwac__User_Can_Edit_Message__c) || isAction,'hidden','')}  
+-->
+        <div id="MessagetoOfficials" class="message-to-officials {!IF(kwcamp.camp.Do_Not_Display_Message_Section__c && !kwcamp.camp.kwac__User_Can_Edit_Message__c && !kwcamp.camp.kwac__Display_Personal_Message_Option__c && !isAction,'hidden','')}">
+                <legend>Your Message</legend>
+                <fieldset class="control-group">
+                        <div class="row">
+                                <div class="col-md-12">
+                                        <div class="form-group" id="ciSubjects">
+                                                <label class="{!IF(kwcamp.camp.kwac__User_Can_Edit_Subject__c,'required','')}" for="ciSubjects">Subject</label>
+                                                <apex:inputText disabled="{!!kwcamp.camp.kwac__User_Can_Edit_Subject__c}" required="true" id="ciSubjectRW" label="text" value="{!eocsRequest.kweos__Subject__c}" styleclass="form-control {!IF(!kwcamp.camp.kwac__User_Can_Edit_Subject__c,'hidden','')}" />
+                                                <apex:outputPanel rendered="{!kwcamp.camp.kwac__User_Can_Edit_Subject__c}" layout="none">
+                                                      
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!!kwcamp.camp.kwac__User_Can_Edit_Subject__c}" layout="none">
+                                                <div style="font-size: 14px; white-space: pre-line; padding: 6px 12px; border: 1px solid #efefef; border-radius: 4px;">{!eocsRequest.kweos__Subject__c}</div>
+                                                </apex:outputPanel>
+                                        </div>                    
+                                </div>
+                        </div>            
+
+                        <div class="row">   
+                                <div class="col-md-12">
+                                        <div class="form-group" id="ciMessages">
+                                            <label class="{!IF(kwcamp.camp.kwac__User_Can_Edit_Message__c && !kwcamp.camp.kwac__Display_Personal_Message_Option__c,'required','')}" for="ciMessages">Message <!-- {!!kwcamp.camp.kwac__User_Can_Edit_Message__c} --></label>
+                                            <apex:outputPanel rendered="{!kwcamp.camp.kwac__User_Can_Edit_Message__c && !kwcamp.camp.kwac__Display_Personal_Message_Option__c}" layout="none">
+                                                <apex:inputTextarea rows="{!kwcamp.camp.kwac__Message_Box_Rows__c}" required="true" id="ciMessageRW" label="Message" value="{!eocsrequest.kweos__Message__c}" styleclass="form-control" />
+                                            </apex:outputPanel>
+                                            <apex:outputPanel rendered="{!!kwcamp.camp.kwac__User_Can_Edit_Message__c || kwcamp.camp.kwac__Display_Personal_Message_Option__c}" layout="none">
+                                                <apex:inputTextarea rows="{!kwcamp.camp.kwac__Message_Box_Rows__c}" disabled="true" required="true" id="ciMessageRWHidden" label="Message" value="{!eocsrequest.kweos__Message__c}" styleclass="form-control hidden" />
+                                                <div style="font-size: 14px; white-space: pre-line; line-height: 20px; padding: 6px 12px; border: 1px solid #efefef; border-radius: 4px; height: {!(kwcamp.camp.kwac__Message_Box_Rows__c * 20)}px ; overflow: scroll; -webkit-overflow-scrolling: touch;">{!eocsRequest.kweos__Message__c}</div>
+                                            </apex:outputPanel>
+                                        </div>
+                                        <apex:outputPanel rendered="{!kwcamp.camp.kwac__Display_Personal_Message_Option__c}" layout="none">
+                                        <div class="form-group" id="ciPersonalMessage">
+                                            <label>Add a Personal Message</label>
+                                            <apex:inputTextarea rows="3" id="ciPersonalMessageRW" label="PersonalMessage" value="{!eocsrequest.kweos__Personal_Message__c}" styleclass="form-control"/>
+                                        </div>
+                                        </apex:outputPanel>
+                                </div>
+                        </div>
+                </fieldset>
+        </div>
+
+
+        <apex:outputPanel id="stateError" rendered="{!bAddressError}">
+            <div class="row">
+                <div class="col-md-12">
+                    <p class="alert alert-warning">
+                    {!sAddressErrorCode}
+                    </p>
+                </div>
+            </div>
+        </apex:outputPanel>
+
+
+        <div class="row">
+                <div class="col-sm-12">
+                        <div class="form-group" id="actionbutton2" style="text-align:center">
+                        
+                        <apex:commandButton action="{!RefreshSubmitMethod}" id="refreshbutton3" html-data-id="submitbutton" value="{!kwcamp.camp.kwac__Action_Button_Text__c}" styleclass="btn btn-danger btn-lg" onclick="validate()" /> 
+                        <apex:commandButton value="Processing..." styleclass="btn btn-danger btn-lg" html-data-id="disabled-submitbutton" disabled="TRUE" style="display:none;"/> 
+                        
+                        </div>
+                </div>
+        </div>   
+
+
+
+        <div id="MatchedElectedOfficials">
+            <apex:outputPanel id="MatchedOfficialsPanel">
+
+                <apex:repeat value="{!kwacdp.KW_ActionCenterDisplayWrapperList}" var="kw_wrapper">
+                    <div class="row top-buffer">
+                                    <apex:repeat value="{!kw_wrapper}" var="kwus">
+                                            <apex:outputPanel rendered="{!kw_wrapper.size == 1}">
+                                                <div class="col-md-12">
+                                                    <div class="col-centered" >
+                                                        <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                                                    </div>
+                                                </div>
+                                                </apex:outputPanel> 
+                                                <apex:outputPanel rendered="{!kw_wrapper.size == 2}">
+                                                <div class="col-md-6">
+                                                     <div class="col-centered" >
+                                                         <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                                                     </div>
+                                                </div>
+                                                </apex:outputPanel> 
+                                                <apex:outputPanel rendered="{!kw_wrapper.size >= 3}">
+                                                <div class="col-md-4">
+                                                        <div class="col-centered" >
+                                                            <kwac:KWACElectedOfficialDisplay kwus="{!kwus}"/>
+                                                        </div>
+                                                </div>
+                                                </apex:outputPanel>
+                                     </apex:repeat>
+                    </div>
+                    <br/>
+                </apex:repeat>
+            </apex:outputPanel>
+        </div>
+    
+    </div> <!-- closing column -->
+
+    </apex:outputPanel>
+
+</apex:outputPanel>
+
+</apex:form>
+
+
+<apex:outputPanel rendered="{!kwcamp.camp.Image_Attribution__c != '' && bshowmainform && !bThanksPage}" layout="none">
+    <div id="image_attribution" class="photocredits imageattribution" style="font-style:italic; padding: 10px 0; margin: 15px 0; border-top: 1px solid grey; border-bottom: 1px solid grey;">
+        <apex:outputText escape="FALSE" value="{!kwcamp.camp.Image_Attribution__c}" />
+    </div>
+</apex:outputPanel>
+
+<apex:outputPanel rendered="{!kwcamp.camp.Political_Disclaimer__c != '' && bshowmainform && !bThanksPage && !bShowStateAction && !isExpired}" layout="none">
+    <div id="PoliticalDisclaimer" style="clear:both; padding-top: 20px;">
+        <div style="border:1px solid black; clear: both;"><p style="margin: 6px; font-family: 12pt; text-align: center;">
+            <apex:outputPanel rendered="{!kwcamp.camp.Political_Disclaimer__c == 'SCPC - Independent'}" layout="none">
+            Paid for by the Sierra Club Political Committee (www.sierraclub.org) and not authorized by any candidate or candidate's committee.
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!kwcamp.camp.Political_Disclaimer__c == 'SCPC - Coordinated'}" layout="none">
+            Paid for by the Sierra Club Political Committee (www.sierraclub.org) and authorized by {!kwcamp.camp.Candidate_Committee__c}.
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!kwcamp.camp.Political_Disclaimer__c == 'SCIA'}" layout="none">
+            Paid for by Sierra Club Independent Action (www.sierraclub.org) and not authorized by any candidate or candidate’s committee.
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!kwcamp.camp.Political_Disclaimer__c == 'SCVEF'}" layout="none">
+            Paid for by the Sierra Club Voter Education Fund, which seeks to raise key environmental issues in the discussions around elections, and encourage the public to find out more about candidates' positions on key environmental issues.
+            </apex:outputPanel>
+        </p></div>
+    </div>
+</apex:outputPanel>
+
+<script>
+    (function($, window, document, undefined) {
+        $(document).ready( function() { 
+            // remove the first value of no state which is '-'
+            if (validateState && $('select.state').length > 0 ) {
+                $('select.state')[0].options[0].value = '';
+            }
+            
+            // if fname and lname have the default salesforce values supporter and unkown
+            // try and remove these from the form submission.
+            if('{!$CurrentPage.parameters.data}' != '') {
+            
+                if ($(".fname").length > 0 && $(".fname").val().toLowerCase() == 'supporter') {
+                    $(".fname").val('');
+                }
+                if ($(".lname").length > 0 && $(".lname").val().toLowerCase() == 'unknown') {
+                    $(".lname").val('');
+                }
+                if ($(".phone").length > 0 && $(".phone").val() != '') {
+                    formatPhone($(".phone")[0]);
+                }
+            
+            // look for parameters in the URL where we might be filling in information
+            // from an email or another web page.
+            } else {
+                var email = "{!$CurrentPage.parameters.email}";
+                var zip = "{!$CurrentPage.parameters.zip}";
+                var fname = "{!$CurrentPage.parameters.fname}";
+                var lname = "{!$CurrentPage.parameters.lname}";
+                var street1 = "{!$CurrentPage.parameters.street1}";
+                var state = "{!$CurrentPage.parameters.state}";
+                var city = "{!$CurrentPage.parameters.city}";
+                var phone = "{!$CurrentPage.parameters.phone}";
+             
+                if (email != "") $(".emailaddress").val(email);
+                if (zip != "") $(".zipcode").val(zip);
+                if (fname != "") $(".fname").val(fname);
+                if (lname != "") $(".lname").val(lname);
+                if (street1 != "") $(".street1").val(street1);
+                if (state != "") $(".state").val(state);
+                if (city != "") $(".city").val(city);
+                if (phone != "") { $(".phone").val(phone); formatPhone($(".phone")[0]); }
+            }
+            
+            /* on the thank you page display
+               thank you language in the URL.
+            */
+            if ({!bShowThanks} == true && typeof window.history != 'undefined' &&  typeof window.history.replaceState != 'undefined' ) {
+               if (document.location.search == '') {
+                   window.history.replaceState('', document.title, document.location.href + '?actionId={!kwcamp.camp.kwac__Action_Request2_Id__c}&page=thanks' );
+               } else {
+                   window.history.replaceState('', document.title, document.location.href + '&actionId={!kwcamp.camp.kwac__Action_Request2_Id__c}&page=thanks' );
+               }
+            }   
+
+            var ga_action_text = 'no data';
+            if ('{!$CurrentPage.parameters.data}' != '') ga_action_text = 'data';
+            if (jQuery('#already_taken_alert').length) ga_action_text = 'data - second visit';
+            if (kw.campaign_id == '') ga_action_text = 'action list';
+            setTimeout( function() {ga('send', 'event', 'KnowWho Action', ga_action_text, kw.campaign_id);}, 500 );
+            
+        });
+                
+    })(jQuery, window, document);   
+
+    var kw = (kw) || {};
+    kw.campaign_id = '{!kwcamp.camp.id}';
+
+
+    
+    // ExactTarget -- Predictive Intelligence
+    // read in by tagmanager tags.
+    var pi_state = '{!eocsrequest.kweos__State__c}';
+    var pi_email = '{!eocsrequest.kweos__Email__c}';
+    var pi_contentID = kw.campaign_id;
+    
+</script>
+
+
+</apex:component>

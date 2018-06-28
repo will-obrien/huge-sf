@@ -1,0 +1,470 @@
+<apex:page controller="geopointe.Viz_Controller" action="{!init}" showHeader="true" sidebar="{!userSettings.geopointe__Hide_Sidebar__c = false}" tabStyle="Visualize__tab" title="Geopointe - Visualize {!IF(userAccessPlusSKSetup,' & Analytics','')}">
+	
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}" /> <!-- jQuery UI -->
+	<apex:includeScript value="{!$Resource.geopointe__sorttable}" /> <!-- Sorttable -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/mixpanel/mixpanel.js')}" /> <!-- Mix Panel -->
+	
+	<!-- Include the Geopointe functions -->
+	<apex:includeScript value="{!$Resource.geopointe__GeopointeJS}" />
+	
+	<!-- Custom CSS -->
+	<apex:stylesheet value="{!$Resource.geopointe__mapCSS}"/> <!-- map css -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/><!-- Geopointe common css -->
+	
+	<!-- Include the Google AJAX API onto the page -->
+    <apex:includeScript value="https://www.google.com/jsapi" />
+    
+	<script type="text/javascript">
+		// Load the google visualizations
+		google.load('visualization', '1.1', {'packages': ['geomap','table']});
+	</script>	
+	
+	<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics -->
+
+	<!-- Page Messages -->
+	<apex:pageMessages id="pageMessages"></apex:pageMessages>
+
+	<apex:form >
+	
+		<apex:outputPanel id="wrapperDIV" layout="block" rendered="{!initSuccess}">
+		
+			<apex:tabPanel switchType="client" id="theTabPanel" 
+							tabClass="gp_activeTab" inactiveTabClass="gp_inactiveTab" 
+							contentStyle="font-size: 9pt;" >
+			
+			<!-- Analytics -->
+			<apex:tab label="Analytics"  name="analyticsTab" id="analyticsTab" rendered="{! userAccessPlusSKSetup }">
+				
+				<apex:outputPanel styleclass="gp_AnalyticsPageBlock">
+				
+					<apex:pageBlock id="AnalyticsPageBlock" title="Analytics Data Sets" helpTitle="Analytics How-To Information" helpURL="http://support.arrowpointe.com/using-analytics/">
+	    				
+	    				<apex:pageBlockButtons location="top">
+	    					<apex:outputPanel layout="block" style="margin: 0 0 10px 0;">
+								<apex:image style="vertical-align: middle;" url="{!URLFOR($Resource.geopointe__images, '/info.png')}"/>
+								<apex:outputText >
+									 <b>Personal Data Set Size Limit</b>: {!userQueryLimitFormatted}
+								</apex:outputText>
+								<apex:outputText rendered="{!userSettings.geopointe__SK_Push_Org_Data_Sets__c}">
+									 &nbsp;|&nbsp;<b>Org-Wide Data Set Size Limit</b>: {!orgQueryLimitFormatted}
+								</apex:outputText>
+							</apex:outputPanel>
+			    			<apex:outputPanel layout="block">
+				    			<apex:selectList id="analytics_DataSetList" value="{!activeDataSetSK}" multiselect="false" size="1" style="font-size: 8pt;" >
+					                <apex:selectOptions value="{!dataSetOptionsSK}"/>
+					            </apex:selectList>
+					            <script> gp_UIElem.analytics_DataSetList = document.getElementById("{!$Component.analytics_DataSetList}"); </script>
+					            <apex:outputPanel rendered="{!userSettings.geopointe__SK_Push_Org_Data_Sets__c}">
+					            	&nbsp;Org-Wide Data Set?<apex:inputCheckBox id="analytics_OrgWide" value="{!orgWideDataSet}"/>
+					            </apex:outputPanel>
+					            <script> gp_UIElem.analytics_OrgWide = document.getElementById("{!$Component.analytics_OrgWide}"); </script>
+					            &nbsp;
+								<apex:commandButton value="Sync Data Set" action="{!launchSKDataSetBatchJob}"/>
+							</apex:outputPanel>
+				    	</apex:pageBlockButtons>
+				    	
+				    	<apex:outputText rendered="{! runningJobsSize = 0 && SKDataSetsPointsSizeUser = 0 && SKDataSetsPointsSizeOrg = 0}">
+				    		To get started, use the form above to choose a Data Set and sync its data to the Analytics platform.
+				    	</apex:outputText>
+				    	
+				    	<apex:outputPanel layout="block" id="RunningJobsPageBlockTableDIV" rendered="{! runningJobsSize > 0 }" style="margin-bottom: 10px;">
+				    		<apex:pageBlockTable value="{!runningJobs}" var="job" rowClasses="odd,even" styleClass="sortable" headerClass="gp_pbTableHeader">
+				    			<apex:facet name="header">
+				    				<apex:outputText value="Current & Recently Completed Data Loading Jobs" style="font-size:1.2em;"/>
+				    			</apex:facet>
+				    			<apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+					                <apex:outputPanel rendered="{!job.Status = 'Preparing' || job.Status = 'Processing' || job.Status = 'Queued'}">
+					                	<apex:commandLink value="Abort" 
+					                    					action="{!abortBatchJob}">
+					                        <apex:param value="{!job.jobId}" assignTo="{!SelectedEntity}" name="dsd"/>
+					                    </apex:commandLink>
+				                    </apex:outputPanel>
+					            </apex:column>
+				    			<apex:column headerValue="Data Set Being Pushed" value="{!job.dataSetName}"/>
+				    			<apex:column headerValue="Shared Across Organization">
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! job.orgWide }" />
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! !job.orgWide }" />
+					            </apex:column>
+				    			<apex:column headerValue="Status">
+				    				{!job.Status}
+				    				&nbsp;
+				    				<apex:image url="{!URLFOR($Resource.geopointe__images, 'loading.gif')}" rendered="{!job.Status = 'Preparing' || job.Status = 'Processing' || job.Status = 'Queued'}"/>
+				   				</apex:column>
+				   				<apex:column headerValue="Status Detail" value="{!job.columnConflictStatus}"/>
+				   				<apex:column headerValue="Total Batches (25 recs each)" value="{!job.TotalJobItems}"/>
+					            <apex:column headerValue="Processed Batches" value="{!job.JobItemsProcessed}"/>
+					            <apex:column headerValue="Errored Batches" value="{!job.NumberOfErrors}"/>
+					            <apex:column headerValue="Job Submitted" value="{!job.CreatedDate}"/>
+					            <apex:column headerValue="Job Completed" value="{!job.CompletedDate}"/>
+					            <apex:column headerValue="Job Id" value="{!job.jobId}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Temp Id" value="{!job.tempId}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+				    		</apex:pageBlockTable>
+				   		</apex:outputPanel>
+			   			
+				    	<apex:outputPanel layout="block" id="AnalyticsDataSetsPointsPageBlockTableDIV" rendered="{! SKDataSetsPointsSizeUser > 0 || SKDataSetsPointsSizeOrg > 0}">
+				    		
+				    		<apex:pageBlockTable value="{!SKDataSetsPoints}" var="ds" rowClasses="odd,even" styleClass="sortable" headerClass="gp_pbTableHeader">
+			    				<apex:facet name="header">
+				    				<apex:outputText value="Point Data" style="font-size:1.2em;"/>
+				    			</apex:facet>
+				    			<apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+					                <apex:outputPanel rendered="{!ds.Status = 'READY'}">
+					                	
+					                	<apex:commandLink value="Map" action="{!launchSKDataSet}" target="_blank" onclick="gp_trackLaunchSK('Point','Map');">
+					                        <apex:param value="{!ds.id}" assignTo="{!SelectedEntity}" name="dsd"/>
+					                        <apex:param value="13" assignTo="{!SelectedTemplateId}" name="tid"/>
+					                    </apex:commandLink>
+					                    
+					                    <apex:outputText >&nbsp;|&nbsp; </apex:outputText> 
+					                    
+					                    <apex:commandLink value="Blank Canvas" action="{!launchSKDataSet}" target="_blank" onclick="gp_trackLaunchSK('Point','Blank');">
+					                        <apex:param value="{!ds.id}" assignTo="{!SelectedEntity}" name="dsd"/>
+					                        <apex:param value="6" assignTo="{!SelectedTemplateId}" name="tid"/>
+					                    </apex:commandLink>
+					                    
+				                    </apex:outputPanel>
+				                    <apex:outputPanel rendered="{!ds.Status = 'READY' && (ds.externalid_userId = $User.Id || (ds.orgWide && userSettings.geopointe__SK_Push_Org_Data_Sets__c && ds.externalid_userId != ''))}">
+				                    	<apex:outputText >&nbsp;|&nbsp; </apex:outputText> 
+					                    <apex:commandLink value="Rename" 
+					                    					action="{!RenameSKDataSet}"
+					                    					onclick="return gp_renameSKDataSetWrapper('{!ds.id}','{!JSENCODE(ds.label)}')" >
+					                    </apex:commandLink>
+					                </apex:outputPanel>
+					                <apex:outputPanel rendered="{!ds.Status = 'READY' && (ds.externalid_userId = $User.Id || (ds.orgWide && userSettings.geopointe__SK_Push_Org_Data_Sets__c && ds.externalid_userId != ''))}">  
+					                	<apex:outputText >&nbsp;|&nbsp; </apex:outputText> 
+					                    <apex:commandLink value="Delete" 
+					                    					action="{!deleteSKDataSet}" 
+					                    					onclick="return confirm('Are you sure you wish to delete this Data Set from the Analytics platform?\n\nThis will not impact your Salesforce data. It will only delete the remote data from the Analytics platform.\n\n*** NOTE: Any saved reports using this Data Set will also be deleted.*** ')" >
+					                        <apex:param value="{!ds.id}" assignTo="{!SelectedEntity}" name="dsd"/>
+					                    </apex:commandLink>
+				                    </apex:outputPanel>
+					            </apex:column>
+					            <apex:column headerValue="Analytics Data Set" value="{!ds.label}"/>
+					            <apex:column headerValue="Shared Across Organization" headerClass="sorttable_nosort">
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! ds.orgWide }" />
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! !ds.orgWide }" />
+					            </apex:column>
+					            <apex:column headerValue="Status">
+					            	{!ds.Status}
+					            	&nbsp;
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, 'loading.gif')}" rendered="{!ds.Status = 'PROCESSING'}"/>
+					            </apex:column>
+					            <apex:column headerValue="# of records" value="{!ds.records}"/>
+					            <apex:column headerValue="Last Updated" value="{!ds.lastupdated}"/>
+					            <apex:column headerValue="Type" value="{!ds.dstype}"/>
+					            <apex:column headerValue="Source" value="{!ds.source}"/>
+					            <apex:column headerValue="Remote Id" value="{!ds.id}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Remote Name" value="{!ds.name}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Remote Label" value="{!ds.label}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Geopointe Id" value="{!ds.externalid}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Id(1) (userId)" value="{!ds.externalid_userId}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Id(2) (sourceId)" value="{!ds.externalid_sourceId}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Id(3) (type)" value="{!ds.externalid_orgUser}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Id(4) (sourceType)" value="{!ds.externalid_sourceType}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="Id(5) (version)" value="{!ds.externalid_version}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+					            <apex:column headerValue="XML" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}" headerClass="sorttable_nosort">
+					            	 <apex:outputLink rendered="{!NOT(ISNULL(ds.xmlLink))}" target="_blank" value="{!ds.xmlLink}">XML</apex:outputLink>
+					            </apex:column>
+					    	</apex:pageBlockTable>
+					    	
+				    	</apex:outputPanel>
+				    	
+				    	<apex:outputPanel layout="block" id="AnalyticsDataSetsShapesPageBlockTableDIV" rendered="{! SKDataSetsShapesSizeUser > 0 || SKDataSetsShapesSizeOrg > 0}" style="margin: 10px 0 0 0;">
+				    		
+				    		<apex:pageBlockTable value="{!SKDataSetsShapes}" var="ds" rowClasses="odd,even" styleClass="sortable" headerClass="gp_pbTableHeader">
+			    				<apex:facet name="header">
+				    				<apex:outputText value="Shape Files" style="font-size:1.2em;"/>
+				    			</apex:facet>
+				    			<apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+					                <apex:outputPanel rendered="{!ds.Status = 'READY'}">
+					                	
+					                	<apex:commandLink value="Map" action="{!launchSKDataSet}" target="_blank" onclick="gp_trackLaunchSK('Shape','Map');">
+					                        <apex:param value="{!ds.id}" assignTo="{!SelectedEntity}" name="dsd"/>
+					                        <apex:param value="13" assignTo="{!SelectedTemplateId}" name="tid"/>
+					                    </apex:commandLink>
+					                    
+					                    <apex:outputText >&nbsp;|&nbsp; </apex:outputText> 
+					                    
+					                    <apex:commandLink value="Blank Canvas" action="{!launchSKDataSet}" target="_blank" onclick="gp_trackLaunchSK('Shape','Blank');">
+					                        <apex:param value="{!ds.id}" assignTo="{!SelectedEntity}" name="dsd"/>
+					                        <apex:param value="6" assignTo="{!SelectedTemplateId}" name="tid"/>
+					                    </apex:commandLink>
+					                    
+				                    </apex:outputPanel>
+					            </apex:column>
+					            <apex:column headerValue="Analytics Data Set" value="{!ds.label}"/>
+					            <apex:column headerValue="Shared Across Organization" headerClass="sorttable_nosort">
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! ds.orgWide }" />
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! !ds.orgWide }" />
+					            </apex:column>
+					            <apex:column headerValue="Status">
+					            	{!ds.Status}
+					            	&nbsp;
+					            	<apex:image url="{!URLFOR($Resource.geopointe__images, 'loading.gif')}" rendered="{!ds.Status = 'PROCESSING'}"/>
+					            </apex:column>
+					            <apex:column headerValue="# of records" value="{!ds.records}"/>
+					            <apex:column headerValue="Last Updated" value="{!ds.lastupdated}"/>
+					    	</apex:pageBlockTable>
+					    	
+				    	</apex:outputPanel>
+				    	
+				    </apex:pageBlock>	
+				    
+				    <apex:pageBlock title="Analytics Reports">
+				    	<apex:outputPanel id="AnalyticsReportsPageBlockTableDIV" >
+				    		<apex:pageBlockTable value="{!SKReports}" var="rpt" rowClasses="odd,even" styleClass="sortable" headerClass="gp_pbTableHeader" rendered="{!SKReportsSizeUser > 0}">
+				    			<apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+					                
+					                <apex:commandLink value="Launch" action="{!launchSKReport}" target="_blank" onclick="gp_trackLaunchSK('Report','Report');">
+					                        <apex:param value="{!rpt.id}" assignTo="{!SelectedEntity}" name="rpt"/>
+					                </apex:commandLink>
+					                
+				                    <apex:outputText >&nbsp;|&nbsp; </apex:outputText> 
+				                    
+				                    <apex:commandLink value="Delete" 
+				                    					action="{!deleteSKReport}" 
+				                    					onclick="return confirm('Are you sure you wish to delete this Report from the Analytics platform?')" >
+				                        <apex:param value="{!rpt.id}" assignTo="{!SelectedEntity}" name="rpt"/>
+				                    </apex:commandLink>
+				                    
+				                </apex:column>
+					            <apex:column headerValue="Report" value="{!rpt.name}"/>
+					            <apex:column headerValue="Description" value="{!rpt.description}"/>
+					            <apex:column headerValue="Last Updated" value="{!rpt.lastUpdated}"/>
+							</apex:pageBlockTable>
+							<apex:outputText escape="false" rendered="{!SKReportsSizeUser == 0}">
+					            You have no saved reports. Reports can be saved using the <em>Save...</em> menu item in the Analytics UI
+					        </apex:outputText>
+				    	</apex:outputPanel>
+				    	
+				    </apex:pageBlock>	
+				    
+			    </apex:outputPanel>
+			    
+			    <apex:outputPanel id="pollerDIV">
+			    	<apex:actionPoller action="{!rerenderAnalyticsStuff}" enabled="{!pollerOn}" rerender="AnalyticsPageBlock,pollerDIV,pageMessages" interval="10"/>
+			    </apex:outputPanel>
+				
+			</apex:tab><!-- End of Analytics tab -->
+			
+			<!-- Google Visualizations -->
+			<apex:tab label="Google Visualizations"  name="googVisualizationsTab" id="googVisualizationsTab" style="padding: 5px 0 0 0;">
+                                
+				<apex:pageBlock >
+					<apex:panelGrid columns="5" cellspacing="3" cellpadding="3">
+										
+						<!-- Column labels -->
+						<apex:outputText ><b>Choose a Data Set</b></apex:outputText>
+						<apex:outputText ><b>Summarize</b></apex:outputText>
+						<apex:outputText ><b>Choose a Region</b></apex:outputText>
+						<apex:outputText >&nbsp;</apex:outputText>
+						<apex:outputText >&nbsp;</apex:outputText>
+														
+						<!-- Cells -->
+						<apex:outputPanel >
+							<apex:selectList id="googViz_DataSet" value="{!activeDataSet}" multiselect="false" size="1">
+								<apex:selectOptions value="{!dataSetOptions}"/>
+								<apex:actionSupport event="onchange"
+													action="{!getSummarizeByOptions}"
+													rerender="summarizeByOptions"/>
+							</apex:selectList>
+							<script> gp_UIElem.googViz_DataSet = document.getElementById("{!$Component.googViz_DataSet}"); </script>
+						</apex:outputPanel>
+						<apex:outputPanel id="summarizeByOptions">
+							<apex:selectList id="googViz_SumBy" value="{!activeSummarizeByOption}" multiselect="false" size="1" rendered="{!summarizeByOptionsSize > 0}">
+								<apex:selectOptions value="{!summarizeByOptions}"/>
+							</apex:selectList>
+							<script> gp_UIElem.googViz_SumBy = document.getElementById("{!$Component.googViz_SumBy}"); </script>
+							<apex:outputText rendered="{!summarizeByOptionsSize == 0}">Will populate when you select a Data Set</apex:outputText>
+						</apex:outputPanel>
+						<apex:outputPanel >
+							<apex:selectList id="googVizRegion" value="{!activeRegion}" multiselect="false" size="1" > 
+								<apex:selectOption itemValue="world" itemLabel="World"/>
+								<!-- 
+								<apex:selectOption itemValue="021" itemLabel="North America"/>
+								<apex:selectOption itemValue="013" itemLabel="Central America"/>
+								<apex:selectOption itemValue="005" itemLabel="South America"/>
+								<apex:selectOption itemValue="154" itemLabel="Northern Europe"/>
+								<apex:selectOption itemValue="155" itemLabel="Western Europe"/>
+								<apex:selectOption itemValue="039" itemLabel="Southern Europe"/>
+								 -->
+								<apex:selectOption itemValue="US" itemLabel="US States"/>
+								<apex:selectOption itemValue="CA" itemLabel="Canadian Provinces"/>
+								<apex:selectOption itemValue="AU" itemLabel="Australian States"/>
+								<!-- <apex:selectOption itemValue="CN" itemLabel="Chinese Provinces"/>  -->
+							</apex:selectList>
+							<script> gp_UIElem.googViz_Region = document.getElementById("{!$Component.googVizRegion}"); </script>
+						</apex:outputPanel>
+						<apex:outputPanel >
+							<apex:outputText >Show Data Table?</apex:outputText>
+							<apex:inputCheckbox id="googViz_showData" value="{!showTable}"/>
+							<script> gp_UIElem.googViz_showData = document.getElementById("{!$Component.googViz_showData}"); </script>
+						</apex:outputPanel>
+						<apex:outputPanel >
+							<apex:commandButton value="Visualize" onclick="javascript: gp_visualizeWrapper(); return false;" />
+						</apex:outputPanel>
+					</apex:panelGrid>
+				</apex:pageBlock>
+				
+				<apex:outputPanel id="mapPageBlockDIV" layout="block" style="margin: 3px 0 0 0;">
+					<apex:pageBlock >
+						<div id='map_canvas'></div>
+					</apex:pageBlock>
+				</apex:outputPanel>
+				
+				<div id='table_div'></div>
+			
+			</apex:tab><!-- End of Google Visualizations Tab -->
+			
+			</apex:tabPanel>
+			
+		</apex:outputPanel>
+		
+		<!-- ACTION FUNCTIONS -->
+			
+		<!-- Run Map -->
+		<apex:actionFunction name="gp_visualize"
+			action="{!getVizData}" 
+			rerender="dynamicJavaScript,pageMessages" 
+			oncomplete="javascript:gp_AffectMap();">
+		</apex:actionFunction>
+	
+		<!-- rename a sk dataset -->
+		<apex:actionFunction name="gp_renameSKDataSet" action="{!renameSKdataset}" rerender="pageMessages">
+		    <apex:param name="dsId" value=""  assignTo="{!SelectedEntity}" />
+		    <apex:param name="newName" value="" assignTo="{!newSKDataSetName}" />
+		</apex:actionFunction>
+		
+	</apex:form>
+	
+	<apex:outputPanel id="dynamicJavaScript">
+		
+		<script type="text/javascript">
+			
+			function gp_AffectMap() {
+			
+		    	// If there are results
+	        	if ({!vizDataRequest.vizDataSize} > 0 && '{!vizDataRequest.valueDescription}' != ''){
+	        		
+	        		// Build base table
+	        		var data = new google.visualization.DataTable();
+					data.addRows({!vizDataRequest.vizDataSize});
+					data.addColumn('string', 'Region Code');
+					data.addColumn('number', '{!vizDataRequest.valueDescription}');
+					data.addColumn('string', 'Region Label');
+					
+					// Loop through and fill in table
+					var i = 0;
+					<apex:repeat value="{!vizDataRequest.vizData}" var="vd">
+	        			data.setValue(i, 0, '{!vd.region}');
+						data.setValue(i, 1, {!vd.value});
+						data.setValue(i, 2, '{!vd.label}');
+						i++;
+	        		</apex:repeat>
+		        	
+		        	// Set options
+					var options = {};
+						options['dataMode'] = 'regions';
+						
+						if ('{!vizDataRequest.region}' != ''){
+			        		options['region'] = '{!vizDataRequest.region}';
+			        	} else {
+			        		options['region'] = 'world';
+		        		}
+						
+						options['width'] = '98%';
+						options['height'] = '500';
+						options['showlegend'] = true;
+						//options['colors'] = ['0xFFF0DF', '0xDF8B29', '0x6F3C00'];
+					
+					// Render the map
+					var container = document.getElementById('map_canvas');
+					var geomap = new google.visualization.GeoMap(container);
+					geomap.draw(data, options);
+					
+					// Render the data table
+					if ({!vizDataRequest.showTable}){
+						var table = new google.visualization.Table(document.getElementById('table_div'));
+						table.draw(data, {showRowNumber: true, width: "60%"});
+					} else {
+						document.getElementById('table_div').innerHTML = '';
+					}
+									
+				} else {
+					document.getElementById('map_canvas').innerHTML = '';
+					document.getElementById('table_div').innerHTML = '';
+				}
+								
+				geopointeAjaxEnd();
+		    }
+				
+		</script>
+	</apex:outputPanel>
+	
+	<script type="text/javascript">
+		
+		jQuery.noConflict();
+		jQuery(document).ready(function(){
+			sorttable.init();
+			
+			gp_userSettings = new Object();
+				gp_userSettings.settings__c = {!userSettingsJSON};
+				gp_userSettings.userInfo = {!userInfoJSON};
+				gp_userSettings.sessionId = '{!GETSESSIONID()}';
+                
+			gp_orgSettings = new Object();
+				gp_orgSettings.settings__c = {!orgSettingsJSON};
+				gp_orgSettings.clientId = 'Arrowpointe/Geopointe/';
+				gp_orgSettings.fieldPrefix = '{!orgFieldPrefix}';
+				gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';
+				gp_orgSettings.managed = {!orgManaged}; 
+			
+			gp_trackVisualizeLoad({
+				'Number Point Data Sets': {!SKDataSetsPoints.size},
+				'Number Org Wide Point Data Sets': {!SKDataSetsPointsSizeOrg},
+				'Number of Saved Reports': {!SKReports.size},
+				'Number of Shape Files': {!SKDataSetsShapes.size}
+			});
+			
+			Visualforce.remoting.Manager.invokeAction(
+				'{!$RemoteAction.Viz_Controller.buildDataSetInfoforJS}',
+				function(result, event){
+					if (event.status) {
+	               		jQuery.each(result, function(key, value) { 
+				    		gp_dataSetInfo[value.Name] = value;
+						});
+	               	}
+				}, {escape:true}
+			);
+			
+		
+		
+		});
+	    
+		//Set js settings that require merge fields	
+		gp_orgSettings = new Object();
+		gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';
+		
+	    // Rename an SK dataset. Prompt, then call the actionFunction
+	    function gp_renameSKDataSetWrapper(dsId, currName){
+			
+			var newName = prompt('Enter a Name for your Analytics Data Set', currName);
+			if (newName != null && jQuery.trim(newName) != '') {
+				gp_renameSKDataSet(dsId, newName);
+			}
+			
+			return false;
+			
+		}
+		
+		// Wrapper to launch Google Viz
+		function gp_visualizeWrapper(){
+			geopointeAjaxStart('body');
+			gp_trackGoogleViz()
+			gp_visualize();
+		}
+			
+	</script>
+	
+</apex:page>

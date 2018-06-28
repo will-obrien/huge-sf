@@ -1,0 +1,316 @@
+<apex:page controller="sf4twitter.TwitterFollow" title="{!$Label.Change_follow_Status}" showHeader="{!!console}" sidebar="{!!console}">
+
+<apex:includeScript value="{!URLFOR($Resource.sf4twitter__jQueryLibrary)}" />
+
+<style type="text/css">
+    #FormContent{
+        padding: 18px;
+    }
+    #innerResults {
+        padding: 18px;
+    }
+    .gifHolder{
+        width: 300px;
+        margin: 16px auto 20px;
+        text-align:center;
+    }
+    .gifHolder img{
+        
+    }
+    .gifHolder p{
+        text-align:center;
+        margin: 10px 0 0 0;
+        padding: 0;
+    }
+    .hiddenBlock {
+        display:none;
+        width: auto !important;
+        height: auto !important;
+    }
+    
+    .innerblock{
+        width: 98%;
+        margin:  0 1% 0 0;
+    }
+    .innerblock.left{
+        float: left;
+    }
+    .innerblock.right{
+        float: right;
+    }
+    .innerblock h2{
+        margin: 0 0 15px 0;
+        display:block;
+        padding: 0 0 3px 0;
+        border-bottom:2px solid #CCCCCC;
+    }
+    .innerblock h2 .titleText{
+        line-height: 32px;
+        /*display:block;*/
+        /*padding: 0 0 0 42px;*/
+        padding: 0 0 0 10px;
+        width: 150px;
+    }
+    .innerblock h2 img{
+        float:left;
+    }
+    ul.selectList{
+        display:block;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+    ul.selectList li{
+        padding: 3px;
+        margin: 0 0 0 0;
+        list-style: none;
+        border-bottom:1px solid #E3DEB8;
+        cursor:pointer !important;
+    }
+    ul.selectList li.selected{
+        /*background: #CCCCFF;*/
+        cursor:pointer;
+    }
+    ul.selectList li.highlighted{
+        background: #FFFFFF;
+        cursor:pointer;
+    }
+    ul.selectList li input{
+        margin: 4px 10px 0 0;
+        float:left;
+    }
+    ul.selectList li .spanText{
+        line-height: 20px;
+        font-size: 12px;
+    }
+    div.searchBtnHolder{
+        display:block;
+        margin: 20px 0 0 0;
+    }
+    div.clear{
+        clear:both; 
+    }
+    .table span.Error {
+        color: #CD4F39;
+        font-weight: bold;
+    }
+    .table span.Success {
+        color: #4F9241; 
+    }
+    
+    .table span p {
+        margin: 0;
+    }
+    .table .headerRow td{
+        font-weight: bold;
+    }
+</style>
+<script type="text/javascript">
+	var GLOBAL_SAVE_FLAG = false;
+	
+    function bindLiHover(){
+        $('ul.selectList li').hover(
+            function () {
+                $(this).addClass('highlighted');
+            }, 
+            function () {
+                $(this).removeClass('highlighted');
+            }
+        );
+    }
+    
+    function addOne(){
+        $('#accLeft').text(parseInt($('#accLeft').text())+1);
+    }
+    function subtractOne(){
+        $('#accLeft').text(parseInt($('#accLeft').text())-1);
+    }
+    function getAmount(){
+        return parseInt($('#accLeft').text());
+    }
+    function bindLiClick(){
+        $('ul.selectList li').click(clickLi);
+    }
+    
+    function clickLi(){
+        //console.info('Clicked: '+$(this).get()+' ::: Is it checked?:' + $(this).children('input').attr('checked'));
+        $(this).toggleClass('selected');
+        $(this).removeClass('highlighted');              
+        
+        if($(this).children('input').attr('checked')){
+            if(!$(this).hasClass('selected')){
+                //console.info('Subtract One');
+                subtractOne();
+                $(this).children('input').removeAttr('checked');
+            }
+            else {
+                if(getAmount() < maxAmount){
+                    addOne();
+                }
+                else {
+                    $(this).toggleClass('selected');
+                    return false;
+                }
+            }
+        } else {
+            if($(this).hasClass('selected')){
+                if(getAmount() < maxAmount){
+                    //console.info('Add One');
+                    addOne();
+                    $(this).children('input').attr('checked','true');
+                }
+                else {
+                    $(this).toggleClass('selected');
+                    return false;
+                }
+            }
+            else {
+                subtractOne();
+            }
+        }
+    }
+   
+    function getSelected(){
+        var Ids = Array();
+        $('#accountList ul.selectList li input').each(function(){
+            if(this.checked == true){
+                Ids.push(this.value);
+                accSize++;
+                items[this.value] = $(this).next()[0].innerHTML;
+            }
+        });
+        selected = Ids; 
+    }
+    // Register hover events  
+    $(document).ready(function(){
+        bindLiHover();
+        bindLiClick(); 
+    });
+
+    function saveChanges(){
+    	if( GLOBAL_SAVE_FLAG ){
+	        startSave();
+	        getSelected();
+	        //alert($('#paramsBlock input').val());
+	        $('#paramsBlock input').val(selected.join(','));
+	        followUserAction();
+	        GLOBAL_SAVE_FLAG = false;
+        }else{
+			alert('{!$Label.TWITTER_MARK_AT_LEAST_ONE}');        
+        }
+    }
+    
+    function startSave(){
+         $('#saveChangesBtn').attr('disabled',true);
+         $('#saveChangesBtn').toggleClass('btnDisabled');
+    }
+    function finishSave(){
+         $('#saveChangesBtn').removeAttr('disabled');
+         $('#saveChangesBtn').toggleClass('btnDisabled');
+    }
+    var maxAmount = 10;
+    var selected = Array();
+    var accSize = 0;
+    var items = Array();
+</script>
+
+<c:TwitterErrorMessage msgTitle="{!errorMsgTitle}" msg="{!msg}" retUrl="{!retUrl}" rendered="{!msg != ''}"/>
+
+<apex:outputPanel rendered="{!msg == ''}">
+
+	<apex:sectionHeader title="{!IF( error, $Label.TWITTER_ERROR, HTMLENCODE( $Label.Follow + ' ' + fullName + '(' + username + ')') )}" />
+   
+       <apex:form >
+           <apex:outputPanel rendered="{!!error}">
+               <apex:pageBlock title="{!$Label.Change_follow_Status}" id="formList">
+                <script type="text/javscript">
+                    bindLiHover();
+                    bindLiClick(); 
+                </script>
+                    <div id="FormContent">
+                       <div style="float:left; width:70%;" >
+                           {!$Label.Accounts_wantto_follow} <a href="/{!objId}">{!fullName} ({!username})</a> {!$Label.on_Twitter}
+                           <br/>{!$Label.Accounts_following_Twitter_user}
+                           <br/>{!$Label.Unfollow_user_deselect}
+                       </div>
+                      
+                       <div style="text-align: right;">
+                       </div>
+                        <div class="clear"></div><br/>
+                       <div class="innerblock" id="accountList">
+                           <h2><img src="/img/icon/people32.png" alt="" />
+                               <span class="titleText">{!$Label.Twitter_Accounts_following} {!fullName} ({!username})</span>
+                               <span class="titleText" style="float:right;width:auto;">{!$Label.Selected}: <span id="accLeft">{!followingCount}</span>  {!$Label.of_10} {!shared.accounts.size}</span>
+                           </h2>
+                           <ul class="selectList">
+                               <apex:repeat value="{!shared.accounts}" var="ta">
+                                   <li class="{!IF(NOT(ISBLANK(selectedIds)) && CONTAINS(selectedIds,ta.Id),'selected','')}" onclick="GLOBAL_SAVE_FLAG=true;">
+                                       <apex:outputPanel layout="none" rendered="{!NOT(ISBLANK(selectedIds)) && CONTAINS(selectedIds,ta.Id)}">
+                                       <input type="checkbox" name="ta[]" value="{!ta.Id}" checked="checked" onclick="GLOBAL_SAVE_FLAG=true" />
+                                       </apex:outputPanel>
+                                       <apex:outputPanel layout="none" rendered="{!NOT(CONTAINS(selectedIds,ta.Id))}">
+                                       <input type="checkbox" name="ta[]" value="{!ta.Id}" onclick="GLOBAL_SAVE_FLAG=true;" />
+                                       </apex:outputPanel>
+                                       <span class="spanText"><apex:outputText value="{!ta.Name}" /></span>
+                                   </li>
+                               </apex:repeat>
+                              
+                           </ul>
+                       </div>
+                       <div class="clear"></div>
+                       <div class="buttons searchBtnHolder">
+                           <input onclick="saveChanges()" type="button" class="btn" id="saveChangesBtn" value="{!$Label.Save_changes}" />
+                       </div>
+                    </div>
+                </apex:pageBlock>
+                <div class="hiddenBlock" id="paramsBlock">
+                    <apex:inputText value="{!idParams}" id="hiddenInputField"/>
+                    <apex:actionFunction action="{!FollowUser}" name="followUserAction" rerender="resultrender,errorRender" oncomplete="finishSave();"/>
+                </div>
+             </apex:outputPanel>
+        </apex:form>
+        
+        <apex:outputPanel id="resultrender">
+            <apex:outputPanel layout="block" rendered="{!IF(1 > resultsSize && showResults,true,false)}">
+                <apex:pageBlock title="{!$Label.Follow_Results}">
+                    <p>{!$Label.Changes_made_Followers} {!fullName} ({!username})</p>
+                </apex:pageBlock>
+            </apex:outputPanel>
+            <apex:outputPanel layout="block" rendered="{!IF(resultsSize > 0 && showResults,true,false)}"> 
+                <apex:pageBlock title="{!$Label.Follow_Results}">
+                    <table class="table results list">
+                        <thead>  
+                            <tr class="headerRow">
+                                <td>{!$Label.TWITTER_TARGET_TWITTERACCOUNT}</td>
+                                <td>{!$Label.Results}</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <apex:repeat value="{!resultsList}" var="result" id="theRepeat">
+                                <tr>
+                                    <td><a href="/{!result.Id}" target="_blank">{!result.name}</a></td>
+                                    <td>
+                                        <span class="{!result.title}">
+                                            <apex:outputText value="{!result.msg}"></apex:outputText>
+                                        </span>
+                                    </td>
+                                </tr>  
+                            </apex:repeat>  
+                        </tbody>
+                    </table>
+                </apex:pageBlock>
+            </apex:outputPanel> 
+        </apex:outputPanel>
+        
+        <apex:outputPanel id="errorRender">
+            <apex:outputPanel rendered="{!error}">
+                <apex:pageBlock title="{!errorMsgTitle}" id="errorsblock">
+                    <apex:outputText value="{!errormsg}" ></apex:outputText>
+                </apex:pageBlock>
+            </apex:outputPanel>
+        </apex:outputPanel>
+
+    <div class="returnLink" style="margin-top:20px;display:block"><c:SocialOutputLink linkValue="{!$Label.TWITTER_RETURN}" linkURL="{!IF(CONTAINS(retUrl,'http'),retUrl,'/'+retUrl)}"></c:SocialOutputLink></div>
+    
+</apex:outputPanel>
+</apex:page>

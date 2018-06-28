@@ -1,0 +1,166 @@
+<apex:page controller="BulkEntryController" sidebar="false" title="Bulk Entry">
+<head>
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" 
+        integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous" />
+<style>
+    .error {
+        color:red;
+    }
+    table.center {
+        margin-left:auto;
+        margin-right:auto;
+    }
+    .fileInput {
+        border-width:25px;
+    }
+    .fileInput input[type="file"] {
+        display: inline !important;
+        text-align: center;
+    }
+    section {margin-top: 20px;}
+    #step-two input[type=text]:focus { background-color: #ffffcc }
+    #step-two table input { padding-left: 5px; padding-right: 5px; }
+    #row-addition { margin-top: 10px; }
+    #bulk-entry input.btn { padding-left: 15px; padding-right: 15px; }
+    #work-area { margin: 4px 20px; }
+</style>
+</head>
+<body id="bulk-entry">
+    <apex:pageMessages id="error"/>
+
+    <section id="work-area">
+    <header>
+        <h2>Bulk Entry</h2>
+    </header>
+
+    <apex:form enctype="multipart/form-data">
+        <section id="step-one">
+          <apex:outputPanel id="entryButtonPanel">
+
+              <apex:commandButton value="File Upload"
+                  rendered="{!entryMode == 'None'}"
+                  reRender="entryButtonPanel, fileUploadPanel, rowListPanel"
+              >
+                  <apex:param name="entryMode" value="file" assignTo="{!entryMode}"/>
+              </apex:commandButton>
+      
+              <apex:commandButton value="Manual Entry"
+                  rendered="{!entryMode == 'None'}"
+                  reRender="rowListPanel, fileUploadPanel, entryButtonPanel"
+                  style="margin-left:20px"
+              >
+                  <apex:param name="entryMode" value="manual" assignTo="{!entryMode}"/>
+              </apex:commandButton>
+              
+          </apex:outputPanel>
+
+          <apex:outputPanel id="fileUploadPanel">
+              <apex:outputPanel rendered="{!entryMode == 'file'}">
+                <div>
+                    <u>File Guidelines:</u><br/>
+                Your file should be in CSV format and have the following columns in the order listed. <a href="https://sierraclub.my.salesforce.com/06931000003OpD6AAK" target="_blank">Download a file template here.</a>
+                <p><em>Please note: if you are using a Mac, make sure to use Save As and choose</em> Windows Comma Separated (.csv) <em>as your file format.</em></p>
+                </div>
+                <div>
+                <ol>
+                    <li>ID <strong>(18-character Contact Case Safe ID)</strong></li>
+                    <li>First Name</li>
+                    <li>Last Name</li>
+                    <li>Street</li>
+                    <li>City</li>
+                    <li>State</li>
+                    <li>Postal Code</li>
+                    <li>Email Address</li>
+                    <li>Phone</li>
+                </ol>
+                </div>
+                <div>
+                    ID is optional. 
+                    First and Last Names are required, and at least one contact method (full address, email, or phone) is required.
+                    <br/>&nbsp;<br/>
+                </div>
+                  <div class="fileInput">
+                      <apex:inputFile value="{!fileBody}" filename="{!fileBodyString}"/>
+                  </div>
+                  <div>
+                      <apex:commandButton value="Import File" 
+                          action="{!processFileContents}"
+                          style="margin-top:10px"
+                      />
+                  </div>
+              </apex:outputPanel>
+          </apex:outputPanel>
+        </section>
+
+        <section id="step-two">
+          <apex:outputPanel id="rowListPanel">
+              <apex:outputPanel rendered="{!entryMode == 'manual'}">
+                <apex:dataTable id="inputRows" 
+                    value="{!rowList}"
+                    var="rw"
+                  >
+                  <apex:column width="30">
+                      <apex:outputText value="{!rw.rowNumber}"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">Id</apex:facet>
+                      <apex:inputText value="{!rw.Id}" size="20"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">First Name</apex:facet>
+                      <apex:inputText value="{!rw.firstName}" size="15"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">Last Name</apex:facet>
+                      <apex:inputText value="{!rw.lastName}" size="20"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">Address</apex:facet>
+                      <apex:inputText value="{!rw.street}" size="20"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">City</apex:facet>
+                      <apex:inputText value="{!rw.city}" size="20"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">State</apex:facet>
+                      <apex:inputText value="{!rw.state}" size="2"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">Zip</apex:facet>
+                      <apex:inputText value="{!rw.postalCode}" size="5"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">Email</apex:facet>
+                      <apex:inputText value="{!rw.email}" size="20"/>
+                  </apex:column>
+                  <apex:column >
+                      <apex:facet name="header">Phone</apex:facet>
+                      <apex:inputText value="{!rw.phone}" size="10"/>
+                  </apex:column>
+                </apex:dataTable>
+
+                <div id="row-addition"> 
+                  <apex:commandButton value="Add"
+                      action="{!addRows}"
+                      reRender="inputRows"
+                      oncomplete=""
+                  /> &nbsp;
+                  <apex:inputText value="{!numRowsToAdd}" size="1"/> 
+                  Rows
+                </div>
+                <div>
+                  <apex:commandButton value="Next Step"
+                      action="{!processInputData}"
+                      style="margin-top:20px"
+                  />
+                </div>
+              </apex:outputPanel>
+          </apex:outputPanel>
+
+        </section>
+          
+    </apex:form>
+    </section>
+    </body>
+</apex:page>

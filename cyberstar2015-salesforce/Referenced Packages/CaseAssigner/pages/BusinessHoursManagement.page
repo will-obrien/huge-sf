@@ -1,0 +1,274 @@
+<apex:page id="BusinessHourPageId" standardController="arxxuscaseassig__Business_Hour__c" extensions="arxxuscaseassig.BusinessHoursManagementController" tabStyle="case_Assignment_Manager__tab"  >
+    <apex:includeScript value="{!URLFOR($Resource.arxxuscaseassig__jqueryForAssigner)}"/>
+    <apex:includeScript value="{!URLFOR($Resource.arxxuscaseassig__draggable)}"/>
+    
+
+    <script>
+        var $ = jQuery.noConflict();
+        var userName= ""; 
+        
+        $(document).ready(function() {
+            highlightBusinessHour();
+            
+            $('#draggableUsers').droppable ({
+                drop: removeSelectedUser    
+            });
+            $('#droppableUsers').droppable ({
+                drop: addToAssignedUsers 
+            });   
+             $("#AnimatedImage").dialog({
+                     autoOpen:false,
+                     modal:true,
+                     draggable:false,
+                     width:0,
+                     minHeight:0,
+                 });
+           
+            $(".ui-dialog-titlebar").hide();      
+        });
+          
+    </script>
+   <apex:includeScript value="{!URLFOR($Resource.arxxuscaseassig__BhrManagementFile)}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.arxxuscaseassig__CaseAssignerStyles)}"/>
+    <apex:form id="mainformId">
+        <div id="BusinessHourDiv">
+            <apex:pageBlock title="Available Rules" id="Businesshrid" rendered="{!$ObjectType.arxxuscaseassig__Business_Hour__c.accessible}" >
+                <apex:actionFunction name="retrieveAssignedUsers" action="{!retrieveAssignedUsers}" reRender="BusinessHrsdetailsId,assignedUsersSection,availableUsersSection,apexmsg2"  oncomplete="stopLoadingDialog();displayHrDetails('{!IF(ISNULL(selectedBusinessHourOption), false, true)}');" >
+                    <apex:param name="bhrId" value="" assignTo="{!selectedBusinessHourOption}"/>
+                </apex:actionFunction>
+                <apex:actionFunction name="saveBusinessHrRecord" action="{!saveBusinessHr}"  oncomplete="highlightBusinessHour(),displayHrDetails('false')" reRender="apexmsg"/>
+                <apex:actionFunction name="saveAssigneduserRecord" action="{!updateAssignedUsers}" reRender="BusinessHrsdetailsId,apexmsg" />
+                <apex:pageBlockButtons location="top">
+                    <apex:commandButton id="savebutton"  style="display:none;"  value="Save" onclick="saveBusinessHrs(),openLoadingDialog()" onComplete="stopLoadingDialog()"  reRender="apexmsg,Businesshrid"  rendered="{!$ObjectType.arxxuscaseassig__Business_Hour__c.updateable}" />
+                    <apex:commandButton id="cancelbutton"  style="display:none;" action="{!cancelBusinesshour}" value="Cancel" reRender="Businesshrid,apexmsg" oncomplete="highlightBusinessHour()" />
+                    <apex:commandButton id="newbushourbtn" value="New" action="{!URLFOR($Action.Business_Hour__c.New)}" rendered="{!$ObjectType.arxxuscaseassig__Business_Hour__c.createable}"/>
+                    <apex:commandButton id="deleteBusinessHoursbutton" value="Delete" action="{!deleteBusinesshour}"  reRender="Businesshrid,apexmsg" onclick="openLoadingDialog();" oncomplete="stopLoadingDialog(),hideManageUserBlock(),displayHrDetails('false')"  rendered="{!$ObjectType.arxxuscaseassig__Business_Hour__c.deletable}" />
+                </apex:pageBlockButtons>
+                <apex:pageMessages id="apexmsg" />
+                <div id="bhd">
+                    <apex:variable value="{!0}" var="rowCount"/>
+                    <apex:outputpanel id="bussinessHoursSectionId">
+                        <apex:outputpanel >
+                            <apex:dataTable align="center" id="dataTableId" style="border: 1px solid #069;" value="{!businessHrs}" var="bhr" width="100%" border="0">
+                                <apex:column id="c1" width="2%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};" onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()"  >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="border-right: 1px solid #fff;">Sr No.</div>
+                                </apex:facet>
+                                <apex:outputText value="{!rowCount + 1}"></apex:outputText>
+                                </apex:column>
+                                <apex:column id="c2" width="5%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )}; ">
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="border-right: 1px solid #fff;">
+                                        <input type="checkbox" id="checkAllBox" onclick="selectAllCheckboxes(this,'inputId1')" style="margin: 1px 0px -0.5px 41%" /> 
+                                    </div>
+                                </apex:facet>
+                                <apex:inputCheckbox value="{!bhr.toDelete}" id="inputId1" onClick="removeCheckboxColor(this)"/>
+                                </apex:column> 
+                                <apex:column width="5%" styleClass="taskCol" style="background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};"  onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="border-right: 1px solid #fff;">Active</div>
+                                </apex:facet>
+                                <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__IsActive__c}">
+                                    <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                </apex:outputField>
+                                </apex:column>
+                                <apex:column width="20%" styleClass="taskCol" style="background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};" onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="border-right: 1px solid #fff;">Rule Name</div>
+                                </apex:facet>
+                                <apex:outputField value="{!bhr.businessHr.Name}">
+                                    <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                </apex:outputField>
+                                </apex:column> 
+                                <apex:column width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};" onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="border-right: 1px solid #fff;text-align:center;" >Case Type </div>
+                                </apex:facet>
+                                <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__Type__c}" >
+                                    <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                </apex:outputField>
+                                </apex:column>
+                                <apex:column width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};" onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="text-align:center;border-right: 1px solid #fff;">Start Time</div>
+                                </apex:facet>
+                                <table align="center">
+                                    <tr>
+                                        <td>
+                                            <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__Start_Time__c}" >
+                                                <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                            </apex:outputField>
+                                        </td>
+                                        <td>
+                                            <apex:outputText value=": 00"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                                </apex:column>  
+                                <apex:column width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};" onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="text-align:center;border-right: 1px solid #fff;" >End Time</div>
+                                </apex:facet>
+                                <table align="center">
+                                    <tr>
+                                        <td>
+                                            <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__End_Time__c}" >
+                                                <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                            </apex:outputField>
+                                        </td>
+                                        <td>
+                                            <apex:outputText value=": 00"></apex:outputText>
+                                        </td>
+                                    </tr>
+                                </table>
+                                </apex:column>  
+                                <apex:column width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};"  onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="text-align:center;border-right: 1px solid #fff;">Assign to logged in users</div>
+                                </apex:facet>
+                                <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__Assign_to_only_Logged_in_users__c}"  style="text-align: center !important;">
+                                    <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                </apex:outputField>
+                                </apex:column>
+                                <apex:column width="20%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};"  onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="border-right: 1px solid #fff;text-align:center;">Default Users</div>
+                                </apex:facet>
+                                <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__Default_User__c}"  >
+                                    <apex:inlineEditSupport hideOnEdit="newbushourbtn,deleteBusinessHoursbutton" showOnEdit="savebutton,cancelbutton" resetFunction="resetInlineEdit"/>
+                                </apex:outputField>
+                                </apex:column>
+                                <apex:column id="usersCount"  width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(rowCount/2)  == (rowCount/2),"#fff" ,"#EDEDED" )};"   onclick="showDetail('{!bhr.businessHr.id}'),highlightBusinessHour()" >
+                                <apex:facet name="header">
+                                    <div class="tableHeader" style="text-align:center" >Total Users</div>
+                                </apex:facet>
+                                <div id="{!bhr.businessHr.Id}">
+                                    <apex:outputField value="{!bhr.businessHr.arxxuscaseassig__Count_of_Users__c}" />
+                                </div>
+                                <apex:variable var="rowCount" value="{!rowCount + 1}" />
+                                </apex:column>
+                            </apex:dataTable>
+                        </apex:outputpanel>
+                    </apex:outputpanel>
+                </div>
+            </apex:pageBlock>
+        </div>
+        <div id="hrDetailsDiv" style="display:none;" >
+            <apex:pageBlock title="Users in {!BusinessHrName}" mode="inlineEdit" id="BusinessHrsdetailsId">
+                <apex:pageMessages id="apexmsg2" />
+                <apex:pageBlockButtons style="align:center;" location="top">
+                    <apex:commandButton id="savebutton2"  value="Save" onclick="saveAssignedUsersFunction(),openLoadingDialog()"  oncomplete="stopLoadingDialog()" rendered="{!AND($ObjectType.arxxuscaseassig__Assigned_User__c.Accessible,$ObjectType.arxxuscaseassig__Assigned_User__c.fields.arxxuscaseassig__isActive__c.updateable)}"/>
+                    <apex:commandButton id="Addusersbutton" value="Manage Users"  onclick="clearSearchKey();openLoadingDialog();fetchAssignedUserDetails();"  reRender="apexmsg"  rendered="{!AND($ObjectType.arxxuscaseassig__Assigned_User__c.Accessible,$ObjectType.arxxuscaseassig__Assigned_User__c.fields.arxxuscaseassig__User__c.accessible)}" />
+                </apex:pageBlockButtons>
+                  <div id="existingUsers">
+                    <apex:outputPanel id="assignedUsersSectionId"  >
+                        <apex:variable value="{!0}" var="userRowCount"/>
+                        <apex:dataTable style="border: 1px solid #069;" rendered="{!IF(assignedUsers.size > 0 , true, false)}" align="center" id="dataTable-Id" value="{!assignedUsers}" var="userRecord" width="100%" border="0">
+                            <apex:column width="5%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(userRowCount/2)  == (userRowCount/2),"#fff" ,"#EDEDED" )};">
+                            <apex:facet name="header">
+                                <div class="tableHeader" style="border-right:1px solid #fff;text-align:center">Sr No.</div>
+                            </apex:facet>
+                            <apex:outputText value="{!userRowCount+ 1}"></apex:outputText>
+                            </apex:column>
+                            <apex:column width="30%" styleClass="taskCol" style="background-color: {!IF(FLOOR(userRowCount/2)  == (userRowCount/2),"#fff" ,"#EDEDED" )};">
+                            <apex:facet name="header">
+                                <div class="tableHeader" style="border-right:1px solid #fff;">User</div>
+                            </apex:facet>
+                            <apex:outputField value="{!userRecord.arxxuscaseassig__User__c}"/>
+                            </apex:column>
+                            <apex:column width="20%" styleClass="taskCol" style="background-color: {!IF(FLOOR(userRowCount/2)  == (userRowCount/2),"#fff" ,"#EDEDED" )};">
+                            <apex:facet name="header">
+                                <div class="tableHeader" style="border-right:1px solid #fff;">Email</div>
+                            </apex:facet>
+                            <apex:outputField value="{!userRecord.arxxuscaseassig__Email__c}"/>
+                            </apex:column>
+                            <apex:column width="10%" styleClass="taskCol"  style="text-align:center;background-color: {!IF(FLOOR(userRowCount/2)  == (userRowCount/2),"#fff" ,"#EDEDED" )};">
+                            <apex:facet name="header">
+                                <div class="tableHeader" style="text-align:center;border-right:1px solid #fff;" >Active</div>
+                            </apex:facet>
+                            <apex:outputField value="{!userRecord.arxxuscaseassig__isActive__c}"  />
+                            </apex:column>
+                            <apex:column width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(userRowCount/2)  == (userRowCount/2),"#fff" ,"#EDEDED" )};" >
+                            <apex:facet name="header">
+                                <div class="tableHeader" style="border-right:1px solid #fff;text-align:center">Available</div>
+                            </apex:facet>
+                            <apex:image rendered="{!userRecord.arxxuscaseassig__Available_for_assignment__c}" url="/img/samples/flag_green.gif"/>
+                            <apex:image rendered="{!NOT(userRecord.arxxuscaseassig__Available_for_assignment__c)}" url="/img/samples/flag_red.gif"/>
+                            </apex:column>  
+                            <apex:column width="10%" styleClass="taskCol" style="text-align:center;background-color: {!IF(FLOOR(userRowCount/2)  == (userRowCount/2),"#fff" ,"#EDEDED" )};">
+                            <apex:facet name="header">
+                                <div class="tableHeader"  style="text-align:center" >Logged In</div>
+                            </apex:facet>
+                            <apex:image rendered="{!loggedInUsersMap[userRecord.arxxuscaseassig__User__c]}" url="/img/samples/flag_green.gif"/>
+                            <apex:image rendered="{!NOT(loggedInUsersMap[userRecord.arxxuscaseassig__User__c])}" url="/img/samples/flag_red.gif"/>
+                            <apex:variable var="userRowCount" value="{!userRowCount + 1}" />
+                            </apex:column>    
+                        </apex:dataTable>
+                    </apex:outputPanel>
+                </div>
+            </apex:pageBlock>
+        </div>
+        <div id="UserManage" style="display:none">
+            <apex:pageBlock title="Manage Users" id="manageUsersSection">
+                <apex:pageBlockButtons location="top">
+                    <apex:commandButton value="Save"  onclick="openLoadingDialog(),saveUsers()"   oncomplete="updateUserCount('{!selectedBusinessHourOption}', '{!assignedUsers.size}');"  />
+                    <apex:commandButton value="Cancel" onclick="hideManageUserBlock()" reRender="manageUsersSection,assignedUsersSection,availableUsersSection,apexmsg"/>
+                </apex:pageBlockButtons>
+                <apex:actionFunction name="fetchAvailableUserList" rerender="availableUsersSection,apexmsg" oncomplete="displayMangeUserSection();stopLoadingDialog();" action="{!retrieveAvailableUsersList}" >
+                    <apex:param name="userNameSearch" value="" assignTo="{!userNameSearchString}"/>
+                </apex:actionFunction>
+                <apex:actionFunction name="fetchAssignedUserDetails" action="{!fetchAssignedUserDetails}" rerender="manageUsersSection,apexmsg" oncomplete="displayMangeUserSection();stopLoadingDialog();"  >
+                </apex:actionFunction>
+                <apex:actionFunction name="saveUsersList" rerender="assignedUsersSectionId,apexmsg"  oncomplete="updateUserCount('{!selectedBusinessHourOption}', '{!assignedUsers.size}');showDetail('{!selectedBusinessHourOption}');"  action="{!saveAssignedUsers}" >
+                    <apex:param name="users" value="" assignTo="{!usersToAssign}"/>
+                </apex:actionFunction>
+                <div>
+                    <table id="AssignUserTable" width="100%" style="border: 1px solid #069;border-collapse: collapse;" align="center" border="1">
+                        <tr id="headerRow"  style="text-align:center">
+                            <th class="userHeader" style="border-right: 1px solid #fff;"><input style="width:99%;height:100%; text-align:center; " id="userNameKey" type="text" name="userSearch" placeholder="Name" onkeyup="fetchUsersBasedOnName(value)" />           
+                            </th>
+                            <th class="userHeader" >Assigned Users</th>
+                        </tr>
+                        <tr id="usersRow">
+                            <td width="50%" style="background-color:#fff;">
+                                <div id="draggableUsers" style="width:100%;height:600px;border-right: 1px hidden #069;"></div>
+                            </td>
+                            <td width="50%" style="background-color:#fff;">
+                                <div id="droppableUsers" class="droppable"  style="width:100%;height:600px;border-right: 0px solid #069;"></div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <apex:pageBlockSection id="assignedUsersSection" >
+                    <script>
+                        var assignedUsersJson = '{!JSENCODE(existingUsersString)}';
+                        var assignedUsersList = $.parseJSON(assignedUsersJson);
+                        populateAssignedUsers(assignedUsersList);
+                    </script>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection id="availableUsersSection" >
+                    <script>
+                        var availableUsersJson = '{!JSENCODE(availableUsersString)}';
+                        var availableUsersList = $.parseJSON(availableUsersJson);
+                        populateAvailableUsers(availableUsersList);
+                    </script>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </div>
+        <div id="AnimatedImage" title="Loading..." style="display:none">
+            <img style="margin-left:45px;" src="{!$Resource.AjaxAnimation}"/>
+        </div>
+        <script>   
+        function openLoadingDialog(){
+            $("#AnimatedImage").dialog("open");  
+        }                        
+        function stopLoadingDialog(){
+            $("#AnimatedImage").dialog("close" );
+        }
+        function clearSearchKey() {
+            var element = document.getElementById("userNameKey");
+            element.value = '';         
+        }
+        </script>
+    </apex:form>
+</apex:page>

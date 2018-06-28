@@ -1,0 +1,152 @@
+<apex:page controller="jqueryTableWithJson" sidebar="false" showHeader="false" standardStylesheets="false">
+<head>
+
+<link href="{!URLFOR($Resource.bootstrapfile, 'Bootstrapfile/bootstrap.css')}" rel="stylesheet"/>
+<link href="{!URLFOR($Resource.bootstrapfile, ' Bootstrapfile/bootstrap.min.css')}" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.4.0/bootbox.min.js" />
+<!-----------------jquery file----------------------->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
+
+<style>
+   .table > thead > tr > th, .table > tbody > tr > th, .table > tfoot > tr > th, .table > thead > tr > td, .table > tbody > tr > td, .table > tfoot > tr > td {
+    padding: 8px;
+    line-height: 1.42857143;
+    vertical-align: top;
+    border-top: 0px solid #ddd;
+    }
+    
+    .frm{  
+    border: 2px solid #E80A0A;
+   }
+
+.requiredBlock {
+   
+    background-color: #c00;
+    float:left;
+    min-width: 3px;
+    min-height : 30px;
+    margin-right:3px;
+    margin-top:2px;
+   
+}
+}
+</style>
+<!--------------this is script part ----------------->
+<script>
+$(document).ready(function(){
+    var count=0;   
+    $(".alert").hide();
+    $('[id$=btn]').click(function(){
+       
+        $('[id$=tble]').append('<tr id="tr"><td><input  class="form-control" type="text" id="FirstName" /></td><td><div class="requiredBlock"></div><div style="float:left;"><input type="text"  class="form-control" id="LastName" /></div></td><td><input  class="form-control" type="text" id="Phone" /></td> <td><button  class="btn btn-primary btn-sm" onclick="deleteRow(this);" id="del">Delete</button></td></tr>');
+          count++;
+        return false;
+    });
+    
+  
+});
+function deleteRow(btnId){
+    
+    $(btnId).parent().parent().remove();
+    
+}
+function inputvalues(){
+     
+      jsonobj = [];
+      var isError = false;
+       $('#tble tr:not(":first-child")').each(function(){
+        
+          var fName = $(this).find('#FirstName').val();
+          var lname = $(this).find('#LastName').val();
+          if(lname == null || lname ==""){  
+            $(this).find('#LastName').addClass("frm");
+           // $("#LastName").addClass("frm");                                                   
+             isError = true;
+           
+             //return false; // Break for jquery .each()
+          }else{
+               $(this).find('#LastName').removeClass("frm");
+          }
+          var phone = $(this).find('#Phone').val();
+          item={}
+          item['FirstName']=fName ;
+          item['LastName']=lname;
+          item['phone']=phone;
+          jsonobj.push(item);
+         
+      });
+       var str = JSON.stringify(jsonobj);
+       if(isError == true){
+           $(".alert").text("Last Name is required !");
+           $(".alert").show();
+           
+           return false;
+       }
+       alert(str);
+       sendJsonString(str);
+     
+   
+     //-------------dispaly values from json Object------------------- 
+      for(var key in jsonobj) {
+          for(var val in jsonobj[key]){
+             // alert(val+'------'+jsonobj[key][val]);
+                  
+          }
+      }
+        return false;
+}
+</script>
+</head>
+
+<apex:form id="frm" styleClass="form-group">
+<apex:pageBlock >
+<body>
+<!---- ------------Code For Action Function ----------------- -------->
+
+<div class="container">
+   
+    <div class="row">
+       <div class="col-sm-2"></div> 
+       <div class="col-sm-8">
+        <div class="alert alert-danger" role="alert"></div>
+        <apex:actionStatus id="st1" starttext="saving........." >
+         <apex:facet name="start">
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.75; z-index: 1000;">
+               <div style="position:fixed;top:250px;height:100%;opacity:0.65;width:100%;">
+                 <center>                
+                   <img src="{!URLFOR($Resource.loadingimage,'loading/circle.gif')}"/>    
+                 </center>                      
+              </div>                   
+           </div>            
+         </apex:facet>
+     </apex:actionStatus>
+        <apex:actionFunction name="sendJsonString" action="{!receiveJsonString}" reRender="frm" status="st1">
+            <apex:param assignTo="{!jstr}" value="" name="jsonparam"/>
+        </apex:actionFunction>
+                   
+           <table id="tble" class="table" style="border:0px">
+    <tr>
+      <th id='fhdr'>FirstName</th>
+      <th>LastName</th>
+      <th>Phone</th>
+    </tr>
+    <tr>
+    <td><input type="text" class="form-control" id="FirstName" /></td>
+    <td>
+        <div class='requiredBlock'></div>
+        <div style='float:left'><input  type="text"  class="form-control" id="LastName" /></div>
+    </td>
+    <td><input type="text" class="form-control" id="Phone" /></td>   
+    </tr>
+</table>
+<button id="btn" class="btn btn-primary">addrows</button>
+<button   onClick="inputvalues(); return false;" class="btn btn-primary">Save</button>       
+       </div> 
+    </div>
+</div>
+
+</body>
+
+</apex:pageBlock>
+</apex:form>
+</apex:page>

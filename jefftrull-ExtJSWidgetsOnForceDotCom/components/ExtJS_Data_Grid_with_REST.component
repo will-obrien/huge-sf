@@ -1,0 +1,552 @@
+<!-- 
+Copyright 2011 Jeff Trull <jetrull@sbcglobal.net>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
+<apex:component >
+    <!-- A Visualforce component implementing an ExtJS editable grid backed by a store wrapping REST accesses -->
+    <!-- Jeff Trull 5/2/2011 -->
+    <apex:attribute name="object" type="Object" description="sObject to generate a grid for" required="true"/>
+    <apex:attribute name="fields" type="String[]" description="list of fields to display" required="true"/>
+    <apex:attribute name="minimized" type="Boolean" description="whether to initially render the grid in minimized state" default="false"/>
+    <apex:attribute name="rows" type="int" description="how many rows to display in grid" default="19"/>
+
+    <!-- load ExtJS -->
+    <apex:stylesheet value="{!$Resource.ExtJS}/ext-3.4.0/resources/css/ext-all.css" />
+    <apex:includeScript value="{!$Resource.ExtJS}/ext-3.4.0/adapter/ext/ext-base.js"/>
+    <apex:includeScript value="{!$Resource.ExtJS}/ext-3.4.0/ext-all.js"/>       
+    <script type="text/javascript">
+        Ext.BLANK_IMAGE_URL="{!$Resource.ExtJS}/ext-3.4.0/resources/images/default/s.gif"
+    </script>
+
+    <!-- Define proxy class -->
+    <script type="text/javascript">
+    	// set some global defaults for accessing the SFDC REST endpoint
+    	Ext.Ajax.defaultHeaders = {
+    	            	'Authorization' : 'OAuth {!GETSESSIONID()}',
+               			'Accept' : 'application/json'
+               			};
+        // redirect all accesses through the (SFDC) proxy
+        // This approach to working around the same-origin policy (VF servers have no REST endpoint) is due to
+        // Pat Patterson; for more information about his jQuery-based implementation see:
+        // http://blog.sforce.com/sforce/2011/03/calling-the-rest-api-from-javascript-in-visualforce-pages.html
+        Ext.Ajax.url = "https://" + location.hostname + "/services/proxy";
+        
+        // code to launch a query, fetching additional results as necessary to supply request
+      	var results = [];          // cache query result data here
+      	var locator_url;    	   // where to get additional data from if it's not in the cache
+      	var sortfield, sortdir;    // sort field and direction used in the last request
+      	var totalcnt;              // total number of available records as determined by the server
+      	var start, limit;		   // currently requested page
+        function processQuery(url, callback) {
+        	// look at the requested data range and see if we have it cached
+        	if (start == undefined) {
+        		start = 0;
+        	}
+        	if ((url == undefined) ||                  // means no more data to fetch from server
+        		(limit !== undefined) &&               // otherwise means "fetch all data"
+        		((results.length - start) >= limit)) { // we have the range in the cache
+        		// construct result and execute callback.  Make it look like it came from server
+        		callback.call(window,
+        					  {responseText: Ext.util.JSON.encode(
+        					  		{records:   results, // for some reason supplying the *entire* data set works
+        					   		 totalSize: totalcnt
+        					  		})
+        					  },
+        					  {status: true}
+        					  );
+        		return;
+        	 }
+             Ext.Ajax.request({
+         		 headers: {
+            		 'SalesforceProxy-Endpoint' : url
+            	 },
+	             // we have to create our own callback for the REST request, for when it succeeds or fails, with
+	             // the signature Ext.Ajax.request wants to see.  These callbacks must in turn call the Ext callback for
+	             // data conversion (in the success case) or error reporting (fail)
+				 success: function(response, opts) {
+				 	var respobj = Ext.util.JSON.decode(response.responseText);
+				 	totalcnt = respobj.totalSize;
+				 	if (!respobj.done) {
+				 		locator_url = respobj.nextRecordsUrl;
+				 	} else {
+				 		locator_url = undefined;
+				 	}
+					results = results.concat(respobj.records);
+					processQuery(locator_url, callback);
+				 },
+                 failure: callback.createDelegate(window, [{
+                     status: false
+                 }], 1)
+             });
+		 }
+
+        // Inherit from DirectProxy, which is quite similar to what we want, except that *we* are supplying
+        // the functions to be called for CRUD actions - they are not part of a Provider in the Ext sense
+        Ext.ux.SFDCProxy = Ext.extend(Ext.data.DirectProxy, {
+            constructor: function (config) {
+                config = config || {};
+                // override user-supplied config, if any, with our API definition
+                Ext.applyIf(config, {
+                    api: {
+                        read: Ext.apply(this.launchRead.createDelegate(this),
+                        // make read method look like a Provider
+                        {
+                            directCfg: {
+                                method: {
+                                    len: 1
+                                }
+                            }
+                        }),
+                        create: this.launchCreate.createDelegate(this),
+                        update: this.launchUpdate.createDelegate(this),
+                        destroy: this.launchDestroy.createDelegate(this)
+                    }
+                });
+                Ext.ux.SFDCProxy.superclass.constructor.call(this, config);
+            },
+            launchRead: function (params, callback, scope) {
+                // Remember requested data region
+                if ("start" in params) {
+                	start = params["start"];
+                }
+                if ("limit" in params) {
+                	limit = params["limit"];
+                }
+            	var newsortfield, newsortdir;
+            	if ("sort" in params) {
+            		newsortfield = params["sort"];
+            	}
+            	if ("dir" in params) {
+            		newsortdir = params["dir"];
+            	}
+            	if ((newsortfield !== sortfield) || (newsortdir !== sortdir) || (results.length == 0)) {
+            		// params have changed (or this is a new request); we need to run a fresh search
+            		// note field list is fixed for lifetime of this VF component so we don't need to check that
+            		results = [];  // purge cache
+            		sortfield = newsortfield; sortdir = newsortdir;
+	                // construct the query string.  We need to know the names of the selected fields.
+	                // in normal proxies this information is held only by the reader.  Our custom store
+	                // will supply these to us as a config parameter in the same format expected by readers
+	                // get the names of the configured fields
+	                var fieldlist = [];
+	                for (var i = 0; i < this.fields.length; i++) {
+	                    fieldlist.push(this.fields[i].name);
+	                }
+	        
+	                // assemble the query string
+	                var querystr = 'SELECT+' + fieldlist.join(',') + '+FROM+' + this.sobjname;
+	                // Implement server-side sorting
+	                if (sortfield) {
+	                    querystr += '+ORDER+BY+' + sortfield;
+	                    if (sortdir) {
+	                        querystr += '+' + sortdir;
+	                    }
+	                }
+	                // I could theoretically use LIMIT here to reduce the amount of data transferred in cases
+	                // where paging is in force.  Unfortunately this produces misleading results b/c we can't know
+	                // the "total".  So I'm stuck with transferring extra data.	                
+	                processQuery('{!URLFOR('/services')}/data/v20.0/query/?q=' + querystr, callback);
+	            } else {
+	            	// query parameters haven't changed; serve results from cache or via query locator request
+	            	processQuery(locator_url, callback);
+	            }
+	        },
+            launchCreate: function (jsonData, callback, scope) {
+                // create and update are very similar, so consolidate
+                this.launchCreateOrUpdate('create', jsonData, callback, scope);
+            },
+            launchUpdate: function (jsonData, callback, scope) {
+                this.launchCreateOrUpdate('update', jsonData, callback, scope);
+            },
+            launchCreateOrUpdate: function (action, jsonData, callback, scope) {
+            	// Note: POST for create, PATCH for update (and the id goes into the endpoint url)
+                var rec = jsonData.records; // named this way due to the "root" config option
+				// filter empty fields on create, plus ID field on update
+                var filteredData = {};
+               	for (fieldname in rec) {
+               		if ((rec[fieldname] !== '') &&
+               			!((action == 'update') && (fieldname == 'id'))) {
+               			filteredData[fieldname] = rec[fieldname];
+               		}
+               	}
+                // do the appropriate request for this new or modified object
+                var method = (action == 'create') ? 'POST' : 'PATCH';
+                var endpoint = '{!URLFOR('/services')}/data/v20.0/sobjects/{!object}/';
+                if (action == 'update') {
+                	endpoint += rec.id;
+                }
+				Ext.Ajax.request({
+	            	method: method,
+	            	headers: {
+	               		'SalesforceProxy-Endpoint' : endpoint
+	               	},
+	               	jsonData: Ext.util.JSON.encode(filteredData),
+					success: callback.createDelegate(window, [{
+                        status: true
+                    }], 1),
+                    failure: callback.createDelegate(window, [{
+                        status: false
+                    }], 1)
+                });
+            },
+            launchDestroy: function (jsonData, callback, scope) {
+                var delId = jsonData.records;
+                var endpoint = '{!URLFOR('/services')}/data/v20.0/sobjects/{!object}/' + delId;
+				Ext.Ajax.request({
+	            	method: 'DELETE',
+	            	headers: {
+	               		'SalesforceProxy-Endpoint' : endpoint
+	               	},
+                    success: callback.createDelegate(window, [{
+                        status: true
+                    }], 1),
+                    failure: callback.createDelegate(window, [{
+                        status: false
+                    }], 1)
+                });
+            },
+            onRead: function (action, trans, result, res) {
+                // Assemble result
+                var rT = trans.reader.recordType;
+                var records = [];
+                var respobj = Ext.util.JSON.decode(result.responseText);
+                // only access results we absolutely have to, to avoid using the nextRecordsUrl
+                var cur_rec = 0;
+                var recs_supplied = 0;
+                // if paging is in force, stop transferring data as soon as we have all that was requested
+                while ((cur_rec < respobj.totalSize) && (!("limit" in trans.params) || (recs_supplied < trans.params["limit"]))) {
+                    var sobj = respobj.records[cur_rec];
+                    if (("start" in trans.params) && (cur_rec++ < trans.params["start"])) {
+                        // we have not come to the beginning of the requested data yet
+                        continue;
+                    }
+                    var r = {};
+                    var id;
+                    for (var k in sobj) {
+                        if (k == 'Id') {
+                            id = sobj[k];
+                        }
+                        r[k] = sobj[k];
+                    }
+                    records.push(new rT(r, id));
+                    recs_supplied++;
+                }
+                // check to see if we have supplied all the requested records, and if not, arrange
+                // for a callback.  Actually, refactor so the record processing and this check
+                // (and queuing another request) happen in the same callback function
+                // indicate load complete with event, and supply records via callback
+                this.fireEvent("load", this, res, trans.request.arg);
+                trans.request.callback.call(trans.request.scope, {
+                    records: records,
+                    success: true,
+                    totalRecords: respobj.totalSize
+                }, trans.request.arg, true);
+            },
+            onWrite: function (action, trans, result, res, rs) {
+                // Report results the way Ext wants to see them:
+                // produce an array of objects that just have IDs
+                var data;
+				if (action == 'create') {
+                	var respobj = Ext.util.JSON.decode(result.responseText);
+                	data = [{id: respobj.id}];
+                } else {
+                	// update response doesn't supply IDs, but it seems to be in the "rs" parameter
+                	data = [{id: rs.id}];
+                }
+                this.fireEvent("write", this, action, data, res, rs, trans.request.arg);
+                trans.request.callback.call(trans.request.scope, data, res, true);
+            }
+        });
+        
+        // finally, the store class itself
+        // just sets things up right for the proxy (writer, pass sobj/fields to proxy)
+        Ext.ux.SFDCStore = Ext.extend(Ext.data.DirectStore, {
+            constructor: function (config) {
+                config = config || {};
+                var proxyCfg = Ext.copyTo({}, config, 'paramOrder,paramsAsHash,directFn,api,sobjname,fields');
+                Ext.applyIf(config, {
+                    proxy: new Ext.ux.SFDCProxy(proxyCfg),
+		            // "encode: false" keeps data in a nice format for our proxy onWrite
+		            writer: new Ext.data.JsonWriter({
+		                encode: false
+		            }),
+                    root: 'records'
+                });
+                Ext.ux.SFDCStore.superclass.constructor.call(this, config);
+            }
+        });             
+    </script>
+        
+    <!-- End SFDCStore component definition;  begin code for grid page -->
+    <!-- Icons.  Using those included with ExtJS. -->
+    <style type="text/css">
+        .icon-add
+        {
+            background:url({!$Resource.ExtJS}/ext-3.4.0/examples/shared/icons/fam/add.gif) 0 no-repeat !important
+        }
+        .icon-save
+        {
+            background:url({!$Resource.ExtJS}/ext-3.4.0/examples/shared/icons/save.gif) 0 no-repeat !important
+        }
+        .icon-delete
+        {
+            background:url({!$Resource.ExtJS}/ext-3.4.0/examples/shared/icons/fam/delete.gif) 0 no-repeat !important
+        }
+    </style>
+
+    <script type="text/javascript">
+        Ext.onReady(function () {
+            // use REST describe calls to verify that the supplied attributes make sense
+            Ext.Ajax.request({
+            	headers: {
+               		'SalesforceProxy-Endpoint' : '{!URLFOR('/services')}/data/v20.0/sobjects/{!object}/describe/'
+               	},
+               	failure: function(response, opts) {
+               		Ext.Msg.alert('describe call on object {!object} failed with status ' + response.status);
+               	},
+               	success: function(response, opts) {
+		            // locate our fields within the list of fields and copy properties
+		            var fieldtypes = [],
+		                fieldlabels = [],
+		                allowblank = [],
+		                modifiable = [],
+		                sortable = [],
+		                picklistData = [];
+		            var fields = "{!fields}";
+		            var fieldlist = fields.split(',');
+		            var respobj = Ext.util.JSON.decode(response.responseText);
+		            var objfields = respobj.fields;
+		            for (var i = 0; i < fieldlist.length; i++) {
+		                // locate this requested field within the describe result
+		                var field_idx = -1;
+		                for (var j = 0; j < objfields.length; j++) {
+		                    if (fieldlist[i] == objfields[j].name) {
+		                        field_idx = j;
+		                    }
+		                }
+		                if (field_idx == -1) {
+		                    Ext.Msg.alert('{!object} does not have a field called', fieldlist[i]);
+		                    return;
+		                }
+		                // extra information will help us do a better job with each field
+		                var objfield = objfields[field_idx];
+		                fieldtypes.push(objfield.type);
+		                fieldlabels.push(objfield.label);
+		                allowblank.push(objfield.nillable);
+		                // let users modify if they can create or update AND it's not the Id field
+		                // unwelcome discovery: a boolean stored in an Array becomes a string, and therefore "true"
+		                // have to do string compares later :(
+		                modifiable.push(objfield.createable || objfield.updateable);
+		                sortable.push(objfield.sortable);
+		                if (objfield.type == "picklist") {
+		                	picklistData[i] = [];
+		                	// collect permitted data values from field describe results
+		                	for (plval in objfield.picklistValues) {
+		                		var pickvaldesc = objfield.picklistValues[plval];
+		                		if (pickvaldesc.active) {
+		                			picklistData[i].push([pickvaldesc.label, pickvaldesc.value]);
+		                		}
+		                	}
+		                	if (objfield.nillable) {
+		                		// allow blank as an option
+		                		picklistData[i].push(["", null]);
+		                	}
+		                }
+		            }
+		            // create the Store
+		            var extfields = [];
+		            if (fieldlist.indexOf('Id') == -1) {
+		                extfields.push({
+		                    name: 'Id'
+		                }); // always include ID in the store
+		            }
+		            for (var i = 0; i < fieldlist.length; i++) {
+		                extfields.push({
+		                    name: fieldlist[i]
+		                });
+		            }
+		            var store = new Ext.ux.SFDCStore({
+		                sobjname: '{!object}',
+		                fields: extfields,
+		                remoteSort: true,
+		                autoSave: false,
+		                batch: false               // SFBC REST interface is one-at-a-time operation on writes
+		            });
+		        
+		            // and now the Grid that references it - columns first
+		            var columns = [];
+		            for (var i = 0; i < fieldlist.length; i++) {
+		                var col = {
+		                    id: fieldlist[i],
+		                    dataIndex: fieldlist[i],
+		                    header: fieldlabels[i],
+		                    sortable: sortable[i],
+		                    width: 150
+		                };
+		                // use data type from above to determine type of Editor and xtype to use
+		                if ((fieldtypes[i] == "int") || (fieldtypes[i] == "double")) {
+		                    col.xtype = 'numbercolumn';
+		                    if (fieldtypes[i] == "int") {
+		                        // do not show decimals
+		                        col.format = '0,000';
+		                    }
+		                    if (modifiable[i]) {
+		                        col.editor = new Ext.form.NumberField({
+		                            allowBlank: allowblank[i],
+		                            allowDecimals: (fieldtypes[i] == "double")
+		                        });
+		                    }
+		                } else if (fieldtypes[i] == "boolean") {
+		                    col.xtype = 'booleancolumn';
+		                    if (modifiable[i]) {
+		                        col.editor = new Ext.form.Checkbox();
+		                    }
+		                } else if (fieldtypes[i] == "date") {
+		                    col.xtype = 'datecolumn';
+		                    if (modifiable[i]) {
+		                        // NOTE not fully tested.  I observed some type of time zone issue where
+		                        // value stored on server was 1 day off from the one chosen
+		                        col.editor = new Ext.form.DateField({
+		                            allowBlank: allowblank[i]
+		                        });
+		                    }
+		                } else if (modifiable[i] && (fieldtypes[i] == "picklist")) {
+		                	// modifiable picklists will use a ComboBox but otherwise we'll use text (default)
+		                	col.editor = {xtype: 		 'combo',
+		                				  triggerAction: 'all',   // not sure what this does!
+		                				  displayField:  'display',
+		                				  valueField:	 'value',
+		                				  mode:          'local',
+		                				  store:		 new Ext.data.ArrayStore({
+		                				  				 	fields: ['display', 'value'],
+		                				  				 	data: picklistData[i]
+		                				  				 })
+		                				 };
+		                } else {
+		                    // default xtype is OK
+		                    if (modifiable[i]) {
+		                        // fall back on TextField, but use validators if possible
+		                        var cfg = {
+		                            allowBlank: allowblank[i]
+		                        };
+		                        if ((fieldtypes[i] == "url") || (fieldtypes[i] == "email")) {
+		                            cfg.vtype = fieldtypes[i];
+		                        }
+		                        col.editor = new Ext.form.TextField(cfg);
+		                    }
+		                }
+		                columns.push(col);
+		            }
+		            var pagesize = parseInt('{!rows}'); // otherwise we end up with a string value, which subtly fails
+		            var initially_minimized = '{!minimized}';
+		            if (initially_minimized !== 'true') {
+		                store.load({
+		                    params: {
+		                        start: 0,
+		                        limit: pagesize
+		                    }
+		                });
+		            }
+		            var grid = new Ext.grid.EditorGridPanel({
+		                store: store,
+		                columns: columns,
+		                stripeRows: true,
+		                loadMask: true,
+		                height: 500,
+		                title: '{!object}',
+		                collapsible: true,
+		                collapsed: (initially_minimized == "true"),
+		                listeners: {
+		                    beforeexpand: function (panel, animate) { // load data via query when grid expanded by user
+		                        var store = panel.getStore(); // a reference to the original store we configured the panel with
+		                        if (store.getTotalCount() == 0) {
+		                            store.load({
+		                                params: {
+		                                    start: 0,
+		                                    limit: pagesize
+		                                }
+		                            });
+		                        }
+		                        return true;
+		                    }
+		                },
+		                bbar: new Ext.PagingToolbar({
+		                    pageSize: pagesize,
+		                    store: store,
+		                    displayInfo: true,
+		                    displayMsg: 'Displaying ' + respobj.labelPlural + ' {0} - {1} of {2}',
+		                    emptyMsg: 'no records found'
+		                }),
+		                sm: new Ext.grid.RowSelectionModel(),
+		                tbar: {
+		                    items: [{
+		                        text: 'Save Changes',
+		                        iconCls: 'icon-save',
+		                        handler: function () {
+		                            Ext.Msg.confirm('Save Changes?', 'Commit all changes, including deletions, in {!object}?', function (b) {
+		                                if (b == 'yes') {
+		                                    grid.stopEditing();
+		                                    store.save();
+											// reload data for current page
+											grid.getBottomToolbar().doRefresh();
+		                                }
+		                            });
+		                        }
+		                    },
+		                    {
+		                        text: 'New',
+		                        iconCls: 'icon-add',
+		                        handler: function () {
+		                            grid.stopEditing();
+		                            var newreccfg = {};
+		                            for (var i = 0; i < fieldlist.length; i++) {
+		                                newreccfg[fieldlist[i]] = '';
+		                            }
+		                            store.insert(0, new store.recordType(newreccfg));
+		                            grid.startEditing(0, 1);
+		                        }
+		                    },
+		                    {
+		                        text: 'Delete Selected',
+		                        iconCls: 'icon-delete',
+		                        handler: function (b, e) { // button handlers get the button and the event passed in
+		                            // collect list of things that will be deleted
+		                            var mygrid = b.findParentByType('editorgrid');
+		                            var selRecs = mygrid.getSelectionModel().getSelections();
+		                            if (selRecs.length == 0) {
+		                                console.log('no records selected');
+		                                return;
+		                            }
+		                            var delIds = new Array();
+		                            for (var i = 0; i < selRecs.length; i++) {
+		                                delIds.push(selRecs[i].id);
+		                            }
+		                            Ext.Msg.confirm('Delete Entries?', 'Temporarily delete entries ' + delIds.join(', ') + '?', function (b) {
+		                                if (b == 'yes') {
+		                                    grid.stopEditing();
+		                                    store.remove(selRecs);
+		                                }
+		                            });
+		                        }
+		                    }]
+		                },
+		                batchSave: true,
+		                renderTo: 'myGrid' // I think this is keeping me from having >1 grid per page. how to fix?
+		            });
+		        }
+		    });
+        });
+    </script>
+    <div id="myGrid"/>
+</apex:component>

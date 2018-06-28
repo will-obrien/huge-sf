@@ -1,0 +1,150 @@
+<apex:component >
+<!-- This is a static include for JS -->
+<script type="text/javascript">
+	window.ZoomInfo=window.ZoomInfo||{};window.zi=ZoomInfo;ZoomInfo.ui=(function(){var a={input:null,textarea:null,select:null};return{disableTextSelect:function(b){var c=b||a;if(document.attachEvent){document.attachEvent("onmousedown",function(d){if(!((elem=d.srcElement.tagName.toLowerCase()) in c)){elem.onselectstart=function(e){e&&e.preventDefault&&e.preventDefault();return false};d&&d.preventDefault&&d.preventDefault();return false}})}else{document.onmousedown=function(d){if((elem=d.target)&&!(elem.tagName.toLowerCase() in c)){if("MozUserSelect" in elem.style){elem.style.MozUserSelect="none"}else{if("webkitUserSelect" in elem.style){elem.style.webkitUserSelect="none"}}window._lastSelectElem=elem;d&&d.preventDefault&&d.preventDefault();return false}};document.onmouseup=function(d){if((elem=window._lastSelectElem)){if("MozUserSelect" in elem.style){elem.style.MozUserSelect="text"}else{if("webkitUserSelect" in elem.style){elem.style.webkitUserSelect="text"}}window._lastSelectElem=null}return true}}},addClass:function(b,c){if(!b){throw"Element cannot be null or undefined"}if(!c){throw"Classname cannot be null or undefined"}if(b.className.indexOf(c)<0){b.className+=(!!b.className?" ":"")+c}},removeClass:function(b,c){if(!b){throw"Element cannot be null or undefined"}if(!c){throw"Classname cannot be null or undefined"}if((idx=b.className.indexOf(c)>-1)){b.className=b.className.substring(0,idx)+b.className.substring(idx+c.length)}},reloadParent:function(){if((parent=window.top)&&(location=parent.location)){location=location}else{if((parent=window.parent)&&(location=parent.location)){location.href=location.href}}}}})();
+</script>
+<apex:variable var="unimifiedCoreJS" value="" rendered="">
+<!--  unminified version -->
+<script type="text/javascript">
+	window.ZoomInfo = window.ZoomInfo || {};
+	window.zi = ZoomInfo;
+	ZoomInfo.ui = (function() {
+		var DEFAULT_COPYPASTE_IGNORE = {"input": null, "textarea": null, "select": null};
+		
+		return {
+			/**
+			 * Disables selection of text for all element except for those given in the ignoreList.
+			 * @param	ignoreList		A list of element for which text selection will be allowed
+			 */
+			disableTextSelect: function(ignoreList) {
+				var omitformtags = ignoreList || DEFAULT_COPYPASTE_IGNORE;
+				// list of element to allow selection on
+				if (document.attachEvent) {
+					// for IE
+					document.attachEvent("onmousedown", function(e) {
+						if(!((elem = e.srcElement.tagName.toLowerCase()) in omitformtags)) {
+							elem.onselectstart = function(e2) {
+								e2 && e2.preventDefault && e2.preventDefault(); 
+								return false;
+							};
+							e && e.preventDefault && e.preventDefault();
+							return false;
+						}
+					});
+				} else {
+					// oor webkit and all others
+					document.onmousedown = function(e) {
+						if ((elem = e.target) && !(elem.tagName.toLowerCase() in omitformtags)) {
+							if ('MozUserSelect' in elem.style) elem.style.MozUserSelect = "none";
+							else if ('webkitUserSelect' in elem.style) elem.style.webkitUserSelect = "none";
+							window._lastSelectElem = elem;
+							e && e.preventDefault && e.preventDefault();
+							return false;
+						};
+					};
+					document.onmouseup = function(e) {
+						if((elem = window._lastSelectElem)) {
+							if ('MozUserSelect' in elem.style) elem.style.MozUserSelect = "text";
+							else if ('webkitUserSelect' in elem.style) elem.style.webkitUserSelect = "text";
+							window._lastSelectElem = null;
+						}
+						return true;
+					};
+				}
+			},
+			/**
+			 * Added a CSS class to a given element
+			 * @param	elem		DOM element to add the class to (required)
+			 * @pararm	classname	the class to add (required)
+			 */
+			addClass: function(elem, classname) {
+				if(!elem) throw "Element cannot be null or undefined";
+				if(!classname) throw "Classname cannot be null or undefined";
+				if(elem.className.indexOf(classname) < 0) elem.className += (!!elem.className ? " " : "") + classname; 
+			},
+			/**
+			 * Removes a CSS class to a given element
+			 * @param	elem		DOM element to remove the class from (required)
+			 * @pararm	classname	the class to remove (required)
+			 */
+			removeClass: function(elem, classname) {
+				if(!elem) throw "Element cannot be null or undefined";
+				if(!classname) throw "Classname cannot be null or undefined";
+				if((idx = elem.className.indexOf(classname) > -1)) elem.className = elem.className.substring(0, idx) + elem.className.substring(idx + classname.length); 
+			},
+			/**
+			 * Reloads the parent window
+			 */
+			reloadParent: function() {
+				if((parent = window.top) && (location = parent.location))
+					location = location;
+				else if((parent = window.parent) && (location = parent.location))
+					location.href = location.href;
+			}
+		}
+	})();
+	
+	ZoomInfo.dialog = (function() {
+		// make sure we have the dialog template in DOM
+		var _msgDialogElem;
+		if(!(_msgDialogElem = document.getElementById("dialog_message"))) {
+			var elem = document.createElement("div");
+			elem.id = "dialog_message";
+			elem.className = "dialog";
+			elem.innerHTML = '<div class="header"></div><div class="body"></div><div class="footer"></div>';
+			document.body.appendChild(elem);
+			_msgDialogElem = elem;
+		}
+		// prepare the dialog semi transparent background to cover the whole frame
+		var _bgMask;
+		if(!(_bgMask = document.getElementById("dialog_bg_mask"))) {
+			var elem = document.createElement("div");
+			elem.id = "dialog_bg_mask";
+			document.body.appendChild(elem);
+			_bgMask = elem;
+		}
+		// pointed to currently visible dialog
+		var _currentlyVisible = null;
+		
+		return {
+			/**
+			 * Will displauy a simple message dialog
+			 * @param	options			the options object
+			 *				message			the text message to inject into the dialog (required)
+			 *				actions			the actions object containing callback functions attached to buttons
+			 *					confirm				callback function to call when ok button is clicked
+			 *					cancel				callback function to call when cancel button is clicked
+			 */
+			showMessage: function(options) {
+				if(!options) throw "Options obj cannot be null or undefined";
+				if(!options.message) throw "Message cannot be null or undefined";
+				if((msgText = _msgDialogElem.getElementsByClassName("body")[0])) {
+					msgText.innerHTML = options.message;
+				}
+				ZoomInfo.dialog.show(_msgDialogElem);
+			},
+			showError: function(options) {
+			},
+			show: function(dialog) {
+				if(!dialog) throw "dialog cannot be null or undefined";
+				ZoomInfo.dialog.hide();
+				// show
+				zi.ui.addClass(_bgMask, "visible");
+				zi.ui.addClass(dialog, "visible");
+				// position at the center
+				dialog.style.top = dialog.offsetTop - (dialog.offsetHeight >> 1);
+				dialog.style.left = dialog.offsetLeft - (dialog.offsetWidth >> 1); 
+				_currentlyVisible = dialog;
+			},
+			hide: function() {
+				if(_currentlyVisible) {
+					zi.ui.removeClass(_currentlyVisible, "visible");
+					zi.ui.removeClass(_bgMask, "visible");
+					_currentlyVisible = null;
+				}
+			}
+		}
+	})();
+</script>
+</apex:variable>
+</apex:component>

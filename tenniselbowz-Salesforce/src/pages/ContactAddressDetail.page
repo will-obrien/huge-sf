@@ -1,0 +1,123 @@
+<apex:page StandardController="Contact_Address__c" extensions="ContactAddressDetail">
+    <script type="text/javascript">
+        function selectAllCheckboxes(obj,calassName)
+        {
+            var inputCheckBoxes = document.getElementsByClassName(calassName);                  
+            for(var i=0; i < inputCheckBoxes.length; i++)
+            {          
+                inputCheckBoxes[i].checked = obj.checked;
+            }
+        }
+    </script>
+    <apex:form Id="detailForm">
+        <apex:PageBlock Id="main" mode="edit" Title="{!IF(contactAddress.Id=null, 'Address Find/Create', 'Address Edit')}">
+            <apex:PageMessages /> 
+            <apex:PageBlockButtons >
+                <apex:commandButton value="Save" action="{!save}"/>
+                <apex:commandButton value="Cancel" action="{!cancel}"/>
+            </apex:PageBlockButtons>
+            <apex:PageBlockSection Id="detailSection" Title="Infromation">
+                
+                <apex:pageBlockSectionItem rendered="{!contactAddress.Id=null}">
+                    <apex:OutputLabel value="Address"/>
+                    
+                    <apex:actionRegion >
+                        <apex:InputField value="{!contactAddress.Address__c}" required="false" rendered="{!contactAddress.Id=null}">
+                            <apex:actionSupport event="onchange" immediate="false" action="{!selectAddress}" rerender="detailSection"/>
+                        </apex:InputField>
+                    </apex:actionRegion>    
+                    
+                </apex:pageBlockSectionItem>
+                
+                <apex:OutputField value="{!address.Name}" rendered="{!contactAddress.Id != null}"/><apex:outputField value="{!address.OwnerId}" />
+                
+                <apex:InputField value="{!address.Address_Name__c}" rendered="{!!addressSelected}"/>                
+                <apex:outputField value="{!address.Address_Name__c}" rendered="{!addressSelected}"/>    <apex:OutputField value="{!contactAddress.Contact__c}"/>    
+                <apex:InputField value="{!address.Address_Line_1__c}" rendered="{!!addressSelected}" required="true"/>  
+                <apex:OutputField value="{!address.Address_Line_1__c}" rendered="{!addressSelected}"/>  <apex:inputField value="{!contactAddress.Active__c}" />
+                <apex:InputField value="{!address.Address_Line_2__c}" rendered="{!!addressSelected}"/>          
+                <apex:OutputField value="{!address.Address_Line_2__c}" rendered="{!addressSelected}"/>  <apex:InputField value="{!contactAddress.Physical__c}"/>
+                <apex:InputField value="{!address.Address_Line_3__c}" rendered="{!!addressSelected}"/>  
+                <apex:OutputField value="{!address.Address_Line_3__c}" rendered="{!addressSelected}"/>  <apex:InputField value="{!contactAddress.Mail_To__c}"/>
+                <apex:InputField value="{!address.Address_Line_4__c}" rendered="{!!addressSelected}"/>  
+                <apex:OutputField value="{!address.Address_Line_4__c}" rendered="{!addressSelected}"/>  <apex:InputField value="{!contactAddress.Primary_Mail_To__c}"/>
+                <apex:InputField value="{!address.City__c}" rendered="{!!addressSelected}" required="true"/>            
+                <apex:OutputField value="{!address.City__c}" rendered="{!addressSelected}"/>            <apex:OutputPanel />
+                <apex:InputField value="{!address.Country__c}" rendered="{!!addressSelected}" required="true"/>         
+                <apex:OutputField value="{!address.Country__c}" rendered="{!addressSelected}"/>         <apex:OutputPanel />
+                <apex:InputField value="{!address.State_Province__c}" rendered="{!!addressSelected}"/>  
+                <apex:OutputField value="{!address.State_Province__c}" rendered="{!addressSelected}"/>  <apex:OutputPanel />
+                <apex:InputField value="{!address.Postal_Code__c}" rendered="{!!addressSelected}"/>     
+                <apex:OutputField value="{!address.Postal_Code__c}" rendered="{!addressSelected}"/>     <apex:OutputPanel />
+            </apex:PageBlockSection>    
+            <br/>
+            <apex:PageBlockSection rendered="{!address.Id != null}">
+                    <apex:OutputField value="{!address.LastModifiedDate}" />
+                    
+                    <apex:OutputField value="{!contactAddress.LastModifiedDate}" /> 
+                    
+                    <apex:pageBlockSectionItem rendered="{!address.Id != null}">
+                        <apex:OutputLabel value="Address Last Modified By"/>
+                        <apex:OutputField value="{!address.LastModifiedBy.Name}" /> 
+                    </apex:pageBlockSectionItem>
+                    
+                    <apex:pageBlockSectionItem rendered="{!address.Id != null}">
+                        <apex:OutputLabel value="Contact Address Last Modified By"/>
+                        <apex:OutputField value="{!contactAddress.LastModifiedBy.Name}" />  
+                    </apex:pageBlockSectionItem>
+                    
+            </apex:PageBlockSection>
+                
+            
+            
+            <apex:PageBlockSection Id="AccountSection" Title="Related Account" columns="1" rendered="{!contactAddress.Id != null && AccountAddresses.size > 0}">
+                
+                <apex:PageBlockTable var="a" value="{!AccountAddresses}">
+                    <apex:column >
+                        <apex:facet name="header">
+                            Select All <apex:inputCheckbox onclick="selectAllCheckboxes(this,'AccountCheck')"/>
+                        </apex:facet>
+                        <apex:InputCheckBox value="{!a.selected}" styleClass="AccountCheck"/>
+                    </apex:column>
+                    <apex:column value="{!a.AccountAddress.Account__r.Name}"/>
+                    <apex:column value="{!a.AccountAddress.Active__c}"/>
+                    <apex:column value="{!a.AccountAddress.Physical__c}"/>
+                    <apex:column value="{!a.AccountAddress.Mail_To__c}"/>
+                    <apex:column value="{!a.AccountAddress.Primary_Mail_To__c}"/>
+                    <apex:column value="{!a.AccountAddress.Bill_To__c}"/>
+                    <apex:column value="{!a.AccountAddress.Primary_Bill_To__c}"/>
+                    <apex:column value="{!a.AccountAddress.Ship_To__c}"/>
+                    <apex:column value="{!a.AccountAddress.Primary_Ship_To__c}"/>
+                    <apex:column value="{!a.AccountAddress.LastModifiedDate}"/>
+                    <apex:column value="{!a.AccountAddress.LastModifiedBy.Name}"/>
+                </apex:PageBlockTable>
+            
+            </apex:PageBlockSection>
+            
+            <apex:PageBlockSection Id="contactSection" Title="Related Contacts" columns="1"  rendered="{!contactAddress.Id != null && contactAddresses.size > 0}">
+                
+                <apex:PageBlockTable var="c" value="{!contactAddresses}">
+                    <apex:column >
+                        <apex:facet name="header">
+                            Select All <apex:inputCheckbox onclick="selectAllCheckboxes(this,'contactCheck')"/>
+                        </apex:facet>
+                        <apex:InputCheckBox value="{!c.selected}" styleClass="contactCheck"/>
+                    </apex:column>
+                    <apex:column value="{!c.contactAddress.Contact__r.Name}"/>
+                    <apex:column value="{!c.contactAddress.Contact__r.Title }"/>
+                    <apex:column value="{!c.contactAddress.Contact__r.Email }"/>
+                    <apex:column value="{!c.contactAddress.Active__c }"/>
+                    <apex:column value="{!c.contactAddress.Physical__c }"/>
+                    <apex:column value="{!c.contactAddress.Mail_To__c }"/>
+                    <apex:column value="{!c.contactAddress.Primary_Mail_To__c }"/>
+                    <apex:column value="{!c.contactAddress.Contact__r.OwnerId }"/>
+                    <apex:column value="{!c.contactAddress.LastModifiedDate}"/>
+                    <apex:column value="{!c.contactAddress.LastModifiedBy.Name}"/>
+                </apex:PageBlockTable>
+            
+            </apex:PageBlockSection>
+        
+        </apex:PageBlock>
+    </apex:form>
+    
+</apex:page>

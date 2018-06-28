@@ -1,0 +1,101 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="ClubEventController" applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>{!pageTitle}</title>
+      <script src="{!$Resource.jqueryDateFormat}" type="text/javascript"></script>
+      <style type="text/css">
+        .displayOccurrences {
+        	margin-left: 20px;
+        }
+        .btnMargin {
+        	margin-right: 20px;
+        }
+        .title {
+        	font-size: 14px; 
+        	font-weight:bold;
+        }
+      </style>
+	</apex:define>
+	
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+    	<apex:form >
+		<p class="title">
+			{!clubEvent.Event_Title__c}
+		</p>
+		<p>
+		This event begins on <span id="dtBegin"></span> and repeats on the future dates listed below. 
+		</p>
+
+		<p>		
+        <div class="displayOccurrences">
+	    	<table>
+	    		<tbody id="occurrencesDisplay">
+	    		</tbody>
+	    	</table>
+    	</div>
+    	</p>
+
+    	<p>
+    	Note that it may take a few minutes to update all occurrences
+    	</p>
+    	
+    	<p>
+    	<apex:commandButton styleClass="btn btn-info btnMargin" 
+    		action="{!updateFutureEvents}" value="Update this and future occurrences"/>
+    	<apex:commandButton styleClass="btn btn-primary btn-success btnMargin" 
+    		action="{!updateOneEventOnly}" value="Update this event only"/>
+    	<apex:commandButton styleClass="btn btn-warning"
+    		action="{!cancelSave}" value="Cancel"/>
+    	</p>
+    	
+        <apex:inputHidden id="eventDate" value="{!dtBeginString}" />
+        <apex:inputHidden id="futureDates" value="{!futureDates}" />
+
+		<p>
+		PLEASE NOTE:<br/>
+		After your recurring events are created, if you go back to any of the events and hit SAVE, you are prompted to either save the changes to the following recurring events or just that specific event.  If you choose to save the changes to the other recurring events, any following events will be synced with the event you are saving.  All changes will be applied.  Saving the changes to the recurring events syncs the data fields so that they are the same as the event you are updating.
+		</p>
+		<p>
+		For information on how to use the recurring events function, please go 
+		<a href="https://docs.google.com/document/d/125eKDbvVjBYRF4XEL3yizXflylcT7xDnRDY_yGcVN-4/edit#bookmark=id.ona2kh56qx6c" target="_blank">
+			here.
+		</a>
+		</p>
+
+        </apex:form>
+    </apex:define>
+    
+    <apex:define name="footer">
+    <script>
+    	var occurrences = new Array();
+		$(document).ready(function(){
+		  var eventDateString = $("[id$=eventDate]").val();
+		  var eventDate = new Date(eventDateString);
+		  $("#dtBegin").html($.format.date(eventDate, "ddd MMMM d, yyyy"));
+          var recurringDatesJson = $("[id$=futureDates]").val();
+          var stringOccurrences = JSON.parse(recurringDatesJson);
+          for(var i=0; i < stringOccurrences.length; i++) {
+          	var theDate = new Date(stringOccurrences[i]);
+       		occurrences.push(theDate);
+          }
+          showOccurrences();
+        });
+        function showOccurrences() {
+			var tbody = $("#occurrencesDisplay");
+			tbody.empty();
+			for(var i = 0; i < occurrences.length; i++) {
+				var tr = $('<tr/>').appendTo(tbody);
+				tr.append("<td>" + $.format.date(occurrences[i], "ddd MMMM d, yyyy") + "</td>");
+			}
+        }
+    </script>
+    </apex:define>
+
+</apex:composition>
+</apex:page>

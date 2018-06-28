@@ -1,0 +1,252 @@
+<apex:page Controller="lmscons.AddMassCU">
+ 
+    <!-- <apex:includeScript value="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" /> -->
+	
+	<apex:includeScript value="{!URLFOR($Resource.lmscons__jquery152min)}" />
+    
+    <apex:includeScript value="/soap/ajax/20.0/connection.js" />
+    <apex:includeScript value="/soap/ajax/20.0/apex.js" />
+
+    <!-- Enhanced Action Status -->
+
+    <!-- END : Enhanced Action Status -->
+<apex:form >
+
+
+    <apex:actionFunction name="startCreate" action="{!ConsumerUsersCreate}" reRender="pageMessages, husername" oncomplete="comp()" status="loadStatus" timeout="360000"/>
+    
+    <apex:actionFunction name="CountUsers" action="{!CountUsers}" reRender="husername" oncomplete="mCountUsers()" timeout="720000"/>
+    
+    <apex:outputPanel id="husername">
+        <apex:inputHidden value="{!l}" id="letters" />
+        <apex:inputHidden value="{!countUsers}" id="countUsers" />
+        <apex:inputHidden value="{!users}" id="husernamei" />
+        <apex:outputText value="{!mError}" id="mError" style="display:none"/>
+        <apex:inputHidden value="{!ErrorB}" id="errorb" />
+        <apex:inputHidden value="{!users_oneTime}" id="users_oneTime" />
+    </apex:outputPanel>
+    <apex:pageBlock id="StatusTop" title="Create LMS Consumer Users">
+        <apex:pageBlockButtons location="top">
+            <apex:commandButton oncomplete="jQuery('[id$=btnStart]').attr('disabled','').removeClass('btnDisabled');" onclick="startCreate(); setStartDate(); jQuery('[id$=btnStart]').attr('disabled','disabled').addClass('btnDisabled'); ; return(false);" value="Start" id="btnStart"/>
+            <!-- <apex:commandButton disabled="true" onclick="startCreate(); setStartDate(); return(false);" value="Start" id="btnStart"/> -->
+        </apex:pageBlockButtons>
+
+        <apex:outputPanel id="Status">
+        <apex:pageBlockSection title="Status" collapsible="false" columns="1">
+            <apex:panelGrid columns="5" width="100%" styleClass="list" headerClass="headerRow wideHeaderRow" rowClasses="dataRow even,dataRow odd">
+                <apex:outputText value="Batch Status" style="font-weight:bold"/>
+                <apex:outputText value="Users Created" style="font-weight:bold"/>
+                <apex:outputText value="Users Remaining" style="font-weight:bold"/>
+                <apex:outputText value="Start time" style="font-weight:bold"/>
+                <apex:outputText value="Time Remaining (mm.ss)" style="font-weight:bold"/>
+                <apex:actionStatus id="loadStatus">
+                   <apex:facet name="start">
+                   In progress...
+                   </apex:facet>
+                </apex:actionStatus>
+                
+                <apex:outputText value="{!users_oneTime}" id="dusers_oneTime"/>
+                
+                <apex:outputPanel id="users">
+                    <apex:outputText value="{!users}"/>
+                </apex:outputPanel>
+                
+                <apex:outputText value="" id="startt"/>
+                
+                <apex:outputText value="unknown" id="tr"/>
+                
+            </apex:panelGrid>
+        </apex:pageBlockSection>
+        </apex:outputPanel>
+     </apex:pageBlock>
+     
+    <apex:pageMessages id="pageMessages" rendered="true" />
+     <apex:outputPanel id="errors" style="border:1px solid black"></apex:outputPanel>
+     
+</apex:form>  
+
+<script>
+
+var tmp = {!users};
+
+jQuery.noConflict();
+    sforce.connection.sessionId = "{!$Api.Session_ID}"; 
+    jQuery(document).ready(function() {
+    
+        mCountUsers();
+    
+    });
+
+    //if error =1 and get exception set true and stop
+    var stope = false;
+    
+    //when started
+    var startTime;
+    
+    //when ended one part
+    var endTime;
+    
+    //count 1 min
+    var minm = 1000*60;
+    
+    var i=0;
+
+    // time remaining
+    var tr = 0;
+
+    //count users and select by alpha search
+    var li = 0;
+    var il = 35;
+    var letters = new Array('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9');
+    //count total users
+    var totalUsers=0;
+    
+    function mCountUsers(){
+            if(jQuery('[id$=husernamei]').val()==5000 && li <=25){
+            //if(li <=25){
+                totalUsers = (totalUsers-0) + (jQuery('[id$=countUsers]').val()-0);
+                jQuery('[id$=letters]').val(letters[li]);
+                CountUsers();
+                li++;
+                
+                
+                jQuery('[id$=users]').text('Please wait: - ' + il);
+                il--;
+            } else {
+                jQuery('[id$=btnStart]').attr('disabled','');
+                jQuery('[id$=btnStart]').removeClass('btnDisabled');
+                
+                if(jQuery('[id$=husernamei]').val()==5000){
+                    jQuery('[id$=users]').text(totalUsers);
+                }
+            }
+    }
+    
+    function setStartDate(){
+        startTime = new Date();
+
+        m = startTime.getDate(); 
+        if(m < 10){
+            m = "0"+m;
+        }
+        
+        d = startTime.getDay(); 
+        if(d < 10){
+            d = "0"+d;
+        }
+        
+        h = startTime.getHours(); 
+        if(h < 10){
+            h = "0"+h;
+        }
+        
+        mm = startTime.getMinutes(); 
+        if(mm < 10){
+            mm = "0"+mm;
+        }
+        
+        ss = startTime.getSeconds(); 
+        if(ss < 10){
+            ss = "0"+ss;
+        }
+                
+        jQuery('[id$=startt]').html(m+"/"+d+"/"+startTime.getFullYear()+" "+h+":"+mm+":"+ss);
+
+    }
+    var zz = 0;
+    
+    function comp(){
+        
+        //alert(jQuery('[id$=errorb]').val());
+        var usersPT = {!users_oneTime};
+
+
+        if(jQuery('[id$=errorb]').val() == 'true'){
+        
+            var val = jQuery('[id$=users_oneTime]').val()-25;
+            
+            if(val<=0){
+                val = 1;
+            }
+            
+            jQuery('[id$=users_oneTime]').val(val);
+        } else {
+            jQuery('[id$=users_oneTime]').val(usersPT);
+        }
+        
+        jQuery('[id$=dusers_oneTime]').text(jQuery('[id$=users_oneTime]').val())
+        //alert(jQuery('[id$=dusers_oneTime]').text(jQuery('[id$=users_oneTime]').val()));
+
+        tmp = jQuery('[id$=husernamei]').val();
+        endTime = new Date();  
+        
+        
+        var diff = (endTime.getTime()-startTime.getTime())/minm;
+        startTime = new Date();
+
+
+        if((totalUsers-0) < 5000){
+
+
+            jQuery('[id$=users]').text(tmp);
+
+            
+            tr = tmp/usersPT*diff;
+
+            
+        } else {
+            if(jQuery('[id$=errorb]').val() == 'false'){
+                totalUsers = (totalUsers-0)-(jQuery('[id$=users_oneTime]').val()-0);
+                
+                jQuery('[id$=users]').text(totalUsers);
+                
+                tr = totalUsers/usersPT*diff;
+            }
+        }
+        
+        
+        jQuery('[id$=tr]').text(tr.toFixed(2));
+        if(tmp!=0){
+           // if(i<=4){
+                try {
+                    if(val!=1){
+                        startCreate();
+                        zz = 0;
+                    } else {
+                        if(jQuery('[id$=errorb]').val()!='true'){
+                            startCreate();
+                            zz = 0;
+                            
+                        } else {
+                            zz++;
+                            if(zz != 5){
+                                startCreate();
+                            } else {
+                            	alert('Batch is stoped.');
+                            }
+                            terr = jQuery('[id$=errors]').html();
+                            jQuery('[id$=errors]').html('');
+                            jQuery('[id$=errors]').html(terr + jQuery('[id$=mError]').html()+"<hr />");
+                            jQuery('[id$=mError]').html('');
+                        }
+                    }
+                }
+                catch(e){alert(e)}
+            /*} else {
+                jQuery('[id$=loadStatus]').text('');
+                jQuery('[id$=loadStatus]').text('Complete');
+                jQuery('[id$=tr]').text(0);
+            }*/
+        } else {
+            jQuery('[id$=loadStatus]').text('');
+            jQuery('[id$=loadStatus]').text('Complete');
+            jQuery('[id$=tr]').text(0);
+        }
+        i++;
+    }
+    
+</script>
+
+
+
+</apex:page>

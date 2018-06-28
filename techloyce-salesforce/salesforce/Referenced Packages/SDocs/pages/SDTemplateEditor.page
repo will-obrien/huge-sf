@@ -1,0 +1,746 @@
+<apex:page StandardController="SDOC__SDTemplate__c" extensions="SDOC.SDTemplateEditor" 
+action="{!init}" standardStylesheets="true" sidebar="false"> 
+<head>
+
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'skin.css')}" />
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'Sdoc.css')}" />
+<apex:stylesheet value="/sCSS/24.0/sprites/1297816277000/Theme3/default/gc/versioning.css" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__ckEditor,'/ckeditor/ckeditor.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'yahoo-dom-event.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'container-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'animation-min.js')}" />
+<style>
+.buttonStyle { width:75px; height:30px; }
+</style>
+
+<script type="text/javascript">
+var AgreementForm = document.getElementById("blur");
+//AgreementForm.style.height = window.screen.availHeight + "px";
+//AgreementForm.style.width = window.screen.availWidth + "px";
+
+var ContainerElem = document.getElementById("StatusBox");
+//ContainerElem.style.display = "block";
+AlignToCenter(ContainerElem);
+
+function AlignToCenter(Element)
+{
+    var availableHeight = 0;
+    var availableWidth = 0;
+    if (Element.ownerDocument)
+    {
+        var docElement = Element.ownerDocument.documentElement;
+        availableHeight = parseInt(docElement.clientHeight);
+        if (availableHeight == "NaN") availableHeight = 0;
+        
+        availableWidth = parseInt(docElement.clientWidth);
+        if (availableWidth == "NaN") availableWidth = 0;
+    }
+
+if (availableHeight == 0 || availableHeight == "NaN")
+    availableHeight = window.screen.availHeight - 200;
+if (availableWidth == 0 || availableWidth == "NaN")
+    availableWidth = window.screen.availWidth - 100;
+
+var msgBoxTop = parseInt((availableHeight - parseInt(Element.clientHeight))/2);
+var msgBoxleft = parseInt((availableWidth - parseInt(Element.style.width))/2);
+
+if (msgBoxTop == "NaN" || msgBoxTop == 0)
+    msgBoxTop = 100;
+
+Element.style.left = msgBoxleft + "px";
+Element.style.top = msgBoxTop + window.pageYOffset + "px";
+}
+
+function reposition(){
+    if(navigator.appName == 'Window Internet Explorer') AgreementForm.style.top = document.body.scrollTop;
+    else AgreementForm.style.top = window.pageYOffset+"px";
+    AlignToCenter(ContainerElem);
+}
+</script>
+<script type="text/javascript">
+    YAHOO.namespace("force.com");
+    YAHOO.force.com.showMe = function() {
+        document.getElementById("myPanel").style.display = "block";
+        YAHOO.force.com.myDialog.show();
+    }
+    YAHOO.force.com.hideMe = function() {
+        YAHOO.force.com.myDialog.hide();
+    }
+    YAHOO.force.com.showLine = function() {
+        document.getElementById("linePanel").style.display = "block";
+        YAHOO.force.com.eDialog.show();
+    }
+    YAHOO.force.com.hideLine = function() {
+        YAHOO.force.com.eDialog.hide();
+    }
+    
+    YAHOO.force.com.init = function() {
+        document.body.className = document.body.className + " yui-skin-sam";
+        var CKEDITOR   = window.CKEDITOR;
+        if (CKEDITOR.env.ie8){
+            YAHOO.force.com.myDialog = new YAHOO.widget.Panel(
+            "myPanel",
+            { width           :   "800px",visible         :   false,
+             draggable       :   true, close           :   false,  
+             modal           :   true,  fixedCenter     :   true,  zindex          :   100
+            });
+            YAHOO.force.com.eDialog = new YAHOO.widget.Panel(
+            "linePanel",
+            { width           :   "800px",visible         :   false,
+             draggable       :   true, close           :   false,  
+             modal           :   true,  fixedCenter     :   true,  zindex          :   100
+            });            
+        }else{
+            YAHOO.force.com.myDialog = new YAHOO.widget.Panel(
+            "myPanel",  // The id of our dialog container
+            { 
+                    width           :   "800px",
+                    visible         :   false,
+                    draggable       :   true,
+                    close           :   true,
+                    modal           :   true,
+                    fixedCenter     :   true,
+                    zindex          :   100,
+                    effect          :   {effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.3} 
+            }
+            );
+            YAHOO.force.com.eDialog = new YAHOO.widget.Panel("linePanel",
+                {  
+                    // width        :   "900px"
+                    xy          :   [100,80]
+                    ,visible        :   false
+                    ,draggable      :   true
+                    ,close          :   true
+                    ,modal          :   true
+                    ,fixedCenter    :   false
+                    ,zindex         :   100
+                    ,underlay       : "matte"
+                    ,effect         :   {effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.3} 
+                }
+            );
+       }
+       YAHOO.force.com.eDialog.setHeader("Insert Related List");
+       YAHOO.force.com.myDialog.render(document.body);
+       YAHOO.force.com.eDialog.render(document.body);
+    }
+</script>
+</head>
+
+<div id="myPanel" style="display: none">
+    <apex:actionStatus id="statLoad">
+        <apex:facet name="start">
+            <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+            </div>
+            <div id="StatusBox" style="position:absolute; left:50%; top:200px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+            <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+            border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+            border-right-color:#336699; background-color:#ffffff;">
+            <tr>
+            <td align="left" valign="top">
+            <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+            <tr>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+            <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+            &nbsp;Loading...</td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+            </div>
+        </apex:facet>
+    </apex:actionStatus>
+    <div class="hd">
+        <apex:outputtext value="Fields for: {!SDOC__SDTemplate__c.SDOC__Base_Object__c}"/> 
+    </div>
+    <div class="bd">
+    <apex:form >
+          <div class="ft" style="font-size: 11px;">
+        <apex:outputPanel layout="block">
+          Select a field, then click Insert. Labels followed by a ">" indicate that there are more fields available. 
+          If you need to extend further, you can manually edit the value or consider creating a formula field on your
+          base object: {!SDOC__SDTemplate__c.SDOC__Base_Object__c}.
+        </apex:outputPanel>
+      </div>
+        <apex:pageBlock id="block2" >
+            <apex:pageblocksection columns="6">
+             <apex:pageblocksectionItem >
+                <apex:outputpanel id="l1">
+                    <apex:outputtext value="{!f1Obj}" style="font-weight : bold;"/><br />
+                    <apex:selectList value="{!f1}" size="12" style="max-width: 200px;"> 
+                        <apex:selectOptions value="{!f1List}" />
+                            <apex:actionSupport event="onchange" action="{!level1}" rerender="l2,l3,o" status="statLoad"/>
+                    </apex:selectList>
+                </apex:outputpanel>
+              </apex:pageblocksectionItem>
+              <apex:outputpanel id="l2">
+                <apex:outputtext value="{!f2Obj}" style="font-weight : bold;"/><br />
+                    <apex:selectList value="{!f2}" size="12" id="f2"  rendered="{!NOT(ISNULL(f2List))}" style="max-width: 200px;"> 
+                        <apex:selectOptions value="{!f2List}" />
+                        <apex:actionSupport event="onchange" action="{!level2}" rerender="l3,o" status="statLoad"/>
+                    </apex:selectList>
+                </apex:outputpanel>
+              <apex:outputpanel id="l3">
+                <apex:outputtext value="{!f3Obj}" style="font-weight : bold;"/><br />
+                    <apex:selectList value="{!f3}" size="12" id="f3"  rendered="{!NOT(ISNULL(f3List))}" style="max-width: 200px;"> 
+                        <apex:selectOptions value="{!f3List}" />
+                        <apex:actionSupport event="onchange" action="{!level3}" rerender="o" status="statLoad"/>
+                    </apex:selectList>
+                </apex:outputpanel>
+            </apex:pageblocksection>
+            <apex:outputPanel id="o" >
+                <apex:pageblocksection >
+                    <apex:pageblocksectionItem rendered="{!NOT(isNum)&& NOT(isDate)}">  
+                        <apex:inputcheckbox value="{!checked}" >
+                            <apex:actionSupport event="onchange" action="{!checktoggle}" rerender="o" status="statLoad"/>
+                        </apex:inputcheckbox>
+                        <apex:outputLabel value="This field value contains HTML, Rich Text or images"/>
+                    </apex:pageblocksectionItem>
+                </apex:pageblocksection>
+                <apex:pageblocksection rendered="{!isDate}">
+                    <apex:pageblocksectionItem >
+                        <apex:outputLabel value="Format Date:"/>
+                        <apex:selectList value="{!fdoption}" size="1" id="fdo"> 
+                            <apex:selectOptions value="{!fdoptions}" />
+                            <apex:actionSupport event="onchange" action="{!checktoggle}" rerender="o" status="statLoad"/>
+                         </apex:selectList>
+                    </apex:pageblocksectionItem>
+                </apex:pageblocksection>
+                <apex:pageblocksection rendered="{!isNum}">
+                    <apex:pageblocksectionItem >
+                        <apex:outputLabel value="Format Number:"/>
+                        <apex:selectList value="{!fcoption}" size="1" id="fco"> 
+                            <apex:selectOptions value="{!fcoptions}" />
+                            <apex:actionSupport event="onchange" action="{!checktoggle}" rerender="o" status="statLoad"/>
+                         </apex:selectList>
+                     </apex:pageblocksectionItem>
+                </apex:pageblocksection>
+                <apex:pageblocksection columns="1">
+                     <apex:outputLabel value="The following will be inserted into your template:"/>
+                    <apex:inputText value="{!output}" size="100"/>
+                    <apex:commandButton value="Insert" oncomplete="insert('{!output}');" rendered="{!NOT(ISNULL(output))}"  
+                    styleClass="buttonStyle" style="font-size:14px;"/>
+                </apex:pageblocksection>
+            </apex:outputPanel>
+        </apex:pageBlock>
+        <div style="text-align: center;" >
+            <apex:commandButton value="Cancel" immediate="true" oncomplete="YAHOO.force.com.hideMe();"/>
+        </div>
+    </apex:form>
+    </div>
+
+</div>
+
+<div id="linePanel" style="display: none">
+<apex:tabPanel switchType="client" selectedTab="name1" id="theTabPanel" 
+styleClass="theTabPanel" tabClass="theTabPanel" contentClass="tabContent" 
+activeTabClass="activeTab" inactiveTabClass="inactiveTab" width="900px">
+<apex:tab label="Select Data Columns" name="tab1" id="tabOne">
+
+    <apex:actionStatus id="statLoad2">
+        <apex:facet name="start">
+            <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+            </div>
+            <div id="StatusBox" style="position:absolute; left:50%; top:200px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+            <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+            border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+            border-right-color:#336699; background-color:#ffffff;">
+            <tr>
+            <td align="left" valign="top">
+            <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+            <tr>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+            <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+            &nbsp;Loading...</td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+            </div>
+        </apex:facet>
+    </apex:actionStatus>
+
+    <div class="bd">
+    <apex:form >
+        <div class="ft" style="font-size: 11px;">
+        <apex:outputPanel layout="block">
+        Related lists are merged as tables (with rows and columns) into your document.
+        Select a related list object from the picklist below.
+        Then choose fields that you want included as columns for your table.
+        Columns are rendered from left to right based on their order in the "Selected Columns" list below.
+        An "Insert Table" button will appear that allows you to embed the table into your template. 
+        Note: only the header row will appear in the template graphical view. Data rows are merged when the document is generated.
+       
+        </apex:outputPanel>
+         </div>
+        <apex:pageBlock id="block4" title="Step 1: Select a Related List">
+            <apex:pageblocksection >
+                <apex:outputLabel for="sl1" value="Available Related Lists for {!SDOC__SDTemplate__c.SDOC__Base_Object__c} :"/>
+                <apex:selectList id="sl1" value="{!rl1}" size="1"> 
+                    <apex:selectOptions value="{!rl1List}" />
+                    <apex:actionSupport event="onchange" action="{!levelRL1}" rerender="rl2,rl3,rl4,p,bt2" status="statLoad2"/>
+                </apex:selectList>
+            </apex:pageblocksection>
+       </apex:pageBlock>
+       <apex:pageBlock id="block5" title="Step 2: Choose Table Columns">
+            <apex:pageblocksection columns="10">
+                <apex:panelGrid id="rl2">
+                    <apex:outputtext value="Object: {!rl1Obj}" style="font-weight : bold;"/>
+                    <apex:outputtext value="Available Fields: "/>
+                    <apex:selectList value="{!rl2}" size="12" id="f4" style="max-width: 200px;"> 
+                        <apex:selectOptions value="{!rl2List}" />
+                        <apex:actionSupport event="onchange" action="{!levelRL2}" rerender="rl3,rl4" status="statLoad2"/>
+                    </apex:selectList>
+                </apex:panelGrid>
+                <apex:panelGrid id="rl3">
+                    <apex:outputtext value="Object: {!rl2Obj}" rendered="{!showRl3}" style="font-weight : bold;"/>
+                    <apex:outputtext value="Available Fields: " rendered="{!showRl3}"/>
+                    <apex:selectList value="{!rl3}" size="12" id="f5" rendered="{!showRl3}" style="max-width: 200px;"> 
+                        <apex:selectOptions value="{!rl3List}" />
+                        <apex:actionSupport event="onchange" action="{!levelRL3}" rerender="rl4" status="statLoad2"/>
+                    </apex:selectList>
+                </apex:panelGrid>
+                <apex:panelGrid id="rl4" >
+                    <apex:outputtext value="Object: {!rl3Obj}" rendered="{!showRl4}"  style="font-weight : bold;"/>
+                    <apex:outputtext value="Available Fields: " rendered="{!showRl4}"/>
+                    <apex:selectList value="{!rl4}" size="12" id="rl4sl" rendered="{!showRl4}" style="max-width: 200px;"> 
+                        <apex:selectOptions value="{!rl4List}" />
+                    </apex:selectList>
+                </apex:panelGrid>
+                <apex:panelGrid id="bt1">
+                    <br />
+                    <br />
+                    <apex:outputtext value="Add"/><br />
+                    <apex:commandButton action="{!add}" image="{!URLFOR($Resource.SDOC__SDoc,'right.gif')}" 
+                    style="border:none; padding:0px 0px 0px 0px;" rerender="p,op,fp,fp4,b2" status="statLoad2"/><br />
+                    <apex:commandButton action="{!remove}" image="{!URLFOR($Resource.SDOC__SDoc,'left.gif')}" 
+                    style="border:none; padding:0px 0px 0px 0px;" rerender="p,op,fp,fp4,b2" status="statLoad2"/><br />
+                    <apex:outputtext value="Remove"/><br />
+                    <br />
+                </apex:panelGrid>
+                <apex:panelGrid id="p">
+                    <apex:outputtext value="Selected Columns (left to right)" style="font-weight : bold;" /><br />
+                    <apex:selectList value="{!rlf}" size="12" id="f6" style="width: 250px;" >
+                        <apex:selectOptions value="{!rlfList}" />
+                        <apex:actionSupport event="onchange" action="{!getcol}" rerender="fp,fp4" status="statLoad2"/>
+                    </apex:selectList>
+                </apex:panelGrid>
+                <apex:panelGrid id="bt2">
+                    <br />
+                    <br />
+                    <apex:outputtext value="Move Up"/><br />
+                    <apex:commandButton action="{!moveup}" image="{!URLFOR($Resource.SDOC__SDoc,'up.gif')}" 
+                    style="border:none; padding:0px 0px 0px 0px;" rerender="p,q,op,fp,fp4" status="statLoad2"/><br />
+                    <apex:commandButton action="{!movedown}" image="{!URLFOR($Resource.SDOC__SDoc,'down.gif')}" 
+                    style="border:none; padding:0px 0px 0px 0px;" rerender="p,q,op,fp,fp4" status="statLoad2"/><br />
+                    <apex:outputtext value="Move Down"/><br />
+                </apex:panelGrid>                
+           </apex:pageblocksection>
+        </apex:pageBlock>
+        <apex:outputPanel id="b2">
+        <div style="text-align: center;" >
+            <apex:commandButton value="Insert" oncomplete="insertLine('{!output}');"  rendered="{!rlfList.size>0}"  styleClass="buttonStyle"  style="font-size:14px;" status="statLoad2"/>  
+            <apex:commandButton value="Cancel" immediate="true" oncomplete="YAHOO.force.com.hideLine();" style="font-size:14px;" styleClass="buttonStyle" status="statLoad2"/>
+        </div>
+        </apex:outputPanel>
+    </apex:form>
+    </div>
+
+</apex:tab>
+<apex:tab label="Format Data Columns" name="tab2" id="tabTwo">  
+<apex:form >
+    <apex:actionStatus id="statLoad3">
+        <apex:facet name="start">
+            <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+            </div>
+            <div id="StatusBox" style="position:absolute; left:50%; top:200px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+            <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+            border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+            border-right-color:#336699; background-color:#ffffff;">
+            <tr>
+            <td align="left" valign="top">
+            <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+            <tr>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+            <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+            &nbsp;Loading...</td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+            </div>
+        </apex:facet>
+    </apex:actionStatus>
+    <apex:outputPanel id="fp">
+        <apex:pageBlock title="Choose a column to format">
+            <apex:pageBlockSection columns="2">
+                <apex:pageBlockSectionItem >
+                    <apex:selectList value="{!rlf}" size="12" id="f7" style="width: 300px;" >
+                        <apex:selectOptions value="{!rlfList}" />
+                        <apex:actionSupport event="onchange" action="{!getcol}" rerender="cold" status="statLoad3"/> 
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+                 <apex:pageBlockSectionItem >
+                 <apex:outputPanel id="cold">
+                     <apex:outputlabel for="c1" value="Header Text (Column Header): "/> 
+                        <apex:inputText id="c1" value="{!thisCol.header}" style="width:100%" disabled="{!thisCol.mergenext}"/> <br />
+                     <apex:outputlabel for="c6" value="Merge with Next Column and Display as Single Column: "/>
+                            <apex:inputCheckbox value="{!thisCol.mergenext}"/><br /><br />
+                     <apex:outputlabel for="c1a" value="Data Mapped To: "/> <apex:inputText disabled="true" id="c1a" value="{!thisCol.dataMapping}" style="width:100%"/> <br />
+                     <apex:outputlabel for="c1b" value="Data Contains Rich Text or HTML: "/><apex:inputCheckbox value="{!thisCol.rtffield}"/><br /><br />
+                     <apex:outputlabel for="c2" value="Prefix Text: "/> <apex:inputText id="c2" value="{!thisCol.prefix}" style="width:100%"/><br />
+<!--                 <apex:outputlabel for="c3" value="Prefix Text if Null: "/> <apex:inputText id="c3" value="{!thisCol.prefixifnull}" style="width:100%"/><br /> -->
+                     <apex:outputlabel for="c4" value="Postfix Text: "/> <apex:inputText id="c4" value="{!thisCol.postfix}" style="width:100%"/><br />
+                     <apex:outputlabel for="c5" value="Text to Display if Data is Null: "/> <apex:inputText id="c5" value="{!thisCol.postfixifnull}" style="width:100%"/><br />
+                     <apex:outputlabel for="c7" value="Start a New Row: "/><apex:inputCheckbox value="{!thisCol.newrow}"/><br /><br />
+                     <apex:outputlabel for="c8" value="Number of Columns to Span (colspan): "/> <apex:inputText id="c8" value="{!thisCol.colspan}" style="width:100%"/><br />
+                     <apex:outputlabel for="c9" value="Format Number (e.g. #,###.##): "/><apex:inputText id="c9" value="{!thisCol.formatnum}" style="width:100%"/><br />
+                     <apex:outputlabel for="c10" value="Format Date: (e.g. dd/MM/yyyy):"/><apex:inputText id="c10" value="{!thisCol.formatdate}" style="width:100%"/><br />
+                     <apex:actionSupport event="onchange" action="{!setcol}" rerender="cold,op" status="statLoad3"/>
+                 </apex:outputPanel>
+                 </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+            </apex:pageBlock>
+        <apex:outputPanel id="b3">
+            <div style="text-align: center;" >
+                <apex:commandButton value="Insert" oncomplete="insertLine('{!output}');"  rendered="{!rlfList.size>0}" styleClass="buttonStyle"  style="font-size:14px;" status="statLoad3"/>  
+                <apex:commandButton value="Cancel" immediate="true" oncomplete="YAHOO.force.com.hideLine();" style="font-size:14px;" styleClass="buttonStyle" status="statLoad3"/>
+            </div>
+        </apex:outputPanel>
+     </apex:outputPanel>
+    </apex:form>
+    
+</apex:tab>
+<apex:tab label="Filters and Sort Order" name="tab3" id="tabThree">
+<apex:form >
+    <apex:outputPanel id="wp">
+        <apex:pageBlock title="Filter Rows" mode="edit">
+            <apex:pageBlockSection columns="1">
+                <apex:pageBlockSectionItem >
+                    <apex:outputlabel for="where" value="Include a Filter/ SOQL WHERE clause (e.g. CreatedDate = THIS_YEAR)"/>
+                    <apex:inputText id="where" value="{!whereclause}" style="width:100%;">
+                        <apex:actionSupport event="onchange" action="{!updateO}" rerender="op" status="statLoad2"/>
+                    </apex:inputText>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                    <apex:outputlabel for="limit" value="Maximum number of rows returned/ SOQL LIMIT (e.g. 20): "/>
+                    <apex:inputText id="limit" value="{!limitclause}" style="width:100%;">
+                        <apex:actionSupport event="onchange" action="{!updateO}" rerender="op" status="statLoad2"/>
+                    </apex:inputText>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                    <apex:outputlabel for="orderby" value="Sort by column(s)/ SOQL ORDER BY clause (e.g. CreatedBy.name, CreatedDate Desc): "/>
+                    <apex:inputText id="orderby" value="{!orderbyclause}" style="width:100%;">
+                        <apex:actionSupport event="onchange" action="{!updateO}" rerender="op" status="statLoad2"/>
+                    </apex:inputText>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+
+        </apex:pageBlock>
+     </apex:outputPanel>
+    </apex:form>
+</apex:tab>
+<apex:tab label="Formatting & Styles" name="tab4" id="tabFour">
+<apex:form >
+    <apex:actionStatus id="statLoad4">
+        <apex:facet name="start">
+            <div id="blur" style="position:absolute; left:1px; top:1px; width:100%; height:100%; text-align:center; vertical-align: middle; background-color: #dcdcdc; opacity:0.7;filter:alpha(opacity=70)">
+            </div>
+            <div id="StatusBox" style="position:absolute; left:50%; top:200px; width: 120px; height:50px; opacity:1;filter:alpha(opacity=100)">
+            <table border="1" cellpadding="0" cellspacing="0" style="border-left-color: #336699;
+            border-bottom-color: #336699; width: 120px; border-top-color: #336699; height:50px;
+            border-right-color:#336699; background-color:#ffffff;">
+            <tr>
+            <td align="left" valign="top">
+            <table border="0" cellpadding="4" cellspacing="0" style="width: 100%; height: 100%">
+            <tr>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;">
+            <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}"/></td>
+            <td style="border-bottom-color:#336699; border-bottom-width:0px; border-bottom-style:solid;vertical-align:middle;color:darkred;font-size:11pt;font-weight:bold;">
+            &nbsp;Loading...</td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+            </div>
+        </apex:facet>
+    </apex:actionStatus>
+    <apex:outputPanel id="fp4">
+        <apex:pageBlock title="Choose a column to change style">
+            <apex:pageBlockSection columns="2">
+                <apex:pageBlockSectionItem >
+                    <apex:selectList value="{!rlf}" size="12" id="f74" style="width: 300px;" >
+                        <apex:selectOptions value="{!rlfList}" />
+                        <apex:actionSupport event="onchange" action="{!getcol}" rerender="cold4" status="statLoad4"/> 
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+                 <apex:pageBlockSectionItem >
+                 <apex:outputPanel id="cold4">
+                     <apex:outputlabel for="c4_1" value="font-family (e.g. times, courier, arial): "/> <apex:inputText id="c4_1" value="{!thisCol.cssff}" style="width:100%"/> <br />
+                     <apex:outputlabel for="c4_2" value="font-size (use points): "/> <apex:inputText id="c4_2" value="{!thisCol.cssfs}" style="width:100%"/> <br />
+                     <apex:outputlabel for="c4_3" value="font-weight (e.g. normal, bold, bolder): "/> <apex:inputText id="c4_3" value="{!thisCol.cssfw}" style="width:100%"/> <br />
+                     <apex:outputlabel for="c4_4" value="text-align (e.g. left, center, right): "/> <apex:inputText id="c4_4" value="{!thisCol.cssta}" style="width:100%"/> <br />
+                     <apex:outputlabel for="c4_5" value="width (if using %, all column widths should total 100%): "/> <apex:inputText id="c4_5" value="{!thisCol.csscw}" style="width:100%"/> <br />
+                     <apex:actionSupport event="onchange" action="{!setcol}" rerender="cold,op" status="statLoad4"/>
+                 </apex:outputPanel>
+                 </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+        <apex:pageBlock title="Select table style">
+            <apex:pageBlockSection columns="1">
+                <apex:pageBlockSectionItem >
+                <apex:outputPanel id="ts">
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_6.png')}" rendered="{!tableStyle='A6'}" 
+                                style="background-color:white; padding:10px; border:2px solid black;"/>
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_6.png')}" rendered="{!tableStyle!='A6'}" style="cursor:pointer;" >
+                        <apex:actionSupport event="onclick" action="{!setStyle}" rerender="ts,op" status="statLoad4">
+                            <apex:param name="s" value="A6"/>
+                        </apex:actionSupport>
+                    </apex:image>
+                    &nbsp;&nbsp;
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_1.png')}" rendered="{!tableStyle='A1'}" 
+                                style="background-color:white; padding:10px; border:2px solid black;"/>
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_1.png')}" rendered="{!tableStyle!='A1'}" style="cursor:pointer;" >
+                        <apex:actionSupport event="onclick" action="{!setStyle}" rerender="ts,op" status="statLoad4">
+                            <apex:param name="s" value="A1"/>
+                        </apex:actionSupport>
+                    </apex:image>
+                    &nbsp;&nbsp;
+                    
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_2.png')}" rendered="{!tableStyle='A2'}" 
+                                style="background-color:white; padding:10px; border:2px solid black;"/>
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_2.png')}" rendered="{!tableStyle!='A2'}" style="cursor:pointer;" >
+                        <apex:actionSupport event="onclick" action="{!setStyle}" rerender="ts,op" status="statLoad4">
+                            <apex:param name="s" value="A2"/>
+                        </apex:actionSupport>
+                    </apex:image>
+                    &nbsp;&nbsp;
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_3.png')}" rendered="{!tableStyle='A3'}" 
+                                style="background-color:white; padding:10px; border:2px solid black;"/>
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_3.png')}" rendered="{!tableStyle!='A3'}" style="cursor:pointer;" >
+                        <apex:actionSupport event="onclick" action="{!setStyle}" rerender="ts,op" status="statLoad4">
+                            <apex:param name="s" value="A3"/>
+                        </apex:actionSupport>
+                    </apex:image>
+                    &nbsp;&nbsp;
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_4.png')}" rendered="{!tableStyle='A4'}" 
+                                style="background-color:white; padding:10px; border:2px solid black;"/>
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_4.png')}" rendered="{!tableStyle!='A4'}" style="cursor:pointer;" >
+                        <apex:actionSupport event="onclick" action="{!setStyle}" rerender="ts,op" status="statLoad4">
+                            <apex:param name="s" value="A4"/>
+                        </apex:actionSupport>
+                    </apex:image>
+                    &nbsp;&nbsp;
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_5.png')}" rendered="{!tableStyle='A5'}" 
+                                style="background-color:white; padding:10px; border:2px solid black;"/>
+                    <apex:image value="{!URLFOR($Resource.SDOC__SDoc,'Style_A_5.png')}" rendered="{!tableStyle!='A5'}" style="cursor:pointer;" >
+                        <apex:actionSupport event="onclick" action="{!setStyle}" rerender="ts,op" status="statLoad4">
+                            <apex:param name="s" value="A5"/>
+                        </apex:actionSupport>
+                    </apex:image>
+                    <br /><br />
+                </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+        </apex:pageBlock>        
+        <apex:outputPanel id="b4">
+            <div style="text-align: center;" >
+                <apex:commandButton value="Insert" oncomplete="insertLine('{!output}');"  rendered="{!rlfList.size>0}" styleClass="buttonStyle"  style="font-size:14px;" status="statLoad4"/>  
+                <apex:commandButton value="Cancel" immediate="true" oncomplete="YAHOO.force.com.hideLine();" style="font-size:14px;" styleClass="buttonStyle" status="statLoad4"/>
+            </div>
+        </apex:outputPanel>
+     </apex:outputPanel>
+    </apex:form>    
+</apex:tab>
+<apex:tab label="Advanced" name="tab5" id="tabFive">
+    <apex:form >
+    <apex:outputPanel id="op">
+        <apex:pageBlock title="Edit Source " mode="edit">
+            <apex:pageBlockSection columns="1">
+                <apex:pageBlockSectionItem >
+                   <apex:inputTextarea id="output" value="{!advancedRL}" style="width:100%; height:400px;"/>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+            <div style="text-align: center;" >
+                <apex:commandButton value="Insert" action="{!setAdvanced}" oncomplete="insertLine('{!advancedRL}');"  rendered="{!rlfList.size>0}"  styleClass="buttonStyle"  style="font-size:14px;" status="statLoad2"/>  
+                <apex:commandButton value="Cancel" immediate="true" oncomplete="YAHOO.force.com.hideLine();" style="font-size:14px;" styleClass="buttonStyle" status="statLoad2"/>
+            </div>
+    </apex:outputPanel>
+    </apex:form>
+</apex:tab>
+</apex:tabPanel>
+</div>
+
+
+    <apex:form >
+    <apex:pageMessages />    
+    <apex:pageBlock title="Edit Template: {!SDOC__SDTemplate__c.name}" id="editBlock" mode="edit">
+        <apex:outputText value="Field for edit:" rendered="false"/>    
+        <apex:selectList value="{!fieldForEdit}" size="1" id="f3" rendered="false"> 
+            <apex:selectOptions value="{!templateFields}" />
+            <apex:actionSupport event="onchange" action="{!swapEditor}"></apex:actionSupport>
+        </apex:selectList>
+        <apex:pageBlockButtons >
+            <apex:commandButton value="Save" action="{!save}"/>
+            <apex:commandButton value="Cancel" action="{!cancel}"/>
+            <apex:commandButton value="Insert Field" oncomplete="YAHOO.force.com.showMe();"/>
+            <apex:commandButton value="Insert Related List" oncomplete="YAHOO.force.com.showLine();"/>
+            <apex:commandButton action="{!EditProperties}" value="Set Advanced Properties" rendered="{!SDTemplate__c.Template_Format__c!='DOC'&&SDTemplate__c.Template_Format__c!='HTML' }"/>
+            <apex:commandButton action="{!EditProperties}" value="Set Advanced MS Word Page Properties" rendered="{!SDOC__SDTemplate__c.SDOC__Template_Format__c=='DOC'}"/>
+            <apex:commandButton action="{!EditProperties}" value="Set Advanced HTML Email Properties" rendered="{!SDOC__SDTemplate__c.SDOC__Template_Format__c=='HTML'}"/>
+        </apex:pageBlockButtons>
+        <apex:pageBlockSection columns="1" rendered="{!whichEditor=='1'}">
+                <apex:pageBlockSectionItem >
+                   <apex:inputTextarea id="editor1" value="{!TemplateXML}" styleClass="ckeditor1" />
+                </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection columns="1" rendered="{!whichEditor=='2'}">
+                <apex:pageBlockSectionItem >
+                   <apex:inputTextarea id="editor2" value="{!SDOC__SDTemplate__c.SDOC__Terms_XML__c}" styleClass="ckeditor1" />
+                </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection columns="1" rendered="{!whichEditor=='3'}">
+                <apex:pageBlockSectionItem >
+                   <apex:inputTextarea id="editor3" value="{!SDOC__SDTemplate__c.SDOC__Template_CSS_XML__c}" styleClass="ckeditor1" />
+                </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+    </apex:pageBlock>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__ContactRole__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML2__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML3__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML4__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML5__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML6__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML7__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML8__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML9__c}" rendered="false"/>
+    <apex:outputText value="{!SDOC__SDTemplate__c.SDOC__Template_XML10__c}" rendered="false"/> 
+    </apex:form>
+
+
+
+<script type="text/javascript">
+
+insert=function(output){
+    YAHOO.force.com.myDialog.hide();
+    var CKEDITOR   = window.CKEDITOR;
+    for ( var i in CKEDITOR.instances ){
+       var currentInstance = i;
+       break;
+    }
+        var oEditor   = CKEDITOR.instances[currentInstance];
+        oEditor.focus();
+        oEditor.insertHtml(output);
+};
+
+insertLine=function(output){
+    YAHOO.force.com.eDialog.hide();
+    var CKEDITOR   = window.CKEDITOR;
+    for ( var i in CKEDITOR.instances ){
+       var currentInstance = i;
+       break;
+    }
+        var oEditor   = CKEDITOR.instances[currentInstance];
+        oEditor.focus();
+        oEditor.insertHtml(output);
+        var s = oEditor.getSelection(); // getting selection
+        var selected_ranges = s.getRanges(); // getting ranges
+        var selected_ranges_org = s.getRanges(); // original
+        var node = selected_ranges[0].startContainer; // selecting the starting node
+        var parents = node.getParents(true); 
+        node = parents[parents.length - 2].getFirst();
+        while (true) {
+            var x = node.getNext();
+            if (x == null) {
+                break;
+            }
+            node = x;
+        }
+        s.selectElement(node);
+        selected_ranges = s.getRanges();
+        selected_ranges[0].collapse(false);  //  false collapses the range to the end of the selected node, true before the node.
+        s.selectRanges(selected_ranges);
+        oEditor.insertHtml('<style type="text/css"/></style>');
+        s.selectRanges(selected_ranges_org);
+};
+
+bind = function(){
+
+var CKEDITOR_BASEPATH = '{!URLFOR($Resource.SDOC__ckEditor,'ckeditor/')}';
+CKEDITOR.editorConfig = function( config )
+        {
+        config.height = '400';
+        // Define changes to default configuration here. For example:
+        config.defaultLanguage = 'en';
+        config.filebrowserBrowseUrl = '{!$Page.SDOC__SDFileList}';
+        config.filebrowserUploadUrl = '{!$Page.SDOC__SDFileUpload}';
+        config.filebrowserImageBrowseUrl = '{!$Page.SDOC__SDFileList}';
+        config.filebrowserImageUploadUrl = '{!$Page.SDOC__SDFileUpload}'; 
+        config.enterMode = CKEDITOR.ENTER_BR;
+        config.shiftEnterMode = CKEDITOR.ENTER_P;
+        config.allowedContent = true;
+//        config.fullPage = true;
+//        config.extraPlugins = 'tableresize';
+        config.toolbar =
+        [
+        ['Source','-','Preview','-','Maximize','-', 'ShowBlocks','-','Templates'],
+        ['Cut','Copy','Paste','PasteText','PasteFromWord','-','Print'],
+        ['Undo','Redo','-','Find','Replace'],
+        ['Image','Table','Link','PageBreak'],
+        '/',
+        ['Styles','Format','Font','FontSize'],
+        ['TextColor','BGColor'],        
+        ['Bold','Italic','Underline','Strike','-',],
+        ['NumberedList','BulletedList','-','Outdent','Indent'],
+        ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock']
+        ];
+        };
+        if (!document.getElementsByClassName) {
+            document.getElementsByClassName = function (cn) { 
+                var rx = new RegExp("(?:^|\\s)" + cn+ "(?:$|\\s)");
+                var allT = document.getElementsByTagName("*"), allCN = [], ac="", i = 0, a;
+                    while (a = allT[i=i+1]) {
+                      ac=a.className;
+                      if ( ac && ac.indexOf(cn) !==-1) {
+                        if(ac===cn){ allCN[allCN.length] = a; continue;   }
+                        rx.test(ac) ? (allCN[allCN.length] = a) : 0;
+                      }
+                    }
+                return allCN;
+            }
+        }
+        
+        if (document.getElementsByClassName){
+            var e = document.getElementsByClassName( 'ckeditor1' );
+            for(var i=0;i<e.length;i++)
+                {
+                var editor1 = CKEDITOR.replace( e[i]);
+                }
+           }
+}
+windowonload = function(){
+        bind();
+        YAHOO.force.com.init();
+}
+
+addEvent(window, 'load', function(){ windowonload() });
+function addEvent(element, event, fn) {
+    if (element.addEventListener)
+        element.addEventListener(event, fn, false);
+    else if (element.attachEvent)
+        element.attachEvent('on' + event, fn);
+}
+
+</script>
+
+</apex:page>

@@ -1,0 +1,301 @@
+<apex:component controller="ActionTagController">
+<script>
+    $(document).ready(function() {
+		$('[id$=dtStart]').datetimepicker({
+			timepicker: false, 
+			format: 'm/d/Y',
+			scrollInput: false,
+			onSelectDate:function(db,$input){
+				$('[id$=dtEnd]').datetimepicker({
+					defaultDate: $('[id$=dtStart]').val()?$('[id$=dtStart]').val() : false, formatDate:'m/d/Y'
+				});
+				$input.datetimepicker('hide');
+			}
+		});
+		$('[id$=dtEnd]').datetimepicker({
+			timepicker: false, 
+			format: 'm/d/Y',
+			scrollInput: false,
+			onShow:function( ct ) {
+				this.setOptions({
+					defaultDate: $('[id$=dtStart]').val()?$('[id$=dtStart]').val() : false, formatDate:'m/d/Y',
+					minDate: $('[id$=dtStart]').val() ? $('[id$=dtStart]').val() : false, formatDate:'m/d/Y'
+				});
+			},
+			onSelectDate:function(dp,$input){
+				$input.datetimepicker('hide');
+			}
+		});
+	});
+    $('#actionTagDiv input').keypress(function(e) {
+        if (window.event && window.event.keyCode == 13 || e.which == 13) {
+            return false;
+         } else {
+            return true;
+         }
+    });
+	function setActionDatePicker() {
+		$('[id$=dtActionStart]').datetimepicker({
+			timepicker: false, 
+			format: 'm/d/Y',
+			scrollInput: false,
+			onSelectDate:function(dp,$input){
+				$input.datetimepicker('hide');
+			}
+		});
+	} 
+</script>
+<style>
+	.title {
+		text-align:center;
+		font-weight:700;
+		font-size:large;
+		margin-bottom:20px;
+	}
+	.smallText {
+		font-size: small;
+		line-height: 70%;
+	}
+	.smallHeight {
+		line-height: 70%;
+	}
+</style>
+	<apex:attribute name="pgController"
+		type="BulkEntryController"
+		assignTo="{!pageController}"
+		required="true"
+		description="The controller for the page"
+	/>
+	<apex:actionRegion id="campSearchRegion">
+	<div id="actionTagDiv">
+	<apex:outputPanel id="campaignPanel">
+	<apex:outputPanel rendered="{! ISNULL(selectedCampaign)}">
+	<div>
+	<div class="title">
+        Choose Related Action<br/>
+        <span class='smallText'>Enter fields to search by:</span>
+	</div>   
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="campName" value="Name" styleClass="smallHeight"/>
+			<br/>
+			<span class='smallText'>(10-character code)</span>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputText id="campName" styleClass="form-control" value="{!campaignName}"/>
+		</div>
+		<div class="col-md-3">
+			<apex:outputLabel for="dtStart" value="Earliest Start Date"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputText id="dtStart" size="7" styleClass="form-control" value="{!dtStartString}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="promoDescription" value="Internal Description Contains"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="promoDescription" styleClass="form-control" value="{!camp.Promo_Description__c}"/>
+		</div>
+		<div class="col-md-3 form-group">			
+			<apex:outputLabel for="dtEnd" value="Latest Start Date"/>
+		</div>
+		<div class="col-md-3 form-group">			
+			<apex:inputText id="dtEnd" size="7" styleClass="form-control" value="{!dtEndString}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="entityName" value="Entity Name Contains"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputText id="entityName" size="25" styleClass="form-control" value="{!entityName}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="tacticOwnerCategory" value="Tactic Owner Category"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="tacticOwnerCategory" styleClass="form-control" value="{!camp.Tactic_Owner_Category_Global__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="tacticOwner" value="Tactic Owner"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="tacticOwner" styleClass="form-control" value="{!camp.Tactic_Owner_Global__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="state" value="State"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="state" styleClass="form-control" value="{!camp.State_Global__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="nationalCampaign" value="National Campaign"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="nationalCampaign" styleClass="form-control" value="{!camp.National_Campaign_Global__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="strategy" value="National Campaign Strategy"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="tactic" styleClass="form-control" value="{!camp.Campaign_Strategy_Global__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="subCampaign" value="National Sub-Campaign"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="subCampaign" styleClass="form-control" value="{!camp.Local_Campaign_Global__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="grassroots" value="Local/Grassroots Campaign Contains"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputText id="grassroots" styleClass="form-control" value="{!localGrassrootsCampName}"/>
+		</div>
+	</div>
+    <div style="text-align:center">
+	    	<apex:commandButton value="Search" action="{!search}" reRender="campSearchResultsPanel"/>
+	    	<apex:commandButton value="Cancel" 
+				style="margin-left:20px"
+				onComplete="toggleEnhancedSearch()"
+	    	/>
+	</div>
+	</div>
+	
+	<div>
+        <div class="row">
+          <div class="col-md-12">
+            <apex:actionStatus for="campSearchRegion">
+              <apex:facet name="start">
+                <apex:image value="/img/loading.gif" style="vertical-align: middle;" >Searching...</apex:image>
+              </apex:facet>
+            </apex:actionStatus>
+          </div>
+        </div>
+		<apex:outputPanel id="campSearchResultsPanel" styleClass="entryTable">
+			<div>
+				<apex:outputPanel rendered="{! ! ISNULL(campList)}">
+					<apex:outputPanel rendered="{! campList.size < 200}">
+						{!campList.size} Campaigns Found
+					</apex:outputPanel>
+					<apex:outputPanel rendered="{! campList.size >= 200}">
+						First 200 Campaigns shown. Use additional criteria to narrow your search.
+					</apex:outputPanel>
+				</apex:outputPanel>
+			</div>
+			<apex:dataTable value="{!campList}"
+				var="cl"
+				rendered="{! (! ISNULL(campList)) && campList.size > 0}"
+				styleClass="table table-striped"
+			>
+				<apex:column >
+					<apex:facet name="header">Name</apex:facet>
+					<apex:commandLink value="{!cl.Name}"
+						action="{!setSelectedCampaign}"
+						reRender="campaignPanel, relatedActionDisplay, actionTagPanel"
+						onComplete="setActionDatePicker();"
+					>
+						<apex:param name="selectedCampaignId" value="{!cl.Id}" assignTo="{!selectedCampaignId}"/>
+					</apex:commandLink>
+				</apex:column>
+				<apex:column >
+					<apex:facet name="header">Description</apex:facet>
+					<apex:outputText value="{!cl.Promo_Description__c}"/>
+				</apex:column>
+				<apex:column >
+					<apex:facet name="header">Record Type</apex:facet>
+					<apex:outputText value="{!cl.RecordType.Name}" />
+				</apex:column>
+				<apex:column >
+					<apex:facet name="header">Club Entity</apex:facet>
+					<apex:outputText value="{!cl.Club_Entity__r.Name}"/>
+				</apex:column>
+				<apex:column >
+					<apex:facet name="header">Start Date</apex:facet>
+					<apex:outputText value="{0, date, MM/dd/yyyy}">
+    					<apex:param value="{!cl.StartDate}" /> 
+					</apex:outputText>
+				</apex:column>
+			</apex:dataTable>
+		</apex:outputPanel>
+	</div>
+	<apex:actionFunction action="{!cancelActionTag}" 
+	                     name="searchCancelled" 
+	/>
+	</apex:outputPanel>
+	</apex:outputPanel>
+	
+	<apex:outputPanel id="actionTagPanel">
+	
+	<apex:outputPanel rendered="{! ! ISNULL(selectedCampaign)}">
+    <apex:pageMessages id="actionErrors"/>
+	<apex:outputPanel id="relatedActionDisplay">
+			Related Action: {!selectedCampaign.Promo_Description__c}<br/>&nbsp;<br/>
+	</apex:outputPanel>
+	<apex:outputPanel >
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="action" value="Action"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputField id="action" styleClass="form-control" value="{!action.Action__c}"/>
+		</div>
+		<div class="col-md-3 form-group">			
+			<apex:outputLabel for="status" value="Action Status"/>
+		</div>
+		<div class="col-md-3 form-group">			
+			<apex:inputField id="status" styleClass="form-control" value="{!action.Action_Status__c}"/>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-3">
+			<apex:outputLabel for="actionDate" value="Action Date"/>
+		</div>
+		<div class="col-md-3 form-group">
+			<apex:inputText id="dtActionStart" size="7" styleClass="form-control" value="{!dtActionString}"/>
+		</div>
+	</div>
+
+	<div style="text-align:center">
+			<apex:commandButton value="Save"
+				id="saveActionButton"
+				action="{!saveTag}"
+				reRender="saveActionButton, actionErrors, bulkProcessingOptionsPanel"
+				onComplete="{!closeAction}"
+			/>
+		<apex:commandButton value="Choose a different related action"
+			style="margin-left:20px"
+			action="{!resetCampaign}"
+			reRender="campaignPanel, actionTagPanel"
+		/>
+			<apex:commandButton value="Cancel"
+				style="margin-left:20px"
+				action="{!cancelActionTag}"
+				onClick="closeTagModal(); return false"
+			/>
+	</div>
+
+	</apex:outputPanel>
+	</apex:outputPanel>
+	</apex:outputPanel>
+	
+	</div>
+	</apex:actionRegion>
+          
+</apex:component>

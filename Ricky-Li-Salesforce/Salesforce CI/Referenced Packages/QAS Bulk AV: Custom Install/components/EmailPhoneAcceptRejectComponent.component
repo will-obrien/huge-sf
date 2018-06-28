@@ -1,0 +1,100 @@
+<apex:component access="global">
+  <apex:attribute access="global" name="SFEmailPhoneLabel" description="Email/Phone label." type="String" required="false"/>
+  <apex:attribute access="global" name="CAEmailPhone" description="Email/Phone of the valid address." type="String" required="false"/>
+  <apex:attribute access="global" name="SFFields" description="Array of objects for storing SF fields labels and values." type="QAS_NA.SFField[]" required="false"/>
+  <apex:attribute access="global" name="SFEmailPhone" description="Email/Phone of the original address." type="String" required="false"/>
+ 
+  <apex:attribute access="global" name="ConfigurationName" description="Configuraion name" type="String" required="false"/>
+  <apex:attribute access="global" name="SObjectName" description="sObject name" type="String" required="false"/>
+  <apex:attribute access="global" name="AddressValidated" description="Indicates whether QAS validated the email/phone" type="Boolean" required="false"/>
+  <apex:attribute access="global" name="ResultsMessage" description="" type="String" required="false"/>
+  <apex:attribute access="global" name="TitleMessage" description="Title message that will be shown to the user." type="String" required="false"/>
+  <apex:attribute access="global" name="SubtitleMessage" description="Subtitle message that will be shown to the user." type="String" required="false"/>
+  <apex:attribute access="global" name="AddressAccepted" description="Indicates whether the user accepted the validated address." type="Boolean" required="false" />
+  <apex:attribute access="global" name="IsInEditMode" description="Indicates whether the user has chosen to edit the address." type="Boolean" required="false" />
+    
+  <apex:attribute access="global" name="IsVerified" description="Indicates if verification level is Verified." type="Boolean" required="false" />
+  <apex:attribute access="global" name="IsInteractionRequired" description="Indicates if verification level is Interaction Required." type="Boolean" required="false" />
+  <apex:attribute access="global" name="IsMultiple" description="Indicates if verification level is Multiple." type="Boolean" required="false" />
+  <apex:attribute access="global" name="IsNone" description="Indicates if verification level is None." type="Boolean" required="false" />
+ 
+  <apex:attribute access="global" name="PicklistItems" description="Picklist values." type="SelectOption[]" required="false" />
+  <apex:attribute access="global" name="SelectedPicklistItem" description="When verification level is multiple, this is where the selected email/phone will be stored." type="String" required="false" />
+  <apex:attribute access="global" name="DummyAddressAccepted" description="" type="Boolean" required="false" default="true" />
+  <apex:attribute access="global" name="ConfigurationTypeName" description="" type="String" required="false" />
+   
+  <apex:pageBlock id="maingPageBlock" title="Verify your {!ConfigurationName} details">
+     <apex:inputHidden value="{!AddressAccepted}" id="qas_IsAddressAccepted"/>
+     <apex:inputHidden value="{!IsInEditMode}" id="qas_IsInEditMode"/>
+  
+     <apex:inputHidden value="{!CAEmailPhone}" id="qas_caEmailPhoneHidden"/>
+     <apex:inputHidden value="{!SFEmailPhone}" id="qas_sfEmailPhoneHidden"/>
+     <div class="qas2-comp-wrap">
+      
+        <div class="label-wrap">
+            <h2>{!TitleMessage}</h2>
+            <p>{!SubtitleMessage}</p>
+        </div>
+      
+        <div class="select-wrap">
+            <table cellpadding="0" cellspacing="0" style="border-collapse:collapse; width:100%;">
+            <tr>
+                <td class="select-container-td active" style="{!IF(IsNone, 'width:0.1%;', '')}">    
+                    <c:EmailPhoneInteractionRequiredComponent rendered="{!(IsVerified || IsInteractionRequired)}" 
+                        IsVerified="{!IsVerified}"
+                        EmailPhoneLabel="{!SFEmailPhoneLabel}"
+                        CAEmailPhone="{!CAEmailPhone}"
+                        ConfigurationTypeName="{!ConfigurationTypeName}">
+                    </c:EmailPhoneInteractionRequiredComponent>
+            
+                    <c:EmailPhoneMultipleComponent rendered="{!IsMultiple}"
+                        PicklistItems="{!PicklistItems}"
+                        SelectedPicklistItem="{!SelectedPicklistItem}">
+                    </c:EmailPhoneMultipleComponent>
+                </td>
+                <td class="select-container-td select-container-td-phone right {!IF(IsNone, ' active', '')}" style="{!IF(IsNone, 'width:99.9%; border-left:none;', '')}">
+                    <apex:outputPanel id="origAddress">  
+                         <div class="select-container select-container-phone right">
+                             <div class="radio">
+                                <span onclick="qas_acceptRejectAddressRadioButtons(false, '{!JSENCODE($Component.maingPageBlock)}');">
+                                    <apex:selectRadio rendered="true" value="{!DummyAddressAccepted}" id="qas_useAsEnteredRadio">
+                                        <apex:selectOption itemValue="{!IsNone}" itemLabel="Use {!ConfigurationTypeName} as entered *" />
+                                    </apex:selectRadio>
+                                </span>
+                                <p>* {!ResultsMessage}</p>
+                             </div>
+                             <hr />
+                             <h5 class="qas_title qas-title">You entered: <a href="javascript:;">Edit</a></h5>
+                              
+                             <apex:outputPanel id="qas_origAddressSubSectionInputTexts" style="display:none">
+                                <dl class="qas_datalist">  
+                                    <apex:repeat value="{!SFFields}" var="sfField"> 
+                                        <dt><strong>{!sfField.Label}:</strong></dt>
+                                        <dd><input type="hidden" value="{!sfField.Value}" /><apex:inputText styleClass="text" value="{!sfField.Value}"/></dd> 
+                                    </apex:repeat>
+                                    <dt></dt>
+                                    <dd>
+                                        <button id="cancelButton" type="button">Cancel</button>
+                                    </dd>
+                                </dl>
+                             </apex:outputPanel>
+                                    
+                             <apex:outputPanel id="qas_origAddressSubSectionLabels">
+                                <dl class="qas_datalist">
+                                    <apex:repeat value="{!SFFields}" var="sfField">
+                                        <dt><strong>{!sfField.Label}:</strong></dt>
+                                        <dd>{!sfField.Value}</dd> 
+                                    </apex:repeat>
+                                    <dt><strong>&nbsp;</strong></dt><dd><p>&nbsp;</p></dd>
+                                </dl>
+                             </apex:outputPanel>        
+                         </div>
+                    </apex:outputPanel>
+                </td>
+            </tr>
+            </table>
+        </div>
+     </div>
+  </apex:pageBlock>
+    
+</apex:component>

@@ -1,0 +1,263 @@
+<apex:page controller="lmscons.MyTrainingController" showHeader="false" >
+<!-- --------------------------------- -->
+    <apex:pageMessages id="pageMessages" />
+    <apex:outputPanel rendered="{!NOT(renderPage)}">
+        <table cellspacing="10">
+            <tbody>
+                <tr>
+                    <td>
+                        <span style="font-weight: bold; font-size: 12pt;">Insufficient Privileges</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        You do not have the level of access necessary to perform the operation you requested. Please contact the owner of the record or your administrator if access is necessary.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </apex:outputPanel>
+
+    <!-- main data -->
+    <apex:outputPanel id="rr2">
+    <apex:outputPanel rendered="{!renderPage}" id="maindata">
+    <apex:form id="f">
+
+        <apex:actionStatus id="loadStatus">
+            <apex:facet name="start">
+                <c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+                                borderSize="3" height="50px" width="120px" ImageUrl="/img/loading.gif"
+                                Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+            </apex:facet>
+        </apex:actionStatus>
+
+        <table width="100%" border="0" cellpadding="2" cellspacing="0" >
+        <tr >
+            <td width="70%">
+            	            	<apex:outputLink value="JavaScript:open_popup()"  rendered="{!lmsConfig.lmscons__Enable_Catalog_Search__c}" style="font-size: 125%" id="theLink1">Search the Training catalog</apex:outputLink>
+
+            <!-- <input value="Search" class="btn" name="Search1" onclick="open_popup()" title="Search" type="button" /> -->
+            </td>
+
+            <td ALIGN="right" width="30%" >
+                <!-- <apex:actionFunction name="resetTrainingItems" action="{!resetTrainingItems}" rerender="trainingPathId,additionalTrainingId" status="loadStatus"/>
+                <b>{!$Label.MyTraining_FilterBy}:&nbsp;&nbsp;</b>
+                <apex:selectList value="{!trainingFilter}" size="1" onchange="resetTrainingItems();" style="font-size:8pt">
+                    <apex:selectOptions value="{!TrainingFilters}"/>
+                </apex:selectList>-->
+            </td>
+        </tr>
+        </table>
+        <!-- Training Classes -->
+        <apex:outputPanel id="modules1">
+        <apex:pageBlock id="additionalTrainingId" title="{!$Label.MyTraining_BTitle2}">
+
+		<apex:pageBlockSection columns="1" collapsible="false">
+            <apex:pageBlockTable value="{!TranscriptLines}" var="Transcript" rendered="{!(TranscriptLinesSize!=0)}">
+                 <apex:column headerValue="{!$Label.MyTraining_Column1}" width="58%">
+                    <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Title__c}" />
+                </apex:column>
+
+                <apex:column headerValue="Status" width="80px" rendered="{!lmsConfig.lmscons__Show_status__c}">
+                    <apex:outputField value="{!Transcript.lmscons__Status__c}" rendered="true"/>
+                </apex:column>
+
+                <apex:column headerValue="{!$Label.MyTraining_Column2}" width="180px" rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+                    <c:ProgressBar percent="{!Transcript.lmscons__Percent_Complete__c}"  ispath="false" score="{!Transcript.lmscons__Score__c}" />
+                </apex:column>
+
+                <apex:column headerValue="{!$Label.MyTraining_Column4}" width="80px" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+                    <apex:outputText value="{!ROUND(VALUE(Transcript.lmscons__Score__c), 0)}" rendered="true"/>
+                </apex:column>
+
+                <apex:column headerValue="{!$Label.MyTraining_Column5}" width="80px" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+                    <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Duration__c}" rendered="true"/>
+                     {!IF(NOT(ISBLANK(Transcript.Training_Content__r.lmscons__Duration__c)),$Label.MyTraining_min,'')}
+                </apex:column>
+
+
+                <apex:column headerValue="{!$Label.MyTraining_Column3}" width="100px"  rendered="{!lmsConfig.lmscons__Show_Due_Date__c}">
+                    <apex:outputField value="{!Transcript.lmscons__Due_Date__c}" />
+                </apex:column>
+
+
+                <apex:column style="text-align: left" width="20px">
+                    <apex:outputLink rendered="{!IF(Transcript.Training_Content__r.lmscons__Cornerstone_ID__c=='',false, true)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!Transcript.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none; color:black" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+                    <apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+                        <apex:outputLink rendered="{!IF(Transcript.lmscons__Percent_Complete__c==100.0, true, false)}" value="/apex/LMS_Certificate?Id={!Transcript.Id}" styleClass="btn" style="text-decoration:none" target="_blank">Print Certificate</apex:outputLink>
+                    </apex:outputPanel>
+                </apex:column>
+            </apex:pageBlockTable>
+          </apex:pageBlockSection>
+
+            <apex:outputPanel rendered="{!(TranscriptLinesSize==0)}">
+                <p>{!$Label.Consumer_Global_NoRecordsToDisplay}</p>
+            </apex:outputPanel>
+        </apex:pageBlock>
+        </apex:outputPanel>
+        <!-- Training Paths Training -->
+        <apex:outputPanel id="courses1">
+        <apex:pageBlock id="trainingPathId" title="{!$Label.MyTraining_BTitle1}">
+
+            <apex:pageBlockSection title="Title" collapsible="true" rendered="false"/>
+            <apex:repeat value="{!TrainingPathList}" var="Path">
+                <apex:pageBlockSection title="{!Path.Title}" columns="1" collapsible="true">
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel rendered="{!lmsConfig.lmscons__Show_progress_bar__c}" >{!$Label.MyTraining_OverallProgress}
+                        </apex:outputLabel>
+                        <apex:outputPanel >
+                            <c:ProgressBar rendered="{!lmsConfig.lmscons__Show_progress_bar__c}" percent="{!Path.Progress}" score="0" ispath="true" />
+                            <apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}" style="position:absolute; margin-top:-17px; margin-left:175px">
+                                <apex:outputLink rendered="{!IF(Path.Progress==100.0, true, false)}" value="/apex/LMS_Certificate?Id={!Path.Id}" styleClass="btn" style="text-decoration:none" target="_blank">Print Certificate</apex:outputLink>
+                            </apex:outputPanel>
+                        </apex:outputPanel>
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockTable value="{!Path.TranscriptLines}" var="Transcript">
+                        <apex:column headerValue="{!$Label.MyTraining_Column1}" width="58%" styleClass="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c == 0, 'zero','')}">
+                            <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Title__c}" />
+                        </apex:column>
+                        <apex:column headerValue="Status" width="80px" rendered="{!lmsConfig.lmscons__Show_status__c}">
+                            <apex:outputField value="{!Transcript.lmscons__Status__c}" rendered="true"/>
+                        </apex:column>
+                        <apex:column headerValue="{!$Label.MyTraining_Column2}"  width="180px"  rendered="{!lmsConfig.lmscons__Show_progress_bar__c}" styleClass="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c == 0, 'zero','')}">
+                            <c:ProgressBar percent="{!Transcript.lmscons__Percent_Complete__c}"  ispath="false" score="{!Transcript.lmscons__Score__c}"  />
+                        </apex:column>
+                        <apex:column headerValue="{!$Label.MyTraining_Column4}" width="80px" rendered="{!lmsConfig.lmscons__Show_Score__c}"  styleClass="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c == 0, 'zero','')}">
+                            <!--<apex:outputField value="{!Transcript.lmscons__Score__c}" rendered="true"/>-->
+                            <apex:outputText value="{!ROUND(VALUE(Transcript.lmscons__Score__c), 0)}" rendered="true"/>
+                        </apex:column>
+                        <apex:column headerValue="{!$Label.MyTraining_Column5}" width="80px" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+                            <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Duration__c}" rendered="true"/>
+                            {!IF(NOT(ISBLANK(Transcript.Training_Content__r.lmscons__Duration__c)),$Label.MyTraining_min,'')}
+                        </apex:column>
+                        <apex:column headerValue="{!$Label.MyTraining_Column3}" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}" width="100px" styleClass="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c == 0, 'zero','')}">
+                            <apex:outputField value="{!Transcript.lmscons__Due_Date__c}" />
+                        </apex:column>
+                        <apex:column style="text-align: left" width="20px" styleClass="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c == 0, 'zero','')}">
+                            <apex:outputLink rendered="{!IF(Transcript.Training_Content__r.lmscons__Cornerstone_ID__c=='',false, true)}" value="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c != -1,'/apex/ConsumerDirector?action=LaunchContent&tuId='+Transcript.lmscons__Training_User_License__c,'#')}"  onclick="{!IF(Transcript.Training_Path_Item__r.lmscons__Sequence__c != -1,'', 'alert('+Transcript.Training_Content__r.lmscons__Description__c+'); return false;')}" styleClass="btn" style="text-decoration:none; color:black" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:pageBlockSection>
+            </apex:repeat>
+
+            <apex:outputPanel rendered="{!(TrainingPathListSize==0)}">
+                <p>{!$Label.Consumer_Global_NoRecordsToDisplay}</p>
+            </apex:outputPanel>
+        </apex:pageBlock>
+        </apex:outputPanel>
+
+        <!-- HDL Training -->
+
+            <!-- Training Classes -->
+            <apex:pageBlock id="HDLadditionalTrainingId" title="{!$Label.MyTraining_BTitle3}">
+                <apex:pageBlockTable value="{!HDLTranscriptLines}" var="Transcript" rendered="{!(HDLTranscriptLinesSize!=0)}">
+                    <apex:column headerValue="{!$Label.MyTraining_Column1}" width="58%">
+                        <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Title__c}" />
+                    </apex:column>
+                    <apex:column headerValue="Status" width="80px" rendered="{!lmsConfig.lmscons__Show_status__c}">
+                        <apex:outputField value="{!Transcript.lmscons__Status__c}" rendered="true"/>
+                    </apex:column>
+                    <apex:column headerValue="{!$Label.MyTraining_Column2}" width="180px"  rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+                        <c:ProgressBar percent="{!Transcript.lmscons__Percent_Complete__c}"  ispath="false" score="{!Transcript.lmscons__Score__c}"  />
+                    </apex:column>
+                    <apex:column headerValue="{!$Label.MyTraining_Column4}" width="80px" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+                        <apex:outputField value="{!Transcript.lmscons__Score__c}" rendered="true"/>
+                    </apex:column>
+                    <apex:column headerValue="{!$Label.MyTraining_Column5}" width="80px" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+                        <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Duration__c}" rendered="true"/>
+                        {!IF(NOT(ISBLANK(Transcript.Training_Content__r.lmscons__Duration__c)),$Label.MyTraining_min,'')}
+                    </apex:column>
+                    <apex:column headerValue="{!$Label.MyTraining_Column3}" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}" width="100px">
+                        <apex:outputField value="{!Transcript.lmscons__Due_Date__c}" />
+                    </apex:column>
+                    <apex:column style="text-align: center" width="150px">
+                        <apex:outputLink rendered="{!IF(Transcript.Training_Content__r.lmscons__Cornerstone_ID__c=='',false, true)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!Transcript.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none" target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+                        <apex:outputPanel rendered="{!lmsConfig.lmscons__Enable_certificate__c}">
+                            <apex:outputLink rendered="{!IF(Transcript.lmscons__Percent_Complete__c==100.0, true, false)}" value="/apex/LMS_Certificate?Id={!Transcript.Id}" styleClass="btn" style="text-decoration:none" target="_blank">Print Certificate</apex:outputLink>
+                        </apex:outputPanel>
+                    </apex:column>
+                </apex:pageBlockTable>
+
+                <apex:outputPanel rendered="{!(HDLTranscriptLinesSize==0)}">
+                    <p>{!$Label.Consumer_Global_NoRecordsToDisplay}</p>
+                </apex:outputPanel>
+            </apex:pageBlock>
+
+        <!-- HDL Training Paths Training -->
+        <apex:pageBlock id="HDLtrainingPathId" title="{!$Label.MyTraining_BTitle4}">
+
+
+
+                <apex:repeat value="{!HDLTrainingPathList}" var="Path">
+                    <apex:pageBlockSection title="{!Path.Title}" columns="1" collapsible="true">
+                        <apex:pageBlockSectionItem rendered="{!lmsConfig.lmscons__Show_progress_bar__c}" >
+                            <apex:outputLabel >{!$Label.MyTraining_OverallProgress}</apex:outputLabel>
+                            <apex:outputPanel rendered="{!lmsConfig.lmscons__Show_progress_bar__c}"><c:ProgressBar percent="{!Path.Progress}"  ispath="true" score="0"  /></apex:outputPanel>
+                        </apex:pageBlockSectionItem>
+
+                        <apex:pageBlockTable value="{!Path.TranscriptLines}" var="Transcript">
+                            <apex:column headerValue="{!$Label.MyTraining_Column1}" width="58%">
+                                <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Title__c}" />
+                            </apex:column>
+                            <apex:column headerValue="Status" width="80px" rendered="{!lmsConfig.lmscons__Show_status__c}">
+                                <apex:outputField value="{!Transcript.lmscons__Status__c}" rendered="true"/>
+                            </apex:column>
+                            <apex:column headerValue="{!$Label.MyTraining_Column2}"  width="180px"  rendered="{!lmsConfig.lmscons__Show_progress_bar__c}">
+                                <c:ProgressBar percent="{!Transcript.lmscons__Percent_Complete__c}"  ispath="false" score="{!Transcript.lmscons__Score__c}"  />
+                            </apex:column>
+                            <apex:column headerValue="{!$Label.MyTraining_Column4}" width="80px" rendered="{!lmsConfig.lmscons__Show_Score__c}">
+                                <apex:outputField value="{!Transcript.lmscons__Score__c}" rendered="true"/>
+                            </apex:column>
+                            <apex:column headerValue="{!$Label.MyTraining_Column5}" width="80px" rendered="{!lmsConfig.lmscons__Show_Duration__c}">
+                                <apex:outputField value="{!Transcript.Training_Content__r.lmscons__Duration__c}" rendered="true"/>
+                                {!IF(NOT(ISBLANK(Transcript.Training_Content__r.lmscons__Duration__c)),$Label.MyTraining_min,'')}
+                            </apex:column>
+                            <apex:column headerValue="{!$Label.MyTraining_Column3}" rendered="{!lmsConfig.lmscons__Show_Due_Date__c}" width="100px">
+                                <apex:outputField value="{!Transcript.lmscons__Due_Date__c}" />
+                            </apex:column>
+                            <apex:column style="text-align: center" width="150px">
+                                <apex:outputLink rendered="{!IF(Transcript.Training_Content__r.lmscons__Cornerstone_ID__c=='',false, true)}" value="/apex/ConsumerDirector?action=LaunchContent&tuId={!Transcript.lmscons__Training_User_License__c}" styleClass="btn" style="text-decoration:none; " target="_blank">{!$Label.MyTraining_LaunchCourse}</apex:outputLink>
+                            </apex:column>
+                        </apex:pageBlockTable>
+                    </apex:pageBlockSection>
+                </apex:repeat>
+
+            <apex:outputPanel rendered="{!(HDLTrainingPathListSize==0)}">
+                <p>{!$Label.Consumer_Global_NoRecordsToDisplay}</p>
+            </apex:outputPanel>
+        </apex:pageBlock>
+        <!-- search -->
+			            	<apex:outputLink value="JavaScript:open_popup()"  rendered="{!lmsConfig.lmscons__Enable_Catalog_Search__c}" style="font-size: 125%" id="theLink2">Search the Training catalog</apex:outputLink><br /><br />
+
+    </apex:form>
+    </apex:outputPanel>
+    </apex:outputPanel>
+   <script type="text/javascript">
+      window.onkeypress = handleKeyPress;
+      function handleKeyPress(e){
+        var eventInstance = window.event ? event : e;
+        //alert('entering key enter');
+        var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+        if (keyCode == 13){
+            afdoSearch();
+            return false;
+        }
+      }
+
+	function open_popup(){
+		newwindow=window.open('/apex/Search','name','height=500, width=1000, resizable=1, scrollbars=1');
+		if (window.focus) {newwindow.focus()}
+	}
+
+	function redirectWindow(){
+		window.location.href = window.location.href;//'/apex/My_Training_Custom';
+	}
+
+
+    </script>
+<!-- --------------------------------- -->
+
+
+
+
+</apex:page>

@@ -1,0 +1,142 @@
+<apex:page controller="TIMBASURVEYS.CustomerPortalSurveyListController" tabstyle="TimbaSurveys_CP__tab">
+    <!-- JQuery Lib -->
+    <script type="text/javascript" src="{!URLFOR($Resource.jqTransform, 'required/jquery-1.4.2.min.js')}" ></script>
+    <style type="text/css">
+        .surveyPanel{
+            position:relative;
+            display:inline-block;
+            width:35%;
+            margin:0 10px;
+            vertical-align:top;
+        }
+        /* Paginator Styles*/
+        .surveyPanel .paginator{
+            position:relative;
+            bottom:0;
+        }
+        .surveyPanel .paginator a:link,
+        .surveyPanel .paginator a:visited{
+            color:#0063E3;
+            display:block;
+            padding:3px 6px;
+            font-weight:bold;
+            text-decoration:none;
+        }
+        .surveyPanel .paginator a.disable{
+            color:#666666;
+            display:block;
+            font-weight:bold;
+            padding:3px 4px;
+            text-decoration:none;
+        }
+        /* End Paginator Styles*/
+        ul.survey_list, ul.survey_list li {
+            list-style: none;
+            margin:0;
+            padding:0;
+        }
+
+        ul.survey_list li {
+            list-style: none;
+            padding:0;
+            margin:2px;
+        }
+
+        ul.survey_list {
+            margin:10px;
+            min-height:180px;
+        }
+
+        h2.surveylist_title {
+            margin-bottom:4px;
+            border-bottom:2px solid black;
+            font-size:13px;
+        }
+        .overlay{
+            position:absolute;
+            top:0;
+            display:none;
+            width:100%;
+            height:100%;
+
+            background:#FFF;
+            /* Opacity Hacks */
+            -moz-opacity:.50;
+            filter:alpha(opacity=50);
+            opacity:.50;
+        }
+        .overlay img{
+            position:absolute;
+            top:50%;
+            left:35%;
+            margin:-32px -27px 0 0;
+        }
+
+    </style>
+    <script type="text/javascript">
+        function ajaxStart(overlay){
+            overlay.fadeIn('slow');
+        }
+        function ajaxComplete(){
+            overlay.fadeOut('slow');
+        }
+    </script>
+
+    <apex:pageblock >
+        <apex:outputPanel id="AvailableSurveysPanel" StyleClass="surveyPanel" rendered="{!IF(isCustomerPortal && AvailabeSurveyList.size!=0  ,true,false)}">
+            <h2 class="surveylist_title"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_List_of_available}" /></h2>
+            <ul class="survey_list">
+                <apex:repeat value="{!AvailabeSurveyList}" var="recip">
+                    <li>
+                        <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                            <apex:param name="id" value="{!recip.Survey__r.Id}" />
+                            <apex:param name="cId" value="{!recip.TIMBASURVEYS__RelatedContact__c}" />
+                            <apex:param name="portal_user" value="true"/>
+                            <apex:outputText value="{!recip.Survey__r.Name}" />
+                        </apex:outputLink>
+                    </li>
+                </apex:repeat>
+            </ul>
+            <apex:form styleClass="paginator">
+                <!-- Pagination Prev Buttons -->
+                <apex:commandLink onClick="javascript:ajaxStart($('.overlay.available'));" onComplete="ajaxComplete( $('.overlay.available') )" style="float:left"  reRender="AvailableSurveysPanel" action="{!availableSurveySetController.goprevious}" rendered="{!availableSurveySetController.RenderPrevious}" value="<<Previous"/>
+                <apex:outputPanel rendered="{!and(availableSurveySetController.RenderNext,!availableSurveySetController.RenderPrevious)}"><a class="disable" style="float:left">&lt;&lt;{!$Label.timbasurvey_surveylist_Previous}</a></apex:outputPanel>
+                <!-- Pagination Next Buttons -->
+                <apex:commandLink onClick="javascript:ajaxStart($('.overlay.available'));" onComplete="ajaxComplete($('.overlay.available'))" style="float:right" reRender="AvailableSurveysPanel" action="{!availableSurveySetController.gonext}" rendered="{!availableSurveySetController.RenderNext}" value="Next>>"/>
+                <apex:outputPanel rendered="{!and(!availableSurveySetController.RenderNext,availableSurveySetController.RenderPrevious)}"><a class="disable" style="float:right">{!$Label.timbasurvey_surveylist_Next}&gt;&gt;</a></apex:outputPanel>
+            </apex:form>
+            <div class="available overlay">
+                <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/preload.gif')}" title="{!$Label.timbasurveys_surveycollect_Loading}"  height="64" width="55"  />
+            </div>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="CompletedSurveysPanel" StyleClass="surveyPanel" rendered="{!IF(isCustomerPortal &&  CompletedSurveyList.size!=0 ,true,false)}">
+            <h2 class="surveylist_title"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Your_filled_surveys} - ({!completedSurveyList.size})"/></h2>
+            <ul class="survey_list">
+                <apex:repeat value="{!CompletedSurveyList}" var="recip">
+                    <li><apex:outputText value="{!recip.Survey__r.Name}" /></li>
+                </apex:repeat>
+            </ul>
+            <apex:form styleClass="paginator">
+                <!-- Pagination Prev Buttons -->
+                <apex:commandLink onClick="javascript:ajaxStart($('.overlay.completed'));" onComplete="ajaxComplete($('.overlay.completed'))" style="float:left"  reRender="CompletedSurveysPanel" action="{!completedSurveySetController.goprevious}" rendered="{!completedSurveySetController.RenderPrevious}" value="<<Previous"/>
+                <apex:outputPanel rendered="{!and(completedSurveySetController.RenderNext,!completedSurveySetController.RenderPrevious)}"><a class="disable" style="float:left">&lt;&lt;{!$Label.timbasurvey_surveylist_Previous}</a></apex:outputPanel>
+                <!-- Pagination Next Buttons -->
+                <apex:commandLink onClick="javascript:ajaxStart($('.overlay.completed'));" onComplete="ajaxComplete($('.overlay.completed'))" style="float:right" reRender="CompletedSurveysPanel" action="{!completedSurveySetController.gonext}" rendered="{!completedSurveySetController.RenderNext}" value="Next>>"/>
+                <apex:outputPanel rendered="{!and(!completedSurveySetController.RenderNext,completedSurveySetController.RenderPrevious)}"><a class="disable" style="float:right">{!$Label.timbasurvey_surveylist_Next}&gt;&gt;</a></apex:outputPanel>
+            </apex:form>
+            <div class="completed overlay">
+                <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/preload.gif')}" title="{!$Label.timbasurveys_surveycollect_Loading}"  height="64" width="55"  />
+            </div>
+        </apex:outputPanel>
+
+        <apex:outputPanel rendered="{!IF(isCustomerPortal && AvailabeSurveyList.size==0 && CompletedSurveyList.size==0,true,false)}">
+            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_No_surveys_available}" />
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!IF(isCustomerPortal == false,true,false)}">
+        <div align="center">{!$Label.timbasurveys__timbasurvey_surveylist_This_tab_only} <a href="http://survey.timbasoftware.com/frequentlyaskedquestionsfaq#TOC-When-I-click-on-the-Surveys-tab-I-g">{!$Label.timbasurveys__timbasurvey_surveylist_website}</a> .</div>
+        </apex:outputPanel>
+
+    </apex:pageblock>
+
+</apex:page>

@@ -1,0 +1,78 @@
+<apex:component allowDML="true" controller="GivingOtherController">
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+<style>
+.actionLinkGivingOther{
+	color: #015ba7 !important;
+	text-decoration: none;
+	font-weight: normal;
+}
+</style>
+<script>
+	function goToRecordsDonation(){
+		 var urlPath = '/apex/opportunityRecords?id={!IF(accountId != '',accountId,contactId)}&recType=Other';
+		 top.location.replace(urlPath);
+	}
+	function goToOppRecordOther(oppItem){
+	 var urlPath ='/'+oppItem;
+	 //alert('urlPath>> '+urlPath);
+	 top.location.replace(urlPath);
+	}
+	function confirmOtherDelete(oppId){
+		var conf = confirm("Are you sure?");
+
+	    if(conf == true){
+	         deleteGivingOtherJS(oppId);
+	    }
+	}
+</script>
+	<apex:pageBlock title="Other Giving"  id="givingPgBlock">
+	<apex:actionstatus id="waitStatus"> 
+                            <apex:facet name="start">
+                                 <img class="waitingImage" src="/img/loading.gif" title="Please Wait..." /> 
+                                 <span class="waitingDescription">Please Wait...</span>
+                            </apex:facet>
+                        </apex:actionstatus>
+		<apex:pageBlockTable value="{!OthersList}" var="oppItem" rendered="{!IF(recCount>0,true,false)}" styleClass="smallRow">
+			 <apex:column width="8%">
+                <apex:facet name="header">Action</apex:facet>
+                        <table>
+						  <tr>
+						 <td style="border: medium none !important;">
+						      <a title="Edit" href="javascript:void(0);" class="actionLinkGivingOther" onclick="goToOppRecordOther('{!oppItem.id}/e?retURL=%2F{!IF(accountId != '',accountId,contactId)}')">
+						        Edit
+						      </a>
+						      &nbsp;|&nbsp;
+						      <a title="Delete" onclick="confirmOtherDelete('{!oppItem.id}');" class="actionLinkGivingOther" href="javascript:void(0);">
+						        Del
+						      </a>
+						    </td>
+						  </tr>
+						</table>
+            </apex:column>
+             <apex:column width="45%">
+              	<apex:facet name="header">Giving Name</apex:facet>
+              	<a  href="javascript:void(0);" onclick="goToOppRecordOther('{!oppItem.id}');" >{!oppItem.name}</a>
+             </apex:column> 
+             <apex:column width="8%">
+            	<apex:facet name="header">Record Type</apex:facet>
+            	{!oppItem.RecordType.Name}
+            </apex:column>
+            <apex:repeat var="fieldName" value="{!$ObjectType.Opportunity.FieldSets.GivingOther}">
+                      <apex:column value="{!oppItem[fieldName]}" rendered="{!IF(fieldName!='Name' && fieldName!= 'StageName',true,false)}" width="8%"/>
+											<apex:column value="{!oppItem[fieldName]}" rendered="{!IF(fieldName =='StageName', true, false)}" width="12%"/>
+            </apex:repeat>
+            
+        </apex:pageBlockTable>
+        <apex:outputpanel layout="block" rendered="{!IF(recCount>0,false,true)}">
+        	No records to display
+        </apex:outputpanel>
+         <apex:outputpanel layout="block" styleclass="pShowMore" rendered="{!IF(recCount>5,true,false)}" style="height:7px; margin-top:-2px;">
+         
+         	<a href="javascript:void(0);" onclick="goToRecordsDonation();">Go to list ({!recCount})&nbsp;»</a>
+         </apex:outputpanel>
+	</apex:pageBlock>
+	
+	<apex:actionFunction action="{!deleteGiving}" name="deleteGivingOtherJS" rerender="givingPgBlock" status="waitStatus">
+        <apex:param name="firstParam" assignTo="{!givingIdToDelete}" value="" />
+    </apex:actionFunction>
+</apex:component>

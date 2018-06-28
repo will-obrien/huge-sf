@@ -1,0 +1,447 @@
+<apex:page standardController="Campaign" extensions="EventCampaignExtension" 
+    action="{!if($CurrentPage.parameters.RecordType != '0123100000169pU',urlfor('/701/e',null,[RecordType=$CurrentPage.parameters.RecordType],true),'')}"
+    title="Events Campaign"
+>
+  <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>
+  <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"/> 
+  <script src="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.js')}" type="text/javascript"></script>
+  <apex:stylesheet value="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.css')}"/> 
+    <head>
+        <title>Events Campaign</title>
+      <script type="text/javascript" async="async">
+        var locationWindow;
+        var $j = jQuery.noConflict();    
+        $j(document).ready(function(){
+    
+          $j('[id$=date-begin]').datetimepicker({
+            formatTime:'g:i A', 
+            format: 'm/d/Y h:i A',
+            step: 30,
+            defaultTime: '8:00 AM',
+            onSelectTime:function(dp,$input){
+              $input.datetimepicker('hide');
+            },
+            onSelectDate:function(db,$input){
+                $j('[id$=date-end]').datetimepicker({
+                    defaultDate: $j('[id$=date-begin]').val()?$j('[id$=date-begin]').val().split(' ')[0]:false, formatDate:'m/d/Y'
+                });
+            }
+          });
+          $j('[id$=date-end]').datetimepicker({
+            formatTime:'g:i A', 
+            format: 'm/d/Y h:i A',
+            step: 30,
+            defaultTime: '6:00 PM',
+            onShow:function( ct ) {
+                this.setOptions({
+                    minDate: $j('[id$=date-begin]').val() ? $j('[id$=date-begin]').val().split(' ')[0] : false, formatDate:'m/d/Y'
+                });
+            },
+            onSelectTime:function(dp,$input){
+              $input.datetimepicker('hide');
+            }
+          });
+        });
+
+        function openLocationFinder() {
+          // set new window size relative to current window width
+          // constrain max width of 1200 as content never wider than that anyway
+          // constrain max height so within boundary remains in frame and input field and 'Find Address' button above fold
+          var winWidth =  ( (window.outerWidth) < 1200 ) ? (window.outerWidth) : 1200;
+          var winHeight = ( (window.outerHeight * .9) < 1077 ) ? (window.outerHeight * .9)  : 1077;
+          
+          var specs = "width=" + winWidth + ",height=" + winHeight
+                      + ",resizable=1,scrollbars=1";
+          var url = "LocationFinder";
+
+          var lat = $j('[id$=locationLat]').val();
+          var lng = $j('[id$=locationLng]').val();
+
+          if (lat.length > 0 && lng.length > 0) {
+            url += "?location=" + lat + "," + lng;
+          }
+          locationWindow = window.open(url, 'locationWindow', specs);
+        }
+        
+        function setLocation(lat, lng, location) {
+          $j('[id$=locationLat]').val(lat);
+          $j('[id$=locationLng]').val(lng);
+          $j('[id$=locationDescription]').val(location);
+        }
+        
+      </script>
+      <style type="text/css">
+        .requiredInput .requiredBlock {
+          background-color: #c00;
+          position: absolute;
+          left: 12px;
+          width: 3px;
+          top: 1px;
+          bottom: 1px;
+        }    
+    </style>      
+    </head>
+    <apex:form >
+    <apex:outputPanel id="messagePanel">
+     <apex:pageMessages />
+    </apex:outputPanel>
+    
+    <apex:pageBlock title="Events Campaign">
+    <apex:pageBlockButtons >
+        <apex:commandButton value="Save" action="{!saveAndReturn}"/>
+        <apex:commandButton value="Save & New" action="{!saveAndNew}"/>
+        <apex:commandButton value="Cancel" action="{!cancel}"/>
+    </apex:pageBlockButtons>
+
+    <apex:pageBlockSection title="Campaign Information">
+        <apex:inputField value="{!Campaign.Name}" taborderhint="10" />
+        
+        <apex:pageBlockSectionItem >
+        <apex:outputLabel for="recordType" value="Campaign Record Type" />
+        <apex:outputText id="recordType" value="Events"/>
+        </apex:pageBlockSectionItem>
+        
+        <apex:inputField value="{!Campaign.Promo_Description__c}" required="true" taborderhint="20" />
+        <apex:pageBlockSectionItem />     
+        
+        <apex:inputField value="{!Campaign.Event_Name__c}" required="true" taborderhint="30" />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Autoresponder_Type__c}" taborderhint="40" />        
+        <apex:inputField value="{!Campaign.Sponsor_Description__c}" taborderhint="140" />
+        <apex:inputField value="{!Campaign.Status__c}" required="true" taborderhint="50" />   
+        <apex:inputField value="{!Campaign.Sierra_Club_Activity__c}" taborderhint="150" /> 
+        <apex:inputField value="{!Campaign.Events_Category__c}" required="true" taborderhint="60" />
+        <apex:pageBlockSectionItem >
+        <apex:outputLabel for="date-begin" value="Begins"/>
+        <apex:outputPanel >
+            <div class="requiredInput">
+                <div class="requiredBlock"></div>
+                <apex:inputText tabindex="1600" id="date-begin" value="{!dtBegin}" />
+            </div>
+        </apex:outputPanel>
+        </apex:pageBlockSectionItem>  
+        <apex:inputField value="{!Campaign.Events_Type__c}" required="true" taborderhint="70" />
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel for="date-end" value="Ends"/>
+            <apex:inputText tabindex="1700" id="date-end" value="{!dtEnd}"/>
+        </apex:pageBlockSectionItem>
+
+        <apex:pageBlockSectionItem >
+            <apex:commandButton tabindex="800" id="mapButton" 
+            value="Find Location on Map"
+            onclick="openLocationFinder(); return false"
+            />
+        </apex:pageBlockSectionItem>
+        
+        <apex:inputField value="{!Campaign.Time_Zone__c}" taborderhint="180" />
+        <apex:inputField id="locationDescription" value="{!Campaign.Location_Description__c}" taborderhint="90" />
+        <apex:inputField value="{!Campaign.Date_Tentative__c}" taborderhint="190" />
+
+        <apex:inputField id="locationLat" value="{!Campaign.Geocode__Latitude__s}" taborderhint="100" />
+        <apex:inputField value="{!Campaign.Time_Tentative__c}" taborderhint="200" />
+        <apex:inputField id="locationLng" value="{!Campaign.Geocode__Longitude__s}" taborderhint="110" />
+        <apex:pageBlockSectionItem />
+            
+        <apex:inputField value="{!Campaign.Summary_Description__c}" required="true"
+            style="width:350px" taborderhint="120"
+        />
+        <apex:inputField value="{!Campaign.Waiver_Required__c}" taborderhint="210" />
+        <apex:inputField value="{!Campaign.URL_to_Share__c}" taborderhint="130" />
+        <apex:inputField value="{!Campaign.Add_to_List__c}" taborderhint="220" />
+        
+        <apex:pageBlockSectionItem >
+            <apex:outputLabel for="registrationCount" value="Event Registration Count"/>
+            <apex:outputText value="{0, number, ##,##0}">
+                <apex:param value="{!Campaign.Event_Registration_Count__c}"/>
+            </apex:outputText>
+        </apex:pageBlockSectionItem>
+        <apex:inputField value="{!Campaign.Add_Action_to_Attendees__c}" taborderhint="225" />
+
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Registration">
+        <apex:inputField value="{!Campaign.Registrations_Accepted__c}" taborderhint="230" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Send_RSVP_to_Leader__c}" taborderhint="240" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Registration_Cutoff__c}" taborderhint="250" />
+        <apex:pageBlockSectionItem />
+
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Ask_for_Phone_Number__c}" taborderhint="260" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Require_Phone_Number__c}" taborderhint="270" />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Ask_for_ZIP_Code__c}" taborderhint="280" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Require_ZIP_Code__c}" taborderhint="290" />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Ask_for_Street_Address__c}" taborderhint="300" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Require_Street_Address__c}" taborderhint="310" />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Ask_for_Mobile_Phone__c}" taborderhint="320" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Require_Mobile_Phone__c}" taborderhint="330" />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Ask_for_Additional_Attendees__c}" taborderhint="340" />
+        <apex:pageBlockSectionItem />
+
+        <apex:inputField value="{!Campaign.Require_Additional_Attendees__c}" taborderhint="350" />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Question_Type_1__c}" taborderhint="360" />
+        <apex:inputField value="{!Campaign.Display_Field_1__c}" taborderhint="390" />
+        
+        <apex:inputField value="{!Campaign.Custom_Field_1_Label__c}" taborderhint="370" />
+        <apex:inputField value="{!Campaign.Require_Field_1__c}" taborderhint="400" />
+    
+        <apex:inputField value="{!Campaign.Possible_Answers_1__c}" 
+            style="width:400px" taborderhint="380"
+        />
+        <apex:pageBlockSectionItem />
+
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Question_Type_2__c}" taborderhint="410" />
+        <apex:inputField value="{!Campaign.Display_Field_2__c}" taborderhint="440" />
+        
+        <apex:inputField value="{!Campaign.Custom_Field_2_Label__c}" taborderhint="420" />
+        <apex:inputField value="{!Campaign.Require_Field_2__c}" taborderhint="450" />
+    
+        <apex:inputField value="{!Campaign.Possible_Answers_2__c}" 
+            style="width:400px" taborderhint="430" 
+        />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Question_Type_3__c}" taborderhint="460" />
+        <apex:inputField value="{!Campaign.Display_Field_3__c}" taborderhint="490" />
+        
+        <apex:inputField value="{!Campaign.Custom_Field_3_Label__c}" taborderhint="470" />
+        <apex:inputField value="{!Campaign.Require_Field_3__c}" taborderhint="500" />
+    
+        <apex:inputField value="{!Campaign.Possible_Answers_3__c}" 
+            style="width:400px" taborderhint="480" 
+        />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Question_Type_4__c}" taborderhint="510" />
+        <apex:inputField value="{!Campaign.Display_Field_4__c}" taborderhint="540" />
+        
+        <apex:inputField value="{!Campaign.Custom_Field_4_Label__c}" taborderhint="520" />
+        <apex:inputField value="{!Campaign.Require_Field_4__c}" taborderhint="550" />
+    
+        <apex:inputField value="{!Campaign.Possible_Answers_4__c}" 
+            style="width:400px" taborderhint="530" 
+        />
+        <apex:pageBlockSectionItem />
+        
+        <apex:pageBlockSectionItem />
+        <apex:pageBlockSectionItem />
+        
+        <apex:inputField value="{!Campaign.Question_Type_5__c}" taborderhint="560" />
+        <apex:inputField value="{!Campaign.Display_Field_5__c}" taborderhint="590" />
+        
+        <apex:inputField value="{!Campaign.Custom_Field_5_Label__c}" taborderhint="570" />
+        <apex:inputField value="{!Campaign.Require_Field_5__c}" taborderhint="600" />
+    
+        <apex:inputField value="{!Campaign.Possible_Answers_5__c}" 
+            style="width:400px" taborderhint="580" 
+        />
+        <apex:pageBlockSectionItem />
+        
+    </apex:pageBlockSection>
+    
+    <apex:pageBlockSection title="Event Description" columns="1">
+        <apex:inputField value="{!Campaign.RSVP_Page_Title__c}" 
+            style="width:450px" taborderhint="610"
+        />
+        <apex:inputField value="{!Campaign.Video_URL__c}" taborderhint="620" />
+        <apex:inputField value="{!Campaign.Full_Description__c}" taborderhint="630" />
+        <apex:inputField value="{!Campaign.Image_Attribution__c}" taborderhint="635" />
+
+    </apex:pageBlockSection>
+    
+    <apex:pageBlockSection title="Thank You Page" columns="1">
+        <apex:inputField value="{!Campaign.kwac__Thank_You_Page_Text__c}" taborderhint="640" />
+        <apex:inputField value="{!Campaign.kwac__Thank_You_Page__c}" 
+            style="width:450px" taborderhint="650"
+        />
+    </apex:pageBlockSection>
+        
+    <apex:pageBlockSection title="Publishing Options" columns="1">        
+        <apex:inputField value="{!Campaign.Do_not_show_on_website_calendars__c}"
+            rendered="{! (ISNULL(Campaign.Id) || Campaign.Status__c == 'In Development' || Campaign.Do_not_show_on_website_calendars__c == true) }"     />
+        <apex:inputField value="{!Campaign.Display_Method__c}" taborderhint="660" />
+        <apex:inputField value="{!Campaign.External_URL__c}" taborderhint="670" />
+        <apex:inputField value="{!Campaign.Publish_Date__c}" taborderhint="680" />
+        <apex:inputField value="{!Campaign.Unpublish_Date__c}" taborderhint="690" />
+        <apex:inputField value="{!Campaign.Post_Event_Page_Content__c}" taborderhint="700" />
+
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Autoresponder" columns="1">
+        <apex:inputField value="{!Campaign.Autoresponder_Text__c}" 
+            style="width:450px" taborderhint="710"
+        />
+        <apex:inputField value="{!Campaign.Autoresponder_Subject_Line__c}" 
+            style="width:450px" taborderhint="720"
+        />
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Political Event Disclaimer">
+        <apex:inputField value="{!Campaign.Political_Disclaimer__c}" taborderhint="730" />
+        <apex:inputField value="{!Campaign.Candidate_Committee__c}" taborderhint="740" />
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Sharing Information">
+        <apex:inputField value="{!Campaign.Sharing_Title__c}" taborderhint="750" />
+        <apex:inputField value="{!Campaign.kwac__Twitter_Share_Text__c}" taborderhint="790" />
+
+        <apex:inputField value="{!Campaign.Sharing_Image__c}" taborderhint="760" />
+        <apex:pageBlockSection />
+
+        <apex:inputField value="{!Campaign.Sharing_Description__c}" 
+            style="width:350px" taborderhint="770" 
+        />
+        <apex:pageBlockSection />
+        
+        <apex:inputField value="{!Campaign.Facebook_Pixel_Code__c}" taborderhint="780" />
+        <apex:pageBlockSection />
+        
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Promotion Attributes">
+        <apex:inputField value="{!Campaign.Channel__c}" taborderhint="800" />
+        <apex:inputField value="{!Campaign.Program__c}" taborderhint="860" />
+        
+        <apex:inputField value="{!Campaign.Effort_Type__c}" taborderhint="810" />
+        <apex:inputField value="{!Campaign.Theme__c}" taborderhint="870" />
+        
+        <apex:inputField value="{!Campaign.GL_Department__c}" taborderhint="820" />
+        <apex:inputField value="{!Campaign.Vehicle__c}" taborderhint="880" />
+        
+        <apex:inputField value="{!Campaign.Interaction_Type__c}" taborderhint="830" />
+        <apex:pageBlockSection />
+        
+        <apex:inputField value="{!Campaign.List__c}" taborderhint="840" />
+        <apex:pageBlockSection />
+
+        <apex:inputField value="{!Campaign.Sublist__c}" taborderhint="850" />
+        <apex:pageBlockSection />
+    
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Reporting and Marketing Attributes" columns="1">
+        <apex:inputField value="{!Campaign.Tactic_Owner_Category_Global__c}" taborderhint="890" />
+        <apex:inputField value="{!Campaign.Tactic_Owner_Global__c}" taborderhint="900" />
+        <apex:inputField value="{!Campaign.Club_Entity__c}" taborderhint="910" />
+        <apex:inputField value="{!Campaign.State_Global__c}" taborderhint="920" />
+        <apex:inputField value="{!Campaign.National_Campaign_Global__c}" taborderhint="930" />
+        <apex:inputField value="{!Campaign.Campaign_Strategy_Global__c}" taborderhint="940" />
+        <apex:inputField value="{!Campaign.Local_Campaign_Global__c}" taborderhint="950" />
+        <apex:inputField value="{!Campaign.Local_Grassroots_Campaign__c}" 
+            style="width:450px" taborderhint="960" 
+        />
+        <apex:inputField value="{!Campaign.Marketing_Tags_Global__c}" taborderhint="970" />
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Phonebank">
+    <apex:inputField value="{!Campaign.Interest_One__c}" />
+    <apex:inputField value="{!Campaign.Interest_Two__c}" />
+    <apex:inputField value="{!Campaign.Interest_Three__c}" />
+    </apex:pageBlockSection>
+
+    <apex:pageBlockSection title="Event Leader(s)">
+        <apex:actionRegion id="leaderRegion">
+        <apex:commandButton value="Add Leader" action="{!addLeader}" reRender="leaderList"/>
+        <br/>
+        <apex:pageBlockTable id="leaderList" value="{!leaderList}" var="ldr">
+            <apex:column >
+                <apex:commandButton value="Delete" 
+                                    action="{!deleteLeader}"
+                                    reRender="leaderList"
+                                    rendered="{! ( ! ldr.leader.Is_Primary_Leader__c )}"
+                >
+                  <apex:param name="selectedRow" value="{!ldr.row}" assignTo="{!selectedRow}"/>
+                </apex:commandButton>
+            </apex:column>
+        
+            <apex:column >
+                <apex:facet name="header">Contact</apex:facet>
+                <apex:inputField value="{!ldr.leader.Contact__c}">
+                    <apex:actionSupport event="onchange" action="{!fillLeaderInfo}" reRender="leaderList, messagePanel">
+                      <apex:param name="selectedRow" value="{!ldr.row}" assignTo="{!selectedRow}"/>
+                    </apex:actionSupport>
+                </apex:inputField>
+            </apex:column>
+            <apex:column >
+                <apex:facet name="header">Leader Name</apex:facet>
+                <apex:inputText value="{!ldr.displayName}"/>
+            </apex:column>
+            <apex:column >
+                <apex:facet name="header">Email</apex:facet>
+                <apex:inputField value="{!ldr.leader.Email__c}"/>
+            </apex:column>
+            <apex:column >
+                <apex:facet name="header">Phone or Other Contact Info</apex:facet>
+                <apex:inputField value="{!ldr.leader.Phone_or_Other_Contact_Information__c}"/>
+            </apex:column>
+            <apex:column >
+                <apex:facet name="header">Is Primary Leader?</apex:facet>
+                <apex:inputCheckbox value="{!ldr.leader.Is_Primary_Leader__c}"
+                    disabled="{!ldr.leader.Is_Primary_Leader__c}"
+                >
+                    <apex:actionSupport event="onchange" action="{!adjustPrimaryLeader}" reRender="leaderList">
+                      <apex:param name="selectedRow" value="{!ldr.row}" assignTo="{!selectedRow}"/>
+                    </apex:actionSupport>
+                </apex:inputCheckbox>
+            </apex:column>
+        </apex:pageBlockTable>
+        </apex:actionRegion>
+    </apex:pageBlockSection>
+    </apex:pageBlock>
+    
+    <apex:outputText value="{!Campaign.Start_Date__c}" rendered="false"/>
+    <apex:outputText value="{!Campaign.Start_Time__c}" rendered="false"/>
+    <apex:outputText value="{!Campaign.End_Date__c}" rendered="false"/>
+    <apex:outputText value="{!Campaign.End_Time__c}" rendered="false"/>
+
+    </apex:form>
+      
+</apex:page>

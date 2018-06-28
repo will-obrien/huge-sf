@@ -1,0 +1,94 @@
+<apex:page standardController="Field_Trip__Object_Analysis__c" extensions="Field_Trip.analyzeCreateExtension" >
+
+    <apex:sectionHeader title="Field Trip Edit" subtitle="{!subtitle}"/>
+    <apex:messages style="color:red"/>
+    
+    <script type='text/javascript'>
+    
+        var countDown = 2;
+        var started = false;
+        
+        function resetTimer(){
+        
+            countDown=2;
+            
+            if(started==false){
+                started=true;
+                runCountDown();
+            }
+        }
+        
+        function runCountDown(){
+        
+            countDown--;
+            
+            if(countDown<=0){
+                checkForErrors();
+                started=false;
+            }
+            else{
+                window.setTimeout(runCountDown,1000);
+            }
+        }
+    
+    </script>
+    
+    <apex:form >
+    
+        <apex:actionFunction name="checkForErrors" reRender="errorPanel"/>
+    
+        <apex:pageBlock >
+            <br/>
+            <apex:outputText >
+                <b>Step 1) Give your Field Trip a name</b> (e.g. 'All Accounts','Closed Cases','Opps created this year',etc)
+            </apex:outputText>
+            <br/>
+            <ul>
+                <apex:inputText value="{!theRecord.Name}" style="border-left:3px solid red; border-top:1px solid gray; width:250px"/>
+            </ul>
+            <br/>
+            <apex:outputText >
+                <b>Step 2) Select the Object for which you want to analyze Fields</b>
+            </apex:outputText>
+            <br/>
+            <ul>
+            <apex:actionRegion renderRegionOnly="false" immediate="true">
+                <apex:selectList value="{!theRecord.Field_Trip__Object_Name__c}" multiselect="false" size="1" style="border-left:3px solid red; border-top:1px solid gray">
+                    <apex:selectOptions value="{!objectNames}"/>
+                    <apex:actionSupport event="onchange" reRender="queryRoot,errorPanel"/>
+                </apex:selectList>
+            </apex:actionRegion>
+            </ul>
+            <br/>
+            <apex:outputText >
+            <b>Step 3) [optional] You can analyze a subset of your records by adding a SOQL filter below</b> (to include all records leave blank)
+            </apex:outputText>
+            <br/>
+            <ul>
+            
+                <apex:outputPanel id="queryRoot">
+                    SELECT (all fields) FROM {!theRecord.Field_Trip__Object_Name__c} WHERE&nbsp;
+                </apex:outputPanel>
+                <apex:actionRegion renderRegionOnly="false" immediate="true">
+                    <apex:inputText maxlength="1000" size="70" value="{!theRecord.Field_Trip__Filter__c}" onkeydown="resetTimer()"/>
+                </apex:actionRegion>
+                <br/>
+                <apex:outputPanel id="errorPanel" style="color:red">
+                    <apex:outputText rendered="{!queryStringHasError}">
+                        Warning: Your SOQL filter does not appear to be valid, continuing may result in a failed analysis.
+                    </apex:outputText>
+                </apex:outputPanel>
+
+            
+            </ul>
+            <br/>
+            <br/>
+            <apex:pageBlockButtons >
+                <apex:commandButton action="{!goSave}" value="Save"/>
+                <apex:commandButton action="{!cancel}" value="Cancel"/>
+            </apex:pageBlockButtons>
+            
+        </apex:pageBlock>
+    </apex:form>
+    
+</apex:page>

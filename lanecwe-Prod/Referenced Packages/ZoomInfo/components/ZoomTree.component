@@ -1,0 +1,54 @@
+<apex:component controller="zisf.ZoomTreeController">
+	<apex:attribute name="TreeId" type="String" description="Unique tree id" />
+	<apex:attribute name="selectable" type="Boolean" assignTo="{!selectableField}" description="Do you want nodes to be selectable?" />
+	<apex:attribute name="value" type="String" description="IDs of selected Nodes in CSV format" />
+	<apex:attribute name="JsonData" type="String" assignTo="{!JsonDataField}" description="JSON input for the tree component" />
+	
+	<apex:inputHidden id="selectedKeys" value="{!value}" />
+
+    <apex:includeScript value="{!URLFOR($Resource.zisf__JQuerySlider, 'jquery-ui-1.10.2.custom/js/jquery-1.9.1.js' )}" />
+    <apex:includeScript value="{!URLFOR($Resource.zisf__JQuerySlider, 'jquery-ui-1.10.2.custom/js/jquery-ui-1.10.2.custom.min.js' )}" />
+	<apex:includeScript value="{!URLFOR($Resource.zisf__DynaTree, 'jquery/jquery.cookie.js' )}" />
+    <apex:includeScript value="{!URLFOR($Resource.zisf__JQuerySlider, 'jquery-ui-1.10.2.custom/js/jquery.dynatree.js' )}" />
+    <apex:stylesheet value="{!URLFOR($Resource.zisf__JQuerySlider, 'jquery-ui-1.10.2.custom/js/skin-vista/ui.dynatree.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.zisf__DynaTree, 'src/skin-vista/ui.dynatree.css')}" />
+    
+    <!-- Add code to initialize the tree when the document is loaded: -->
+    <script type="text/javascript">
+	    var j$ = jQuery.noConflict();
+	    j$(function(){
+	        // Attach the dynatree widget to an existing <div id="tree"> element
+	        // and pass the tree options as an argument to the dynatree() function:
+	        j$.ui.dynatree.nodedatadefaults["icon"] = false; // Turn off icons by default
+	        j$("#{!TreeId}").dynatree({
+	            onActivate: function(node) {
+	                // A DynaTreeNode object is passed to the activation handler
+	                // Note: we also get this event, if persistence is on, and the page is reloaded.
+	                //alert("You activated " + node.data.key);
+	            },
+	            rootVisible: false,
+	            noLink: true,
+	            persist: false,
+	            checkbox: {!selectableField},
+	            generateIds: false,
+	            classNames: {
+	            	checkbox: "dynatree-checkbox",
+	            	expanded: "dynatree-expanded"
+	            },
+	            selectMode: 3,
+	            children: {!JsonDataField},
+	            onSelect: function(select, node) {
+					// Get a list of all selected nodes, and convert to a key array:
+					var selKeys = j$.map(node.tree.getSelectedNodes(true), function(node){
+						return node.data.key;
+					});
+					jQuery(document.getElementById("{!$Component.selectedKeys}")).val(selKeys.join(","));
+				},
+	        });
+	    });
+    </script>
+    
+    <!-- Add a <div> element where the tree should appear: -->
+    <div id="{!TreeId}"> </div>
+
+</apex:component>

@@ -1,0 +1,179 @@
+<apex:page showHeader="false" standardStylesheets="false" controller="WorkFeedbackActionGlobalCtrl">
+<script type="text/javascript">
+/*
+Copyright (c) 2011, salesforce.com, Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice, 
+    this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice, 
+    this list of conditions and the following disclaimer in the documentation 
+    and/or other materials provided with the distribution.
+    * Neither the name of the salesforce.com, Inc. nor the names of its contributors 
+    may be used to endorse or promote products derived from this software 
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
+OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+	/*******************************************
+    * this page has all the global javascript
+    * functions that includes callout to salesforce
+    * and animation functions
+    *******************************************/
+    
+    /************************* Feedback ***********************/
+    function getUserInfo(callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchMyUserInfo}', function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching User Info - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function getRecordInfo(recId, callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchRecordInfoById}', recId, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching Current Record Info - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function getAllUsers(callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchAllUsers}', function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching All Users - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function getFilteredUsers(searchText, callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchFilteredUsers}', searchText, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching All Users - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function insertFeedback(feedbackObj, callback){
+        //first disable the submit button so user can't double submit
+        disablePublisherSubmit();
+
+    	var params = [feedbackObj.subjectid, feedbackObj.giverid, feedbackObj.feedbacktype, feedbackObj.feedbacktext, feedbackObj.relatedObjectId];
+    	Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.saveFeedback}', params, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin at inserting feedback - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+
+    /****************************** FeedbackRequest Feedbacks ****************************/
+    function getFeedbackRequests(callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchMyFeedbackRequest}', function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching User's Feedback Requests - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function getFeedbacks(requestId, callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchMyFeedbacks}', requestId, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching Request's Feedback - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function getFeedbackRequestQuestions(questionsetId, callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.fetchMyFeedbackReqQues}', questionsetId, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin in Fetching User's Feedback Request's Questions - " + event.message);
+            }
+        }, {escape: true});
+    }
+
+    function submitFeedback(feedbackObjs, callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.submitFeedbacks}', feedbackObjs, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin at submitting feedbacks - " + event.message);
+            }
+        }, {escape: true});
+    }
+    function draftFeedbacks(feedbackObjs, callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.WorkFeedbackActionGlobalCtrl.saveDraftFeedbacks}', feedbackObjs, function(result, event) {
+            if (event.status) {
+                callback(result);
+            } else if (event.type === 'exception') {
+                console.log("Exceptin at saving draft feedbacks- " + event.message);
+            }
+        }, {escape: true});
+    }
+
+
+
+    /****** jquery center function *********/
+    jQuery.fn.center = function () {
+        //this.css("position","absolute");
+        this.css("top", Math.max(0, (($(window).height() - $(this).outerHeight()) / 3) + $(window).scrollTop()) + "px");
+        this.css("left", Math.max(0, (($(window).width() - $(this).outerWidth()) / 2) + $(window).scrollLeft()) + "px");
+        console.log("top:"+this.css("top"));
+        console.log("left:"+this.css("left"));
+        //console.log("center!");
+        return this;
+    }
+
+	function enablePublisherSubmit()
+	{
+        console.log('enable publisher submit button');
+		Sfdc.canvas.publisher.publish({name: "publisher.setValidForSubmit", payload:"true"});
+	}
+	function disablePublisherSubmit()
+	{
+        console.log('disable publisher submit button');
+		Sfdc.canvas.publisher.publish({name: "publisher.setValidForSubmit", payload:"false"});
+	}
+	function closePublisher()
+	{
+        console.log("close publisher");
+		Sfdc.canvas.publisher.publish({name: "publisher.close", payload:{ refresh:"true"}}); //close publisher
+	}
+    //strip html tag from string
+    function strip(html)
+    {
+       var tmp = document.createElement("DIV");
+       tmp.innerHTML = html;
+       return tmp.textContent || tmp.innerText || "";
+    }
+</script>	
+</apex:page>

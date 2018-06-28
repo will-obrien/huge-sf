@@ -1,0 +1,95 @@
+<apex:page title="{!$Label.POST_TO_CHATTER_TITLE}"
+	showHeader="false"
+	sidebar="false" 
+	contentType="text/html" cache="false"
+	standardController="sf4twitter__Twitter_Conversation__c" 
+	extensions="sf4twitter.TwitterPostToChatterPopUpController">
+ 
+	<head>
+		<title>{!$Label.POST_TO_CHATTER_TITLE}</title>
+		<style type="text/css">
+			.divContainer {
+				font-size: 12px;
+				border: 1px solid #EFEFEF; 
+				margin: 5px; 
+				padding: 10px;
+				border-radius: 5px;
+				-moz-border-radius: 5px;
+				-webkit-border-radius: 5px;
+			}
+			.divContainer textarea, .divContainer td{
+				font-size: 12px;
+			}
+			.divConvText{
+				background-color:#EFEFEF;
+				padding: 10px;
+				clear:both;
+				font-style: italic; 
+			}
+			.labelAddMsg{
+				font-size: 12px;
+				font-weight: bold; 
+			}
+		</style>
+		<script src="{!URLFOR($Resource.jQueryLibrary)}"></script>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				if( $('.errorMsg').text() == '{!$Label.TWITTER_STATUS_UPDATED}' && $('.newDesc').val() == '' ){
+					try{
+						if( window.opener ) window.opener.location = '{!JSENCODE(retURL)}';
+					}
+					catch(error){}
+					window.close();
+				}
+			});
+		</script>
+	</head>
+	<body>
+	<apex:form >
+	<apex:outputPanel title="{!$Label.POST_TO_CHATTER_TITLE}" layout="block" styleClass="divContainer">
+	
+		<apex:outputPanel >
+        	<table class="detailList">
+        		<tr>
+        			<td width="30%"><apex:outputLabel styleClass="labelAddMsg" value="{!$Label.POST_TO_CHATTER_TEXT1}" for="newDesc"/></td>
+        			<td width="70%"><apex:inputTextarea id="newDesc" styleClass="newDesc" value="{!TextDescription}" cols="60" rows="2" /></td>
+        		</tr>
+        		<tr>
+        			<td></td>
+        			<td>
+					    <apex:repeat value="{!chatterChannels}" var="ch" rendered="{!chatterChannels.size = 1}">
+					        <c:SocialOutputLink linkValue="{!ch.label}" linkURL="/{!ch.value}"></c:SocialOutputLink>
+					    </apex:repeat>
+					    <apex:selectList value="{!chatterChannel}" size="1" multiselect="false" rendered="{!chatterChannels.size > 1}" >
+					        <apex:selectOptions value="{!chatterChannels}" />
+					    </apex:selectList>
+        				<apex:commandbutton value="{!$Label.POST_TO_CHATTER}" action="{!doSend}" /> 
+        				<apex:commandbutton value="{!$Label.Cancel}" onClick="window.close();" /> 
+        				<apex:outputPanel id="errorMsgPanel" rendered="true">
+        					<p><apex:outputText value="{!errorMsg}" id="errorMsg" styleClass="errorMsg"></apex:outputText></p>
+        				</apex:outputPanel>		        			
+        			</td>
+        		</tr>		
+        	</table>
+		</apex:outputPanel>
+
+		<apex:outputPanel layout="block" styleClass="divConvText">
+			<p>{!sf4twitter__Twitter_Conversation__c.sf4twitter__Message__c}</p>
+			<apex:outputText rendered="false" value="{!sf4twitter__Twitter_Conversation__c.sf4twitter__Author_Name__c}"/>
+			<apex:outputText rendered="false" value="{!sf4twitter__Twitter_Conversation__c.sf4twitter__Author_Real_Name__c}"/>
+			<apex:outputText rendered="false" value="{!sf4twitter__Twitter_Conversation__c.sf4twitter__Origin_Date__c}"/>
+			<apex:outputText rendered="false" value="{!sf4twitter__Twitter_Conversation__c.sf4twitter__Origin__c}"/>
+		</apex:outputPanel>
+
+		<apex:outputPanel layout="block">
+			<p>
+				{!$Label.POST_TO_CHATTER_TEXT2} 
+				<apex:outputPanel rendered="{!IF(sf4twitter__Twitter_Conversation__c.sf4twitter__Origin__c != 'Facebook', true, false)}"> {!$Label.POST_TO_CHATTER_TEXT3} </apex:outputPanel>
+				<apex:outputPanel rendered="{!IF(sf4twitter__Twitter_Conversation__c.sf4twitter__Origin__c == 'Facebook', true, false)}"> {!$Label.POST_TO_CHATTER_TEXT3b} </apex:outputPanel>
+			</p>
+		</apex:outputPanel>
+
+	</apex:outputPanel>
+	</apex:form>	
+	</body>
+</apex:page>

@@ -1,0 +1,269 @@
+<apex:page standardController="Contact" extensions="ManageContactAddressesExtensionKW">  
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" />
+<apex:sectionHeader title="Contact" subTitle="{!Contact.Name}" />
+
+    <style type="text/css">
+                .totalRow th {
+                    border: none !important;
+                }
+                
+                input[type="text"] {
+                    padding: 0.25em;
+                }
+                
+                select {
+                    padding: 0.25em;
+                }
+                
+                input[type="text"].filter_selectable {
+                    width: 5em;
+                }
+                
+                tr.dataRow {
+                    height: 3em !important;
+                }
+                
+                .dateInput .dateFormat {
+                    display: none;
+                }
+                
+                tr.dataRow.noborders td {
+                    border: none !important;
+                }
+                
+                tr.dataRow .address {
+                    font-size: 100%;
+                }
+                
+                tr.dataRow .address .streetLine {
+                    display: block;
+                }
+                
+                tr.dataRow .address .postalCode {
+                    display: block;
+                }
+                
+                .innerGrid tr,.innerGrid th,.innerGrid td {
+                    border: none !important;
+                    white-space: nowrap;
+                    vertical-align: middle !important;
+                }
+                
+                .innerGrid td {
+                    height: 1.5em !important;
+                    vertical-align: middle !important;
+                }
+                
+                th.totalRow.addressType {
+                    padding-top: 2em !important;
+                }
+                
+                th.totalRow .innerGrid label {
+                    font-weight: normal;
+                }
+                
+                .different {
+                    font-weight: bold;
+                    color: orange;
+                }
+        </style>
+        <script type="text/javascript">
+        $(document).ready(function() {
+            $("table tr td a.actionLink:contains('Edit')").click(function () { 
+                $('table.Editable').hide();
+                $('div.NonEditable').show();
+                $(this).closest('tr').children('td').find('div.NonEditable').hide();
+                $(this).closest('tr').children('td').find('table.Editable').show();
+            });
+         });
+        </script> 
+<apex:form >
+  <apex:pageMessages />
+  <apex:pageBlock >
+    <apex:pageBlockButtons >
+      <apex:commandButton value="Save" action="{!upsertContactAddressList}" />
+      <apex:commandButton value="Save & Close" action="{!upsertContactAddressListAndReturn}" />
+      <apex:commandButton value="Cancel" action="{!URLFOR($Action.Contact.View, Contact.Id)}" immediate="true" />
+    </apex:pageBlockButtons>
+  
+    <apex:pageBlockSection columns="1">
+      <apex:pageBlockTable value="{!maservice.lstAddress}" var="address" >
+       
+      <apex:column headerValue="Action" >
+        <apex:outputLink styleClass="actionLink" value="#" target="_self">Edit</apex:outputLink>
+      </apex:column>
+
+      <apex:column headerValue="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Type__c.Label}" headerClass="booleanColumn" footerClass="addressType booleanColumn" styleClass="addressType booleanColumn">
+        <apex:outputPanel layout="none">
+          <!-- <apex:inputField value="{!address.rcAddress.rC_Bios__Type__c}" required="false" /> -->
+          <apex:outputText value="{!address.rcAddress['rC_Bios__Type__c']}" />
+        </apex:outputPanel>
+
+        <apex:facet name="footer">
+          <apex:inputField value="{!maservice.addressToInsert['rC_Bios__Type__c']}" required="false" />
+        </apex:facet>
+      </apex:column>
+            
+      <apex:column headerValue="Address" styleClass="address">
+        <apex:facet name="footer">
+                 <apex:outputPanel layout="none">
+                    <apex:outputpanel rendered="{!maservice.hasError}" style="color:red;"> Address not Validated</apex:outputpanel>
+                    <apex:outputpanel rendered="{!maservice.isStreetBlank}" style="color:red;"> Street Line 1 field is required to validate the address<br /></apex:outputpanel>
+                    <apex:outputpanel rendered="{!maservice.isCityBlank}" style="color:red;"> City field is required to validate the address<br /></apex:outputpanel>
+                    <apex:outputpanel rendered="{!maservice.isStateBlank}" style="color:red;"> State field is required to validate the address<br /></apex:outputpanel>
+                    <apex:outputpanel rendered="{!maservice.isStateWrong}" style="color:red;"> Please enter two letter state abbreviation <br /></apex:outputpanel>
+                    <apex:outputpanel rendered="{!maservice.nameError}" style="color:red;"> {!maservice.errorMsg}</apex:outputpanel>
+                      <table class="accountAddressInsert" cellpadding="0" cellspacing="0" width="100%">
+                          <tbody>
+                             <tr>
+                                <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__Street_Line_1__c.Label}" /></td>
+                                <td><apex:inputField value="{!maservice.addressToInsert['rC_Bios__Original_Street_Line_1__c']}" /></td>
+                                
+                             </tr>
+                           <tr>
+                            <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__Street_Line_2__c.Label}" /></td>
+                            <td><apex:inputField value="{!maservice.addressToInsert['rC_Bios__Original_Street_Line_2__c']}" /></td>
+                           </tr>
+                                           <tr>
+                                               <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__City__c.Label}" /></td>
+                                               <td><apex:inputField value="{!maservice.addressToInsert['rC_Bios__Original_City__c']}" /></td>
+                                           </tr>
+                                           <tr>
+                                               <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__State__c.Label}" /></td>
+                                               <td><apex:selectList value="{!maservice.addressToInsert['rC_Bios__Original_State__c']}" size="1" rendered="true">  
+                    							   <apex:selectOptions value="{!Items}"/></apex:selectList>
+                                               </td>
+                                           </tr>
+                                           <tr>
+                                               <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__ZIP__c.Label}" /></td>
+                                               <td><apex:inputField value="{!maservice.addressToInsert['rC_Bios__Original_Postal_Code__c']}" /></td>
+                                             </tr>
+                                          <tr>
+                                              <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__Country__c.Label}" /></td>
+                                              <td><apex:inputField value="{!maservice.addressToInsert['rC_Bios__Original_Country__c']}" /></td>
+                                          </tr>
+                                           <tr>
+                                              <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.fields.OrgName__c.Label}" /></td>
+                                              <td><apex:inputField value="{!maservice.addressToInsert['OrgName__c']}" /></td>
+                                          </tr>
+                                          <tr>
+                                              <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.fields.OrgName2__c.Label}" /></td>
+                                              <td><apex:inputField value="{!maservice.addressToInsert['OrgName2__c']}" /></td>
+                                          </tr>
+                          </tbody> 
+                      </table>
+                    <apex:pageBlockSectionItem rendered="{!maservice.hasError}">
+                               <apex:outputLabel style="color:red;" value="Use unvalidated address?" />
+                                 <apex:inputCheckbox value="{!maservice.isOverride}" /> 
+                            </apex:pageBlockSectionItem>
+                                                      
+                 </apex:outputPanel>
+             </apex:facet>
+           <apex:outputPanel layout="none" styleClass="NonEditable"> 
+               <div class="NonEditable">
+                <apex:outputpanel rendered="{!address.hasError}" style="color:red;"> Address not Validated</apex:outputpanel>
+                <apex:outputpanel rendered="{!address.isStreetBlank}" style="color:red;"> Street Line 1 field is required to validate the address<br /></apex:outputpanel>
+                <apex:outputpanel rendered="{!address.isCityBlank}" style="color:red;"> City field is required to validate the address<br /></apex:outputpanel>
+                <apex:outputpanel rendered="{!address.isStateBlank}" style="color:red;"> State field is required to validate the address<br /></apex:outputpanel>
+                <apex:outputpanel rendered="{!address.isStateWrong}" style="color:red;"> Please enter two letter state abbreviation</apex:outputpanel>
+                <apex:outputpanel rendered="{!address.nameError}" style="color:red;"> {!address.errorMsg}</apex:outputpanel>
+                <table>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['rC_Bios__Original_Street_Line_1__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['rC_Bios__Original_Street_Line_2__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['rC_Bios__Original_City__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['rC_Bios__Original_State__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['rC_Bios__Original_Postal_Code__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['rC_Bios__Original_Country__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['OrgName__c']}" /></td></tr>
+                   <tr><td style="border-bottom:0px;"><apex:outputField value="{!address.rcAddress['OrgName2__c']}" /></td></tr>
+                 </table>
+               </div>
+             </apex:outputPanel>
+
+           <apex:outputPanel layout="none">
+           
+                <table class="Editable" cellpadding="0" cellspacing="0"  width="100%" style="display: none;">
+                   <tbody>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__Street_Line_1__c.Label}" /></td>
+                       <td><apex:inputField value="{!address.rcAddress['rC_Bios__Original_Street_Line_1__c']}" /></td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__Street_Line_2__c.Label}" /></td>
+                       <td><apex:inputField value="{!address.rcAddress['rC_Bios__Original_Street_Line_2__c']}" /></td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__City__c.Label}" /></td>
+                       <td><apex:inputField value="{!address['rcAddress.rC_Bios__Original_City__c']}" /></td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__State__c.Label}" /></td>
+                       <td><apex:selectList value="{!address['rcAddress.rC_Bios__Original_State__c']}" size="1" rendered="true">  
+                    		<apex:selectOptions value="{!Items}"/></apex:selectList>
+                         </td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__ZIP__c.Label}" /></td>
+                       <td><apex:inputField value="{!address.rcAddress['rC_Bios__Original_Postal_Code__c']}" /></td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Address__c.fields.rC_Bios__Country__c.Label}" /></td>
+                       <td><apex:inputField value="{!address.rcAddress['rC_Bios__Original_Country__c']}" /></td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.fields.OrgName__c.Label}" /></td>
+                       <td><apex:inputField value="{!address.rcAddress['OrgName__c']}" /></td>
+                     </tr>
+                     <tr>
+                       <td><apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.fields.OrgName__c.Label}" /></td>
+                       <td><apex:inputField value="{!address.rcAddress['OrgName2__c']}" /></td>
+                     </tr>
+                   </tbody>
+               </table>
+               <apex:pageBlockSectionItem rendered="{!address.hasError}">
+                 <apex:outputLabel style="color:red;" value="Use unvalidated address?" />
+                 <apex:inputCheckbox value="{!address.isOverride}" /> 
+               </apex:pageBlockSectionItem>
+           </apex:outputPanel>
+
+       </apex:column> 
+       
+       <apex:column headerValue="Flags">
+              <apex:outputPanel layout="none">
+                  <apex:panelGrid columns="2" width="100%" columnClasses="label,checkbox,label,checkbox" frame="none" styleClass="innerGrid preferences">
+                      <apex:inputField value="{!address.rcAddress['rC_Bios__Active__c']}" />
+                      <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Active__c.Label}" />
+    
+                      <apex:inputField value="{!address.rcAddress['rC_Bios__Preferred_Mailing__c']}" />
+                      <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Preferred_Mailing__c.Label}" />
+    
+                      <apex:inputField value="{!address.rcAddress['rC_Bios__Preferred_Other__c']}" />
+                      <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Preferred_Other__c.Label}" />
+    
+                      <apex:inputField value="{!address.rcAddress['kwrc__USPS_Verified__c']}" />
+                      <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.kwrc__USPS_Verified__c.Label}" />
+    
+                  </apex:panelGrid>
+              </apex:outputPanel>
+              
+              <apex:facet name="footer">
+                 <apex:panelGrid columns="2" width="100%" columnClasses="label,checkbox,label,checkbox" frame="none" styleClass="innerGrid preferences">
+                     <apex:inputField value="{!maservice.addressToInsert['rC_Bios__Active__c']}" />
+                     <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Active__c.Label}" />
+
+                     <apex:inputField value="{!maservice.addressToInsert['rC_Bios__Preferred_Mailing__c']}" />
+                     <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Preferred_Mailing__c.Label}" />
+
+                     <apex:inputField value="{!maservice.addressToInsert['rC_Bios__Preferred_Other__c']}" />
+                     <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.rC_Bios__Preferred_Other__c.Label}" />
+                     
+                     <apex:inputField value="{!maservice.addressToInsert['kwrc__USPS_Verified__c']}" />
+                     <apex:outputLabel value="{!$ObjectType.rC_Bios__Contact_Address__c.Fields.kwrc__USPS_Verified__c.Label}" />
+                 </apex:panelGrid>
+             </apex:facet>
+             </apex:column>
+        </apex:pageBlockTable>
+  </apex:pageBlockSection>
+</apex:pageBlock>
+</apex:form>
+</apex:page>

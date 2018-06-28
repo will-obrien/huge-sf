@@ -1,0 +1,561 @@
+<apex:page sidebar="false"
+		   showHeader="false" 
+           controller="ePrize_Zemzu.LeaderboardTVController" 
+           tabStyle="Contests__tab" 
+           readonly="true">
+  <apex:includeScript value="{!$Resource.ePrize_Zemzu__jquery}"/>
+  <apex:includeScript value="{!$Resource.ePrize_Zemzu__highcharts}"/>
+  <apex:includeScript value="{!$Resource.ePrize_Zemzu__app}"/>   
+  <apex:stylesheet value="{!$Resource.ePrize_Zemzu__zemzu_css}" />
+  
+  <script type="text/javascript">       
+      //
+      //Equalize heights of the leaderboard table and the right hand user
+      //information section. Do this after pagination to ensure the 
+      //height of the div is accurately calculated.
+      //
+      function equalizeLeaderboardSectionHeights() {
+          var $ = jQuery;
+          var leaderboardTableHeight = $("#contestLeaderboardLeftSectionWrapper").height();                                           
+          $(".equalheights").height(leaderboardTableHeight).css("overflow","hidden").css("overflow-y","auto");   
+      }           
+  </script>
+  <div id="theLoader" style="display: block; height: 300px; width: 100%"><table border="0" width="100%" height="100%"><tr><td valign="middle" align="center"><img src="{!$Resource.loading_small}" /></td></tr></table></div>
+
+  <div id="thePage" style="display: none; background-color:#BDDCE3; height: 100%;">      
+    <apex:outputPanel rendered="{!IF(contestId != null, true, false)}">
+      <table cellspacing="15"  border="0" width="100%">
+        <tr>
+        	<td bgcolor="#BDDCE3" colspan="3">
+                           <apex:outputPanel id="leaderboardTop">
+                             <div style="width:30%" id="leaderboardTopLeft">
+                                <div id="leaderboardTopLeftContent" class="font-largest font-blue font-bold">  
+                                    <apex:outputText value="{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}"/>
+                                </div>
+                             </div>
+                             <div id="leaderboardTopMiddleTV">           
+                                <div id="leaderboardTopMiddleTVNumber" class="font-larger font-red font-bold">
+                                	<apex:outputText value="{0,number,###,###}" rendered="{!fullContest.isEntryRanked}"><apex:param value="{!totalContestPoints}" /></apex:outputText>
+                                   	<apex:outputText value="{0,number,$###.##}" rendered="{!fullContest.isPercentToGoal}"><apex:param value="{!totalContestPoints}" /></apex:outputText>
+                                   	<apex:outputText value="{0,number,$###.##}" rendered="{!fullContest.isDollarRanked}"><apex:param value="{!totalContestPoints}" /></apex:outputText>
+                                </div>
+                                <div id="leaderboardTopRightText" class="font-bold">
+                                    <apex:outputText value="TOTAL POINTS<br/> EARNED" escape="false" rendered="{!fullContest.isEntryRanked}"/>
+                                    <apex:outputText value="TOTAL DOLLARS<br/> EARNED" escape="false" rendered="{!fullContest.isPercentToGoal}"/>
+                                    <apex:outputText value="TOTAL AMOUNT<br/> EARNED" escape="false" rendered="{!fullContest.isDollarRanked}"/>
+                                </div>                                                    
+                             </div>
+                             <div id="leaderboardTopRight">
+                                <div id="leaderboardTopRightNumberValue" class="font-larger font-red font-bold">
+                                    <apex:outputText value="{!contestTimeRemainingDisplayValue}" escape="false" rendered="{!IF(contestTimeRemainingDisplayValue > 0, true, false)}"/>
+                                </div>
+                                <div id="leaderboardTopRightText" class="font-bold">
+                                    <apex:outputText value="{!contestTimeRemainingDisplayText}" escape="false"/>
+                                </div>
+                             </div>                        
+                           </apex:outputPanel>
+        	</td>
+        </tr>
+        <tr>
+          <td style="border: solid 8px #1D698D;" align="center" valign="top" bgcolor="5BADBB" width="350">
+             <!-- This is where the recent activities will go <apex:include pageName="LeaderboardMenu" /> -->
+             <apex:outputPanel id="leaderboardLeftOuter"> 
+	             <apex:form >
+		             <div id="leaderboardLeftHeader">
+		                 <h2>Recent Activity</h2>                                 
+		             </div>
+		             <div>
+		             	<apex:dataTable value="{!last3Actions}" var="activity" cellpadding="10px" id="recentActivityTable" styleClass="tableClass" width="100%">
+	             		<apex:variable var="actCount" value="{!-1}" />
+		             		<apex:column >
+		             			<apex:outputPanel rendered="{!IF(actCount == 0, true, false)}">
+		             				<table cellpadding="10px" bgcolor="white"><tr>
+		                            	<td>
+		                            		
+		                            	</td>
+                            			<td align="left">
+		                            		<b><apex:outputText escape="false" value="{!activity.User__r.FirstName}&nbsp;{!activity.User__r.LastName}"/></b><hr/>
+		                            		<apex:outputText value="{!activity.ePrize_Zemzu__RelatedObjectName__c}"/>&nbsp;Created at&nbsp;
+		                            		<apex:outputText value="{0,date,h:m aa 'on' M/d/yy}">
+											        <apex:param value="{!activity.CreatedDate}"/>
+											</apex:outputText>.&nbsp;<br/><br/>
+											<div>
+												<span class="font-largest font-orange font-bold">
+			                            			<apex:outputText value="{0,number,$###.##}" rendered="{!fullContest.isDollarRanked}"><apex:param value="{!activity.Opportunity__r.Amount}"/></apex:outputText>
+			                            			<apex:outputText value="{0,number,$###.##}" rendered="{!fullContest.isPercentToGoal}"><apex:param value="{!activity.Opportunity__r.Amount}" /></apex:outputText>
+			                            			<apex:outputText value="{0,number,###,###}" rendered="{!fullContest.isEntryRanked}"><apex:param value="{!activity.ePrize_Zemzu__Quantity__c}" /></apex:outputText>
+			                            			<apex:outputText value="{0,number,###,###}" rendered="{!fullContest.isChanceToWin}"><apex:param value="{!activity.ePrize_Zemzu__Quantity__c}" /></apex:outputText>
+			                            		</span>
+			                            		<span style="vertical-align:top" class="font-large font-bold">
+			                            			<apex:outputText value="DOLLARS" rendered="{!fullContest.isDollarRanked}"/>
+			                            			<apex:outputText value="DOLLARS" rendered="{!fullContest.isPercentToGoal}"/>
+			                            			<apex:outputText value="POINTS" rendered="{!fullContest.isEntryRanked}"/>
+			                            			<apex:outputText value="POINTS" rendered="{!fullContest.isChanceToWin}"/>
+			                            		</span>
+		                            		</div>
+                            			</td>
+                           			</tr></table>
+                           			<br/>
+                       			</apex:outputPanel>
+                       			<apex:outputPanel rendered="{!IF(actCount != 0, true, false)}">
+		             				<table cellpadding="5px"><tr>
+		             					<td align="center" width="90px" bgcolor="white">
+		             						<div>
+												<span class="font-largest font-orange font-bold">
+			                            			<apex:outputText value="{0,number,$###.##}" rendered="{!fullContest.isDollarRanked}"><apex:param value="{!activity.Opportunity__r.Amount}"/></apex:outputText>
+			                            			<apex:outputText value="{0,number,$###.##}" rendered="{!fullContest.isPercentToGoal}"><apex:param value="{!activity.Opportunity__r.Amount}" /></apex:outputText>
+			                            			<apex:outputText value="{0,number,###,###}" rendered="{!fullContest.isEntryRanked}"><apex:param value="{!activity.ePrize_Zemzu__Quantity__c}" /></apex:outputText>
+			                            			<apex:outputText value="{0,number,###,###}" rendered="{!fullContest.isChanceToWin}"><apex:param value="{!activity.ePrize_Zemzu__Quantity__c}" /></apex:outputText>
+			                            		</span><br/>
+			                            		<span class="font-large font-bold">
+			                            			<apex:outputText value="DOLLARS" rendered="{!fullContest.isDollarRanked}"/>
+			                            			<apex:outputText value="DOLLARS" rendered="{!fullContest.isPercentToGoal}"/>
+			                            			<apex:outputText value="POINTS" rendered="{!fullContest.isEntryRanked}"/>
+			                            			<apex:outputText value="POINTS" rendered="{!fullContest.isChanceToWin}"/>
+			                            		</span>
+		                            		</div>
+		             					</td>
+                            			<td>
+                            				<div align="left">
+			                            		<b><apex:outputText escape="false" value="{!activity.User__r.FirstName}&nbsp;{!activity.User__r.LastName}"/></b><br/><br/>
+			                            		<apex:outputText value="{!activity.ePrize_Zemzu__RelatedObjectName__c}"/>&nbsp;Created at&nbsp;
+			                            		<apex:outputText value="{0,date,h:m aa 'on' M/d/yy}">
+												        <apex:param value="{!activity.CreatedDate}"/>
+												</apex:outputText>.&nbsp;<br/><br/>
+                            				</div>
+                            			</td>
+                           			</tr></table>
+                            		<br/>
+                       			</apex:outputPanel>
+                       			<apex:variable var="actCount" value="{!actCount + 1}" />
+                       			<hr/>
+                            </apex:column> 
+		             	</apex:dataTable>
+		             </div>
+	             	<div style="vertical-align:middle;">
+	             		<strong><apex:outputText rendered="{!IF(last3Actions.size == 0, true, false)}" value="No entries have been earned for this contest yet." /></strong>
+	             	</div>
+	             </apex:form>
+             </apex:outputPanel>
+          </td>
+          <td valign="top"> 
+                <apex:outputPanel rendered="{!IF(contestId != null, true, false)}">  
+                    
+                    
+                    <apex:outputPanel id="leaderboardLeft" styleClass="leaderboardLeft">
+	                    <script type="text/javascript">
+						      jQuery(document).ready(function($){           
+						                                        
+						          //Run the jplaced plugin against the appropriate tags with specific classes
+						          //to set the text displayed appropriately.
+						          //This has to be run before datatables so that all of the places 
+						          //are setup properly.
+						          if ($.fn.jplaced){
+						              $('.place').jplaced({
+						                    appendText : ' Place',
+						                    outputType : 'digits',
+						                    outputClass : 'superscript'
+						              }).css('padding-left','5px').parent().css('width','80px');
+						          }                       
+						      });  
+						</script>
+						                   
+                        <apex:pageBlock tabStyle="Contests__tab">
+                            <div id="contestLeaderboardLeftSectionWrapper">
+                                <div id="leaderboardLeftHeader">
+                                   <h2>CONTEST LEADERBOARD</h2>                                 
+                                </div>
+                                <apex:outputPanel >                                
+                                    <apex:form >
+                                        <div id="leaderboard_table_wrapper" class="dataTables_wrapper">
+                                            <apex:dataTable value="{!topLeaders}" var="leader" id="leaderboardTable" rowClasses="odd,even" styleClass="tableClass" width="100%">
+                                              <apex:variable var="count" value="{!-1}" />                                              
+                                              <apex:column id="leaderboardRankings" styleClass="leaderboardTableCell {!IF((count+1) == (incremCounter +1), 'leaderboardHighlightedRow', '')}" >
+                                                  <!-- The conditional style to highlight the row has funky logic above to look at the count+1 because the counter doesn't actually get incremented until below. -->
+                                                  <apex:facet name="header"></apex:facet>
+                                                  <apex:outputText value="{!count + 1}" styleClass="place" />
+                                                  <apex:variable var="count" value="{!count + 1}" />
+                                              </apex:column>
+                                              <apex:column styleClass="sales-person {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!IF(fullContest.isTeamBased, false, true)}">
+                                                <apex:facet name="header">SALES PERSON</apex:facet>
+                                               
+                                                <apex:outputField value="{!leader.contestUser.ePrize_Zemzu__User__c}"/>                                                
+                                                <apex:outputText rendered="{!IF(count == incremCounter, true, false)}">
+                                                </apex:outputText>
+                                              </apex:column>
+                                              <apex:column styleClass="leaderboardTableCell {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!fullContest.isTeamBased}">
+                                                <apex:facet name="header">TEAM</apex:facet>
+                                                <apex:outputText value="{!leader.team.name}"/>
+                                              </apex:column>
+                                              <apex:column styleClass="leaderboardTableCell {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!fullContest.isDollarRanked}">
+                                                <apex:facet name="header">VALUE</apex:facet>
+                                                <apex:outputText value="{!leader.rankByValueFormatted}"/>                                                
+                                              </apex:column>
+                                              <apex:column styleClass="leaderboardTableCell {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!fullContest.isPercentToGoal && fullContest.DisplayContestGoals}">                                              
+                                                <apex:facet name="header">GOAL</apex:facet>
+                                                <apex:outputText value="{!leader.goalFormatted}"/>                                                
+                                              </apex:column>
+                                              <apex:column styleClass="leaderboardTableCell {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!fullContest.isPercentToGoal}">
+                                                <apex:facet name="header">PERCENT</apex:facet>
+                                                <apex:outputText value="{0,number,###.##%}"><apex:param value="{!leader.value}" /></apex:outputText>
+                                              </apex:column>
+                                              <apex:column styleClass="leaderboardTableCell {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!fullContest.isEntryRanked}">
+                                                <apex:facet name="header">POINTS</apex:facet>
+                                                <apex:outputText value="{!leader.entriesFormatted}"/>
+                                              </apex:column>
+                                              <apex:column styleClass="leaderboardTableCell {!IF(count == (incremCounter+1), 'leaderboardHighlightedRow', '')}" rendered="{!fullContest.isChanceToWin}">
+                                                <apex:facet name="header">PLAYS</apex:facet>
+                                                <apex:outputText value="{!leader.entriesFormatted}"/>
+                                              </apex:column>
+                                            </apex:dataTable>                                            
+                                        </div>
+                                        <!-- This clear is needed to appropriately finish off the section
+                                        --   since the table pagination buttons are added dynamically and floated
+                                        -->
+                                        <div class="clear"></div>                                                               
+                                    </apex:form>                 
+                                                   
+                                </apex:outputPanel>
+                            </div>
+                        </apex:pageBlock>
+                    </apex:outputPanel>
+
+                    <apex:outputPanel id="leaderboardRightOuter" styleClass="leaderboardRightOuter">                    
+                        <apex:form >
+                        <!-- <apex:outputText id="incremCounter" value="{!incremCounter}"/> -->
+                        <apex:actionPoller action="{!incrementCounter}" rerender="incremCounter, leaderboardTop, leaderboardRightOuter, leaderboardLeft, leaderboardRankings, leaderboardLeftOuter" interval="5"/>
+                        
+                        
+                            <!-- 
+                            -- This is the action function used to refresh the selected user/team information
+                            -- in the right hand sidebar 
+                            -->
+				            <apex:actionFunction name="refreshDisplayedUserInfo" action="{!viewParticipantDetailsPageAction}" reRender="leaderboardRightOuter">
+				                <apex:param name="contestId" value="{!contestId}"/>
+				                <apex:param name="userIdToDisplay" id="userIdToDisplay" value=""/>
+				                <apex:param name="teamIdToDisplay" id="teamIdToDisplay" value=""/>
+				            </apex:actionFunction>                                    
+                        
+                            <!-- Display the graph for percent to goal contests as a bar chart -->
+                            <apex:outputPanel rendered="{!fullContest.isPercentToGoal}">
+                                <script type="text/javascript">                                                 
+                                   //When the user info refreshes resize the containers to be equal heights
+                                   var chart1; // globally available
+                                   
+                                   //
+                                   //Generate the graph
+                                   //                                     
+                                   jQuery(document).ready(function($) {
+                                       //
+                                       //Bar chart for percent to goal contest types
+                                       //
+                                       var barChartCategories = <apex:outputText value="{!barChartCategories}"/>;
+                                       var barChartPlotData = <apex:outputText value="{!barChartPlotData}"/>;
+                                       chart1 = new Highcharts.Chart({
+                                          chart: {
+                                             renderTo: 'chartContainer',
+                                             defaultSeriesType: 'column',
+                                             plotBackgroundColor: {
+                                                linearGradient: [0, 0, 500, 500],
+                                                stops: [
+                                                    [0, 'rgb(255, 255, 255)'],
+                                                    [1, 'rgb(220, 220, 220)']
+                                                ]
+                                             },
+                                             spacingTop: 3,
+                                             spacingRight: 3,
+                                             spacingBottom: 3,
+                                             spacingLeft: 3,                                     
+                                             zoomType: 'xy'
+                                          },
+                                          title: {
+                                             text: 'Percent of Goal Reached'
+                                          },
+                                          credits: {
+                                            enabled: false
+                                          },                                      
+                                          xAxis: {
+                                             categories: barChartCategories,
+                                             title: {
+                                                text: 'Participant'
+                                             },
+                                             labels: {
+                                                //rotation: 315,
+                                                style: {
+                                                    fontSize: '.8em'
+                                                }
+                                             }
+                                          },
+                                          yAxis: {
+                                             min: 0,
+                                             title: {
+                                                text: '%'
+                                             },
+                                             plotBands : [{
+                                                from : 99.0,
+                                                to : 101.0,
+                                                //color : 'rgba(68, 170, 213, 0.2)',
+                                                color : '#00CC33',
+                                                label : {
+                                                    text : ''
+                                                }                                         
+                                             }]                                      
+                                          },
+                                          tooltip: {
+                                             formatter: function() {
+                                                return ''+
+                                                   this.x +': '+ this.y +'%';
+                                             }                                    
+                                          },
+                                          plotOptions: {
+                                             column: {
+                                                stacking: 'normal'
+                                             }
+                                          },
+                                          legend: {
+                                            enabled: false
+                                          },                                      
+                                          series: [{
+                                             name: '% of Goal Reached',
+                                             data: barChartPlotData
+                                          }]
+                                      });
+                                      //
+                                      //Make the user info section the same height as the leaderboard
+                                      //                     
+                                      equalizeLeaderboardSectionHeights();
+                                   }); 
+                                </script>                             
+                            </apex:outputPanel>
+                            
+                            <!-- Display the graph for all other contest types -->
+                            <apex:outputPanel rendered="{!!fullContest.isPercentToGoal}">
+                                <script type="text/javascript">                                                 
+                                   //When the user info refreshes resize the containers to be equal heights
+                                   var chart1; // globally available
+                                   
+                                   jQuery(document).ready(function($) {
+                                       //
+                                       //Pie chart for all contest types EXCEPT for percent to goal
+                                       //
+                                       var pieChartPlotData = <apex:outputText value="{!pieChartPlotData}"/>;
+                                       chart1 = new Highcharts.Chart({
+                                          chart: {
+                                             renderTo: 'chartContainer',
+                                             plotBackgroundColor: {
+                                                linearGradient: [0, 0, 500, 500],
+                                                stops: [
+                                                    [0, 'rgb(255, 255, 255)'],
+                                                    [1, 'rgb(220, 220, 220)']
+                                                ]
+                                             },
+                                             spacingTop: 0,
+                                             spacingRight: 3,
+                                             spacingBottom: 0,
+                                             spacingLeft: 3,                                     
+                                             zoomType: 'xy'
+                                          },
+                                          title: {
+                                             text: 'Value Earned Comparison'
+                                          },                                          
+                                          credits: {
+                                            enabled: false
+                                          },
+                                          //legend: {
+                                          //  layout: 'vertical'                                            
+                                          //},                                         
+                                          tooltip: {
+                                             formatter: function() {
+                                                //return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %';
+                                                return '<b>'+ this.point.name +'</b> <br/>' +
+                                                       'Value: '+ this.y;
+                                             }
+                                          },                                          
+                                          plotOptions: {
+                                             pie: {
+                                                allowPointSelect: true,
+                                                cursor: 'pointer',
+                                                dataLabels: {
+                                                   enabled: false
+                                                   /*
+                                                   enabled: true,
+                                                   color: '#000000',
+                                                   connectorColor: '#000000',
+                                                   formatter: function() {
+                                                      //return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %';
+                                                      return '<span style="font-size: .8em;">' + this.point.name + '</span>';
+                                                   }
+                                                   */
+                                                },
+                                                showInLegend: false                                             
+                                             }
+                                          },                                      
+                                          series: [{
+                                             type: 'pie',
+                                             name: '',
+                                             data: pieChartPlotData
+                                          }]
+                                      });
+                                      
+                                      //
+                                      //Make the user info section the same height as the leaderboard
+                                      //                     
+                                      equalizeLeaderboardSectionHeights();
+                                   }); 
+                                </script>   
+                            </apex:outputPanel>
+                                                                                
+                            <div id="leaderboardRightInnerLoading">  
+                                                            
+                                <apex:pageBlock tabStyle="Contests__tab">
+                                    <div class="equalheights">
+                                        <p style="padding-top: 100px;"> <!-- This inner p tag is inside the div so that the equal heights method still computes things properly. -->
+                                           <img src="{!$Resource.loading_small}" />                                                                                      
+                                        </p>
+                                    </div>
+                                </apex:pageBlock>
+                            </div>
+                        
+                            <div style="border: solid 8px #EE1F25;" id="leaderboardRightInner">
+                                <!-- <apex:pageBlock tabStyle="Contests__tab"> -->
+                                    <div id="userInfoSection" class="equalheights">
+                                    	<div id="userInfoHeader" >
+                                    		<span style="font-size: 40px;" class="font-blue font-bold"><apex:outputText styleClass="place" value="{!displayedUserLeaderInfo.displayRank}"/></span>
+                                    	</div>
+                                        <div id="userInfoTop">
+                                            <div id="userInfoImage">                           
+                                                <apex:outputPanel rendered="{!IF(isChatterEnabled && !fullContest.isTeamBased, true, false)}">  
+
+                                                </apex:outputPanel>
+                                            </div>
+                                             
+                                            <div id="userInfoDemographics">
+                                                
+                                                <p id="userInfoDemographicsName" class="font-largest font-bold">
+                                                     <apex:outputText value="{!displayedUserLeaderInfo.displayName}"/>
+                                                </p>
+                                                
+                                                <apex:outputPanel layout="block" rendered="{!IF(!fullContest.isTeamBased, true, false)}">
+                                                    <table width="300px" height="125px">
+                                                       <tr>
+                                                           <td valign="bottom">
+                                            				<div id="userInfoValueSection">
+                                                           		<div id="userInfoValueSectionLeft">
+			                                                    <span class="font-bold font-small"><apex:outputText value="{!displayedUserLeaderInfo.rankingMethodDisplayText}"/></span>
+			                                                    <br/>
+			                                                    <span id="userInfoRankByValue" style="font-size: 1.5em;" class="font-orange font-bold">
+			                                                      <apex:outputText value="{!displayedUserLeaderInfo.rankedByValueFormatted}"/>                                                    
+			                                                    </span>
+			                                                    <br/>
+			                                                </div>
+			                                                <div id="userInfoValueSectionRight">
+			                                                    <span class="font-bold font-small"><apex:outputText value="AVERAGE"/></span>
+			                                                    <br/>  
+			                                                    <span style="font-size: 1.5em;" class="font-orange font-bold">
+			                                                        <!-- Format the ranking value appropriately based on the contest type. -->
+			                                                        <apex:outputText value="{!displayedUserLeaderInfo.avgDailyRankedByValueEarnedFormatted}"/>
+			                                                    </span>               
+			                                                    <br/>                                                                                                                                                     
+			                                                </div>
+			                                                <div class="clear"></div>
+                                            				</div>
+                                                           </td>
+                                                       </tr>                                                      
+                                                    </table>
+                                                </apex:outputPanel>                                            
+                                            </div>                                          
+                                            <div class="clear"></div>      
+                                        </div>
+
+                                        <div id="userInfoBottom">
+                                               
+                                                
+                                                
+                                            
+                                            <div id="userInfoRankSection">
+                                               <div id="userInfoRankSectionLeft">
+                                                    <span class="font-bold font-small">POSITION<br/>RANKING</span>
+                                                    <br/>
+                                                    <span class="font-orange">
+                                                        <span style="font-size: 1.2em;" class="font-bold">#<apex:outputText value="{!displayedUserLeaderInfo.displayRank}"/></span> 
+                                                        <span class="font-small"> &nbsp; out of &nbsp; </span>                                    
+                                                        <span style="font-size: 1.2em;" class="font-bold"><apex:outputText value="{!displayedUserLeaderInfo.displayRankOutOf}"/></span>
+                                                    </span>
+                                                </div>
+                                                <div id="userInfoRankSectionMiddle">
+                                                    <span class="font-bold font-small">
+                                                    CATCH THE<br/>LEADER
+                                                    </span>
+                                                    <br/>
+                                                    <!-- Custom help text orb. Must name the span with -_help for the javascript to work properly -->                                                    
+                                                    <span id="catchTheLeader-_help" class="helpButton">                                                
+                                                        <span style="font-size: 1.2em;" class="font-orange font-bold">
+                                                            <apex:outputText value="{!displayedUserLeaderInfo.catchTheLeaderAmountFormatted}"/>
+                                                        </span>   
+                                                    <img class="helpOrb" title="" alt="" src="/s.gif"/>                                                    
+                                                    <script type="text/javascript">
+                                                    sfdcPage.setHelp('catchTheLeader', 'Gap between this participant and the participant in 1st place.');
+                                                    </script>                                                
+                                                    </span>    
+                                                    <br/>                                               
+                                                </div>
+                                                
+                                                <div id="userInfoRankSectionRight">
+                                                    <span class="font-bold font-small">ON THEIR<br/>HEELS</span>
+                                                    <br/>
+                                                    <!-- Custom help text orb. Must name the span with -_help for the javascript to work properly -->
+                                                    <span id="onTheirHeels-_help" class="helpButton">                                                                                                    
+                                                        <span style="font-size: 1.2em;" class="font-orange font-bold">                                                    
+                                                            <apex:outputText value="{!displayedUserLeaderInfo.onTheirHeelsAmountFormatted}"/>
+                                                        </span>                                                    
+                                                    <img class="helpOrb" title="" alt="" src="/s.gif"/>                                                    
+                                                    <script type="text/javascript">
+                                                    sfdcPage.setHelp('onTheirHeels', 'Gap between this participant and the participant one place ahead of them.');
+                                                    </script>                                                
+                                                    </span>    
+                                                </div>
+                                                
+                                                <div class="clear"></div>
+                                            </div>
+                                        
+                                            <div id="userInfoChartWrapper">       
+                                                  <div id="chartContainer" style="width: 99%; height: 245px"></div>
+                                            </div>
+                                        </div>
+                                    </div>                              
+                                <!-- </apex:pageBlock> -->                       
+                            </div>
+                        </apex:form>
+                    </apex:outputPanel>
+                </apex:outputPanel>           
+          </td>
+        </tr>
+        <tr>
+          <td colspan="3">
+          <apex:outputPanel id="contestTicker">
+          <apex:form >
+          <apex:actionPoller rerender="contestTicker" interval="120"/>
+          <table bgcolor="lightgrey" style="border-top: solid 2px #D95D2E"><tr>
+          	<td bgcolor="lightgrey" width="125px">
+          		<span class="font-large font-blue font-bold">CONTEST TICKER</span>
+          	</td>
+          	<td bgcolor="white" style="padding:3px;height:35px">
+	          <div>
+	          	<marquee loop="1" behavior="scroll" scrollamount="5" style="font-size:14pt;" direction="left"><apex:outputText escape="false" value="{!contestTickerText}"/></marquee>
+	          </div>
+            </td>
+          </tr></table>
+	      </apex:form>
+          </apex:outputPanel>
+          </td>
+        </tr>
+      </table>
+      <div class="clear"></div>              
+    </apex:outputPanel>
+    
+    <apex:outputPanel rendered="{!IF(contestId == null, true, false)}">
+      <br /><br />Oops! The contest you are looking for doesn't appear to exist!  Please double check your link and try again!<br /><br />
+    </apex:outputPanel>
+    
+  </div>      
+</apex:page>

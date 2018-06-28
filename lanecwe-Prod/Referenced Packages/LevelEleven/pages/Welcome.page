@@ -1,0 +1,943 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.WelcomePageController" tabStyle="ContestBuilder__tab" standardStylesheets="false" action="{!checkBuilderMode}">
+  <head>
+
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"/>
+    <apex:includeScript value="{!URLFOR($Resource.ePrize_Zemzu__compete, 'javascripts/compete-min.js')}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.ePrize_Zemzu__compete, '/stylesheets/style.css')}"/>
+    <script type="text/javascript">
+      (function($) {
+        if($.fn.preload) {
+          $.fn.preload([
+            '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/help_button_on.jpg')}',
+            '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/panel_button_on.jpg')}',
+            '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/help_button_off.jpg')}',
+            '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/panel_button_off.jpg')}',
+            '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/compete_spinner_color.gif')}',
+            '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/compete_spinner_grey.gif')}'
+          ]);
+        }
+
+        $(document).ready(function() {
+          $('.black-tab-link').click(function() {
+            $('.black-tab').toggle();
+          });
+        });
+
+      }(jQuery));
+    </script>
+  </head>
+
+  <body>
+
+    <apex:pageMessages />
+
+    <div class="l11-main container l11-welcome-page">
+     <div class="row-fluid l11">
+      <div class="l11-orange-header">
+        <span class="help-button-container">
+          <a href="/apex/Help" class="l11-btn l11-btn-help">HELP!</a>
+        </span>
+        <div class="welcome-text">Welcome {!$User.FirstName}</div>
+          <h1>What would you like to motivate?</h1>
+        </div>
+      </div>
+      <apex:outputPanel layout="none" rendered="{!!isDaemonScheduled && isCurrentUserSalesContestBuilderAdmin}">
+        <div class="l11-content">
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2> Setup LevelEleven</h2>
+              <div class="divider"></div>
+
+              <p>Before you can create and run contests we need to first schedule a job that manages all contest notifications and maintenance tasks (like picking winners, etc).  Notifications will all be sent from the user who is logged into Salesforce when the button below is pressed.  The user must have System Administrator access in order for the scheduled job to function properly.</p>
+              <div>
+                <apex:form >
+                <!-- Updated to link to setup wizard -->
+                 <!-- <apex:commandLink styleClass="btn" action="{!scheduleDaemon}" value="Install Sales Contest Builder" id="scheduleDaemon" /> -->
+                 <apex:outputlink value="/apex/InstallSplash" styleClass="l11-btn">Setup LevelEleven</apex:outputlink>
+                </apex:form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </apex:outputPanel>
+      <apex:outputPanel layout="none" rendered="{!!isCurrentUserContestBuilder && !isCurrentUserSalesContestBuilderAdmin && isDaemonScheduled}">
+        <div class="l11-content">
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2>No Access</h2>
+              <div class="divider"></div>
+              <apex:pageBlock >
+                <p>Sorry, you do not have permissions to create contests.</p>
+              </apex:pageBlock>
+            </div>
+          </div>
+        </div>
+      </apex:outputPanel>
+      <apex:outputPanel layout="none" rendered="{!isCurrentUserContestBuilder && !isDaemonScheduled}">
+        <div class="l11-content">
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2>LevelEleven Requires Setup</h2>
+              <div class="divider"></div>
+              <apex:pageBlock >
+                <p>In order to create contests, please have the LevelEleven administrator complete the Setup Wizard.</p>
+              </apex:pageBlock>
+            </div>
+          </div>
+        </div>
+      </apex:outputPanel>
+      <apex:outputPanel layout="none" rendered="{!isDaemonScheduled && (isCurrentUserContestBuilder || isCurrentUserSalesContestBuilderAdmin)}">
+        <div class="row-fluid l11">
+          <div class="span12">
+            <div class="l11-content">
+              <div class="row">
+                <div class="span4 l11-panel">
+                  <div class="inner">
+                    <div class="min-height150">
+                      <h3>Pipeline Behaviors</h3>
+                      <div class="description">
+                        <p>
+                          Motivate the key behaviors that will lead to more sales.
+                        </p>
+                      </div>
+                      <p class="reward-label"><strong>Reward activities based on:</strong></p>
+                      <div class="row">
+                        <div class="span12">
+                          <div class="labels">
+                            <span class="label">Leads</span>
+                            <span class="label">Events</span>
+                            <span class="label">Products</span>
+                            <span class="label">Tasks</span>
+                            <span class="label">Opportunities</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h4>Award Types</h4>
+                    <div class="row award-types">
+                      <div class="l11-table-dashboard">
+                        <div class="span4 border-right">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/points_icon.png')}" />
+                        </div>
+                        <div class="span4">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/dollars_icon.png')}" />
+                        </div>
+                        <div class="span4 border-left">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/goal_icon.png')}" />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="l11-get-started">
+                        <div class="span12">
+                          <a class="l11-btn l11-btn-center" href="/apex/contestwizardwrapper?contest_goal=Pipeline+Behaviors"> build now</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="span4 l11-panel">
+                  <div class="inner">
+                    <div class="min-height150">
+                      <h3>Closing Sales</h3>
+                      <div class="description">
+                        <p>
+                          Classic sales contest. Leadboard is ranked based on Opportunities.
+                        </p>
+                      </div>
+                      <p class="reward-label"><strong>Reward activities based on:</strong></p>
+                      <div class="row">
+                        <div class="span12">
+                          <div class="labels">
+                            <span class="label">Products</span>
+                            <span class="label">Opportunities</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h4>Award Types</h4>
+                    <div class="row award-types">
+                      <div class="l11-table-dashboard">
+                        <div class="span4 border-right">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/points_icon.png')}" />
+                        </div>
+                        <div class="span4">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/dollars_icon.png')}" />
+                        </div>
+                        <div class="span4 border-left">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/goal_icon.png')}" />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="l11-get-started">
+                        <div class="span12">
+                          <a class="l11-btn l11-btn-center" href="/apex/contestwizardwrapper?contest_goal=Closing+Sales"> build now</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="span4 l11-panel">
+                  <div class="inner">
+                    <div class="min-height150">
+                      <h3>Salesforce Adoption</h3>
+                      <div class="description">
+                        <p>
+                          Motivate record creation, chatter usage or completion of blank fields.
+                        </p>
+                      </div>
+                      <p class="reward-label"><strong>Reward activities based on:</strong></p>
+                      <div class="row">
+                        <div class="span12">
+                          <div class="labels">
+                            <span class="label">Leads</span>
+                            <span class="label">Accounts</span>
+                            <span class="label">Contacts</span>
+                            <span class="label">Tasks</span>
+                            <span class="label">Events</span>
+                            <span class="label">Opportunities</span>
+                            <span class="label">Chatter</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h4>Award Types</h4>
+                    <div class="row award-types">
+                      <div class="l11-table-dashboard">
+                        <div class="span4">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/points_icon.png')}" />
+                        </div>
+                        <div class="span4">
+
+                        </div>
+                        <div class="span4">
+
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="l11-get-started">
+                        <div class="span12">
+                          <a class="l11-btn l11-btn-center" href="/apex/contestwizardwrapper?contest_goal=Salesforce+Adoption"> build now</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row-fluid l11">
+          <div class="span12">
+            <div class="l11-content">
+              <div class="row">
+                <div class="span4 l11-panel">
+                  <div class="inner">
+                    <div class="min-height150">
+                      <h3>Parent Contest</h3>
+                      <div class="description">
+                        <p>
+                          Create an overarching leaderboard, with child-contests that feed in to it.
+                        </p>
+                      </div>
+                      <p class="reward-label"><strong>Reward activities based on:</strong></p>
+                      <div class="row">
+                        <div class="span12">
+                          <div class="labels">
+                            <span class="label">Leads</span>
+                            <span class="label">Accounts</span>
+                            <span class="label">Tasks</span>
+                            <span class="label">Events</span>
+                            <span class="label">Opportunities</span>
+                            <span class="label">Products</span>
+                            <span class="label">Cases</span>
+                            <span class="label">Contacts</span>
+                            <span class="label">Custom Objects</span>
+                            <span class="label">Chatter</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h4>Award Types</h4>
+                    <div class="row award-types">
+                      <div class="l11-table-dashboard">
+                        <div class="span4 border-right">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/points_icon.png')}" />
+                        </div>
+                        <div class="span4">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/dollars_icon.png')}" />
+                        </div>
+                        <div class="span4 border-left">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/goal_icon.png')}" />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="l11-get-started">
+                        <div class="span12">
+                          <a class="l11-btn l11-btn-center" href="/apex/contestwizardwrapper?contest_goal=Parent+Contest"> build now</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="span4 l11-panel">
+                  <div class="inner">
+                    <div class="min-height150">
+                      <h3>Custom Contests</h3>
+                      <div class="description">
+                        <p>
+                          Mix and match any objects, including Cases and Custom Objects.
+                        </p>
+                      </div>
+                      <p class="reward-label"><strong>Reward activities based on:</strong></p>
+                      <div class="row">
+                        <div class="span12">
+                          <div class="labels">
+                            <span class="label">Standard Objects</span>
+                            <span class="label">Custom Objects</span>
+                            <span class="label">Chatter</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h4>Award Types</h4>
+                    <div class="row award-types">
+                      <div class="l11-table-dashboard">
+                        <div class="span4 border-right">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/points_icon.png')}" />
+                        </div>
+                        <div class="span4">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/dollars_icon.png')}" />
+                        </div>
+                        <div class="span4 border-left">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/goal_icon.png')}" />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="l11-get-started">
+                        <div class="span12">
+                          <a class="l11-btn l11-btn-center" href="/apex/contestwizardwrapper?contest_goal=Custom"> build now</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="span4 l11-panel">
+                  <div class="inner">
+                    <div class="min-height150">
+                      <h3>Case Contest</h3>
+                      <div class="description">
+                        <p>
+                          Create a contest to motivate on cases and support.
+                        </p>
+                      </div>
+                      <p class="reward-label"><strong>Reward activities based on:</strong></p>
+                      <div class="row">
+                        <div class="span12">
+                          <div class="labels">
+                            <span class="label">Cases</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h4>Award Types</h4>
+                    <div class="row award-types">
+                      <div class="l11-table-dashboard">
+                        <div class="span4 ">
+                          <img class="award-icon" src="{!URLFOR($Resource.compete, 'images/points_icon.png')}" />
+                        </div>
+                        <div class="span4">
+
+                        </div>
+                        <div class="span4">
+
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="l11-get-started">
+                        <div class="span12">
+                          <a class="l11-btn l11-btn-center" href="/apex/contestwizardwrapper?contest_goal=Case+Contest"> build now</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </apex:outputPanel>
+      </div>
+      <apex:outputPanel layout="none" rendered="{!isDevOrg || isTestOrg}">
+        <p><a href="#" class="black-tab-link" style="color: #e1e1e1">Black Tab</a></p>
+      </apex:outputPanel>
+      <div class="black-tab zemzu" style="display:none">
+        <apex:tabPanel switchType="client" id="theTabPanel">
+
+          <apex:tab label="QA Tools" name="qaTab" id="qaTab" styleClass="tabContent" rendered="{!isDevOrg || isTestOrg}">
+            <apex:pageBlock title="Job Daemon Tools">
+              <p>The following tools can be used to manage the job daemon:</p>
+              <p>
+                <apex:form >
+                  <apex:commandLink styleClass="btn" action="{!scheduleDaemon}" value="Schedule Daemon" id="scheduleDaemon" />
+                  Schedule the Job Daemon
+                  <apex:commandLink styleClass="btn" action="{!unscheduleDaemon}" value="Unschedule Daemon" id="unscheduleDaemon" /> - Unschedule the Job Daemon, allowing scheduled code to be modified
+                </apex:form>
+              </p>
+              <p>
+                <apex:form >
+                  <apex:commandLink styleClass="btn" action="{!runDaemon}" value="Run Daemon" id="runDaemon" /> - Runs a complete JobDaemon job as if the scheduled job fired right now.  Useful for testing notifications without waiting for the scheduled job to fire.
+                </apex:form>
+              </p>
+            </apex:pageBlock>
+            <apex:pageBlock title="Mass Data Tools">
+              <p>The following tools can be used to manipulate large amounts of data:</p>
+              <p>
+                <apex:form >
+                  <apex:commandLink styleClass="btn" action="{!deleteContests}" value="Delete Contests" id="deleteContests"/> - Deletes contests, running or not, and their associated chatter groups.  Useful to do before performing an uninstall. This will only delete up to 10 contests at a time. If you have more than 10 contests, simply use this function multiple times until all are deleted.
+                </apex:form>
+              </p>
+              <p>
+                <apex:form >
+                  <apex:commandLink styleClass="btn" action="{!deleteChatterGroups}" value="Delete Chatter Groups" id="deleteChatterGroups"/> - Deletes all chatter groups in the system, whether associated with a contest or not.
+                </apex:form>
+              </p>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Email Tools">
+              <p>The following tool will send {!currentUserEmailAddress} a specific email for the selected contest:</p>
+              <p>
+                <apex:form >
+                  <apex:selectList id="contestId" value="{!contestId}" multiselect="false" size="1">
+                    <apex:selectOptions value="{!contestItems}"/>
+                  </apex:selectList>
+                  <apex:selectList id="emailType" value="{!emailType}" multiselect="false" size="1">
+                    <apex:selectOptions value="{!emailItems}"/>
+                  </apex:selectList>
+                  <apex:commandLink styleClass="btn" action="{!sendEmail}" value="Send Email" id="sendEmail" />
+                </apex:form>
+              </p>
+            </apex:pageBlock>
+            <apex:pageBlock title="Integration Tools">
+              <p>The following tools can be used to test BReWS integration:</p>
+              <p>
+                <apex:form >
+                  <apex:selectList id="contestId" value="{!contestId}" multiselect="false" size="1">
+                    <apex:selectOptions value="{!contestItems}"/>
+                  </apex:selectList>
+                  <apex:commandLink styleClass="btn" action="{!playIncentive}" value="Play" id="playIncentive" />
+                  <apex:commandLink styleClass="btn" action="{!playIncentiveTenTimes}" value="Play 10 Times" id="playIncentiveTenTimes" />
+                  <apex:commandLink styleClass="btn" action="{!viewWins}" value="View Wins" id="viewWins" />
+                </apex:form>
+              </p>
+            </apex:pageBlock>
+            <apex:pageBlock title="Chatter Status">
+              <p>
+                <apex:outputLabel value="Chatter is enabled for your organization." rendered="{!isChatterEnabled}"/>
+                <apex:outputLabel value="Chatter is disabled for your organization." rendered="{!!isChatterEnabled}"/>
+              </p>
+            </apex:pageBlock>
+          </apex:tab>
+
+          <apex:tab label="Developer Tools" name="devTab" id="devTab" styleClass="tabContent" rendered="{!isDevOrg}">
+            <apex:pageBlock title="Integration Tools">
+              <p>The following tools can be used to test BReWS integration:</p>
+              <p>
+                <apex:form >
+                  <apex:commandLink styleClass="btn" action="{!createContest}" value="Create Contest" id="createContest" /> - Create a sample instant win contest (this also creates the prizekin)
+                </apex:form>
+              </p>
+              <p>
+                <apex:form >
+                  <apex:selectList id="contestId" value="{!contestId}" multiselect="false" size="1">
+                    <apex:selectOptions value="{!contestItems}"/>
+                  </apex:selectList>
+                  <apex:commandLink styleClass="btn" action="{!createIncentive}" value="Create Incentive" id="createIncentive" />
+                  <apex:commandLink styleClass="btn" action="{!playIncentive}" value="Play" id="playIncentive" />
+                  <apex:commandLink styleClass="btn" action="{!playIncentiveTenTimes}" value="Play 10 Times" id="playIncentiveTenTimes" />
+                  <apex:commandLink styleClass="btn" action="{!viewWins}" value="View Wins" id="viewWins" />
+                  <apex:commandLink styleClass="btn" action="{!deleteContest}" value="Delete Contest" id="deleteContest" />
+                </apex:form>
+              </p>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Test User Generation">
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Number of test users to create<br/>
+                    <span class="font-smaller font-gray">Enter the number of test users to create.</span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!numberOfTestUsersToCreate}" id="numberOfTestUsersToCreate" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Starting Index<br/>
+                    <span class="font-smaller font-gray">
+                      Start at this number and create users with this index appended to their name,
+                      up to this number plus the number of users to create.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testUserStartingIndex}" id="testUserStartingIndex" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    First Name<br/>
+                    <span class="font-smaller font-gray">This is what will be placed in the first name field for all test users.</span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testUserFirstName}" id="testUserFirstName" maxlength="8" size="8"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Last Name<br/>
+                    <span class="font-smaller font-gray">
+                      This is what will be placed in the last name field for all test users. Additionally, a number
+                      will be appended to the last name for each user that is created, starting at 1 and ending at the number of test users specified to be created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testUserLastName}" id="testUserLastName" maxlength="8" size="8"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    User Name<br/>
+                    <span class="font-smaller font-gray">
+                      The username prefix for all test users created. A number
+                      will be appended to each user that is created, starting at 1 and ending at the number of test users specified to be created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testUserName}" id="testUserName" maxlength="6" size="6"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Domain Name<br/>
+                    <span class="font-smaller font-gray">
+                      The domain name to use for the email address of each test user created. Additionally, this
+                      is appended onto the final username so it is username1@domainName
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testUserDomainName}" id="testUserDomainName" maxlength="25" size="25"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Alias<br/>
+                    <span class="font-smaller font-gray">
+                      The alias prefix for all test users created. A number
+                      will be appended to each user that is created, starting at 1 and ending at the number of test users specified to be created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testUserAlias}" id="testUserAlias" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Profile<br/>
+                    <span class="font-smaller font-gray">
+                      Give this profile to all users created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="testUserProfile" value="{!testUserProfile}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!userProfiles}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Role<br/>
+                    <span class="font-smaller font-gray">
+                      Give this role to all users created. For chatter free licenses,
+                      the role should be left blank.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="testUserRole" value="{!testUserRole}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!userRoles}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!createTestUsers}" value="Create Test Users" id="createTestUsers" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Test Product Generation">
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Number of test products to create<br/>
+                    <span class="font-smaller font-gray">Enter the number of test products to create.</span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!numberOfTestProductsToCreate}" id="numberOfTestProductsToCreate" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Starting Index<br/>
+                    <span class="font-smaller font-gray">
+                      Start at this number and create products with this index appended to their code and name,
+                      up to this number plus the number of products to create.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testProductStartingIndex}" id="testProductStartingIndex" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Product Code<br/>
+                    <span class="font-smaller font-gray">
+                      The code for all test products created. A number
+                      will be appended to each product that is created, starting at 1 and ending at the number of test products specified to be created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testProductCode}" id="testProductCode" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Product Name<br/>
+                    <span class="font-smaller font-gray">
+                      The name of all test products created. A number
+                      will be appended to each product that is created, starting at 1 and ending at the number of test products specified to be created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testProductName}" id="testProductName" maxlength="15" size="15"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Pricebook<br/>
+                    <span class="font-smaller font-gray">
+                      Select the pricebook that all of the created products will be added to.
+                      Be sure that they get added to the "Standard Price Book" option first. This will then create
+                      the products in that price book. After doing that, rerun this again with the exact same parameters
+                      except pick a different price book to add them to if desired.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="testProductPricebook" value="{!testProductPricebook}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!pricebooks}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!createTestProducts}" value="Create Test Products" id="createTestProducts" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Test Chatter Group Generation">
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Number of test chatter groups to create<br/>
+                    <span class="font-smaller font-gray">Enter the number of test chatter groups to create.</span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!numberOfTestChatterGroupsToCreate}" id="numberOfTestChatterGroupsToCreate" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Starting Index<br/>
+                    <span class="font-smaller font-gray">
+                      Start at this number and create chatter groups with this index appended to their name,
+                      up to this number plus the number of chatter groups to create.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testChatterGroupStartingIndex}" id="testChatterGroupStartingIndex" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Chatter Group Name<br/>
+                    <span class="font-smaller font-gray">
+                      The name of all test chatter groups created. A number
+                      will be appended to each chatter group that is created, starting at 1 and ending at the number of test chatter groups specified to be created.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText value="{!testChatterGroupName}" id="testChatterGroupName" maxlength="25" size="25"/>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!createTestChatterGroups}" value="Create Test Chatter Groups" id="createTestChatterGroups" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Test Contest Generation">
+              <apex:pageBlockSection >
+                <span>
+                    This will generate a contest for test purposes. If a pipepline behavior contest is created, three behaviors will be automatically added: created or modified a lead,
+                    created or modified an opportunity, and created or modified an event. If a closing sales contest is created, a closed won filter will be automatically added. If
+                    a SalesForce Adoption contest is created, three behaviors will be automatically added: created or modified a lead, created or modified an opportunity, and created
+                    or modified an event.
+                </span>
+              </apex:pageBlockSection>
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+
+                  <apex:pageBlockSectionItem >
+                    Contest Name<br/>
+                    <span class="font-smaller font-gray">
+                      This will be the name of the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputField value="{!contest.ePrize_Zemzu__ContestName__c}" id="contest__name" />
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Contest Type<br/>
+                    <span class="font-smaller font-gray">
+                      This will be the type of the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputField value="{!contest.ePrize_Zemzu__Goal__c}" id="contest__goal" />
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Contest Start Date<br/>
+                    <span class="font-smaller font-gray">
+                      This will be the start date of the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputField value="{!contest.ePrize_Zemzu__StartDate__c}" id="contest__startdate" />
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Contest End Date<br/>
+                    <span class="font-smaller font-gray">
+                      This will be the end date of the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputField value="{!contest.ePrize_Zemzu__EndDate__c}" id="contest__enddate" />
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Team Based Contest<br/>
+                    <span class="font-smaller font-gray">
+                      This will make the test contest a team based contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputField value="{!contest.ePrize_Zemzu__Teams__c}" id="contest__teams" />
+                  </apex:pageBlockSectionItem>
+
+                  <apex:pageBlockSectionItem >
+                    Rank by<br/>
+                    <span class="font-smaller font-gray">
+                      This will determine how the participants of the contest are ranked.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputField value="{!contest.ePrize_Zemzu__RankingStyle__c}" id="contest__rank" />
+                  </apex:pageBlockSectionItem>
+
+                </apex:pageBlockSection>
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!createTestContest}" value="Create Test Contest" id="createTestContest" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Individual Test Contest Participant Generation">
+              <apex:pageBlockSection >
+                <span>
+                    This will add participants to an individual based contest. If the contest already has some participants, it will make sure the contest
+                    has the specified number of participants by adding users that are not currently in the contest. This will also give each participant a
+                    random goal between 100,000 and 1,000,000.
+                </span>
+              </apex:pageBlockSection>
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Contest<br/>
+                    <span class="font-smaller font-gray">
+                      Add participants to this individual based test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="addParticipantsIndividualContestId" value="{!addParticipantsIndividualContestId}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!IndividualBasedContestItems}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    Participant Count<br/>
+                    <span class="font-smaller font-gray">
+                      Add these many participants to the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText id="addParticipantsIndividualContestCount" value="{!addParticipantsIndividualContestCount}" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!addParticipantsToIndividualTestContest}" value="Add Participants To Individual Test Contest" id="addParticipantsToIndividualTestContest" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Team Test Contest Team Generation">
+              <apex:pageBlockSection >
+                <span>
+                    This will add teams to a team based contest. This will only add teams to a team based contest that does not have any teams
+                    defined. This will also give each team a random goal between 10,000,000 and 5,000,000.
+                </span>
+              </apex:pageBlockSection>
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Contest<br/>
+                    <span class="font-smaller font-gray">
+                      Add teams to this team based test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="addTeamsContestId" value="{!addTeamsContestId}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!TeamBasedContestItems}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    Team Count<br/>
+                    <span class="font-smaller font-gray">
+                      Add these many teams to the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText id="addTeamsContestCount" value="{!addTeamsContestCount}" maxlength="2" size="2"/>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!addTeamsToTeamTestContest}" value="Add Teams To Team Test Contest" id="addTeamsToTeamTestContest" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Team Test Contest Participant Generation">
+              <apex:pageBlockSection >
+                <span>
+                    This will add participants to a team based contest. This will only add participants to a team based contest that does have teams
+                    defined but does not have any team members defined.
+                </span>
+              </apex:pageBlockSection>
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Contest<br/>
+                    <span class="font-smaller font-gray">
+                      Add participants to this team based test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="addParticipantsTeamContestId" value="{!addParticipantsTeamContestId}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!TeamBasedContestItems}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    Participant Count<br/>
+                    <span class="font-smaller font-gray">
+                      Add these many participants to the test contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText id="addParticipantsTeamContestCount" value="{!addParticipantsTeamContestCount}" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!addParticipantsToTeamTestContest}" value="Add Participants To Team Test Contest" id="addParticipantsToTeamTestContest" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+            <apex:pageBlock title="Test Contest Action Generation">
+              <apex:pageBlockSection >
+                <span>
+                    This will add actions to each participant in a contest. If it is a percent to goal or total dollar value of entries type of contest, then
+                    it will generate random opportunities with amounts between 100 and 100,000 for each participant. For all other types of contest, random adhoc
+                    points between 100 and 100,000 will be awarded to each participant.
+                </span>
+              </apex:pageBlockSection>
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Contest<br/>
+                    <span class="font-smaller font-gray">
+                      Add an action for all participants in this contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="addRandomActionContestId" value="{!addRandomActionContestId}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!contestItems}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    Number of Actions<br/>
+                    <span class="font-smaller font-gray">
+                      Add this many actions to each participant in the contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:inputText id="addRandomActionCount" value="{!addRandomActionCount}" maxlength="4" size="4"/>
+                  </apex:pageBlockSectionItem>
+
+                </apex:pageBlockSection>
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!addRandomActionsToTestContest}" value="Add Random Actions For Contest" id="addRandomActionsToTestContest" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+
+            <apex:pageBlock title="Contest Action Deletion">
+              <apex:pageBlockSection >
+                <span>
+                    After adding many actions to a contest, the standard delete might not work if there are too many actions to delete at a time.
+                    This method will delete up to 10,000 actions at a time from a contest.
+                </span>
+              </apex:pageBlockSection>
+              <apex:form >
+                <apex:pageBlockSection columns="2">
+                  <apex:pageBlockSectionItem >
+                    Contest<br/>
+                    <span class="font-smaller font-gray">
+                      Delete actions from this contest.
+                    </span>
+                  </apex:pageBlockSectionItem>
+                  <apex:pageBlockSectionItem >
+                    <apex:selectList id="deleteActionsFromContestId" value="{!deleteActionsFromContestId}" multiselect="false" size="1">
+                      <apex:selectOptions value="{!contestItems}"/>
+                    </apex:selectList>
+                  </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+                <p>
+                  <apex:commandLink styleClass="btn" action="{!deleteActionsForContest}" value="Delete Actions From Contest" id="deleteActionsFromContest" />
+                </p>
+              </apex:form>
+            </apex:pageBlock>
+
+          </apex:tab>
+
+
+        </apex:tabPanel>
+      </div>
+
+    <c:GA />
+  </body>
+</apex:page>

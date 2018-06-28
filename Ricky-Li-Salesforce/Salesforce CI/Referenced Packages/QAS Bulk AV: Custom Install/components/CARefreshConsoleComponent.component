@@ -1,0 +1,47 @@
+<apex:component access="global">
+   <apex:includeScript value="{!URLFOR($Resource.QAS_NA__QASTools)}"/>
+   <apex:includeScript value="/support/console/24.0/integration.js"/>
+    
+    <script type="text/javascript">
+        var tabIdToRefresh = '';
+        var tabIdToClose = '';
+        var primaryTabRefreshAttempted = false;
+        
+        function closeEnclosingSubTab() {
+            sforce.console.getEnclosingTabId(closeSubtab);
+        }
+       
+        var closeSubtab = function closeSubtab(result) {
+            tabIdToClose = result.id;
+            refreshSubtabById();
+        };
+        
+        function refreshSubtabById() {
+            sforce.console.refreshSubtabById(tabIdToRefresh, true, refreshSuccess);
+        }
+        
+        var refreshSuccess = function refreshSuccess(result) {
+            if(result.success == false && primaryTabRefreshAttempted == false){
+                primaryTabRefreshAttempted = true;
+                sforce.console.refreshPrimaryTabById(tabIdToRefresh, true, refreshSuccess);         
+            } else {
+                sforce.console.closeTab(tabIdToClose);
+            }
+        }
+        
+        if(window.location.href.indexOf('isdtp=vw') > 0) {
+            var indexBeg = window.location.href.indexOf('tabId=');
+            if(indexBeg > 0) {
+                var indexEnd = window.location.href.indexOf('&', indexBeg);
+                if(indexEnd < indexBeg) { //KM: this happens when tabId=xyz is the lst parameter in the query string.
+                	indexEnd = window.location.href.length;
+                }
+                
+                tabIdToRefresh = window.location.href.substring(indexBeg +'tabId='.length, indexEnd);
+            }
+            window.setTimeout(closeEnclosingSubTab, 100);
+        } else {
+            qas_showHomePageInHiddenIFrame(window.location.href,"consoleRefresh=true");
+        }
+    </script>
+</apex:component>

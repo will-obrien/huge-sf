@@ -1,0 +1,898 @@
+<apex:page showHeader="false"
+           sidebar="false"
+           docType="html-5.0"
+           standardStylesheets="false"
+           applyBodyTag="false"
+           applyHtmlTag="false"
+           standardController="Campaign"
+           extensions="CreateGroupEventSLDSController">
+    <html ng-app="GroupEvents" 
+        xmlns="http://www.w3.org/2000/svg"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+            <link href="{!URLFOR($Resource.LightningDesignSystem,'assets/styles/salesforce-lightning-design-system-vf.min.css')}" rel="stylesheet" />
+            
+            <!--  Date Picker Static resource --Starts -->
+                
+                <!-- jQuery CDN -->
+                <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+                <link href="{!URLFOR($Resource.BootstrapCSS,'')}" rel="stylesheet" />
+                <!-- Important To Include ALJS init File-->
+                <script src="{!URLFOR($Resource.appiphonyLightningJs, '/jquery.aljs-init.min.js')}"></script>
+                <!-- ALJS Datepicker Module-->
+                <script src="{!URLFOR($Resource.appiphonyLightningJs, '/jquery.aljs-datepicker.min.js')}"></script>
+                 
+            <!--  Date Picker Static resource --Ends -->
+            <style>
+                body{
+                      margin:3px !important;
+                    }
+                .pagecontainer{
+                  padding:50px;
+                }
+            </style>
+            <script type="text/javascript">
+            
+             //Date Picker Code -- Starts
+                
+                var j$ = jQuery.noConflict();
+                //Assigning SLDS Static Resource Path To A Variable To Use It With ALJS Initialization
+                
+                var assetsLoc = '{!URLFOR($Resource.LightningDesignSystem)}';
+                var eventDateValue = '';  
+                //ALJS Initialization   
+                       
+                j$.aljsInit({
+                  assetsLocation: assetsLoc, //SLDS Static Resource Path
+                  scoped: true
+                });
+                   
+                j$(document).ready(function() {
+                 
+                //Initializing Datepicker with options To The SLDS Input on document ready.
+                 
+                 j$('#date').datepicker({
+                    initDate: moment(), //Today Date
+                    format: 'YYYY-MM-DD', //Date Format Of Datepicker Input Field
+                    onChange: function(datepicker) {
+                    j$('#SelectedDate').html('Selected Date: <strong>'+moment(datepicker.selectedFullDate._d).format('YYYY-MM-DD')+'</strong>');
+                    eventDateValue =moment(datepicker.selectedFullDate._d).format('YYYY-MM-DD');    
+                   }
+                  });
+                });
+                
+             //Date Picker Code -- Endss
+            
+            
+             // define the Angular app
+             var groupEventApp = angular.module('GroupEvents', []);
+             groupEventApp.controller('HomeController',['$log','$scope',function($log,$scope){
+                $scope.addMemberOpen = false;
+                $scope.AddLocationDetails = false;
+                $scope.errorMessageCon = false;
+                $scope.errorMessage3 = false ;
+                $scope.errorMessage4 = false ;
+                $scope.errorMessage5 = false ;
+                $scope.errorMessage6 = false ;
+                $scope.errorMessage7 = false ;
+                $scope.errorMessage8 = false ;
+                $scope.errorMessage9 = false ;
+                $scope.errorMessageSpeaker = false ;
+                $scope.errorMessageAccountNameSearch = false ;
+                $scope.errorMessageAccountNameSearchMainPage = false;
+                $scope.speakerName = '';
+                $scope.AccountNameSearch = '';
+                $scope.AccountName = '';
+                $scope.SpeakerObj = null;
+                $scope.showSuccessDialogBox = false;
+                
+                //Get the new campaign record - Start
+                Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.CreateGroupEventSLDSController.getcampaignObj}',
+                                    function(result, event){
+                                        if (event.status) {
+                                            $scope.campaign = result;
+                                        } else if (event.type === 'exception') {
+                                            
+                                        } else {
+                                            
+                                        }
+                                        $scope.$apply();
+                                    }, 
+                                    {escape: true}
+                );
+                //Get the new campaign record - Ends 
+                
+                //fetch picklist values
+                $scope.allPicklistValues = {!AllPicklistValues};
+                
+                //fetch the object prefix for navigation
+                Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.CreateGroupEventSLDSController.fetchObjectKey}',
+                                    function(result, event){
+                                        if (event.status) {
+                                            $scope.userList = result;
+                                        } else if (event.type === 'exception') {
+                                            
+                                        } else {
+                                            
+                                        }
+                                    }, 
+                                    {escape: true}
+                );
+                
+                $scope.selectedContact = function(contact){
+                    $scope.showContactListSearch = false;
+                    $scope.contact_sel = contact.Id;
+                    $scope.contactName = contact.Name;
+                    $scope.speakerName = contact.Name;
+                    $scope.accountName = contact.Account.Name;
+                    $scope.accountId = contact.AccountId;
+                    $scope.SpeakerObj = contact;
+                    $scope.errorMessageCon = false;
+                    $scope.contactList = [];
+                }
+                
+                // Search contact
+                $scope.searchContacts = function(){
+
+                    $scope.showContactListFocus = false;
+                    $scope.contactList = [];
+                    
+                    // Search only if character size is greater than 3
+                    if($scope.speakerName != undefined && $scope.speakerName.length > 3 ){
+                    
+                        Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.CreateGroupEventSLDSController.searchSpeaker}',
+                                    $scope.speakerName, 
+                                    function(result, event){
+                                        if (event.status) {
+                                            $scope.showContactListSearch = true;
+                                            $scope.contactList = result;
+                                        } else if (event.type === 'exception') {
+                                            
+                                        } else {
+                                            
+                                        }
+                                        $scope.$apply();
+                                    }, 
+                                    {escape: true}
+                        );
+                        
+                    }else{
+                        $scope.showContactListSearch = false;
+                    }
+                }
+                
+                // below functions is used to do account search operation and select account based on entered text - Start
+                
+                $scope.selectedSeachedAccount = function(SearchedAccount){
+                    $scope.showSearchedAccountList = false;
+                    $scope.searchedAccount = SearchedAccount;
+                    $scope.searchedAccountName = SearchedAccount.Name;
+                    $scope.AccountNameSearch = SearchedAccount.Name;
+                    $scope.errorMessageAccountNameSearch = false;
+                    $scope.SearchedAccountList = [];
+                    
+                    //New code to create ContactWrapperList - start
+                    
+                    $scope.ContactWrapperList = [];
+                    angular.forEach(SearchedAccount.Contacts, function(value, key) {
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching = {};
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching.con = {};
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Active_Product__c = value.Active_Product__c;
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Oncology_Specialties__c = value.Oncology_Specialties__c;
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Id = value.Id;
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Name = value.Name;
+                      $scope.ContactRecordsWithCheckBoxWrapperForSearching.isChecked = false;
+                      $scope.ContactWrapperList.push($scope.ContactRecordsWithCheckBoxWrapperForSearching);
+                    });
+                    
+                    //New code to create ContactWrapperList - END 
+                    
+                    $scope.allContactList = $scope.ContactWrapperList ;
+                }
+                
+                $scope.searchAccountsForAddingContacts = function(){
+
+                    $scope.SearchedAccountList = [];
+                    if($scope.AccountNameSearch != undefined && $scope.AccountNameSearch.length > 3 ){
+                    
+                        Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.CreateGroupEventSLDSController.searchAccount}',
+                                    $scope.AccountNameSearch, 
+                                    function(result, event){
+                                        if (event.status) {
+                                            $scope.showSearchedAccountList = true;
+                                            $scope.SearchedAccountList = result;
+                                        } else if (event.type === 'exception') {
+                                            
+                                        } else {
+                                            
+                                        }
+                                        $scope.$apply();
+                                    }, 
+                                    {escape: true}
+                        );
+                        
+                    }else{
+                        $scope.showSearchedAccountList = false;
+                    }
+                    
+                }
+                
+                // account search and select account operation based on entered text - End
+                
+                // below functions is used to Add Account field value on Main page - Start
+                
+                $scope.selectedAccountFunction = function(relatedAccount){
+                    $scope.selectedAccount = relatedAccount;
+                    $scope.selectedAccountName = relatedAccount.Name;
+                    $scope.AccountName = relatedAccount.Name;
+                    $scope.showAccountList = false;
+                    $scope.errorMessageAccountNameSearchMainPage = false;
+                    $scope.AccountList = [];
+                    $scope.selectedAccountID = relatedAccount.Id;
+                    
+                    //assign account name and related contacts for Add/Remove page
+                    $scope.searchedAccount = relatedAccount;
+                    $scope.searchedAccountName = relatedAccount.Name;
+                    $scope.AccountNameSearch = relatedAccount.Name;
+                    $scope.listOfContacts = relatedAccount.Contacts ;
+                    if($scope.listOfContacts != undefined ){
+                        
+                        //New code to create ContactWrapperList - start
+                    
+                        $scope.ContactWrapperList = [];
+                        angular.forEach($scope.listOfContacts, function(value, key) {
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching = {};
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching.con = {};
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Active_Product__c = value.Active_Product__c;
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Oncology_Specialties__c = value.Oncology_Specialties__c;
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Id = value.Id;
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching.con.Name = value.Name;
+                          $scope.ContactRecordsWithCheckBoxWrapperForSearching.isChecked = false;
+                          $scope.ContactWrapperList.push($scope.ContactRecordsWithCheckBoxWrapperForSearching);
+                        });
+                        
+                        //New code to create ContactWrapperList - END 
+                        
+                        $scope.allContactList = $scope.ContactWrapperList ;
+                    }
+                }
+                
+                $scope.searchAccountForRelatedGroupEvent = function(){
+
+                    $scope.AccountList = [];
+                    if($scope.selectedAccountName != undefined && $scope.selectedAccountName.length > 3 ){
+                    
+                        Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.CreateGroupEventSLDSController.searchAccount}',
+                                    $scope.selectedAccountName, 
+                                    function(result, event){
+                                        if (event.status) {
+                                            $scope.showAccountList = true;
+                                            $scope.AccountList = result;
+                                        } else if (event.type === 'exception') {
+                                            
+                                        } else {
+                                            
+                                        }
+                                        $scope.$apply();
+                                    }, 
+                                    {escape: true}
+                        );
+                        
+                    }else{
+                        $scope.showAccountList = false;
+                    }
+                    
+                }
+                
+                // Add Account field on Main page - End
+                
+                // Navigate to contact creation SF standard page
+                $scope.openNewContactScreen = function(){
+                   if((typeof sforce != 'undefined') && (sforce != null) ){
+                           sforce.one.createRecord('Contact');
+                     }else{
+                           window.open('/'+$scope.userList+'/e','_self');
+                     }
+        
+                }
+                
+                $scope.openAddMember = function(){
+                    $scope.addMemberOpen = true ;
+                }
+                
+                //Open Location Detail section
+                $scope.openAddLocationDetailsSection = function(){
+                    $scope.AddLocationDetails = true ;
+                }
+                
+                //Close Location Detail section
+                $scope.closeAddLocationDetailsSection = function(){
+                    $scope.AddLocationDetails = false ;
+                }
+                
+                //Add Member Code - starts
+                
+                //Add Member variable on Main Page
+                $scope.contactsListToShowOnPage = [];
+                
+            
+                $scope.addContactMembers = function(){
+                    var booleanFlag = false;
+                    //$scope.contactsListToShowOnPage = [];
+                    angular.forEach($scope.allContactList, function(value, key) {
+                      if(value.isChecked){
+                      $scope.contactsListToShowOnPage.push(value);
+                      booleanFlag = true ;
+                      }
+                    });
+                    if(booleanFlag){
+                      console.log($scope.contactsListToShowOnPage);
+                      $scope.addMemberOpen = false;
+                    }
+                }
+
+            $scope.hideTheAddMember = function(){
+              $scope.addMemberOpen = false;
+            }
+            
+            $scope.removeContactFromList = function(item){
+                var indexValue = $scope.contactsListToShowOnPage[item];
+                indexValue.isChecked = false;
+                $scope.contactsListToShowOnPage.splice(item, 1); 
+            }
+            // Add Member code -- Ends
+                
+            // Save campaign and group Members
+           
+            $scope.saveGroupEventAndGroupEventMembers = function(){
+            
+            // Assign value to the Event Field -- To get the value it needs to be converted to miliseconds , which will be used pass to controller.
+            var dt = new Date(eventDateValue);
+            var milisecondDate = dt.getTime();;
+            
+            $scope.campaign.Onc_Event_Date__c=milisecondDate;
+            
+            var booleanFlag = true;
+            
+            // Required field check for campaign.Name
+            if($scope.campaign.Name == '' || $scope.campaign.Name == undefined){
+              $scope.errorMessageCon = true;
+              booleanFlag = false;
+            }
+            
+            // Required field check for campaign.Type
+            if($scope.campaign.Type == '' || $scope.campaign.Type == undefined){
+              $scope.errorMessage3 = true;
+              booleanFlag = false;
+            }
+            
+            // Required field check for campaign.Active_Product__c
+            if($scope.campaign.Active_Product__c == '' || $scope.campaign.Active_Product__c == undefined){
+              $scope.errorMessage4 = true;
+              booleanFlag = false;
+            }
+                        
+            if(booleanFlag){
+                
+                if($scope.SpeakerObj != '' || $scope.SpeakerObj != undefined){
+                    //Below line of code will be use to remove hashkey from the speakerObj  , its using removeHashKey function.
+                    $scope.SpeakerObj = JSON.stringify($scope.removeHashKey($scope.SpeakerObj));
+                }
+                
+                //Assign Account Id if it is not null
+                $scope.campaign.Account__c = $scope.selectedAccountID
+                
+                $scope.WrapperList = [];
+                
+                angular.forEach($scope.contactsListToShowOnPage, function(value, key) {
+                  $scope.ContactRecordsWithCheckBoxWrapper = {};
+                  $scope.ContactRecordsWithCheckBoxWrapper.con = {};
+                  $scope.ContactRecordsWithCheckBoxWrapper.con.Active_Product__c = value.con.Active_Product__c;
+                  $scope.ContactRecordsWithCheckBoxWrapper.con.Id = value.con.Id;
+                  $scope.ContactRecordsWithCheckBoxWrapper.con.Name = value.con.Name;
+                  $scope.ContactRecordsWithCheckBoxWrapper.isChecked = value.isChecked;
+                  $scope.WrapperList.push($scope.ContactRecordsWithCheckBoxWrapper);
+                }); 
+                
+                console.log('$scope.WrapperList');
+                console.log($scope.WrapperList);
+                            Visualforce.remoting.Manager.invokeAction(
+                                        '{!$RemoteAction.CreateGroupEventSLDSController.saveGroupEventAndGroupEventMembers}',
+                                        $scope.campaign,$scope.WrapperList,$scope.SpeakerObj,
+                                        function(result, event){
+                                            if (event.status) {
+                                                $scope.showSuccessDialogBox = true;
+                                            } else if (event.type === 'exception') {
+                                                
+                                            } else {
+                                                
+                                            }
+                                            $scope.$apply();
+                                        }, 
+                                        {escape: true}
+                            );
+                }         
+                }
+                
+                // reusable function to remove hashkey 
+                $scope.removeHashKey = function(hashKeyData) {
+                    console.log(hashKeyData);
+                    var toJson = angular.toJson(hashKeyData);
+                    var fromJson = angular.fromJson(toJson);
+                    console.log(fromJson);
+                    return fromJson;
+                }
+                
+                // reload the page 
+                $scope.cancelPage = function(){
+                    window.location.reload();
+                } 
+                     
+             }]);
+            </script>
+        </head>
+        <body ng-controller="HomeController">
+            <div class="slds">
+                <!-- Page Header - starts -->
+                    <div class="slds-page-header" role="banner">
+                      <div class="slds-media slds-media--center">
+                        <div class="slds-media__figure">
+                          <svg aria-hidden="true" class="slds-icon slds-icon-standard-opportunity">
+                            <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/action-sprite/svg/symbols.svg#new_event')}"></use>
+                          </svg>
+                        </div>
+                        <div class="slds-media__body">
+                          <h1 class="slds-page-header__title slds-truncate" title="Group Events">Create Group Event</h1>
+                        </div>
+                        <div class="slds-media__figure slds-media__figure--reverse" ng-show="!addMemberOpen && !AddLocationDetails">
+                          <button class="slds-button slds-button--neutral slds-button--brand" ng-click="saveGroupEventAndGroupEventMembers()">Save</button>
+                          <button class="slds-button slds-button--neutral slds-button--brand" ng-click="openAddMember()">Add Event Members </button>
+                          <button class="slds-button slds-button--neutral slds-button--brand" ng-click="cancelPage()">Cancel</button>
+                          
+                        </div>
+                        
+                        <!-- Page buttons for Add members -starts-->
+                        <div class="slds-media__figure slds-media__figure--reverse" ng-show="addMemberOpen">
+                          <button class="slds-button slds-button--neutral slds-button--small slds-button--brand" ng-click="hideTheAddMember()" style="float:left;">Cancel</button>
+                          <button class="slds-button slds-button--neutral slds-button--small slds-button--brand" ng-click="addContactMembers()">Add Group Members</button>
+                        </div>
+                        <!-- Page buttons for Add members -ENDS-->
+                      </div>
+                    </div>
+                <!-- Page Header - Ends -->
+                <div class="pagecontainer">
+                    <div class="slds-form--stacked" ng-show="!addMemberOpen && !AddLocationDetails">
+                        <form name="myForm">
+                            <!-- Campaign Fields -->
+                            <div class="slds-form-element" >
+                            <div ng-class="{'slds-has-error': (myForm.GroupEventName.$dirty && myForm.GroupEventName.$invalid) || errorMessageCon}">
+                              <label class="slds-form-element__label" for="text-input-01">
+                              <abbr class="slds-required" title="required">*</abbr><span class="slds-badge slds-theme--shade">Group Event Name</span></label>
+                              <div class="slds-form-element__control slds-input-has-icon slds-input-has-icon--right" >
+                                  <svg aria-hidden="true" class="slds-input__icon slds-icon-text-default">
+                                      <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/action-sprite/svg/symbols.svg#log_event')}" ></use>
+                                  </svg>
+                               <input id="GroupEventName" class="slds-input" type="text" name="GroupEventName" ng-model="campaign.Name" placeholder="Please enter Group Event Name" ng-required="true" ng-change="errorMessageCon = false"/>
+                              </div>
+                              
+                              <div class="slds-form-element__help" ng-if="(myForm.GroupEventName.$dirty && myForm.GroupEventName.$invalid) || errorMessageCon">Group event name is required</div>
+                             </div> 
+                              
+                              <!-- New searchable account field - Start -->
+                              
+                                <div class="slds-form-element" ng-class="{'slds-has-error': (myForm.AccountName.$dirty && myForm.AccountName.$invalid)}">
+                                        <div class="slds-lookup" data-select="multi" data-scope="single" data-typeahead="true">
+                                            <label class="slds-form-element__label" for="AccountlookupMainPage">
+                                                <span class="slds-badge slds-theme--shade">Account Name</span>
+                                            </label>
+                                            <div class="slds-form-element__control slds-input-has-icon slds-input-has-icon--right">
+                                                <svg aria-hidden="true" class="slds-input__icon slds-icon-text-default">
+                                                    <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#search')}" ></use>
+                                                </svg>
+                                                <input  id="AccountlookupMainPage" class="slds-input" type="text" name="AccountName" ng-model="selectedAccountName" placeholder="Please enter minimum of 4 characters" aria-autocomplete="list" ng-required="true" role="combobox" ng-keyup="searchAccountForRelatedGroupEvent()"/>
+                                            </div>
+                                            <div class="slds-form-element__help" ng-if="(myForm.AccountName.$dirty && myForm.AccountName.$invalid)">Account Name is inappropriate</div>
+                                        </div>
+                                        <div class="slds-lookup__menu" role="listbox" ng-show="showAccountList" >  
+                                            <div class="slds-lookup__item" >
+                                                <button class="slds-button">
+                                                    <svg aria-hidden="true" class="slds-icon slds-icon-text-default slds-icon--small">
+                                                        <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#search')}"></use>
+                                                    </svg>&quot;{{AccuntName}}&quot; in Accounts
+        
+                                                </button>
+                                            </div>
+                                            <ul class="slds-lookup__list" role="presentation2">
+                                                <li class="slds-lookup__item" ng-repeat="AccountName in AccountList">
+                                                    <a role="option" ng-click="selectedAccountFunction(AccountName)">
+                                                        <svg aria-hidden="true" class="slds-icon slds-icon-standard-account slds-icon--small">
+                                                            <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#user')}"></use>
+                                                        </svg>{{AccountName.Name}}
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                </div>
+                              
+                              <!-- New searchable account field - End -->
+                              
+                              <!-- Speaker Search - Starts-->
+                              <!-- Speaker Field -->
+                              <div class="slds-form-element" ng-class="{'slds-has-error': (myForm.SpeakerName.$dirty && myForm.SpeakerName.$invalid) || errorMessageSpeaker}">
+                                <div class="slds-lookup" data-select="multi" data-scope="single" data-typeahead="true">
+                                    <label class="slds-form-element__label" for="lookupCon">
+                                        <span class="slds-badge slds-theme--shade">Speaker</span>
+
+                                    </label>
+                                    <div class="slds-form-element__control slds-input-has-icon slds-input-has-icon--right">
+                                        <svg aria-hidden="true" class="slds-input__icon slds-icon-text-default">
+                                            <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#search')}" ></use>
+                                        </svg>
+                                        <input  id="lookupCon" class="slds-input" type="text" name="SpeakerName" ng-model="speakerName" placeholder="Please enter minimum of 4 characters" aria-autocomplete="list" ng-required="true" role="combobox" ng-keyup="searchContacts()" ng-change="errorMessageSpeaker = false"/>
+                                         
+                                    </div>
+                                </div>
+                                <div class="slds-lookup__menu" role="listbox" ng-show="showContactListSearch" >
+                                    <div class="slds-lookup__item" >
+                                        <button class="slds-button">
+                                            <svg aria-hidden="true" class="slds-icon slds-icon-text-default slds-icon--small">
+                                                <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#search')}"></use>
+                                            </svg>&quot;{{speakerName}}&quot; in Contacts
+
+                                        </button>
+                                    </div>
+                                    <ul class="slds-lookup__list" role="presentation">
+                                        <li class="slds-lookup__item" ng-repeat="contactName in contactList">
+                                            <a role="option" ng-click="selectedContact(contactName)">
+                                                <svg aria-hidden="true" class="slds-icon slds-icon-standard-account slds-icon--small">
+                                                    <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#user')}"></use>
+                                                </svg>{{contactName.Name}}
+
+                                            </a>
+                                        </li>
+                                    </ul>
+                                    <div class="slds-lookup__item">
+                                        <button class="slds-button" ng-click="openNewContactScreen()">
+                                            <svg aria-hidden="true" class="slds-icon slds-icon-text-default slds-icon--small">
+                                                <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#add')}"></use>
+                                            </svg>Add Contact
+
+                                        </button>
+                                    </div>
+                                </div>
+                             </div>
+                            <!-- Speaker Search - Ends-->
+                            <!-- Group of fields in single row- Starts-->
+                            <div class="slds-form-element" >
+                              <div>
+                              <!-- Type Field -->
+                              
+                              <div class="slds-form-element" ng-class="{'slds-has-error': (myForm.select02.$dirty && myForm.select02.$invalid) || errorMessage3}" style="width: 20%;float: left;margin-right: 3px;margin-top: 0px;">
+                                <label class="slds-form-element__label" for="select02">
+                                    <abbr class="slds-required" title="required">*</abbr><span class="slds-badge slds-theme--shade">Type</span>
+
+                                </label>
+                                <div class="slds-form-element__control">
+                                    <div class="slds-select_container">
+                                        <select id="select02" name="select02" ng-required="true" ng-model="campaign.Type" ng-options="o as o for o in allPicklistValues.campaignType" ng-change="errorMessage3 = false" class="slds-select"></select>
+                                    </div>
+                                    <div class="slds-form-element__help" ng-if="(myForm.select02.$dirty && myForm.select02.$invalid) || errorMessage3">Type is required</div>
+                                </div>
+                              </div>   
+                               
+                              <!-- Product Field -->
+                              
+                              <div class="slds-form-element" ng-class="{'slds-has-error': (myForm.product.$dirty && myForm.product.$invalid) || errorMessage4}" style="width: 20%;float: left;margin-right: 3px;margin-top: 0px;">
+                                <label class="slds-form-element__label" for="product">
+                                    <abbr class="slds-required" title="required">*</abbr><span class="slds-badge slds-theme--shade">Product</span>
+
+                                </label>
+                                <div class="slds-form-element__control">
+                                    <div class="slds-select_container">
+                                        <select id="product" name="product" ng-required="true" ng-model="campaign.Active_Product__c" ng-options="o as o for o in allPicklistValues.campaignProduct" ng-change="errorMessage4 = false" class="slds-select"></select>
+                                    </div>
+                                    <div class="slds-form-element__help" ng-if="(myForm.product.$dirty && myForm.product.$invalid) || errorMessage4">Product is required</div>
+                                </div>
+                              </div> 
+                              
+                             </div>  
+                            </div>
+                              
+                            <!-- Group of fields in single row- ENDS--> 
+                            <br/> 
+                            <!--  Date Picker code - Starts -->
+                             <div class="slds">
+                             <div class="slds-form-element" style="margin-top: 72px;" >
+                             <label class="slds-form-element__label" for="ProgramTitle">
+                                    <span class="slds-badge slds-theme--shade">Event Date</span>
+                             </label> 
+                              <div class="slds-form-element__control" style="width:200px;">
+                               <div class="slds-input-has-icon slds-input-has-icon--right">
+                                <svg aria-hidden="true" class="slds-input__icon slds-icon-text-default">
+                                 <use xlink:href="{!URLFOR($Resource.LightningDesignSystem, '/assets/icons/utility-sprite/svg/symbols.svg#event')}"></use>
+                                </svg> 
+                                 <input id="date" class="slds-input" type="text" placeholder="Select Event Date" label="Date Picker Label" />
+                               </div>
+                              </div>
+                             </div>
+                            </div>
+                            
+                            <!--  Date Picker code - Ends -->
+                            </div>
+                        </form>
+                        <!-- Buttons - Starts -->
+                        <br/>
+                        <div class="slds-col slds-no-flex slds-align-bottom" style="float:left;margin-top:10px;" ng-show="!addItemOpen">
+                                <div class="slds-media__figure slds-media__figure--reverse" >
+                                    
+                                    <button class="slds-button slds-button--neutral slds-button--brand" ng-click="openAddMember()">Add Event Members</button>
+                                    <button class="slds-button slds-button--neutral slds-button--brand" ng-click="openAddLocationDetailsSection()">Add Location </button>
+                                    
+                                </div>
+                        </div>
+                        <div class="slds-col slds-no-flex slds-align-bottom" style="float:right;margin-top:40px;" ng-show="!addItemOpen">
+                                <div class="slds-button-group" role="group">
+                                    <button class="slds-button slds-button--neutral slds-button--brand" ng-click="saveGroupEventAndGroupEventMembers()">Save</button>
+                                    <button class="slds-button slds-button--neutral slds-button--brand" ng-click="cancelPage()">Cancel</button>
+                                </div>
+                        </div>
+                        <br/><br/><br/>
+                        <!-- Buttons - ENDS -->
+                        
+                        <!-- Added Member List - Starts -->
+                        
+                        <div id="MatrialItemDiv" ng-show="contactsListToShowOnPage.length > 0">
+                            <br/><br/>
+                            <h3 class="slds-section-title--divider">Group Event Members</h3>
+                            <br/>
+                            <!-- Member List -->
+                            <table class="slds-table slds-table--bordered">
+                                <thead>
+                                    <tr class="slds-text-heading--label">
+                                        <th></th>
+                                        <th class="slds-is-sortable" scope="col">
+                                            <div class="slds-truncate">Name</div>
+                                        </th>
+                                        <th class="slds-is-sortable" scope="col">
+                                            <div class="slds-truncate">Speciality</div>
+                                        </th>
+                                        <th class="slds-is-sortable" scope="col">
+                                            <div class="slds-truncate">Product</div>
+                                        </th>
+                                        <th>&nbsp;</th>
+                                        
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="slds-hint-parent" ng-repeat="item in contactsListToShowOnPage track by $index">
+                                        <td>
+                                            <span class="slds-avatar slds-avatar--x-small">
+                                              <!--  <img src="/assets/images/avatar2.jpg" alt="person name" /> -->
+                                              <img src="{!URLFOR($Resource.LightningDesignSystem,'assets/images/avatar1.jpg')}" alt="person name" />
+                                            </span>
+                                        </td>
+                                        <td>{{item.con.Name}}</td>
+                                        <td>{{item.con.Oncology_Specialties__c}}</td>
+                                        <td>{{item.con.Active_Product__c}}</td>
+                                        <td>
+                                            <button class="slds-button slds-button--icon">
+                                                <svg aria-hidden="true" class="slds-button__icon" ng-click="removeContactFromList($index)">
+                                                    <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#clear')}"></use>
+                                                </svg>
+                                                <span class="slds-assistive-text">clear</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                           
+                        </div>
+                        
+                    <!-- Added Member List - ENDS -->    
+                        
+                    </div> 
+                    <!-- Add Member Dialog - Starts -->
+                    <div ng-show="addMemberOpen">
+                        <!-- Angular Code  - Starts -->
+                        <h3 class="slds-section-title--divider">ADD EVENT MEMBERS</h3>
+                        
+                        <br/>
+                        <form name="myForm1">
+                        <!-- Search Account -start -->
+                        <div class="slds-form-element" ng-class="{'slds-has-error': (myForm1.AccountNameSearch.$dirty && myForm1.AccountNameSearch.$invalid) || errorMessageAccountNameSearch}">
+                                <div class="slds-lookup" data-select="multi" data-scope="single" data-typeahead="true">
+                                    <label class="slds-form-element__label" for="Accountlookup">
+                                        <abbr class="slds-required" title="required">*</abbr>Enter an Account Name for Group Members selection.
+
+                                    </label>
+                                    <div class="slds-form-element__control slds-input-has-icon slds-input-has-icon--right">
+                                        <svg aria-hidden="true" class="slds-input__icon slds-icon-text-default">
+                                            <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#search')}" ></use>
+                                        </svg>
+                                        <input  id="Accountlookup" class="slds-input" type="text" name="AccountNameSearch" ng-model="AccountNameSearch" placeholder="Please enter minimum of 4 characters" aria-autocomplete="list" ng-required="true" role="combobox" ng-keyup="searchAccountsForAddingContacts()" ng-change="errorMessageAccuntNameSearch = false"/>
+                                    </div>
+                                    <div class="slds-form-element__help" ng-if="(myForm1.AccountNameSearch.$dirty && myForm1.AccountNameSearch.$invalid) || errorMessageAccountNameSearch">Account Name is required</div>
+                                </div>
+                                <div class="slds-lookup__menu" role="listbox" ng-show="showSearchedAccountList" >  
+                                    <div class="slds-lookup__item" >
+                                        <button class="slds-button">
+                                            <svg aria-hidden="true" class="slds-icon slds-icon-text-default slds-icon--small">
+                                                <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#search')}"></use>
+                                            </svg>&quot;{{AccuntNameSearch}}&quot; in Accounts
+                                        </button>
+                                    </div>
+                                    <ul class="slds-lookup__list" role="presentation1">
+                                        <li class="slds-lookup__item" ng-repeat="AccountName in SearchedAccountList">
+                                            <a role="option" ng-click="selectedSeachedAccount(AccountName)">
+                                                <svg aria-hidden="true" class="slds-icon slds-icon-standard-account slds-icon--small">
+                                                    <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/utility-sprite/svg/symbols.svg#user')}"></use>
+                                                </svg>{{AccountName.Name}}
+                                            </a>
+                                        </li>
+                                    </ul>
+                                    
+                                </div>
+                        </div>
+                        <!-- Search Account - end -->
+                        </form>
+                        
+                        <br/>
+                        <div ng-show = "allContactList.length > 0">
+                        <div class="input-group" >
+                            <form class="form-inline" role="form">
+                            <span class="form-group has-success has-feedback">
+                            <label class="slds-form-element__label" >
+                                  Enter a text to search Group Member by Name. 
+                            </label>
+                               <input class="form-control" id="SearchText" type="search"  ng-model="searchText" placeholder="Search contacts"/>
+                               
+                            </span>
+                            </form>
+                            <br/>
+                        </div>
+                        <table class="table  table-hover data-table sort display">
+                            <thead>
+                                <tr>
+                                    <th class="EmpId"> <a href="" ng-click="columnToOrder='EmpId';reverse=!reverse">Select
+                                         </a>
+                                    </th>
+                                    <th class="name"> <a href="" ng-click="columnToOrder='name';reverse=!reverse"> Name </a>
+                                    </th>
+                                    <th class="name"> <a href="" ng-click="columnToOrder='name';reverse=!reverse"> Speciality </a>
+                                    </th>
+                                    <th class="name"> <a href="" ng-click="columnToOrder='name';reverse=!reverse"> Product </a>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in allContactList | filter: searchText | orderBy:columnToOrder:reverse">
+                                    <td><input type="checkbox" ng-model="item.isChecked"/></td>
+                                    <td>{{item.con.Name}}</td>
+                                    <td>{{item.con.Oncology_Specialties__c}}</td>
+                                    <td>{{item.con.Active_Product__c}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="slds-modal__footer">
+                            <button class="slds-button slds-button--neutral slds-button--small slds-button--brand" ng-click="hideTheAddMember()" style="float:left;">Cancel</button>
+                            <button class="slds-button slds-button--neutral slds-button--small slds-button--brand" ng-click="addContactMembers()">Add Group Members</button>
+                        </div>
+                        </div>
+                        <!-- Angular Code  - ENDS -->
+                    </div>
+                    <!-- Add Member Dialog - ENDS -->
+                    
+                    <!-- Add Location Details Dialog - Starts -->
+                    <div ng-if="AddLocationDetails">
+                        
+                        <h3 class="slds-section-title--divider">Event Location Details</h3>
+                        
+                        <br/>
+                        <!-- Add Location Fields - Starts -->
+                            <!-- Event Restaurant or Building Name -->
+                             <div class="slds-form-element">
+                                <label class="slds-form-element__label" for="text-input-01"><span class="slds-badge slds-theme--shade">Event Restaurant or Building Name</span></label>
+                                <div class="slds-form-element__control">
+                                    <input id="text-input-01" class="slds-input" type="text" ng-model="campaign.Event_Restaurant_or_Building_Name__c"  />
+                                </div>
+                             </div>
+                             <!-- Event Location Street -->
+                             <div class="slds-form-element">
+                                <label class="slds-form-element__label" for="text-input-01"><span class="slds-badge slds-theme--shade">Event Location Street</span></label>
+                                <div class="slds-form-element__control">
+                                    <input id="text-input-01" class="slds-input" type="text" ng-model="campaign.Event_Location_Street__c"  />
+                                </div>
+                             </div>
+                             
+                             <!-- Event Location State  -->  
+                              
+                              <div class="slds-form-element" ng-class="{'slds-has-error': (myForm.EventLocationState.$dirty && myForm.EventLocationState.$invalid) || errorMessage7}" >
+                                <label class="slds-form-element__label" for="EventLocationState">
+                                    <span class="slds-badge slds-theme--shade">Event Location State</span>
+                                </label>
+                                <div class="slds-form-element__control">
+                                    <div class="slds-select_container">
+                                        <select id="EventLocationState" name="EventLocationState" ng-model="campaign.Event_Location_State__c" ng-options="o as o for o in allPicklistValues.campaignEventLocationState" ng-change="errorMessage7 = false" class="slds-select"></select>
+                                    </div>
+                                </div>
+                              </div>  
+                             
+                             <!-- Event Location City -->
+                             <div class="slds-form-element" style="width: 35%;float: left;margin-right: 3px;margin-top: 0px;">
+                                <label class="slds-form-element__label" for="text-input-01"><span class="slds-badge slds-theme--shade">Event Location City</span></label>
+                                <div class="slds-form-element__control">
+                                    <input id="text-input-01" class="slds-input" type="text" ng-model="campaign.Event_Location_City__c"  />
+                                </div>
+                             </div>
+                             
+                              <!-- Event Location Zip -->
+                              <div class="slds-form-element" style="width: 30%;float: left;margin-right: 3px;margin-top: 0px;">
+                                <label class="slds-form-element__label" for="text-input-01"><span class="slds-badge slds-theme--shade">Event Location Zip</span></label>
+                                <div class="slds-form-element__control">
+                                    <input id="text-input-01" class="slds-input" type="text" ng-model="campaign.Event_Location_Zip__c"  />
+                                </div>
+                              </div>
+                              
+                              <!-- Event Location Phone -->
+                              <div class="slds-form-element" style="margin-top: 72px;">
+                                <label class="slds-form-element__label" for="text-input-01"><span class="slds-badge slds-theme--shade">Event Location Phone</span></label>
+                                <div class="slds-form-element__control">
+                                    <input id="text-input-01" class="slds-input" type="text" ng-model="campaign.Event_Location_Phone__c"  />
+                                </div>
+                              </div>
+                              
+                              <br/>
+                            
+                        <!-- Add Location Fields - Ends -->
+                        <div class="slds-modal__footer">
+                            <button class="slds-button slds-button--neutral slds-button--small slds-button--brand" ng-click="closeAddLocationDetailsSection()" style="float:left;">Cancel</button>
+                            <button class="slds-button slds-button--neutral slds-button--small slds-button--brand" ng-click="closeAddLocationDetailsSection()">Save </button>
+                        </div>
+                    </div>
+                    <!-- Add Location Details Dialog - ENDS -->
+                    
+                    <!--  Dialog box for group Member update  - start -->
+                    <div role="alertdialog" tabindex="-1" aria-labelledby="prompt-heading-id" aria-describedby="prompt-message-wrapper" class="slds-modal slds-fade-in-open slds-modal--prompt" ng-show = "showSuccessDialogBox">
+                      <div class="slds-modal__container">
+                        <div class="slds-modal__header slds-theme--success slds-theme--alert-texture">
+                          <button class="slds-button slds-modal__close slds-button--icon-inverse">
+                            <svg aria-hidden="true" class="slds-button__icon slds-button__icon--large">
+                              <use xlink:href="{!URLFOR($Resource.LightningDesignSystem,'assets/icons/action-sprite/svg/symbols.svg#close')}" ></use>
+                            </svg>
+                            <span class="slds-assistive-text">Close</span>
+                          </button>
+                          <h2 class="slds-text-heading--medium" id="prompt-heading-id">Success!!</h2>
+                        </div>
+                        <div class="slds-modal__content slds-p-around--medium">
+                          <div>
+                            <p>Event Created Succesfully</p>
+                          </div>
+                        </div>
+                        <div class="slds-modal__footer slds-theme--default">
+                          <button class="slds-button slds-button--neutral" ng-click ="cancelPage()">Okay</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="slds-backdrop slds-backdrop--open" ng-show = "showSuccessDialogBox">
+                    </div>
+                    <!--  Dialog box for group Member update  - End -->
+                    
+                </div>              
+            </div>
+             
+            <apex:includeScript value="{!URLFOR($Resource.AngularResources,'AngularBootStapNew/js/angular.min.js')}"/>
+             
+            <apex:includeScript value="{!URLFOR($Resource.UnderscoreJs,'')}"/>
+            <!--  Including MomentJs for Date Picker -->
+            <apex:includeScript value="{!URLFOR($Resource.moment,'')}"/>
+            
+        </body>
+    </html>
+</apex:page>

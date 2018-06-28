@@ -1,0 +1,128 @@
+<apex:page standardController="Lead" extensions="GLOC.HitListCtl" recordSetVar="Leads" title="GoLocal Hit-List" tabStyle="Hit_List__tab">
+    
+	<link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.GoLocalRes, 'CSS/Listview.css')}"/>
+	
+	<script src="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/jquery-1.6.1.min.js')}"></script>
+	<script src="{!URLFOR($Resource.GoLocalRes, 'JS/Listview.js')}"></script>
+	
+	<div class="GoLocal">    
+    <apex:form >
+    
+    <apex:sectionHeader title="GoLocal Hit-List" subtitle="{!SubTitle}" help="help?t=hitlist"/>
+    
+    <apex:pageBlock >
+		<apex:facet name="header" ><img src="/s.gif" /></apex:facet>
+		<div style="padding-bottom:10px">
+            <table class="filterBar action" cellpadding="0" cellspacing="0" border="0">
+	            <tr>
+	            	<td class="title">
+	            		<apex:outputLink value="{!$CurrentPage.parameters.retURL}" rendered="{!selectMode}">&lt;&lt; Back to List: Leads</apex:outputLink>
+	            	</td>
+	            	<td><apex:commandButton value="New Lead" action="{!newLead}" rendered="{!NOT(selectMode)}"/></td>
+	            	<td class="fliters">
+	            		<apex:commandLink rerender="tblPane" value="Refresh" action="{!Refresh}" onclick="toggleLoad();" 
+	            			style="font-weight:bold" rendered="{!NOT(Pages=0)}"/>
+		            	<apex:selectList title="View" size="1" value="{!altFilterId}" rendered="{!NOT(selectMode)}" style="width:auto;">
+		                	<apex:actionSupport event="onchange" action="{!filter}" />
+							<apex:selectOptions value="{!listviewoptions}"/>
+		            	</apex:selectList>
+	            	</td>
+	            </tr>
+	        </table>
+		</div>
+		
+		<!-- apex:actionPoller interval="60" rerender="localTimeCol" enabled="{!NOT(Pages=0)}"/ -->
+        
+		<apex:outputPanel id="tblPane">
+		
+			<apex:pageMessage id="err" severity="Warning" strength="2" title="The selected view contains  too many records." 
+				summary="Only the first {!recLimit} records are displayed." rendered="{!recLimit<viewSize}"/>		 
+			
+			<div id="tableDiv" style="min-height:450px">
+				<apex:pageBlockTable value="{!items}" var="i" id="pbt" styleClass="tbl" rendered="{!NOT(Pages=0)}">
+		            <apex:column headerValue="Action" styleClass="action">
+		            	<apex:outputLink value="/{!i.lead.id}/e?retURL={!URLENCODE(pageUrl.Url)}" rendered="{!NOT(selectMode)}">Edit</apex:outputLink>
+		            	<apex:outputLink value="/{!i.lead.id}/e" target="_blank" rendered="{!selectMode}">Edit</apex:outputLink>
+		            </apex:column>
+		
+		            <apex:column headerValue="Name">
+		            	<apex:outputLink value="/{!i.lead.id}" rendered="{!NOT(selectMode)}">{!i.lead.name}</apex:outputLink>
+		            	<apex:outputLink value="/{!i.lead.id}" target="_blank" rendered="{!selectMode}">{!i.lead.name}</apex:outputLink>
+		            </apex:column>
+		            <apex:column headerValue="Company">
+		            	<apex:outputLink value="/{!i.lead.id}" rendered="{!NOT(selectMode)}">{!i.lead.company}</apex:outputLink>
+		            	<apex:outputLink value="/{!i.lead.id}" target="_blank" rendered="{!selectMode}">{!i.lead.company}</apex:outputLink>
+		            </apex:column>
+					<apex:column value="{!i.lead.phone}"/>
+					<apex:column value="{!i.lead.MobilePhone}"/>
+					<apex:column value="{!i.lead.email}"/>
+					
+		            <apex:column headerValue="Time Zone" value="{!i.timezone}" rendered="false"/>
+		            <apex:column headerValue="Location" >
+		            	<apex:outputPanel rendered="{!NOT(ISNULL(i.country))}">
+		            		<img src="{!URLFOR($Resource.GoLocalRes, 'Flags/' & LOWER(i.country) & '.png')}"/>
+		            		&nbsp;
+		            		<apex:outputText rendered="{!NOT(ISNULL(i.state))}">{!i.state},&nbsp;</apex:outputText>{!i.country}
+		            	</apex:outputPanel>
+		            </apex:column>
+		            <apex:column headerValue="Local Time" value="{!i.localTime}" id="localTimeCol"/>            
+					
+					<apex:column value="{!i.lead.status}"/>
+		        </apex:pageBlockTable>
+					
+				<apex:outputPanel id="blnk" rendered="{!Pages=0}"> 
+					<script>$j('#loadiv').hide();</script>
+					<apex:pageBlockTable value="{!BlankList}" var="s" >
+						<apex:column headerValue="" headerClass="trans" style="text-align: center; padding-top:25px; padding-bottom:20px">
+							No leads to display for the selected view.
+						</apex:column>
+					</apex:pageBlockTable>
+				</apex:outputPanel>
+			</div>
+			
+			<apex:outputPanel id="pagePanel" rendered="{!NOT(Pages=0)}">        
+	        	<script>$j('#loadiv').hide();</script>
+	        	<table border="0" class="glPaginator" cellspacing="0" cellpadding="0" style="width:100%"><tr>
+	        		<td class="left">
+	        			Show&nbsp;
+	        			<apex:commandLink action="{!ChangeRPP}">
+	        				<apex:outputText rendered="{!NOT(rpp=10)}">10</apex:outputText>
+	        				<apex:outputText rendered="{!rpp=10}"><b>10</b></apex:outputText>
+	        				<apex:param name="rpp" value="10"/>
+	        			</apex:commandLink>&nbsp;
+	        			<apex:commandLink action="{!ChangeRPP}">
+	        				<apex:outputText rendered="{!NOT(rpp=25)}">25</apex:outputText>
+	        				<apex:outputText rendered="{!rpp=25}"><b>25</b></apex:outputText>
+	        				<apex:param name="rpp" value="25"/>
+	        			</apex:commandLink>&nbsp;
+	        			<apex:commandLink action="{!ChangeRPP}">
+	        				<apex:outputText rendered="{!NOT(rpp=50)}">50</apex:outputText>
+	        				<apex:outputText rendered="{!rpp=50}"><b>50</b></apex:outputText>
+	        				<apex:param name="rpp" value="50"/>
+	        			</apex:commandLink>&nbsp;
+	        			<apex:commandLink action="{!ChangeRPP}">
+	        				<apex:outputText rendered="{!NOT(rpp=100)}">100</apex:outputText>
+	        				<apex:outputText rendered="{!rpp=100}"><b>100</b></apex:outputText>
+	        				<apex:param name="rpp" value="100"/>
+	        			</apex:commandLink>        			        			
+	        			records per page
+	        		</td>
+	        		<td class="center">
+	        			<apex:outputText rendered="{!Pages>1}">Page {!page} of {!pages}</apex:outputText>
+	        			<apex:outputText rendered="{!Pages=1}">&nbsp;</apex:outputText>
+	        		</td>	
+	        		<td class="right">
+	        			<apex:commandLink onclick="toggleLoad();" value="< Previous Page" action="{!Prev}" rendered="{!Page>1}" rerender="pbt, pagePanel" />
+	        			<apex:outputText rendered="{!AND(Page>1,Page<Pages)}"> | </apex:outputText>
+	        			<apex:commandLink onclick="toggleLoad();" value=" Next Page >" action="{!Next}" rendered="{!Page<Pages}" rerender="pbt, pagePanel" />
+	        		</td>
+	        	</tr></table>
+	        </apex:outputPanel>
+		</apex:outputPanel>
+    </apex:pageBlock>
+    
+    <div id="loadiv" class="loadiv" style="display:none;"><img src="/img/loading.gif" />Loading...</div>
+    
+    </apex:form>
+    </div>
+</apex:page>

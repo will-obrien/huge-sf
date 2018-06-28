@@ -1,0 +1,824 @@
+<apex:page sidebar="false" cache="false" standardStylesheets="false" standardController="Chatter_Answers_Design__c" extensions="ChatterAnswersDesignerExt">
+    <title>Chatter Answers Designer </title>
+    <apex:includeScript value="{!$Resource.jquery172minjs}"/>
+    <style type="text/css">
+        .bodyDiv{
+           background-color: {!Chatter_Answers_Design__c.Background_Color__c}; 
+        }
+        .noSidebarCell{
+            padding: 0px;
+            background-color: transparent;
+        }
+        
+        #header{
+            width: 790px;
+            margin: 0 auto 20px;
+            padding-top: 20px;
+            text-shadow: 0px 1px 0px #ffffff;
+            filter: dropshadow(color=#ffffff, offx=0, offy=1);
+        }
+        #header h1{
+            font-size: 1.8em;
+            font-weight: normal;
+        }
+        #header h3{
+            font-size: 1.2em;
+            color: #666;
+        }
+        #header .instructions{
+            width: 780px;
+            padding: 10px;
+            margin: 10px auto;
+            -webkit-border-radius: 4px;
+            border-radius: 4px;
+            background-color: #ffffff;
+            -webkit-box-shadow:  0px 0px 9px -2px #000000;
+            box-shadow:  0px 0px 9px -2px #000000;
+        }
+        #header h4{
+            color: #dd1c1c;
+            font-size: 1.3em;
+        }
+        #header .code{
+            font-family: "Courier New", "Lucida Console", sans-serif;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            background: #FFFADD;
+            padding: 15px;
+            -webkit-box-shadow: inset 0px 0px 10px -7px #000000;
+            box-shadow: inset 0px 0px 10px -7px #000000;
+            -webkit-border-radius: 3px;
+            border-radius: 3px;
+        }
+        #header .code .grayed{
+            color: #888;
+            font-weight: normal;
+        }
+        #header .code .indent1{
+            padding-left: 20px;
+        }
+        #header .explanation{
+            padding: 0 20px 5px;
+            font-size: 1.1em;
+            font-style: italic;
+            color: #444;
+        }
+        #header .toggleLink{
+            color: #5b73ea;
+            cursor: pointer;
+        }
+        #header .toggleLink:hover{
+            cursor: pointer;
+            text-decoration: underline !important;
+        }
+        #wrapper{
+            width: 790px;
+            margin: 40px auto 0;
+            position: relative;
+        }
+        .content{
+            min-height: 300px;
+        }
+        #left{
+            float: left;
+            padding: 20px 20px 20px 0px;
+            width: 207px;
+            overflow: visible;
+        }
+        #main{
+            width: 561px;
+            margin-left: 226px;
+            -webkit-box-shadow:  0px 0px 6px -2px #666;
+            -moz-box-shadow:  0px 0px 6px -2px #666;
+            box-shadow:  0px 0px 6px -2px #666;
+            background-color: #ffffff;
+            overflow: hidden;
+            height: 430px;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .signin {
+            position: relative;
+            margin-top: 0;
+            margin-right: 0;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            text-align: left;
+            -webkit-box-shadow: inset 0 0 4px #c4c4c4;
+            -moz-box-shadow: inset 0 0 4px #c4c4c4;
+            box-shadow: inset 0 0 4px #c4c4c4;
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+            border-radius: 5px;
+        }
+        
+        .left h3 {
+            display: block;
+            margin: 0 0 5px;
+            font-size: 1em;
+        }
+        .signin h3 {
+            font-size: 0.9em;
+            line-height: 1em;
+            margin-top: 0;
+            margin-right: 0;
+            margin-bottom: 5px;
+            text-align: left;
+        }
+        a, a:hover {
+            text-decoration: none !important;
+        }
+        .action, a.action:hover {
+            border: 2px solid white;
+            padding: 5px 12px 6px;
+            background: {!Chatter_Answers_Design__c.Buttons_Color__c} url("/img/chatterservice/btnlrg_sprite.png") 0 -740px repeat-x;
+            text-align: center;
+            letter-spacing: .2px;
+            font-weight: 700;
+            color: {!Chatter_Answers_Design__c.Buttons_Text_Color__c};
+            -webkit-box-shadow: 0 2px 4px #aaa;
+            -moz-box-shadow: 0 2px 4px #aaa;
+            box-shadow: 0 2px 4px #aaa;
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+            border-radius: 5px;
+        }
+        .signin .action {
+            font-size: 1em;
+            margin-top: 0;
+            margin-right: 0;
+            margin-bottom: 20px;
+        }
+        a.action:hover {
+            background: {!Chatter_Answers_Design__c.Buttons_Color__c} !important;
+            color: {!Chatter_Answers_Design__c.Buttons_Text_Color__c};
+        }
+        #left li{
+            list-style-type: none;
+            margin-left: 0;
+        }
+        #left .feedcriterialinks ul {
+            margin: 0 0 15px;
+            padding: 0;
+        }
+        .signin ul {
+            margin: 5px 0 0 0;
+            padding: 0;
+            font-size: 0.9em;
+        }
+        
+        .link, .showmorecommentscontainer a {
+           color: {!Chatter_Answers_Design__c.Links_Color__c} !important; 
+        }
+        #left .feedcriterialinks li a {
+            position: relative;
+            margin: 0 0 3px;
+            background: none no-repeat scroll 7px 6px transparent;
+            padding: 4px 10px 3px;
+            padding-left: 32px;
+            font-size: 1.25em;
+            line-height: 1.3em;
+            width: 183px;
+        }
+        #left li a {
+            display: block;
+            background: none;
+            color: {!Chatter_Answers_Design__c.Left_Content_Text_Color__c};
+        }
+        #left .feedcriterialinks li.selected a {
+            background-color: {!Chatter_Answers_Design__c.Criteria_Highlight_Color__c};
+            font-weight: 700;
+            color: {!Chatter_Answers_Design__c.Criteria_Highlight_Text_Color__c};
+        }
+        .feedcriterialinks ul .selected a {
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+            border-radius: 5px;
+            -webkit-border-top-right-radius: 0;
+            -webkit-border-bottom-right-radius: 0;
+            -moz-border-radius-topright: 0;
+            -moz-border-radius-bottomright: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        #left .feedcriterialinks li img{
+            width: 25px;
+            height: 25px;
+            display: block;
+            position: absolute;
+            top: 1px;
+            left: 5px;
+        }
+        #left .feedcriterialinks li img.iconBestAnswer {
+            background: url("/img/chatterservice/icon_sprite_serviceSupport.png") 0 0 no-repeat;
+        }
+        #left .feedcriterialinks li img.iconOpenQuestion {
+            background: url("/img/chatterservice/icon_sprite_serviceSupport.png") -60px 0 no-repeat;
+        }
+        
+        #left .datacategorylinks ul{
+            padding-left: 0;
+            margin: 5px 0;
+        }
+        #left .datacategorylinks li.selected a {
+            background-color: {!Chatter_Answers_Design__c.Topics_Highlight_Color__c};
+            font-weight: 700;
+            color: {!Chatter_Answers_Design__c.Topics_Highlight_Text_Color__c};
+        }
+        #left .datacategorylinks li.datacategoryoption a{
+            line-height: 1.3em;
+            padding: 4px 10px 3px;
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+            border-radius: 5px;
+        }
+        #left .datacategorylinks li.datacategoryoption.csChildOption a{
+            padding-left: 15px;
+        }
+        
+        #main .field{
+            margin: 0 auto;
+        }
+        #searchAskButton{
+            float: right;
+            position: relative;
+            z-index: 1;
+            padding: 0;
+            font-size: 1em;
+            white-space: nowrap;
+            margin-right: 26px;
+        }
+        #searchAskButton span {
+            display: block;
+            padding-top: 4px;
+            padding-right: 10px;
+            padding-bottom: 5px;
+            padding-left: 39px;
+            background: url(/img/chatterservice/icon_search.png) 1px 1px no-repeat;
+        }
+        .togglePill {
+            display: inline-block;
+            width: 510px;
+            padding: 0;
+            margin-left: 23px;
+            margin-top: 15px;
+            margin-bottom: 0;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #D4DADC;
+        }
+        .togglePill li{
+            margin: 0;
+        }
+        .togglePill li, .togglePill a {
+            float: left;
+            position: relative;
+            line-height: 16px;
+            list-style-type: none;
+        }
+        .togglePill a {
+            width: auto;
+            border: 1px solid #B5B5B5;
+            border-bottom-color: #7F7F7F;
+            background: white url("/img/chatterservice/btn_lrg_sprite_x.gif") repeat-x;
+            color: #222;
+            font-size: 0.917em;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+            margin: 0;
+            margin-left: -1px;
+            padding: 3px 12px;
+        }
+        .togglePill .first a {
+            -webkit-border-top-left-radius: 3px;
+            -moz-border-radius-topleft: 3px;
+            border-top-left-radius: 3px;
+            -webkit-border-bottom-left-radius: 3px;
+            -moz-border-radius-bottomleft: 3px;
+            border-bottom-left-radius: 3px;
+        }
+        .togglePill .last a {
+            -webkit-border-top-right-radius: 3px;
+            -moz-border-radius-topright: 3px;
+            border-top-right-radius: 3px;
+            -webkit-border-bottom-right-radius: 3px;
+            -moz-border-radius-bottomright: 3px;
+            border-bottom-right-radius: 3px;
+        }
+        .togglePill .selected a, .togglePill .selected a:hover {
+            border-color: #B5B5B5;
+            border-bottom-color: #7F7F7F;
+            background: {!Chatter_Answers_Design__c.Criteria_Highlight_Color__c};
+            color: {!Chatter_Answers_Design__c.Criteria_Highlight_Text_Color__c};
+        }
+        
+        .cxfeedcontainer{
+            width: 510px;
+            margin: 10px auto;
+            border-bottom: 1px solid #D4DADC;
+            padding: 0 0 15px;
+            white-space: normal;
+            word-wrap: break-word;
+            position: relative;
+            z-index: 0;
+        }
+        .usericon {
+            float: left;
+            position: relative;
+            -webkit-box-shadow: 0 0 3px #ADBCC2;
+            -moz-box-shadow: 0 0 3px #adbcc2;
+            box-shadow: 0 0 3px #ADBCC2;
+        }
+        .usericon img{
+            border: 1px solid #ffffff;
+        }
+        .feeditemfirstentity{
+            padding-left: 10px;
+            font-weight: bold;
+        }
+        .feeditemtext{
+            padding-left: 10px;
+            font-weight: normal;
+        }
+        .feeditemfooter{
+            list-style-type: none;
+            overflow: hidden;
+            padding: 0;
+            margin: 4px 0px;
+            font-size: 0.9em;
+            color: #7D7D84;
+            margin-bottom: 10px;
+        }
+        .feeditemfooter li{
+            float: left;
+            margin-left: 10px;
+        }
+        .feeditemtimestamp a, .feeditemseparatingdot, .cxlike a{
+            color: {!Chatter_Answers_Design__c.Links_Color__c} !important;
+        }
+        .feedcommentarrow {
+            height: 5px;
+            background: url("/img/chatterservice/comment_topArrow.gif") no-repeat 10px 0;
+            border-bottom: 1px solid #DEE4E9;
+        }
+        .feeditemextras{
+            padding-left: 60px;
+        }
+        .feeditemcomment{
+            background: {!Chatter_Answers_Design__c.Comments_Background_Color__c};
+            border-bottom: 1px solid #DEE5EA;
+            border-top: 1px solid white;
+            min-height: 34px;
+            padding: 6px 8px;
+            position: relative;
+        } 
+        .csCustomerSupportUserIcon {
+            border-color: #FCA000;
+            -webkit-box-shadow: 0 0 5px 1px #FCA000;
+            -moz-box-shadow: 0 0 5px 1px #FCA000;
+            box-shadow: 0 0 5px 1px #FCA000;
+        }
+        .usericon .csSubicon {
+            display: block;
+            position: absolute;
+            top: auto;
+            right: -6px;
+            bottom: -6px;
+            left: auto;
+            border: none;
+            padding: 0;
+            width: 21px;
+            height: 21px;
+            background: url("/img/chatterservice/icon_sprite_serviceSupport.png") 0 0 no-repeat;
+            background-position: -60px -30px;
+        }
+        .feedText{
+            margin-left: 10px;
+        }
+        .csCustomerSupportTag{
+            color: {!Chatter_Answers_Design__c.Customer_Support_Tag_Text_Color__c};
+            font-weight: normal;
+        }
+        .feedcommenttext{
+            padding-left: 10px;
+            font-weight: normal;
+        }
+        .csfeedcontainer .feeditemtimestamp, .csfeedcontainer .feeditemclientinfo, .csfeedcontainer .feeditemclientinfo a, .feeditemcomment .feeditemfooter .feeditemseparatingdot{
+            color: #7D7D84;
+        }
+        .feeditemcomment .feeditemfooter{
+            margin-left: 33px;
+        }
+        .feeditemcomment .feeditemfooter li{
+            line-height: 20px;
+        }
+        .cxfeedcomment .cxlike a, .cxfeedcomment .cxdislike a, .cxfeedcomment .cxafterlike, .cxfeedcomment .cxafterdislike {
+            width: 30px;
+            height: 30px;
+            background: url("/img/chatterservice/icon_sprite_serviceSupport.png") 0 0 no-repeat;
+        }
+        .cxfeedcomment .cxlike a, .cxfeedcomment .cxdislike a, .cxfeedcomment .cxafterlike, .cxfeedcomment .cxafterdislike, .csReportAbuseIcon, .csReportAbusedIcon, .csSelectBestReplyIcon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-position: 0 -30px;
+            text-indent: -9999px;
+            outline: none;
+        }
+        .cxfeedcomment .cxdislike a, .cxfeedcomment .cxafterdislike {
+            margin-top: 2px;
+            background-position: -30px -30px;
+            vertical-align: middle;
+        }
+        .feeditemseparatingdot {
+            font-weight: bold;
+        }
+        .feedcommentsshowmore{
+            border-bottom: 1px solid #DEE5EA;
+            border-top: 1px solid white;
+        } 
+        .showmorecommentscontainer a {
+            display: block;
+            padding: 5px 7px;
+            background: {!Chatter_Answers_Design__c.Show_More_Background_Color__c};
+            font-size: 1em;
+        }
+        .cxshowmorecommentslabel:hover{
+            text-decoration: underline;
+        }
+        .help.link{
+            position: absolute;
+            right: 26px;
+            bottom: 20px;
+        }
+        
+        .color_bubble {
+            position: absolute;
+            background: #ffffff;
+            width: 80px;
+            height: 45px;
+            -webkit-box-shadow:  0px 1px 15px -5px #000000;
+            box-shadow:  0px 1px 15px -5px #000000;
+            -webkit-border-radius: 4px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid #dedede;
+        }
+        .color_bubble.bottom:after, .color_bubble.bottom:before {
+            top: 100%;
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+        
+        .color_bubble.bottom:after {
+            border-top-color: #ffffff;
+            border-width: 10px;
+            left: 50%;
+            margin-left: -10px;
+        }
+        .color_bubble.bottom:before {
+            border-top-color: #dedede;
+            border-width: 11px;
+            left: 50%;
+            margin-left: -11px;
+        }
+        .color_bubble.top:after, .color_bubble.top:before {
+            bottom: 100%;
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+        
+        .color_bubble.top:after {
+            border-bottom-color: #ffffff;
+            border-width: 10px;
+            left: 50%;
+            margin-left: -10px;
+        }
+        .color_bubble.top:before {
+            border-bottom-color: #dedede;
+            border-width: 11px;
+            left: 50%;
+            margin-left: -11px;
+        }
+        .color_bubble input{
+            margin: 10px;
+            width: 50px;
+        }
+        #criteriaHighlightTextColor{
+            top: 118px;
+            left: 33px;
+        }
+        #criteriaHighlightColor{
+            top: 186px;
+            left: 138px;
+        }
+        #topicsHighlightTextColor{
+            top: 203px;
+            left: 8px;
+        }
+        #topicsHighlightColor{
+            top: 276px;
+            left: 124px;
+        }
+        #leftContentTextColor{
+            top: 340px;
+            left: 14px;
+        }
+        #backgroundColor{
+            top: 395px;
+            left: 121px;
+        }
+        #buttonsColor{
+            top: 103px;
+            right: -4px;
+            z-index: 10;
+        }
+        #buttonsTextColor{
+            top: 24px;
+            right: 18px;
+            z-index: 10;
+        }
+        #customerSupportTagTextColor{
+            top: 179px;
+            right: 335px;
+        }
+        #commentsBackgroundColor{
+            top: 190px;
+            right: 45px;
+        }
+        #showMoreBackgroundColor{
+            top: 325px;
+            right: 206px;
+        }
+        #linksColor{
+            top: 346px;
+            right: 22px;
+        }
+    </style>
+    <script type="text/javascript">
+        $j = jQuery.noConflict();
+        
+        $j(document).ready(function() {
+            
+            var timer = null;
+            
+            $j('input[type=color]').change(function(){
+                if(timer != null){
+                    clearTimeout(timer);
+                }
+                var Background_Color__c = $j('#Background_Color__c').val();
+                var Buttons_Color__c = $j('#Buttons_Color__c').val();
+                var Buttons_Text_Color__c = $j('#Buttons_Text_Color__c').val();
+                var Comments_Background_Color__c = $j('#Comments_Background_Color__c').val();
+                var Criteria_Highlight_Color__c = $j('#Criteria_Highlight_Color__c').val();
+                var Criteria_Highlight_Text_Color__c = $j('#Criteria_Highlight_Text_Color__c').val();
+                var Customer_Support_Tag_Text_Color__c = $j('#Customer_Support_Tag_Text_Color__c').val();
+                var Left_Content_Text_Color__c = $j('#Left_Content_Text_Color__c').val();
+                var Links_Color__c = $j('#Links_Color__c').val();
+                var Show_More_Background_Color__c = $j('#Show_More_Background_Color__c').val();
+                var Topics_Highlight_Color__c = $j('#Topics_Highlight_Color__c').val();
+                var Topics_Highlight_Text_Color__c = $j('#Topics_Highlight_Text_Color__c').val();
+                
+                timer = setTimeout(function(){
+                    ChatterAnswersDesignerExt.saveUpdates('{!Chatter_Answers_Design__c.Id}', Background_Color__c,Buttons_Color__c,Buttons_Text_Color__c,Comments_Background_Color__c,Criteria_Highlight_Color__c,Criteria_Highlight_Text_Color__c,Customer_Support_Tag_Text_Color__c,Left_Content_Text_Color__c,Links_Color__c,Show_More_Background_Color__c,Topics_Highlight_Color__c,Topics_Highlight_Text_Color__c, function(result, event)  
+                    {  
+                        if (event.status)  
+                        {  
+                           console.log('Changes Have been Saved');
+                           updateColors();
+                           
+                        } else if (event.type === 'exception') {
+                           console.log(event.message);
+                        }   
+                    }, {escape:true});
+                }, 500);
+                function updateColors(){
+                    $j('.bodyDiv').css('background-color', Background_Color__c);
+                    $j('.action, a.action:hover').css('cssText', 'background: ' + Buttons_Color__c + ' url("/img/chatterservice/btnlrg_sprite.png") 0 -740px repeat-x !important');
+                    $j('.action, a.action:hover').css('color', Buttons_Text_Color__c);
+                    $j('a.action:hover').css('cssText', 'background: ' + Buttons_Color__c + ' !important');
+                    $j('#left li a').css('color', Left_Content_Text_Color__c);
+                    $j('.feeditemcomment').css('background', Comments_Background_Color__c);
+                    $j('#left .feedcriterialinks li.selected a').css('background-color', Criteria_Highlight_Color__c);
+                    $j('#left .feedcriterialinks li.selected a').css('color', Criteria_Highlight_Text_Color__c);
+                    $j('.togglePill .selected a, .togglePill .selected a:hover').css('background', Criteria_Highlight_Color__c);
+                    $j('.togglePill .selected a, .togglePill .selected a:hover').css('color', Criteria_Highlight_Text_Color__c);
+                    $j('.csCustomerSupportTag').css('color', Customer_Support_Tag_Text_Color__c);
+                    $j('.link, .showmorecommentscontainer a').css('cssText', 'color: ' + Links_Color__c + ' !important');
+                    $j('.feeditemtimestamp a, .feeditemseparatingdot, .cxlike a').css('cssText', 'color: ' + Links_Color__c + ' !important');
+                    $j('.showmorecommentscontainer a').css('background', Show_More_Background_Color__c);
+                    $j('#left .datacategorylinks li.selected a').css('background-color', Topics_Highlight_Color__c);
+                    $j('#left .datacategorylinks li.selected a').css('color', Topics_Highlight_Text_Color__c);
+                    
+                }
+            });
+            
+            $j('.toggleLink').on('click', function(){
+                $j('.instruction_wrapper').slideToggle();
+            });
+
+        });
+        
+
+        
+    </script>
+    
+    <div id="header">
+        <h3>Chatter Answers Designer</h3><br/>
+        <h1>{!Chatter_Answers_Design__c.Name}</h1><br/>
+        <div class="instructions">
+            <h4>Instructions</h4>&nbsp;&nbsp;<a class="toggleLink">hide/show</a>
+            <div class="instruction_wrapper">
+                <p class="explanation">Change the colors to make them match with your customer&#047;s brand. Once the color has change, it means it has been updated.</p>
+                <p class="explanation">To apply your design copy/paste the highlighted line above <b>right after</b> the "chatteranswers" tag in the related VF page.<br/>
+                (EG: Video_Conferencing_main, Routers_and_Switches_main, Wireless_Solutions_main)</p>
+                <p class="code">
+                    <span class="indent0 grayed">&lt;apex:page cache="false" showHeader="false"&gt;</span><br/>
+                    <span class="indent1 grayed">&lt;chatteranswers:allfeeds communityId="09a580000005GOG" /&gt;</span><br/>
+                    <span class="indent1">&lt;apex:stylesheet value="&#123;&#33;&#36;Page.ChatterAnswersDesignerCSS&#125;&#63;id&#61;{!Chatter_Answers_Design__c.Id}" /&gt;</span><br/>
+                    <span class="indent0 grayed">&lt;/apex:page&gt;</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="wrapper">
+        <div id="left" class="content">
+            <div class="signin" id="cs:signin">
+                <h3>New here?</h3><br/><br/>
+                <a href="" id="cs:signup_button" class="action">Sign Up</a><br/><br/><br/>
+                <h3 class="inline">Have an account?</h3>
+                <ul class="inline none">
+                    <li>
+                        <a href="" id="cs:signin_button" class="link">Sign In</a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="feedcriterialinks">
+            <ul>
+                <li class="selected criteriaoption">
+                    <a href="" class="cxcriteria cxBESTANSWERS" data-criteria="BESTANSWERS">Best Answers<img src="/s.gif" alt="Best Answers" class="cxcriteria iconBestAnswer" title="Best Answers"/></a>
+                </li>
+                <li class="criteriaoption">
+                    <a href="" class="cxcriteria cxOPENQUESTIONS" data-criteria="OPENQUESTIONS">Open Questions<img src="/s.gif" alt="Open Questions" class="cxcriteria iconOpenQuestion" title="Open Questions"/></a>
+                </li>
+            </ul>
+            </div>
+            <div class="datacategorylinks" >
+                <h3 title="Filter questions and answers by topics">Topics</h3>
+                <ul>
+                    <li class="datacategoryoption  selected">
+                        <a href="" class="cxdatacategory cxtoplevel cxVideo_Conferencing" >Video Conferencing</a>
+                    </li>
+                    <li class="datacategoryoption csChildOption " >
+                        <a href="" class="cxGeneral_Questions cxdatacategory" >General Questions</a>
+                    </li>
+                    <li class="datacategoryoption csChildOption">
+                        <a href="" class="cxdatacategory cxVX5_product_line" >VX5 product line</a>
+                    </li>
+                    <li class="datacategoryoption csChildOption">
+                        <a href="" class="cxCirrus_View_cameras cxdatacategory" >Cirrus View cameras</a>
+                    </li>
+                    <li class="datacategoryoption csChildOption">
+                        <a href="" class="cxDesktop_Web_Cam cxdatacategory" >Desktop Web Cam</a>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+        <div id="main" class="content">
+            <img src="{!$Resource.chatter_answers_main_field}" class="field" /><br/>
+            <a href="" id="searchAskButton" class="action cxsearch"><span title="Search or ask" class="tip cxsearch">Ask</span></a>
+            <ul class="feedtypelinks togglePill">
+                <li class="feedtypeoption first selected">
+                    <a href="" class="cxPOPULAR cxfeedtype" data-feedtype="POPULAR" >Popular</a>
+                </li>
+                <li class="feedtypeoption last">
+                    <a href="" class="cxRECENT cxfeedtype" data-feedtype="RECENT" >Recent</a>
+                </li>
+            </ul>
+            <div class="cxfeedcontainer">
+                <div class="cxquestionheader" id="">
+                    <span class="usericon" id="">
+                        <img src="{!URLFOR($Resource.chatter_answers_designer_resources, 'avatar45x45.png')}" alt="Jean-Jacques Pompidou" width="45" height="45" class="cxuserimage" title="Jean-Jacques Pompidou" id="ext-gen22"/>
+                    </span>
+                    <span class="feeditemfirstentity">Jean-Jacques Pompidou</span>
+                    <br/>
+                    <h4 class="feeditemtext">
+                        Question question question question lorem ipsum?
+                    </h4>
+                </div>
+                <ul class="feeditemfooter">
+                    <li class="feeditemtimestamp">
+                        <a href="" class="cxsingleitemdetailfeed" data-id="" id="">April 13, 2012</a>
+                    </li>
+                    <li class="feeditemseparatingdot"> · </li>
+                    <li class="cxlike" title="Mark this question as useful" id="">
+                        <a href="" class="cxusefullink" id="">Useful</a>
+                    </li>
+                    <li class="upVoteCount" data-value="" id="">0</li>
+                </ul>
+                <div class="feeditemextras" id="">
+                    <div class="cxfeedcommentarrow feedcommentarrow" id=""></div>
+                    <div class="feeditemcomment cxfeedcomment" data-scc="" id="">
+                        <div class="feeditemcommentbody cxfeedItemBestReplyText" id="">
+                            <span class="usericon csCustomerSupportUserIcon" id="">
+                                <img src="{!URLFOR($Resource.chatter_answers_designer_resources, 'cs_profilePicture.jpeg')}" alt="Ely" width="30" height="30" title="Ely" id=""/>
+                                <img src="/img/s.gif" alt="Customer Support" class="csSubicon csCustomerSupportSubIcon" title="Customer Support" id=""/>
+                            </span>
+                            <strong class="feedText" id="">
+                                <span class="feedcommentuser" id="">Ely</span>&nbsp;<span class="csCustomerSupportTag" id="">(Customer Support)</span>
+                                <br/>
+                                <span class="feedcommenttext" id="">Answer answer answer answer lorem ipsum.</span>
+                            </strong>
+                            <ul class="feeditemfooter" id="">
+                                <li class="feeditemtimestamp" id="">April 13, 2012</li>
+                                <li class="feeditemseparatingdot" id=""> · </li>
+                                <li class="cxlike" title="Like this" id="">
+                                    <a href="" class="cxlikelink" id="">Like</a>
+                                </li>
+                                <li class="upVoteCount" data-value="0">0</li>
+                                <li class="feeditemseparatingdot" id=""> · </li>
+                                <li class="cxdislike" title="Dislike this" id="">
+                                    <a href="" class="cxdislikelink" id="">Dislike</a>
+                                </li>
+                                <li class="downVoteCount" data-value="0" id="">0</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="cxfeedcommentsshowmore feedcommentsshowmore" style="display:block" id="">
+                        <div class="cxshowmorecommentscontainer showmorecommentscontainer" id="">
+                            <a href="" class="cxshowmorecomments" data-scc="" id="">
+                                <span class="cxshowmorecommentslabel" id="">Show <span class="cxfeedcommentcount">2</span> answers</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <a class="help link" href="">Need help?</a>
+        </div>
+
+    
+    <apex:form id="apexForm">
+        
+        
+        <div class="color_bubble bottom" id="criteriaHighlightTextColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Criteria_Highlight_Text_Color__c}" id="Criteria_Highlight_Text_Color__c"/>       
+        </div>
+        <div class="color_bubble top" id="criteriaHighlightColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Criteria_Highlight_Color__c}" id="Criteria_Highlight_Color__c"/>       
+        </div>
+        <div class="color_bubble bottom" id="topicsHighlightTextColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Topics_Highlight_Text_Color__c}" id="Topics_Highlight_Text_Color__c"/>       
+        </div>
+        <div class="color_bubble top" id="topicsHighlightColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Topics_Highlight_Color__c}" id="Topics_Highlight_Color__c"/>       
+        </div>
+        <div class="color_bubble top" id="leftContentTextColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Left_Content_Text_Color__c}" id="Left_Content_Text_Color__c"/>       
+        </div>
+        <div class="color_bubble bottom" id="backgroundColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Background_Color__c}" id="Background_Color__c"/>       
+        </div>
+        <div class="color_bubble top" id="buttonsColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Buttons_Color__c}" id="Buttons_Color__c"/>       
+        </div>
+        <div class="color_bubble bottom" id="buttonsTextColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Buttons_Text_Color__c}" id="Buttons_Text_Color__c"/>       
+        </div>
+        <div class="color_bubble bottom" id="customerSupportTagTextColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Customer_Support_Tag_Text_Color__c}" id="Customer_Support_Tag_Text_Color__c"/>       
+        </div>
+        <div class="color_bubble bottom" id="commentsBackgroundColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Comments_Background_Color__c}" id="Comments_Background_Color__c"/>       
+        </div>
+        <div class="color_bubble top" id="showMoreBackgroundColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Show_More_Background_Color__c}" id="Show_More_Background_Color__c"/>       
+        </div>
+        <div class="color_bubble bottom" id="linksColor">
+            <input type="color" value="{!Chatter_Answers_Design__c.Links_Color__c}" id="Links_Color__c"/>       
+        </div>
+    </apex:form>
+    </div>
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

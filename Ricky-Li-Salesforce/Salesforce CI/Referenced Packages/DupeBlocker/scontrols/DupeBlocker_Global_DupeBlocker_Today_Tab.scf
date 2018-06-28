@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML>
+<HEAD>
+<script src="/soap/ajax/18.0/connection.js"></script>
+<script src="/soap/ajax/18.0/apex.js"></script>
+<SCRIPT type="text/javascript">
+var _nameSpace = "CRMfusionDBR101";
+
+function onLoad()
+{
+	// Set our default namespace.
+	sforce.connection.defaultNamespace = _nameSpace;
+	sforce.connection.batchSize = 2000;
+	validateLicense();
+	displayRuleCounts();
+}
+
+function validateLicense()
+{
+	var activeUsers = getActiveUserCount();
+	var authString = sforce.apex.execute( _nameSpace + "/DB_WebServices",
+		"validateLicense", { requestingFeature:"about", userCount:activeUsers } );
+	updateLicenseDisplay( authString );
+}
+
+function displayRuleCounts()
+{
+	var accountCount = 0, contactCount = 0, leadCount = 0;
+		
+	// Load all active rules.
+	var result = sforce.connection.query( "SELECT Id, Scenario_Type__c FROM " +
+		"Scenario_Rule__c WHERE Scenario__r.Deployed__c = true" );
+	
+	// Count each rule type.
+	var it = new sforce.QueryResultIterator( result );
+	while ( it.hasNext() )
+	{
+		var rule = it.next();
+		switch( rule.Scenario_Type__c.toLowerCase() )
+		{
+			case "account":
+				accountCount++;
+				break;
+			case "contact":
+				contactCount++;
+				break;
+			case "lead":
+				leadCount++;
+				break;
+			case "lead to account":
+				accountCount++;
+				leadCount++;
+				break;
+			case "lead to contact":
+				contactCount++;
+				leadCount++;
+				break;
+		}
+	}
+	
+	// Display the counts.
+	document.getElementById( "ruleStats" ).innerHTML = "<B>Active Scenario Rules:</B>" +
+		"&nbsp;&nbsp;&nbsp;Account: " +  accountCount.toString() +
+		"/40&nbsp;&nbsp;&nbsp;Contact: " + contactCount.toString() +
+		"/40&nbsp;&nbsp;&nbsp;Lead: " + leadCount.toString() + "/40";
+}
+
+function getActiveUserCount()
+{
+	var result = sforce.connection.query( "SELECT COUNT() FROM User WHERE " + 
+		"isActive = true AND Name != 'License Manager'" );
+	return result.size;
+}
+
+// Manually refresh our license from SFDC.
+function updateLicense()
+{
+	var activeUsers = getActiveUserCount();
+	var authString = sforce.apex.execute( _nameSpace + "/DB_WebServices", "updateLicense",
+		{ requestingFeature:"about", userCount:activeUsers } );
+	updateLicenseDisplay( authString );
+}
+
+function updateLicenseDisplay( licenseString )
+{
+    var isTrial = false, isSuspended = false;
+	var values = String( licenseString ).split( "|", 8 );
+   	// Parse the auth results.
+   	var authStatus = values[0];
+   	var authMessage = values[1];
+   	var licenseEnd = values[3];
+   	var purchasedUsers = values[4];
+   	
+	var element = document.getElementById( "licenseInfo" );
+	element.innerHTML = "<B>License Expiration Date:</B> " + licenseEnd +
+		"&nbsp;&nbsp;&nbsp;<B>Licensed Users:</B> " + purchasedUsers +
+		"&nbsp;&nbsp;&nbsp;<B>Status:</B> " + authMessage +
+		"&nbsp;&nbsp;&nbsp;<BUTTON onclick='updateLicense();'>Update</BUTTON>";
+}
+
+</SCRIPT>
+<TITLE>About DupeBlocker</TITLE>
+<STYLE type="text/css">
+table#licenseTable
+{
+	background-color: #8AA9E5;
+	color: white;
+}
+</STYLE>
+</HEAD>
+<BODY onload="onLoad();" topmargin="0" bottommargin="0" leftmargin="0" rightmargin="0"
+	marginwidth="0" marginheight="0">
+<TABLE id=licenseTable height="50" border="0" width="100%" cellspacing="0">
+	<TR height="25" valign="center">
+		<TD id="licenseInfo"><B>Retrieving license info...</B></TD>
+	</TR>
+	<TR height="25" valign="center">
+		<TD id="ruleStats"></TD>
+	</TR>
+</TABLE>
+<IFRAME src="http://www.crmfusion.com/dbapppages1/dbtodayblog/index.htm" width="100%" height="549" frameborder="0" />
+</BODY>
+</HTML>

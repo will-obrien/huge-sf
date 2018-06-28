@@ -1,0 +1,236 @@
+<apex:page controller="ReportDeliveryController">
+    
+    <head>
+        <apex:includeScript value="{! URLFOR($Resource.PROResources, '/js/jquery.min.js')}" />
+    
+        <script>
+            $(document).ready(function() {
+                $('.monthly-frequency-panel').hide();
+                
+                $('.On').find('select').each(function(i,el){
+                    $(el).attr('disabled', 'disabled');
+                });
+                
+            });
+            
+            function displayFrequencyPanel(selectedFrequency, sclass, sclass2){
+                 var weeklyPanel = $('.' + sclass);
+                 var monthlyPanel = $('.' + sclass2);
+                 if (selectedFrequency === 'Weekly'){
+                    weeklyPanel.show();
+                    monthlyPanel.hide();
+                 }else{
+                     weeklyPanel.hide();
+                     monthlyPanel.show();
+                 }
+             }
+             
+             function displayPanel(selectedFrequency, sclass, sclass2){
+                 var $onDay = $('.' + sclass);
+                 var $on = $('.' + sclass2);
+
+                 if (selectedFrequency == 'On'){
+                     $onDay.find('select').each(function(i,el){
+                         $(el).attr('disabled', 'disabled');
+                     });
+                     $on.find('select').each(function(i,el){
+                         $(el).attr('disabled', null);
+                     });
+                     $onDay.find('select').each(function(i,el){
+                         $(el).attr('checked', false);
+                     });
+                 } else {
+                     $on.find('select').each(function(i,el){
+                         $(el).attr('disabled', 'disabled');
+                     });
+                     $onDay.find('select').each(function(i,el){
+                         $(el).attr('disabled', null);
+                     });
+                 }
+                 $('[id*="mFrequency"]').val(selectedFrequency);
+             }
+             
+             function processDropDown() {
+                if (popularGroupingJSON != undefined && popularGroupingJSON != "") {
+                    popularGrouping = JSON.parse(popularGroupingJSON);
+                    var options = [];
+                    var newGroup = $("<optgroup label='Filter grouping'></optgroup>");
+                        jQuery.each(popularGrouping,function(i, val) {
+                            $(newGroup).append($("<option value='"+i+"'>"+val+"</option>"));
+                            options.push(i);
+                        });
+                        console.log(options);
+                        $(".select-grouping select").append(newGroup);
+                        $(".select-grouping select > option").each(function() {
+                            console.log(this.value);
+                            if (options.indexOf(this.value) > -1) {
+                                $(this).remove();
+                                
+                            }
+                        });
+                }
+                
+                $(".select-grouping select").html('<optgroup label="Filter column">' + $(".select-grouping select").html() + '</optgroup>');
+             }
+             
+        </script>
+            
+    </head>
+    <apex:messages id="errors"/>
+    <apex:form id="reportDelivery">
+        <apex:outputLabel value="{!errorMsgs}" rendered="{!errorMsgs.size > 0}"/>
+        <apex:pageBlock title="Schedule" mode="edit">
+            <apex:pageBlockSection title="Report Schedule Information" collapsible="false" columns="1">
+                <table>
+                    <tbody>
+                        <tr>
+                            <apex:pageBlockSectionItem >
+                                <apex:outputLabel value="Job name"/>
+                                <apex:outputPanel styleClass="requiredInput" layout="block" id="pwPanel">
+                                    <apex:outputPanel styleClass="requiredBlock" layout="block"/>
+                                    <apex:inputText value="{!jobName}" id="theTextInput" />
+                             </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                        </tr>
+                        <tr>
+                            <apex:pageBlockSectionItem >
+                                <apex:outputLabel value="Frequency" for="frequency"/>
+                                <apex:selectRadio id="frequency" value="{!frequency}" onclick="displayFrequencyPanel($(this).val(),'weekly-frequency-panel', 'monthly-frequency-panel');">
+                                    <apex:selectOptions value="{!frequencySelectList}"/>
+                                </apex:selectRadio> 
+                            </apex:pageBlockSectionItem>
+                
+                            <apex:outputPanel styleClass="weekly-frequency-panel">
+                                <apex:outputLabel value="Recurs every week on" style="float: left;"/>
+                                <apex:selectCheckboxes value="{!weeklyFrequency}" layout="pageDirection" style="margin-left:10px; display:block; white-space: nowrap; border: 1px solid rgb(204,204,204); background-color: rgb(255,255,255); padding: 5px; float: left;">
+                                    <apex:selectOptions value="{!weeklyFrequencySelectedList}" />
+                                </apex:selectCheckboxes>
+                            </apex:outputPanel>
+                      
+                            <apex:pageBlockSectionItem >
+                                <apex:outputPanel id="panel1" styleClass="monthly-frequency-panel">
+                                    <input type="radio" name="monthFreq" checked="checked" style="margin-left:43px;" id="monthlyFrequency" value="On day" onclick="displayPanel($(this).val(),'On-day', 'On');" />
+                                    <label for="monthlyFrequency">On day</label>
+                                    <div class="On-day" style="margin-left:113px; margin-top:-20px; width:auto;position:absolute;">
+                                        <apex:selectList value="{!frequencyMonthly}" multiselect="false" size="1"> 
+                                            <apex:selectOptions value="{!monthlyFrequencySelectedList}"/>
+                                        </apex:selectList>
+                                        <apex:outputLabel for="panel" value="Of every month" />
+                                    </div>
+              
+                                     <input type="radio" name="monthFreq" id="monthlyFrequency2" style="margin-left:160px; margin-top:0px;" value="On" onclick="displayPanel($(this).val(),'On-day', 'On');" />
+                                     <label for="monthlyFrequency2">On</label>
+                                     <div style="margin-left:310px; margin-top:-20px; width:auto;position:absolute;" class="On">
+                                         <apex:selectList value="{!theMonth}" multiselect="false" size="1" style="margin-left:10px;">
+                                             <apex:selectOptions value="{!theMonthList}"/>
+                                         </apex:selectList>
+                                         <apex:selectList value="{!theMonthDay}" multiselect="false" size="1" style="margin-left:10px;">
+                                             <apex:selectOptions value="{!weeklyFrequencySelectedList}"/>
+                                         </apex:selectList>
+                                         <apex:outputLabel for="panel" value="Of every month" />
+                                     </div>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:inputHidden id="mFrequency" />
+                            
+                        </tr>
+                        <tr>                    
+                            <apex:pageBlockSectionItem >
+                                <apex:outputLabel for="panel3" style="white-space: nowrap; padding-bottom: 10px; padding-top: 6px;" value="Preferred Start Time" />
+                                <apex:outputPanel styleClass="requiredInput" layout="block" id="pwPanel">
+                                    <apex:outputPanel styleClass="requiredBlock" layout="block"/>
+                                    <apex:outputPanel id="panel2"> 
+                                        <div  style="margin-bottom: 3px;" >
+                                            <apex:selectList value="{!preferredTime}" multiselect="false" size="1" style="margin-left:2px;">
+                                                <apex:selectOptions value="{!preferredTimeSelectedList}"/>
+                                            </apex:selectList>
+                                        </div>
+                                    </apex:outputPanel>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                        </tr>
+                    </tbody>
+                </table>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+
+        <apex:pageBlock title="Report Delivery" mode="edit">
+            <apex:pageBlockSection title="Report Information" collapsible="false" columns="1">
+        
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Folder" for="folderId"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block" id="pwPanel">
+                         <apex:outputPanel styleClass="requiredBlock" layout="block"/>
+                         <apex:selectList id="folderId" styleclass="std" size="1" value="{!folderId}">
+                             <apex:selectOptions value="{!folderSelectList}"/>
+                             <apex:actionSupport event="onchange" rerender="cbxlevel2"/>
+                         </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Report" />
+                    <apex:outputPanel styleClass="requiredInput" layout="block" id="pwPanel">
+                        <apex:outputPanel styleClass="requiredBlock" layout="block"/>
+                        <apex:selectList id="cbxlevel2" styleclass="std" size="1" value="{!reportId}">
+                            <apex:selectOptions value="{!reportSelectList}"/>
+                            <apex:actionSupport event="onchange" rerender="cbxlevel3,json" oncomplete="processDropDown();"/>
+                        </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                    
+                <apex:pageBlockSectionItem >
+                    <h1 style="margin: 0 25px 0 120px; margin-left:172px;">Please select a filter with an email address associated (Example, contacts, users, etc)</h1>
+                </apex:pageBlockSectionItem>
+            
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Filter" />
+                    <apex:outputPanel styleClass="requiredInput" layout="block" id="pwPanel">
+                        <apex:outputPanel styleClass="requiredBlock" layout="block"/>
+                        <apex:outputPanel layout="block" styleClass="select-grouping">
+                        <apex:selectList id="cbxlevel3" styleclass="std" required="false" size="1" value="{!filterId}">
+                            <apex:selectOptions value="{!filterSelectList}"/>
+                        </apex:selectList>
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                    
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Other recipients" />
+                    <apex:inputTextarea value="{!otherRecipient}" id="theTextInput2" rows="10" cols="83"/>
+                </apex:pageBlockSectionItem> 
+                
+                <apex:pageBlockSectionItem >
+                    <h1 style="margin: 0 125px 0 120px; margin-left:177px;">(Must be separated by semicolon ;)</h1>
+                </apex:pageBlockSectionItem>
+                
+                 <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Email Subject" for="emailSubjectText"/>
+                    <apex:outputPanel styleClass="requiredInput" layout="block" id="subjectPanel">
+                         <apex:outputPanel styleClass="requiredBlock" layout="block"/>
+                         <apex:inputText value="{!EmailSubject}" style="width:515px" id="emailSubjectText" maxlength="255"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                
+              
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Email Body" />
+                    <apex:inputTextarea richText="true" value="{!EmailBody}" id="emailBodyText" rows="10" cols="83"/>
+                </apex:pageBlockSectionItem> 
+                
+                <apex:pageBlockSectionItem >
+                    <apex:commandButton action="{!scheduleReport}" value="Send Report" id="sendBtn" >
+                        <apex:param assignTo="{!startDate}" value="document.getElementById('datepicker').value"/>
+                    </apex:commandButton>
+                </apex:pageBlockSectionItem>
+                    
+                <apex:outputPanel layout="block" id="json" rendered="{!popularGroupingJSON != null}">
+                    <script>
+                        popularGroupingJSON = '{!popularGroupingJSON}';
+                    </script>
+                </apex:outputPanel>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

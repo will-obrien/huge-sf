@@ -1,0 +1,140 @@
+<apex:component allowDML="true"
+	controller="dsfs.DocuSignMemberManagerController" allowDml="true">
+	<style>
+.buttonPanel {
+	padding-top: 10px;
+	text-align: center;
+}
+</style>
+	<apex:pageBlock title="DocuSign Member Management"
+		id="MemberManagerPanel">
+		<apex:pageBlockSection title="Select A User" collapsible="False"
+			id="MemberSelectorPanel"
+			rendered="{!PageDisplayModeString=='SELECTMEMBER'}">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="User"
+					for="DocuSignUserNameValueLocalPassword" />
+				<apex:inputField value="{!dummyRecordForUserLookup.dsfs__LookupUser__c}"
+					id="DocuSignUserNameValueLocalPassword" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:outputPanel layout="block" styleclass="buttonPanel">
+				<apex:commandButton value="Edit Selected User"
+					action="{!SelectUser}" rerender="MemberManagerPanel" />
+			</apex:outputPanel>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection columns="2"
+			title="Membership for {!theUser.Name} - ({!theUser.email})"
+			collapsible="False" id="DisplayMembershipPanel"
+			rendered="{!PageDisplayModeString=='DISPLAYMEMBER'}">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="DocuSign UserId" for="DocuSignUserName" />
+				<apex:outputText value="{!theUser.dsfs__DSProSFUsername__c}"
+					id="DocuSignUserName" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem rendered="{!theUser.dsfs__DSProSFPassword__c != ''}">
+				<apex:outputLabel value="Password" for="memberPasswordLocalPassword" />
+				<apex:outputText value="*************"
+					id="memberPasswordLocalPassword" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem rendered="{!theUser.dsfs__DSProSFPassword__c == ''}">
+				<apex:outputLabel value="Password" for="memberPasswordLocalPassword" />
+				<apex:outputText value="" id="memberPasswordLocalPassword" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:outputPanel layout="block" styleclass="buttonPanel">
+				<apex:commandButton value="Cancel" action="{!Cancel}" />
+				<apex:commandButton value="Delete Membership"
+					action="{!ConfirmDeleteMember}" />
+			</apex:outputPanel>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection columns="2"
+			title="Link Existing Membership for {!theUser.Name} - ({!theUser.email})"
+			collapsible="False" id="LinkMembershipPanel"
+			rendered="{!PageDisplayModeString=='LINKMEMBER'}">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="DocuSign Email Address" for="DocuSignEmail" />
+				<apex:outputText value="{!theUser.email}" id="DocuSignEmail" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="DocuSign UserId" for="DocuSignUserName" />
+				<apex:outputText value="{!linkDocuSignUsername}"
+					id="DocuSignUserName" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:outputPanel layout="block" styleclass="buttonPanel">
+				<apex:commandButton value="Cancel" action="{!Cancel}" />
+				<apex:commandButton value="Link Membership" action="{!LinkMember}" />
+			</apex:outputPanel>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection columns="2"
+			title="Create New Membership for {!theUser.Name} - ({!theUser.email})"
+			collapsible="False" id="CreateMembershipPanel"
+			rendered="{!PageDisplayModeString=='CREATEMEMBER'}">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="DocuSign Username" for="DocuSignUserName" />
+				<apex:inputText value="{!theMember.memberUsername}"
+					id="DocuSignUserName" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="DocuSign Email Address"
+					for="DocuSignUserNameValueLocalPassword" />
+				<apex:outputText value="{!theMember.memberEmailAddress}"
+					id="DocuSignUserNameValueLocalPassword" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:outputPanel layout="block" styleclass="buttonPanel">
+				<apex:commandButton value="Cancel" action="{!Cancel}" />
+				<apex:commandButton value="Create Membership"
+					action="{!CreateMember}" />
+			</apex:outputPanel>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection columns="2"
+			title="Delete Membership for {!theUser.Name} - ({!theUser.email})"
+			collapsible="False" id="DeleteMembershipPanel"
+			rendered="{!PageDisplayModeString=='DELETEMEMBER'}">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel >Please Confirm that you wish to delete the DocuSign Credentials for this user. </apex:outputLabel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:outputPanel layout="block" styleclass="buttonPanel">
+				<apex:commandButton value="Cancel" action="{!Cancel}" />
+				<apex:commandButton value="Delete Membership"
+					action="{!DeleteMember}" />
+			</apex:outputPanel>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection columns="1" title="Action Status"
+			collapsible="False" id="StatusPanel"
+			rendered="{!PageDisplayModeString=='STATUS'}">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!statusMessage}" />
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="" />
+			</apex:pageBlockSectionItem>
+			<apex:outputPanel layout="block" styleclass="buttonPanel">
+				<apex:commandButton value="Done" action="{!DisplaySelect}" />
+			</apex:outputPanel>
+		</apex:pageBlockSection>
+	</apex:pageBlock>
+</apex:component>

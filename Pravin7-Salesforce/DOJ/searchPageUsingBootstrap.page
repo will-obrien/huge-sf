@@ -1,0 +1,156 @@
+<apex:page controller="SearchApplicationController" showHeader="true" sidebar="false" docType="html-5.0" tabStyle="Search_Applications__tab" id="ApplicationSearchPage">
+    <head>
+        <apex:stylesheet value="{!URLFOR($Resource.BootStrap, 'css/bootstrap.min.css')}"/>
+        <apex:stylesheet value="{!URLFOR($Resource.dataTablesStylesheet)}"/>    
+        <apex:includeScript value="{!$Resource.jQuery2_1_1}"/>
+        <apex:includescript value="{!$Resource.dataTables}" /> 
+
+        <style>
+            .section {
+                box-shadow: 3px 3px 3px #ddd;
+            }
+        </style>
+        
+        <script>
+            j$ = jQuery.noConflict();
+
+            j$(document).ready( function () {
+                renderTable();                                   
+            });
+
+            function renderTable() {
+                var contactTable = j$('[id$="contacttable"]').DataTable({order: [[2, 'asc']], initComplete: function() {
+                    var api = this.api();
+                    var select = j$('[id$=accountSelect]');
+                    api.column(0).data().unique().sort().each(function(d, j) {
+                        select.append('<option value="'+d+'">'+d+'</option>')
+                    });   
+                    }
+                });
+            }    
+        </script>
+    </head>
+
+    <body>
+        <apex:form >  
+            <div class="container">
+                <div class="col-md-12">
+                    <div class="page-header page-header-anchor" style="background:#2481bb !important;">
+                        <p>Application</p>
+                        <h3>Search Application</h3>
+                    </div>
+                </div>
+            
+                <div class="col-md-12">
+                    <apex:pageBlock id="applicationSearchBlock">
+                        
+                        <div class="panel panel-default" style="background:#2481bb; padding-top:5px; padding-bottom:5px; overflow:auto;">
+                            <span class="pull-left" style="padding:5px; color:white; font-weight:bold;">
+                                Please enter one or more of the search parameters
+                            </span>
+                        </div>
+
+                        <div class="breadcrumb section">
+                            <apex:pageBlockSection id="filterSection" collapsible="false">
+                                <apex:inputText value="{!appFormNumber}" label="Application no."/>
+                                <apex:inputField value="{!appForm.Dept_File_No__c}" label="Dept. File no."/>
+                                <apex:inputField value="{!appForm.Officer__c}" label="Officer"/>
+                                <apex:inputField value="{!appForm.Surname__c}" label="Surname"/>
+                                <apex:inputField value="{!appForm.Organisation__c}" label="Organisation"/>
+                                <apex:inputField value="{!appForm.Application_Valid_Date__c}" label="Date from"/>
+                                <apex:inputField value="{!appForm.Due_Date__c}" label="Date to"/>
+                                
+                                <apex:pageBlockSectionItem >
+                                    <apex:outputPanel > 
+                                        <table style="width:100%"> 
+                                            <tr>
+                                                <td class="labelCol vfLabelColTextWrap">
+                                                    Review Type :
+                                                </td>
+                                                <td class="dataCol">
+                                                    <apex:selectList value="{!selectedReviewType}" multiselect="false" size="1">
+                                                        <apex:selectOptions value="{!reviewType}"/>
+                                                    </apex:selectList>                    
+                                                </td>
+                                            </tr>     
+                                        </table>        
+                                    </apex:outputPanel>                                        
+                                </apex:pageBlockSectionItem>
+                                <apex:pageBlockSectionItem />
+                                <apex:pageBlockSectionItem >
+                                    <apex:outputPanel > 
+                                        <table style="width:100%"> 
+                                            <tr>
+                                                <td class="labelCol vfLabelColTextWrap">
+                                                    Status :
+                                                </td>
+                                                <td class="dataCol">
+                                                    <apex:selectList value="{!selectedStatusA}" multiselect="false" size="1">
+                                                        <apex:selectOptions value="{!statusA}"/>
+                                                    </apex:selectList>
+                                                    -&nbsp;
+                                                    <apex:selectList value="{!selectedStatusB}" multiselect="false" size="1">
+                                                        <apex:selectOptions value="{!statusB}"/>
+                                                    </apex:selectList>
+                                                </td>
+                                            </tr>     
+                                        </table>        
+                                    </apex:outputPanel>                                        
+                                </apex:pageBlockSectionItem>
+
+                            </apex:pageBlockSection>
+                        </div>    
+                        
+                        <!--<apex:pageMessages />-->
+                        
+                        <div align="center" draggable="false" class="breadcrumb">
+                            <apex:commandButton id="searchAppForm" value="Search" action="{!searchAppForm}" oncomplete="renderTable();"
+                            immediate="false" rerender="applicationSearchBlock, panel1"/>
+                            &nbsp;&nbsp;
+                            <apex:commandButton id="clearInpFilters" value="Clear" action="{!clearFilters}" immediate="false"
+                            rerender="applicationSearchBlock"/>
+                        </div>    
+                        
+                        <apex:outputPanel id="panel1" styleClass="section">
+                            <table id="contacttable" class="display">
+                                <thead>
+                                    <tr>
+                                        <th>Application no.</th>
+                                        <th>First Name</th>
+                                        <th>Surname</th>
+                                        <th>Dept. File no.</th>
+                                        <th>Officer</th>
+                                        <th>Organisation</th>
+                                        <th>Status</th>
+                                        <th>Select</th>
+                                    </tr>
+                                </thead>
+                                
+                                <tbody>
+                                    <apex:repeat value="{!appFormWrapList}" var="appFormWrap">
+                                        <tr>
+                                            <td><a href="/sample/{!appFormWrap.appFormRec.id}">{!appFormWrap.appFormRec.name}</a></td>                        
+                                            <td>{!appFormWrap.appFormRec.Firstname__c }</td>
+                                            <td>{!appFormWrap.appFormRec.Surname__c}</td>                        
+                                            <td>{!appFormWrap.appFormRec.Dept_File_No__c}</td>
+                                            <td>{!appFormWrap.appFormRec.Officer__r.name}</td>
+                                            <td>{!appFormWrap.appFormRec.Organisation__c}</td>
+                                            <td>{!appFormWrap.appFormRec.Status__c}</td>
+                                            <td><apex:inputCheckbox value="{!appFormWrap.isChecked}"/></td>                            
+                                        </tr>
+                                    </apex:repeat>
+                                </tbody>
+                            </table>
+
+                            <div align="center" draggable="false" class="breadcrumb">
+                                <apex:commandButton value="Delete" onclick="confirm('Do you want to delete selected records?');" action="{!deleteAppForm}"
+                                oncomplete="renderTable();" reRender="applicationSearchBlock, panel1" />   
+                            </div>    
+                        </apex:outputPanel>
+
+                    </apex:pageBlock>    
+                </div>
+            </div>
+        </apex:form>
+    </body>
+</apex:page>

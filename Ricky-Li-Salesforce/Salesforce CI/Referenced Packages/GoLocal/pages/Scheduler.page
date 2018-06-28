@@ -1,0 +1,312 @@
+<apex:page standardController="event" extensions="GLOC.SchedulerCtl" title="GoLocal Scheduler: {!pageTitle}" tabStyle="Scheduler__tab" >
+	
+	<link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.GoLocalRes, 'CSS/Scheduler.css')}"/>
+	<link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/css/custom-theme/jquery-ui-1.8.12.custom.css')}"/>
+	
+	<script src="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/jquery-1.6.1.min.js')}"></script>
+	<script src="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/jquery-ui-1.8.12.custom.min.js')}"></script>
+	
+	<script src="{!URLFOR($Resource.GoLocalRes, 'JS/Scheduler.js')}"></script>	
+	
+	<script>
+		var durationInMins = {!DurationMins};
+		var dateMask = '{!DateMask}';
+		var timeFormat = {!TimeFormat};
+		var refreshOur = {!refreshOur};
+		var refreshTheir = {!refreshTheir};
+		var reqId = '{!$Component.frm.pbk.rid}';
+		var theirTz = '{!JSENCODE(TheirTimeZone)}';
+	</script>	
+	
+	<div class="GoLocal">
+    <apex:form id="frm">
+        <apex:sectionHeader title="GoLocal Scheduler" subtitle="{!pageTitle}" help="help?t=scheduler"/>
+
+        <apex:pageBlock id="pbk" title="Event Edit" mode="Edit" >
+        	<div class="errMsg sys">
+        		<apex:pageMessages />   
+            </div>
+            <div class="errMsg app" style="display:none">
+            	<apex:pageMessage id="err" severity="Error" strength="2" title="Error:" summary="{!errCode}" />
+            </div>
+                   
+            <apex:pageBlockButtons >
+                <apex:commandButton styleClass="saveBtn" value="Save" action="{!SaveEvent}" style="width:40px"/>
+                <apex:commandButton styleClass="saveBtn" value="Save & New Task" action="{!SaveAndNewTask}"/>
+                <apex:commandButton styleClass="saveBtn" value="Save & New Event" action="{!SaveAndNewEvent}"/>
+                <apex:commandButton styleClass="cancelBtn" value="Cancel" action="{!Cancel}"/>
+            </apex:pageBlockButtons>
+
+            <apex:pageBlockSection title="Event Details" >
+                <apex:inputField value="{!event.Subject}" required="true"/>
+                <apex:inputField value="{!event.Location}"/>
+                <apex:pageBlockSectionItem /> 
+
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel for="whatPanel" value="Related To"/>
+					<apex:outputPanel id="whatPanel">
+						<apex:actionRegion >	
+							<apex:actionFunction name="WhatChange" status="otts" rerender="whatInput" immediate="true" oncomplete="InitFieldEvents();" />
+							<apex:actionFunction name="WhatToggle" status="otts" rerender="whatInput" oncomplete="InitFieldEvents();" />
+            							
+           					<apex:outputPanel id="whatInput">
+								<apex:inputField id="whatId" styleClass="lookupField whatId" value="{!event.WhatId}" onchange="whatChanged(event);" />
+							</apex:outputPanel>
+						</apex:actionRegion>	
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>            
+			</apex:pageBlockSection>
+
+			<apex:pageBlockSection title="Parties & Schedule" collapsible="false" >
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel for="ownerPanel" value="Assigned To"/>
+					<apex:outputPanel id="ownerPanel">
+						<apex:actionRegion >	
+							<apex:actionFunction name="OwnerChange" status="ttos" rerender="ownerInput" immediate="true" oncomplete="UpdateUs();"/>
+							<apex:actionFunction name="OwnerToggle" status="ttos" rerender="ownerInput" oncomplete="UpdateUs();"/>
+							<apex:actionFunction name="UpdateUs" action="{!updateUs}" status="ttos" 
+            							rerender="otz,osd,ost,oed,oet,tsd,tst,ted,tet" oncomplete="InitFieldEvents();" />  
+           					<apex:outputPanel id="ownerInput">
+								<apex:inputField id="oid" styleClass="lookupField us" value="{!event.OwnerId}" onchange="ownerChanged(event);" />
+							</apex:outputPanel>
+						</apex:actionRegion>	
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel for="whoPanel" value="Name"/>
+					<apex:outputPanel id="whoPanel">
+						<apex:actionRegion >	
+							<apex:actionFunction name="WhoChange" status="otts" rerender="whoInput" immediate="true" oncomplete="UpdateThem();"/>
+							<apex:actionFunction name="WhoToggle" status="otts" rerender="whoInput" oncomplete="UpdateThem();"/>
+          					<apex:actionFunction name="UpdateThem" action="{!updateThem}" status="otts" 
+           							reRender="ttz,osd,ost,oed,oet,tsd,tst,ted,tet, namePanel" oncomplete="InitFieldEvents();" />
+           					<apex:outputPanel id="whoInput">
+								<apex:inputField id="wid" styleClass="lookupField them" value="{!event.WhoId}" onchange="whoChanged(event);"/>
+							</apex:outputPanel>
+						</apex:actionRegion>	
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+			</apex:pageBlockSection>	
+		
+			<apex:actionRegion >
+			<apex:inputHidden id="rid" value="{!ReqId}"/>
+            
+            <apex:actionFunction name="TheirToOur" action="{!theirToOur}" status="ttos" reRender="ourPanel,err"/>
+            <apex:actionFunction name="OurToTheir" action="{!ourToTheir}" status="otts" reRender="theirPanel,err"/>
+
+			<apex:pageBlockSection >
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="otz" value="Time Zone"/>
+                    <apex:outputPanel id="otz">
+                    	<apex:outputText >{!OurTimeZone}</apex:outputText>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="ttz" value="Time Zone"/>
+                   	<apex:outputPanel id="ttz">
+                   		<apex:outputText rendered="{!NOT(OR(TheirTimeZone='Unknown',TheirTimeZone='None'))}" >
+                   			{!TheirTimeZone}
+                   		</apex:outputText>
+                   		<apex:outputText rendered="{!TheirTimeZone='Unknown'}">
+                   			<img src="/img/msg_icons/warning16.png" style="padding-bottom:3px" 
+                   					title="Time zone for selected contact/lead could not be determined"
+                   			/> Unknown (time shown in <b>UTC</b>)
+                   		</apex:outputText>
+                   		<apex:outputText rendered="{!TheirTimeZone='None'}">
+                   			None (time shown in <b>UTC</b>)
+                   		</apex:outputText>
+                   	</apex:outputPanel>     
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                	<apex:outputLabel value=""/>
+	                <apex:actionStatus id="ttos">
+	                	<apex:facet name="start"><img src="/img/loading.gif" height="16" width="16"/> Updating...</apex:facet>
+	                	<apex:facet name="stop"><div style="height:17px;"></div></apex:facet>
+	                </apex:actionStatus>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                	<apex:outputLabel value=""/>
+	                <apex:actionStatus id="otts" >
+	                	<apex:facet name="start"><img src="/img/loading.gif" height="16" width="16"/> Updating...</apex:facet>
+	                	<apex:facet name="stop"><div style="height:17px;"></div></apex:facet>
+	                </apex:actionStatus>
+                </apex:pageBlockSectionItem>
+                                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="osd" value="Start Time"/>
+                   	<apex:outputPanel id="osd">
+	                   	<apex:inputText id="osdf" styleClass="dateField our start" value="{!OurSDT.Container.DateStr}"  
+	                  						style="width:100px" />
+						[ <a href="javascript:" class="dateSetter our start">{!OurCurrentDate}</a> ]
+					</apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="tsd" value="Start Time" />
+                    <apex:outputPanel id="tsd">
+	                    <apex:inputText id="tsdf" styleClass="dateField their start" value="{!TheirSDT.Container.DateStr}" 
+	                    					style="width:100px"  />
+	                    [ <a href="javascript:" class="dateSetter their start">{!TheirCurrentDate}</a> ]
+                    </apex:outputPanel>					
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="ost" value=""/>
+                    <apex:outputPanel id="ost">
+                    	<apex:inputText id="ostf" styleClass="timeField our start" value="{!OurSDT.Container.TimeStr}" />
+                    	[ <a href="javascript:" class="timeSetter our start">{!OurCurrentTime}</a> ]
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="tst" value=""/>
+                    <apex:outputPanel id="tst">
+						<apex:inputText id="tstf" styleClass="timeField their start" value="{!TheirSDT.Container.TimeStr}" />
+                    	[ <a href="javascript:" class="timeSetter their start">{!TheirCurrentTime}</a> ]
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>                
+                
+                <apex:pageBlockSectionItem />
+                <apex:pageBlockSectionItem />                
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="oed" value="End Time" />
+                    <apex:outputPanel id="oed">
+	                    <apex:inputText id="oedf" styleClass="dateField our end" value="{!OurEDT.Container.DateStr}" 
+	                    					style="width:100px" />
+                    	[ <a href="javascript:" class="dateSetter our end">{!OurCurrentDate}</a> ]		
+                    </apex:outputPanel>
+                    					                    					
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="ted" value="End Time" />
+                    <apex:outputPanel id="ted">
+	                    <apex:inputText id="tedf" styleClass="dateField their end" value="{!TheirEDT.Container.DateStr}" 
+	                    					style="width:100px" />
+	                    [ <a href="javascript:" class="dateSetter their end">{!TheirCurrentDate}</a> ]
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="oet" value=""/>
+                    <apex:outputPanel id="oet">
+                    	<apex:inputText id="oetf" styleClass="timeField our end" value="{!OurEDT.Container.TimeStr}" />
+                    	[ <a href="javascript:" class="timeSetter our end">{!OurCurrentTime}</a> ]
+                    </apex:outputPanel>                
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel for="tet" value=""/>
+                    <apex:outputPanel id="tet">	
+                    	<apex:inputText id="tetf" styleClass="timeField their end" value="{!TheirEDT.Container.TimeStr}"  />
+                    	[ <a href="javascript:" class="timeSetter their end">{!TheirCurrentTime}</a> ]
+                    </apex:outputPanel>                
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+
+            </apex:actionRegion>
+
+            <apex:pageBlockSection title="Description Information" columns="1">
+                <apex:inputField value="{!event.Description}" style="width:392px; height:90px"/>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection title="Reminder" columns="1">
+                <apex:pageBlockSectionItem >
+                	<apex:outputLabel for="rep" value="Reminder"/>
+                	<apex:outputPanel id="rep" styleClass="reminder">
+                		<apex:inputCheckbox value="{!event.IsReminderSet}" />
+	                	<apex:selectList id="rem" value="{!Reminder}" size="1">
+							<apex:selectOption itemValue="0" itemLabel="0 minutes" />
+							<apex:selectOption itemValue="5" itemLabel="5 minutes" />
+							<apex:selectOption itemValue="10" itemLabel="10 minutes" />
+							<apex:selectOption itemValue="15" itemLabel="15 minutes" />
+							<apex:selectOption itemValue="30" itemLabel="30 minutes" />
+							<apex:selectOption itemValue="60" itemLabel="1 hour" />
+							<apex:selectOption itemValue="120" itemLabel="2 hours" />
+							<apex:selectOption itemValue="180" itemLabel="3 hours" />
+							<apex:selectOption itemValue="240" itemLabel="4 hours" />
+							<apex:selectOption itemValue="300" itemLabel="5 hours" />
+							<apex:selectOption itemValue="360" itemLabel="6 hours" />
+							<apex:selectOption itemValue="420" itemLabel="7 hours" />
+							<apex:selectOption itemValue="480" itemLabel="8 hours" />
+							<apex:selectOption itemValue="540" itemLabel="9 hours" />
+							<apex:selectOption itemValue="600" itemLabel="10 hours" />
+							<apex:selectOption itemValue="660" itemLabel="11 hours" />
+							<apex:selectOption itemValue="720" itemLabel="0.5 days" />
+							<apex:selectOption itemValue="1080" itemLabel="18 hours" />
+							<apex:selectOption itemValue="1440" itemLabel="1 day" />
+							<apex:selectOption itemValue="2880" itemLabel="2 days" />
+							<apex:selectOption itemValue="4320" itemLabel="3 days" />
+							<apex:selectOption itemValue="5760" itemLabel="4 days" />
+							<apex:selectOption itemValue="10080" itemLabel="1 week" />
+							<apex:selectOption itemValue="20160" itemLabel="2 weeks" />
+						</apex:selectList>
+					</apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>            
+
+        </apex:pageBlock>
+        
+        <div class="timePicker" id="timePicker">
+            <apex:repeat value="{!TimePickerVals}" var="s">
+            	<div class="timeOption" onclick="setTimePickerVal('{!s}');">{!s}</div>
+            </apex:repeat>
+        </div>
+		
+		<div class="errMsgFld" >
+        	<table>
+        		<tr>
+        			<td class="icn"><img src="/img/msg_icons/error16.png" /></td>
+        			<td class="msg"><b>Error:</b> Invalid date and time</td>
+        		</tr>
+        	</table>
+		</div>
+            
+        <apex:outputPanel id="ourPanel">
+			<script>
+				resId = '{!JSENCODE(ReqId)}';
+				if ((parseInt(resId, 10) > 0) && (resId == $j(jq(reqId)).val())) {
+					$j('.dateField.our.start').val('{!OurSDT.DateStr}');
+					$j('.timeField.our.start').val('{!OurSDT.TimeStr}');
+					$j('.dateField.our.end').val('{!OurEDT.DateStr}');
+					$j('.timeField.our.end').val('{!OurEDT.TimeStr}');
+
+					toggleErr({!AppErr});
+					
+					$j('.our').removeAttr('disabled');
+				}
+        	</script>
+        </apex:outputPanel>
+        
+        <apex:outputPanel id="theirPanel">
+			<script>
+				resId = '{!JSENCODE(ReqId)}';
+				if ((parseInt(resId, 10) > 0) && (resId == $j(jq(reqId)).val())) {
+					$j('.dateField.their.start').val('{!TheirSDT.DateStr}');
+					$j('.timeField.their.start').val('{!TheirSDT.TimeStr}');
+					$j('.dateField.their.end').val('{!TheirEDT.DateStr}');
+					$j('.timeField.their.end').val('{!TheirEDT.TimeStr}');
+					
+					theirTz = '{!JSENCODE(TheirTimeZone)}';
+					
+					toggleErr({!AppErr});
+					
+					$j('.their').removeAttr('disabled');
+				}
+        	</script>
+        </apex:outputPanel>
+
+        <apex:outputText rendered="false">
+        	{!event.StartDateTime}
+        	{!event.EndDateTime}
+        	{!event.ReminderDateTime}
+        </apex:outputText>
+        
+    </apex:form>
+    </div>
+</apex:page>

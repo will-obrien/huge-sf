@@ -1,0 +1,217 @@
+<apex:component layout="none" controller="ePrize_Zemzu.OrgConfigController">
+
+  <script>window.jQuery || document.write('\<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"\>\</script\>');</script>
+
+  <script type="text/javascript">
+    (function($) {
+
+      if(!window.L11) window.L11 = {};
+      var bound = false;
+
+      var params = {};
+      var match;
+      var pl  = /\+/g;  // Regex for replacing addition symbol with a space
+      var search = /([^&=]+)=?([^&]*)/g;
+      var query  = window.location.search.substring(1);
+
+      var decode = function (s) {
+        return decodeURIComponent(s.replace(pl, ' '));
+      }
+
+      while (match = search.exec(query)){
+        params[decode(match[1])] = decode(match[2]);
+      }
+
+      window.L11.bindBuilderAppEvents = function(){};
+
+      if(params.trk && (params.trk === '0' || params.trk === 0)) {
+        return;
+      }
+
+      var Keen=Keen||{configure:function(e){this._cf=e},addEvent:function(e,t,n,i){this._eq=this._eq||[],this._eq.push([e,t,n,i])},setGlobalProperties:function(e){this._gp=e},onChartsReady:function(e){this._ocrq=this._ocrq||[],this._ocrq.push(e)}};(function(){var e=document.createElement("script");e.type="text/javascript",e.async=!0,e.src=("https:"==document.location.protocol?"https://":"http://")+"dc8na2hxrj29i.cloudfront.net/code/keen-2.1.0-min.js";var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t)})();
+
+      Keen.configure({
+        projectId: '52090eda38433159b6000003',
+        writeKey: '6a01400a0ca4d07090464b43dff94d13129edbfecb02c8d060f167622b968560df735959541df93f5a25316a21d9d48f2765d5ec8be712565f69731d72bc62fdb33e1774e39206ba6262f8ce31389741514ce79adf9f38764f442913d45341048e156d2235625f122a7282321b2eb7be'
+      });
+
+      var isPage = function(pageName) {
+        var re = new RegExp('\\/apex\\/' + pageName + '/', 'i');
+        return re.test(window.location.href);
+      };
+
+      var getPage = function() {
+        var href = window.location.href.toLowerCase();
+        var page = href.substring(href.lastIndexOf('/') + 1);
+        if(page) {
+          return page.split('?')[0].toLowerCase();
+        } else {
+          return null;
+        }
+      };
+
+      var getEnvironment = function() {
+        var url = window.location.host.toLowerCase();
+        var parts = url.split('.');
+        if(/^.*eprize.*/i.test(url)) {
+          if(/^cs.*/i.test(parts[1])) {
+            return 'sandbox';
+          } else {
+            return 'production'
+          }
+        } else {
+          return 'test';
+        }
+      };
+
+      var getGlobalProps = function() {
+        var gp = {
+          orgId: '{!JSENCODE($Organization.Id)}',
+          orgName: '{!JSENCODE($Organization.Name)}',
+          userId: '{!JSENCODE($User.Id)}',
+          userFirstName: '{!JSENCODE($User.FirstName)}',
+          userLastName: '{!JSENCODE($User.LastName)}',
+          userEmail: '{!JSENCODE($User.Email)}',
+          client: 'Web',
+          page: getPage(),
+          environment: getEnvironment(),
+          url: window.location.href,
+          version: '{!CompeteVersion}'
+        }
+        return gp;
+      };
+
+      Keen.setGlobalProperties(getGlobalProps);
+
+      window.Keen = Keen;
+
+      function getInt(i) {
+        var myInt = 0;
+        try {
+          myInt = parseInt(i);
+        } catch(e) {}
+        return myInt;
+      }
+
+      function getDateObj(d) {
+        var myDate;
+        try {
+          myDate = new Date(d);
+        } catch(e) {}
+        return myDate;
+      }
+
+      function getBool(b) {
+        b = b.toLowerCase().trim();
+        if(b === 'true') return true;
+        else return false;
+      }
+
+      function contestCrudEvent(data) {
+        var ce = $.extend(true, {}, data);
+        Keen.addEvent('contest-create-edit', ce);
+
+        if(data.startDate && !data.draft) {
+          var l = $.extend(true, {}, data);
+          l.keen = {};
+          l.keen.timestamp = data.startDate;
+          Keen.addEvent('contest-launch', l);
+        }
+
+        if(data.endDate && !data.draft) {
+          var e = $.extend(true, {}, data);
+          e.keen = {};
+          e.keen.timestamp = data.endDate;
+          Keen.addEvent('contest-end', e);
+        }
+
+      }
+
+      function contestFinalizeEvent(data) {
+        Keen.addEvent('contest-finalize', data);
+      }
+
+      if($.url) {
+
+        if(params.action && (params.action === 'create-contest' || params.action === 'edit-contest')) {
+          if(params.admins) params.admins = getInt(params.admins);
+          if(params.behaviors) params.behaviors = getInt(params.behaviors);
+          if(params.participants) params.participants = getInt(params.participants);
+          if(params.prizes) params.prizes = getInt(params.prizes);
+          if(params.teams) params.teams = getInt(params.teams);
+          if(params.startDate) params.startDate = getDateObj(params.startDate);
+          if(params.endDate) params.endDate = getDateObj(params.endDate);
+          if(params.dynamic) params.dynamic = getBool(params.dynamic);
+          if(params.child) params.child = getBool(params.child);
+          if(params.hidden) params.hidden = getBool(params.hidden);
+          params.action = (params.action === 'create-contest') ? 'create' : 'edit';
+
+          contestCrudEvent(params);
+        }
+
+        if(params.action && params.action === 'finalize') {
+          contestFinalizeEvent(params);
+        }
+
+      }
+
+      window.L11.bindBuilderAppEvents = function() {
+        if(!window.L11.BuilderApp) return;
+
+        bound = true;
+
+        window.L11.BuilderApp.on('contest:create-edit', function(action, contest){
+
+          var data = {
+            action: action,
+            contestName: contest.get('contestName'),
+            contestId: contest.get('contestId'),
+            rankingStyle: contest.get('rankingStyle'),
+            startDate: getDateObj(contest.get('startDate')),
+            endDate: getDateObj(contest.get('endDate')),
+            dynamic: contest.isDynamicPoints(),
+            child: contest.isChildContest(),
+            competeBuilder: true,
+            hidden: contest.isHidden(),
+            draft: contest.isDraft(),
+            contestType: contest.get('goal'),
+            participants: (contest.participants) ? contest.participants.models.length : 0,
+            teams: (contest.teams) ? contest.teams.models.length : 0,
+            admins: (contest.admins) ? contest.admins.models.length : 0,
+            prizes: (contest.prizes) ? contest.prizes.models.length : 0,
+            behaviors: (contest.behaviors) ? contest.behaviors.models.length : 0,
+            contest: contest.jsonDebug()
+          };
+
+          contestCrudEvent(data);
+
+        });
+
+      };
+
+      $(document).ready(function(){
+        //window.L11.bindBuilderAppEvents();
+      });
+
+      Keen.addEvent('page-view');
+
+    }(jQuery));
+  </script>
+
+   <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-35264349-2']);
+    _gaq.push(['_setDomainName', 'force.com']);
+    _gaq.push(['_setCustomVar', 1, 'App', 'Contest Builder', 3 ]);
+    _gaq.push(['_setCustomVar', 2, 'OrgId', '{!$Organization.Id}', 3 ]);
+    _gaq.push(['_setCustomVar', 3, 'Company', '{!JSENCODE($Organization.Name)}', 3 ]);
+    _gaq.push(['_setCustomVar', 4, 'User', '{!JSENCODE($User.FirstName + " " + $User.LastName)}', 3 ]);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+</apex:component>

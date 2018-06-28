@@ -1,0 +1,97 @@
+<apex:page controller="sf4twitter.TwitterGetUsernameController" title="{!$Label.TWITTER_GET_USERNAME_TITLE}">
+
+<apex:outputPanel id="mainPanel">
+
+    <c:TwitterErrorMessage msgTitle="{!$Label.TWITTER_INSUFFICIENT_PRIVILEGES}" msg="{!msg}" retUrl="{!retUrl}" rendered="{!NOT(ISBLANK(msg))}"/>
+
+    <apex:outputPanel layout="none" rendered="{!ISBLANK(msg)}">
+        <apex:stylesheet value="{!URLFOR($Resource.sf4twitter__TwitterBasedStyle, 'style.css')}"/>
+        <apex:form >
+            <script type="text/javascript">
+            function getURL(){
+                var url = '';
+                if( document.getElementById('{!$Component.q}').value != '' ) url+= '?q=' + urlencode( document.getElementById('{!$Component.q}').value );
+                if( document.getElementById('{!$Component.cid}').value != '' ) url+= '&cid=' + document.getElementById('{!$Component.cid}').value;
+                if( document.getElementById('{!$Component.lid}').value != '' ) url+= '&lid=' + document.getElementById('{!$Component.lid}').value;
+                if( document.getElementById('{!$Component.paid}').value != '' ) url+= '&paid=' + document.getElementById('{!$Component.paid}').value;
+                if( url != '' && document.getElementById('{!$Component.q}').value ){
+                    url+= '&retURL={!JSENCODE(retURL)}';
+                    return url;
+                }
+                return '';
+            }
+            function doNext(p){
+                var url = getURL();
+                if( url != '' ) window.location= url + '&p=' + (p+1);
+            }
+            function doPrev(p){
+                var url = getURL();
+                if( url != '' ) window.location= url + '&p=' + (p-1);
+            }
+            
+            function urlencode(str) {
+                return escape(str).replace('+', '%2B').replace('%20', '+').replace('*', '%2A').replace('/', '%2F').replace('@', '%40');
+            }
+            function urldecode(str) {
+                return unescape(str.replace('+', ' '));
+            }
+            </script>
+        
+            <div id="twitwrapper">
+                <div id="twithead"> 
+                </div>
+                <div id="twitbody">
+                <span class="twittitle"> {!$Label.Title_Search_Username} {!q}</span>
+                <p></p>
+                <div class="twitsearch">
+                    <dir class="twitsearch_left">
+                        <apex:inputHidden value="{!cid}" id="cid"/>
+                        <apex:inputHidden value="{!lid}" id="lid"/>
+                        <apex:inputHidden value="{!paid}" id="paid"/>
+                        <apex:inputText value="{!q}" id="q"/>
+                        <apex:commandButton value="{!$Label.Search_Again}" action="{!doNewSearch}" styleClass="twittbtn"/>
+                    </dir>
+                    <dir class="twitsearch_right">
+                        <apex:commandButton value="{!$Label.Cancel}" action="{!doBack}" styleClass="twittbtn"/>
+                    </dir>
+                </div>
+                <p><c:EscapedTextWithAnchors value="{!messageError}" /></p>
+                   
+                    <apex:dataTable value="{!status_users}" styleclass="twittable" var="status_user" width="100%">
+                    <apex:column width="70px">
+                    <a href="http://twitter.com/{!URLENCODE(status_user.screenName)}" target="_blank">
+                        <img width="48" height="48" src="{!status_user.profileImageUrl}" border="0" />
+                    </a>
+                    </apex:column>
+                    <apex:column styleclass="twitterscreenname">
+                    <a href="http://twitter.com/{!URLENCODE(status_user.screenName)}" target="_blank">{!status_user.screenName}</a><br />
+                    {!status_user.name} | {!status_user.location}<br />
+                    {!status_user.description}<br />
+                    <apex:outputPanel rendered="{!status_user.status != null}">
+                        {!status_user.status.text} {!status_user.status.createdAt}
+                    </apex:outputPanel> 
+                    </apex:column>
+                    <apex:column width="70px">
+                        <input name="link_user" type="button" onclick="goUpdate('{!URLENCODE(status_user.screenName)}')" class="twittbtn" value="{!$Label.TWITTER_GET_USERNAME_LINK}" /> 
+                    </apex:column>
+                    </apex:dataTable>
+        
+                    <p style="text-align:center;">
+                        <apex:outputLink rendered="{!pageNumber > 1}" value="javascript:doPrev({!pageNumber})">{!$Label.Pagination_Previous}</apex:outputLink>
+                        <apex:outputText rendered="{!AND(pageNumber > 1, status_users.size = MaxResultsPerPage)}" value=" " />
+                        <apex:outputLink rendered="{!status_users.size = MaxResultsPerPage}" value="javascript:doNext({!pageNumber})">{!$Label.Pagination_More}</apex:outputLink>            
+                    </p>
+                    
+                    <apex:actionFunction action="{!doUpdate}" name="goUpdate" rerender="mainPanel" >
+                        <apex:param name="screenName" assignTo="{!screenName}" value="" />
+                        <apex:param name="cid" assignTo="{!cid}" value="{!cid}" />
+                        <apex:param name="lid" assignTo="{!lid}" value="{!lid}" />
+                        <apex:param name="paid" assignTo="{!paid}" value="{!paid}" />
+                        <apex:param name="retURL" assignTo="{!retURL}" value="{!retURL}" />
+                    </apex:actionFunction>
+                </div>
+            </div>
+        </apex:form>
+    </apex:outputPanel>
+</apex:outputPanel>
+</apex:page>

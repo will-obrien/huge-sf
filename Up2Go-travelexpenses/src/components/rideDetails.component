@@ -1,0 +1,71 @@
+<apex:component >
+    <apex:attribute name="expense" description="This is the Expense to create." type="Expense__c" required="true"/>
+    <apex:attribute name="theme" description="The Visualstrap theme" type="String" required="true"/>
+    <apex:attribute name="vehicles" description="List of available vehicles." type="CompensationRate__c[]" required="true"/>
+    
+    <c:panel title="Ride Details" type="{!theme}">
+    
+        <c:formblock alignment="vertical">
+        
+            <c:formgroup >
+                <apex:outputLabel value="Vehicle Type"/>
+                <div class="input-group">
+                    <apex:inputText Id="textField" styleClass="form-control" disabled="true"/>
+                    <span class="input-group-btn">
+                        <button class="btn btn-default" type="button" onclick="clickInstead('.chooseVehicleBtn')" html-data-toggle="modal" html-data-target="#usedVehicles">
+                            <c:glyph icon="chevron-down"/>
+                        </button>
+                        <script type="text/javascript">textField ='{!$Component.textField}';</script>
+                    </span>
+                </div>
+            </c:formgroup>
+
+                <apex:commandButton styleClass="chooseVehicleBtn" onclick="return false;" html-data-toggle="modal" html-data-target="#usedVehicles" style="display:none"/>
+            
+            <c:formgroup >  
+                <apex:outputLabel value="Milage(km)"/>
+                <apex:inputField value="{!expense.num_Milage__c}" styleClass="form-control" required="true"/>
+            </c:formgroup>
+            
+        </c:formblock>
+        
+        <apex:inputHidden id="lookupField" value="{!expense.lkp_VehicleType__c}" required="true"/>
+        <script type="text/javascript">vehicleField ='{!$Component.lookupField}';</script>
+        
+    </c:panel>
+    
+    <c:modal title="Choose vehicle type" id="usedVehicles">
+        <apex:repeat value="{!vehicles}" var="element">
+            <apex:commandButton value="{!element.Name}" onclick="fillLookup('{!element.Id}');fillTextField('{!element.Name}')" styleClass="btn-default" html-data-dismiss="modal" rerender="vehicleGroup" style="width:100%;" />
+            <br/><br/>
+        </apex:repeat>
+        
+        <apex:outputPanel layout="block" styleClass="modal-footer">
+            <center>
+                <apex:commandButton value="Close" styleClass="btn-warning" html-data-dismiss="modal" />
+            </center>
+        </apex:outputPanel>
+    </c:modal>
+    
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+    <script type="text/javascript">
+        jQuery.noConflict();
+        
+        var vehicleField;
+        var textField;
+        
+        function fillLookup(vehicleId) {
+            document.getElementById(vehicleField).value = vehicleId;
+            
+        }
+        
+        function fillTextField(vehicleName) {
+            document.getElementById(textField).value = vehicleName;
+        }
+        
+        function clickInstead(selector) {
+            jQuery(selector).click();
+            return false;
+        }
+    </script> 
+</apex:component>

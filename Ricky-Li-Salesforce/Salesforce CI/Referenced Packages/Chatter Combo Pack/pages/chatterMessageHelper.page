@@ -1,0 +1,97 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com - 3/10/2010 -->
+<apex:page showheader="false" controller="ComboPack.chatterMessageHelper" tabstyle="Chatter_Messages__tab" >
+
+<apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterMessages, 'styles.css' )}" />
+
+<script type="text/javascript">
+		function noenter(ev)  {
+	   	if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+	   		addRecipientAF();
+	       	return false;
+	     	}else{
+	          return true;
+	     }
+	   }
+</script>
+
+<!-- Display a message and its thread -->
+<!-- Using outputtext escape=false to display rich text fields instead of outputfield. that way, there's no iframe created -->
+<apex:form id="replyForm" rendered="{!mode = VIEWMESSAGE}">	
+	<apex:outputpanel id="topMsg">
+	   	<div class="reply">
+	   		<div class="replyIcon">
+	   			<c:userPhoto uid="{!message.cm.ownerid}" v="1" height="32" width="32" title="{!message.cm.owner.name}" linked="true" target="_top" />
+	   		</div>
+	   		<div class="replyMsg">
+	   			<div style="clear:both; display:block"><c:chatterTooltip uid="{!message.cm.ownerid}" /></div><br/><br/>
+	   			<span class="msgHead"><apex:outputfield value="{!message.cm.createddate}" /> ({!message.relTime})</span><br />
+	    		<span class="msgHead">To: </span><apex:outputtext value="{!message.nameList}" escape="false" /><br/><br/>
+	    		<apex:outputtext value="{!message.cm.ComboPack__Message__c}" escape="false" /><br/><br/>
+	    	</div>
+	    </div>
+		<apex:repeat value="{!replies}" var="r" rendered="{!replies.size > 0}">
+			<div class="reply">
+				<div class="replyIcon">
+					<c:userPhoto uid="{!r.cm.ownerid}" v="1" height="32" width="32" title="{!r.cm.owner.name}" linked="true" target="_top" />
+				</div>
+				<div class="replyMsg">
+					<div style="clear:both; display:block"><c:chatterTooltip uid="{!r.cm.ownerid}" /></div><br/><br/>
+					<span class="msgHead"><apex:outputfield value="{!r.cm.createddate}" /> ({!r.relTime})</span><br/><br/>
+					<apex:outputtext value="{!r.cm.ComboPack__Message__c}" escape="false" />
+				</div>
+			</div>	
+		</apex:repeat>
+	</apex:outputpanel>
+	<apex:pageblock tabstyle="Chatter_Messages__tab" >
+		<apex:pageblockbuttons location="top">
+			<apex:commandbutton value="Reply All" action="{!sendMessage}" />
+		</apex:pageblockbuttons>
+		<apex:inputfield id="replymsg" value="{!newmsg.ComboPack__Message__c}" />
+	</apex:pageblock>
+</apex:form>
+
+<!-- Compose a new message -->
+<apex:form id="composeForm" rendered="{!mode = NEWMESSAGE}">
+	<apex:actionFunction name="addRecipientAF" action="{!addRecipient}" rerender="header" />
+	
+    <apex:pageblock tabstyle="Chatter_Messages__tab" id="header">
+        <apex:pageblockbuttons location="top">
+            <apex:commandbutton value="Send" action="{!sendMessage}" />
+        </apex:pageblockbuttons>
+        <apex:pageblocksection showheader="false" columns="2" >
+            <apex:pageblocksectionitem >
+                <apex:outputlabel value="Add Recipients" />
+                <apex:inputfield value="{!newmsg.ownerid}" required="false" onkeypress="return noenter(event);" />
+            </apex:pageblocksectionitem>
+            <apex:commandbutton value="Add" action="{!addRecipient}" rerender="header" />
+            
+            <apex:pageblocksectionitem >
+                <apex:outputlabel value="To" />
+                <apex:selectList value="{!toDel}" multiselect="false" size="1">
+                    <apex:selectOptions value="{!Recipients}" />
+                </apex:selectList>
+            </apex:pageblocksectionitem>
+            <apex:commandbutton value="Remove" action="{!removeRecipient}" rerender="header" />
+
+            <apex:inputfield value="{!newmsg.ComboPack__Subject__c}" />
+        </apex:pageblocksection>
+    </apex:pageblock>
+        
+    <apex:pageblock tabstyle="Chatter_Messages__tab">
+    	<apex:inputfield value="{!newmsg.ComboPack__Message__c}" />
+    </apex:pageblock>
+</apex:form>
+
+<!-- Confirm that a message was sent -->
+<apex:form id="sentForm" rendered="{!mode = MESSAGESENT}">
+	<apex:pageblock tabstyle="Chatter_Messages__tab">
+		<div style="float:left; margin-right: 20px; display: block;"><apex:image value="{!URLFOR( $Resource.ComboPack__chatterMessages, 'success.png' )}" height="64" width="64"/></div>
+		<div style="float:left; margin-top: 10px; display: block;">
+			<span class="bigFont">Success!</span><br/>
+			<p>Your message has been sent to {!newrecipients.size}{!if( newrecipients.size > 1, ' recipients', ' recipient' )}.</p>
+		</div><br/><br/><br/><br/><br/><br/><br/><br/>
+	</apex:pageblock>
+</apex:form>
+
+
+</apex:page>

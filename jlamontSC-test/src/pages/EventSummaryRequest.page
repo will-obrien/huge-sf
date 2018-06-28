@@ -1,0 +1,192 @@
+<apex:page id="thePage" sidebar="false" showheader="false" docType="html-5.0"
+    Controller="EventSummaryController" applyHTMLTag="FALSE" standardStylesheets="FALSE"
+>
+
+  <apex:composition template="template_sc_basic">
+    <apex:define name="head_tags">
+      <title>Event Summary Request</title>
+      <script src="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.js')}" type="text/javascript"></script>
+      <apex:stylesheet value="{!URLFOR($Resource.DateTimePicker, 'datetimepicker-master/jquery.datetimepicker.css')}"/> 
+
+      <style type="text/css">
+        .requiredInput .requiredBlock {
+          background-color: #c00;
+          position: absolute;
+          left: 12px;
+          width: 3px;
+          top: 1px;
+          bottom: 1px;
+        }    
+      
+        td label {
+          font-weight: inherit;
+        }
+      
+        .dateOnlyInput input {
+          width: 100%;
+        }
+        .mainheader {
+        	font-size:17px;
+        	font-weight:bold;
+        }
+      </style>
+    </apex:define> 
+    
+    <apex:define name="constituent_username_and_home">
+      <c:ConstituentUserNameAndHome ></c:ConstituentUserNameAndHome>
+    </apex:define>
+
+    <apex:define name="body">
+    	<div class="mainheader">
+    		Events Summary Report
+    	</div>
+	    <apex:form id="theForm" html-novalidate="novalidate">
+
+		     <div class="row form-group">
+               <div class="col-md-2">
+                 <apex:outputLabel value="" />
+               </div>
+				<div class="col-md-3">
+					<div class="form-group">
+						<div class="requiredInput">
+							<div class="requiredBlock"></div>
+							<div class="help-block col-md-11">Indicates Required Field</div>
+						</div>
+					</div>
+				</div>
+		     </div>
+		     
+             <div class="row">
+               <div class="col-md-2">
+                 <apex:outputLabel value="Club Entity" />
+               </div>
+               <div class="col-md-4 form-group">
+                 <apex:outputPanel >
+                   <div class="requiredInput">
+                     <div class="requiredBlock"></div>
+                     <apex:selectList value="{!clubEntity}" size="1" styleClass="form-control">
+                       <apex:selectOptions value="{!entities}"/>
+                       <apex:actionSupport event="onchange"
+                                           reRender="reportOptionPanel" 
+                       />
+                     </apex:selectList>
+                   </div>
+                 </apex:outputPanel> 
+               </div>
+              </div>  
+
+
+                <div class="row">
+               <div class="col-md-2">
+                 <apex:outputLabel value="" />
+               </div>
+                   <div class="col-md-6 form-group">
+                    <apex:outputPanel id="reportOptionPanel"> 
+                     <apex:selectRadio id="reportOption"
+                                       value="{!reportOption}"
+                                       layout="pageDirection"
+                                       rendered="{!entityType == 'Chapter'}"
+                     >
+                       <apex:selectOption itemValue="CHAPONLY"
+                                          itemLabel="Chapter events only" />
+                       <apex:selectOption itemValue="CHAPINCLUDE"
+                                          itemLabel="Include Groups and Activity Sections in Chapter" />
+                       <apex:selectOption itemValue="CHAPSEPARATE"
+                                          itemLabel="Show Separate Summaries of Groups and Activity Sections" />
+                     </apex:selectRadio>
+                     </apex:outputPanel>
+                   </div>
+                 </div>
+          		     
+
+               <div class="row">
+		               <div class="col-md-2">
+		                 <apex:outputLabel value="Earliest Begin Date" />
+		               </div>
+		               <div class="col-md-2 form-group">
+                   <div class="requiredInput">
+                     <div class="requiredBlock"></div>
+		                  <apex:inputText id="date-begin" value="{!dtBeginString}" styleClass="dateInput form-control"/>
+		               </div>
+		               </div>
+               </div>
+
+               <div class="row">
+	               <div class="col-md-2">
+	                 <apex:outputLabel value="Latest Begin Date" />
+	               </div>
+	               <div class="col-md-2 form-group">
+                   <div class="requiredInput">
+                     <div class="requiredBlock"></div>
+	                  <apex:inputText id="date-end" value="{!dtEndString}" styleClass="dateInput form-control"/>
+	               </div>
+	               </div>
+               </div>
+               
+               <div class="row">
+	               <div class="col-md-2">
+	                 <apex:outputLabel value="National Campaign" />
+	               </div>
+	               <div class="col-md-4 form-group">
+	                  <apex:inputField value="{!clubEvent.National_Campaign_Global__c}" styleClass="form-control"/>
+	               </div>
+	               <div class="col-md-2">
+	                 <apex:outputLabel value="Campaign Strategy" />
+	               </div>
+	               <div class="col-md-4 form-group">
+	                  <apex:inputField value="{!clubEvent.Campaign_Strategy_Global__c}" styleClass="form-control"/>
+	               </div>
+               </div>
+               
+               <div class="row">
+	               <div class="col-md-2">
+	                 <apex:outputLabel value="Local Campaign" />
+	               </div>
+	               <div class="col-md-4 form-group">
+	                  <apex:inputField value="{!clubEvent.Local_Campaign_Global__c}" styleClass="form-control"/>
+	               </div>
+               </div>
+
+               <div class="row">
+		          <div class="col-md-3 form-group">
+        		      <apex:commandLink value="Create Report" action="{!displayReport}" target="_blank" styleClass="btn btn-primary btn-block"/>
+        		  </div>
+		          <div class="col-md-3 form-group">
+		              <apex:commandButton value="Return to Menu" action="{!cancel}" styleClass="btn btn-block btn-warning"/>
+        		  </div>
+               </div>
+		</apex:form>
+	</apex:define>
+    <apex:define name="footer">
+      <script type="text/javascript" async="async">
+        $(document).ready(function(){
+    
+          $('[id$=date-begin]').datetimepicker({
+            timepicker:false, 
+            format: 'm/d/Y',
+            scrollInput: false,
+            onSelectDate:function(db,$input){
+				$('[id$=date-end]').datetimepicker({
+		            defaultDate: $('[id$=date-begin]').val()?$('[id$=date-begin]').val().split(' ')[0]:false, formatDate:'m/d/Y'
+	            });
+	            $input.datetimepicker('hide');
+	        }
+          });
+          $('[id$=date-end]').datetimepicker({
+            timepicker:false, 
+            format: 'm/d/Y',
+            scrollInput: false,
+            onShow:function( ct ) {
+                this.setOptions({
+                    minDate: $('[id$=date-begin]').val() ? $('[id$=date-begin]').val().split(' ')[0] : false, formatDate:'m/d/Y'
+                });
+            },
+            onSelectDate:function(db,$input) {
+            	$input.datetimepicker('hide');
+            }
+          });
+      });
+      </script>
+    </apex:define>
+	</apex:composition>
+</apex:page>

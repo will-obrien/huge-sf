@@ -1,0 +1,92 @@
+<apex:page controller="SettingsController" action="{!init}">
+    <apex:form >
+        <apex:pageMessages ></apex:pageMessages>
+        
+        <apex:pageBlock title="Installation" rendered="{!isConfigured}">
+            <apex:outputLink value="http://dnc.villagechief.com/installation/" target="_blank">Get the setup guide here</apex:outputLink>
+        </apex:pageBlock>
+        <apex:pageBlock title="Jobs" rendered="{!isConfigured}">
+            <apex:pageBlockSection columns="2">
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel >Object Name</apex:outputLabel>
+                    <apex:selectList multiselect="false" size="1" value="{!objectApiName}">
+                        <apex:selectOptions value="{!objects}"/>
+                        <apex:actionSupport event="onchange" immediate="false"
+                                            rerender="fields"/>
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel >Field Name</apex:outputLabel>
+                    <apex:actionRegion >
+                        <apex:selectList multiselect="true" size="4" value="{!fieldApiName}" disabled="{!fieldsDisabled}" id="fields">
+                            <apex:selectOptions value="{!fields}"/>
+                        </apex:selectList><br/>
+                    </apex:actionRegion>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem helpText="Enter zero to disable retries">
+                    <apex:outputLabel >Retry items older than (days)</apex:outputLabel>
+                    <apex:inputText value="{!ageToRecheck}" />
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem helpText="This must be a valid SOQL Where clause (for example RecordType.Name='My Lead')">
+                    <apex:outputLabel >Object Filter</apex:outputLabel>
+                    <apex:inputText value="{!filter}" />
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel >You can manage your schedules from the Scheduled Jobs Page.</apex:outputLabel>
+                    <apex:selectList multiselect="false" size="1" value="{!cronTime}">
+                        <apex:selectOptions value="{!schedules}"/>
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                    <apex:outputPanel rendered="{!isBatchRunning}" id="batchStatus">
+                        <table class="table">
+                            <thead>
+                                <th>Job</th>
+                                <th>Value</th>
+                            </thead>
+                            <tr> <td>Id</td><td><apex:outputText >{!batchStatus.Id}</apex:outputText></td> </tr>
+                            <tr> <td>Status</td><td><apex:outputText >{!batchStatus.Status}</apex:outputText></td> </tr>
+                            <tr> <td>Records</td><td><apex:outputText >{!batchStatus.TotalJobItems}</apex:outputText></td> </tr>
+                            <tr> <td>Records Processed</td><td><apex:outputText >{!batchStatus.JobItemsProcessed}</apex:outputText></td> </tr>
+                            <tr> <td>Records Failed</td><td><apex:outputText >{!batchStatus.NumberOfErrors}</apex:outputText></td> </tr>
+                        </table>
+                        <apex:commandButton value="Refresh status"><apex:actionSupport event="onclick" reRender="batchStatus"/></apex:commandButton>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockButtons >
+                <apex:commandButton value="Wash Now" action="{!washNow}" />
+                <apex:commandButton value="Schedule" action="{!schedule}" />
+            </apex:pageBlockButtons>
+            
+        </apex:pageBlock>
+        
+        
+        <apex:pageBlock title="Login Details" rendered="{!canEditSettings}">
+            <apex:pageBlockSection columns="1">
+                <apex:inputField value="{!settings.TelemarketerId__c}"/>
+                <apex:inputField value="{!settings.WashOnlyUserId__c}"/>
+                <apex:inputField value="{!settings.TelemarketerPassword__c}"/>
+            </apex:pageBlockSection>
+            <apex:pageBlockButtons >
+                <apex:commandButton value="Save and test" action="{!save}"/>
+                <apex:commandButton value="Cancel" action="{!cancel}"/>
+            </apex:pageBlockButtons>
+        </apex:pageBlock>
+        
+    </apex:form>
+</apex:page>

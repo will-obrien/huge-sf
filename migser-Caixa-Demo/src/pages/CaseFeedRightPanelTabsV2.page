@@ -1,0 +1,214 @@
+<apex:page StandardController="Case" tabStyle="Case" sidebar="false" extensions="caseVerticalSidebarEXT" >
+    <html>
+        <head>
+                <title>Case Feed Right Panel Tabs v2 </title>
+
+          <link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
+          <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js"></script>
+          <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+          <script>
+              $(document).ready(function() {
+                $("#tabs").tabs();
+              });
+          </script>
+          <style>
+              .feeditem{
+                  width: 430px !important;
+              }
+          </style>
+          <apex:stylesheet value="{!URLFOR($Resource.demoStyles)}"/>
+          <apex:includeScript value="/support/console/26.0/integration.js"/>
+    
+          <script type="text/javascript">
+                function openSubtabs(url,tabTitle) {
+                    var openSubtabsFunction=
+                    function openSubtabsFunction(result) {
+                        sforce.console.openSubtab(result.id,url,true,tabTitle,null,openSuccess,tabTitle);
+                    }
+                    sforce.console.getEnclosingPrimaryTabId(openSubtabsFunction);
+                }
+                var openSuccess = function openSuccess(result) {
+                    //Report whether we succeeded in opening the subtab
+                    if (result.success == false)
+                        alert('Unable to open subtab');
+                };
+          </script>
+        </head>
+        <body style="font-size:62.5%;">
+            <div id="tabs">
+                <ul>
+                    <li><a href="#tab-3"><span>Customer<br />Information</span></a></li>
+                    <li><a href="#tab-4"><span>SAP<br />Billing</span></a></li>
+                </ul>
+                <div id="tab-3">
+                    <!--<apex:include rendered="{!Case.ContactId != null}" id="customer" pageName="CaseContactDetail"/>
+                    <apex:outputText rendered="{!Case.ContactId = null}">There is no Contact associated with this case</apex:outputText>-->
+                    <div class="sbPod">
+        <div class="sbPodHeading">
+            <apex:image value="{!$Resource.sGif}" styleClass="icon icOffers" />
+            <apex:outputText value="Next Best Offer" styleClass="subHead"/>
+        </div>
+        <table cellpadding="0" cellspacing="0">
+<!--
+            <tr>
+                <td class="noResults" colspan="3">No Results</td>
+            </tr>
+-->
+            <tr>
+                <th width="90px">Product</th>
+                <th>Offer</th>
+                <th width="90px">Price</th>
+            </tr>
+            <apex:repeat value="{!offer}" var="o">
+                <tr>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!o.id}','{!o.name}');" style="text-decoration: none;">
+                            <apex:image url="{!$Resource.offerDefaultImage}" rendered="{!CONTAINS(o.Product_Image__c , 'No Image')}" />
+                            <apex:outputField value="{!o.Product_Image__c}" rendered="{!NOT(CONTAINS(o.Product_Image__c , 'No Image'))}" />
+                        </a>
+                    </td>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!o.id}','{!o.name}');" style="text-decoration: none;">
+                        <apex:outputField value="{!o.name}" />
+                        </a>
+                    </td>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!o.id}','{!o.name}');" style="text-decoration: none;">
+                        <apex:outputField value="{!o.Price__c}" />
+                        </a>
+                    </td>
+                </tr>
+            </apex:repeat>
+        </table>
+    </div>
+
+    <div class="sbPod">
+        <div class="sbPodHeading">
+            <apex:image value="{!$Resource.sGif}" styleClass="icon icOrders" />
+            <apex:outputText value="Orders" styleClass="subHead"/>
+        </div>
+        <table cellpadding="0" cellspacing="0">
+<!--
+            <tr>
+                <td class="noResults" colspan="3">No Results</td>
+            </tr>
+-->
+            <tr>
+                <th width="90px">Order Number</th>
+                <th>Total</th>
+                <th width="90px">Date</th>
+            </tr>
+            <apex:repeat value="{!order}" var="i">
+            <tr>
+                <td width="30%">
+                    <a href="javascript:openSubtabs('/{!i.id}','{!i.Name}');" style="text-decoration: none;">
+                    <apex:outputField value="{!i.Name}" />
+                    </a>
+                </td>
+                <td width="45%">
+                    <a href="javascript:openSubtabs('/{!i.id}','{!i.Name}');" style="text-decoration: none;">
+                    <apex:outputField value="{!i.TotalAmount}" />
+                    </a>
+                </td>
+                <td width="25%">
+                    <a href="javascript:openSubtabs('/{!i.Id}','{!i.Name}');" style="text-decoration: none;">
+                    <apex:outputField value="{!i.EffectiveDate}" />
+                    </a>
+                </td>
+            </tr>
+        </apex:repeat>
+        </table>
+    </div>     
+    
+    <div class="sbPod">
+        <div class="sbPodHeading">
+            <apex:image value="{!$Resource.sGif}" styleClass="icon icProducts" />
+            <apex:outputText value="Registered Products" styleClass="subHead"/>
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0">
+<!--
+            <tr>
+                <td class="noResults" colspan="3">No Results</td>
+            </tr>
+-->            
+            <tr>
+                <th width="90px">Image</th>
+                <th>Product</th>
+                <th width="90px">Status</th>
+            </tr>
+            <apex:repeat value="{!contact.Assets}" var="a">
+                <tr>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!a.id}','{!a.name}');" style="text-decoration: none;">
+                        <!--<apex:outputField value="{!a.Product2.Product_Image__c}" />-->
+                        <apex:image url="{!$Resource.productDefaultImage}" rendered="{!CONTAINS(a.Product2.Product_Image__c , 'No Image')}" />
+                        <apex:outputField value="{!a.Product2.Product_Image__c}" rendered="{!NOT(CONTAINS(a.Product2.Product_Image__c , 'No Image'))}" />
+                        </a>
+                    </td>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!a.id}','{!a.name}');" style="text-decoration: none;">
+                        <apex:outputField value="{!a.name}" />
+                        </a>
+                    </td>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!a.id}','{!a.name}');" style="text-decoration: none;">
+                        <apex:outputField value="{!a.status}" />
+                        </a>
+                    </td>
+                </tr>
+            </apex:repeat>
+        </table>
+    </div>
+    
+    <div class="sbPod">
+        <div class="sbPodHeading">
+            <apex:image value="{!$Resource.sGif}" styleClass="icon icCases" />
+            <apex:outputText value="Cases" styleClass="subHead"/>
+        </div>
+        <table cellpadding="0" cellspacing="0">
+            <tr>
+                <th width="90px">Case ID</th>
+                <th>Case Subject</th>
+                <th width="90px">State</th>
+            </tr>
+            <apex:repeat value="{!contact.Cases}" var="c">
+                <tr>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!c.id}','{!c.CaseNumber}');">
+                        <apex:outputField value="{!c.CaseNumber}" />
+                        </a>
+                    </td>
+                    <td>
+                        <a href="javascript:openSubtabs('/{!c.id}','{!c.CaseNumber}');">
+                        <apex:outputField value="{!c.subject}" />
+                        </a>
+                    </td>
+                    <td>
+                        <apex:outputField value="{!c.status}" />
+                    </td>
+                </tr>
+            </apex:repeat>
+        </table>
+    </div>
+
+
+
+    
+                </div>
+                <div id="tab-4">
+                    <apex:image value="{!$Resource.ConsoleSAPImage}" width="440px"/>
+                </div>
+            </div>
+        </body>
+    </html>
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

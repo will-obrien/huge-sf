@@ -1,0 +1,296 @@
+<apex:page standardController="lmscons__LMS_Consumer_Settings__c" extensions="lmscons.ConsumerSettingsExt" tabStyle="LMS_Consumer_Settings__tab" >
+<apex:includeScript value="{!URLFOR($Resource.lmscons__LMSSource, 'js/jquery-1.6.4.js')}"/>
+
+	<script type="text/javascript">
+	window.onkeypress = handleKeyPress;
+	function handleKeyPress(e){
+		var eventInstance = window.event ? event : e;
+		var keyCode = eventInstance.charCode ? eventInstance.charCode : eventInstance.keyCode;
+		if (keyCode == 13){
+			afdoSearch();
+			return false;
+		}
+	}
+
+	var newwindow2;
+
+
+	function open_popup(){
+		newwindow2=window.open('/apex/CyberU_Integration_setup','CyberUIntegrationSetup','height=400,width=600');
+		if (window.focus) {newwindow.focus()}
+	}
+
+	function redirectWindow(){
+		window.location.href = window.location.href+'?refresh=1';
+	}
+
+	jQuery.noConflict();
+
+	jQuery(document).ready(function(){
+		jQuery('[id$=mTwist1]').find('img').click();
+
+		jQuery('[id$=user_generated_content]').click(function() {
+			if (jQuery('[id$=social_learning]').is(':checked') == false) {
+				jQuery('[id$=user_generated_content]').attr('checked', false);
+			}
+		});
+
+
+		jQuery('[id$=social_learning]').click(function() {
+			if (jQuery('[id$=social_learning]').is(':checked') == false) {
+				jQuery('[id$=user_generated_content]').attr('checked', false);
+			}
+		});
+
+
+	});
+
+	jQuery(document).ready(function(){
+		jQuery('[id$=mTwist2]').find('img').click();
+	});
+
+	</script>
+<apex:form id="mainform">
+
+	<apex:actionfunction name="previousCall" action="{!previous}" rerender="resultsCU, pageMessages, opPrevNextup, opPrevNextd"  status="loadStatus" />	<!-- oncomplete="intSelectedItemsCount=0;return true;" -->
+	<apex:actionfunction name="nextCall" action="{!next}" rerender="resultsCU, pageMessages, opPrevNextup, opPrevNextd"  status="loadStatus" />    	<!-- oncomplete="intSelectedItemsCount=0;return true;" -->
+	<apex:actionfunction name="afdoSearch" action="{!refreshConsumerUsers}" status="loadStatus" reRender="resultsCU, pageMessages, search_pan, opPrevNextup, opPrevNextd" />
+
+	<apex:actionStatus startText=""  id="busyStatus"
+			onStart="document.body.style.cursor = 'wait';return true;"
+			onStop="document.body.style.cursor = 'default';return true;" >
+	</apex:actionStatus>
+
+	<!-- Enhanced Action Status -->
+	<apex:actionStatus id="loadStatus">
+	<apex:facet name="start">
+		<c:EnhancedActionStatus BackColor="#efefef" borderColor="#336699"
+						borderSize="1" height="50px" width="120px" ImageUrl="/img/loading.gif"
+						Message="{!$Label.Consumer_Global_Loading}..." messageStyle="color:darkred;font-size:11pt;font-weight:bold;"/>
+	</apex:facet>
+	</apex:actionStatus>
+	<!-- END : Enhanced Action Status -->
+
+	<apex:sectionHeader title="{!$Label.ConsumerSettings_title_LMS_Consumer_Settings}" subtitle="{!$Label.ConsumerSettings_subtitle_Register_this_Application_with_CyberU}" />
+	<apex:outputPanel id="pageMessages">
+		<apex:pageMessages />
+	</apex:outputPanel>
+	<apex:pageBlock >
+		<apex:pageBlockButtons >
+			<apex:commandButton action="{!cancel}" value="{!$Label.ConsumerSettings_value_Cancel}" styleClass="btn" />
+			<apex:commandButton action="{!saveAndRegister}" value="{!$Label.ConsumerSettings_value_Save}"/>
+		</apex:pageBlockButtons>
+
+		<apex:pageBlockSection id="mTwist1" columns="1" title="{!$Label.ConsumerSettings_title_Organization_Information}">
+			<p>{!$Label.ConsumerSettings_p_MsgUrl}</p><br/>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$Label.ConsumerSettings_value_Organization_Name}" />
+				<apex:outputText value="{!$Organization.Name}" />
+			</apex:pageBlockSectionItem>
+
+			<!-- CyberU Client or Ref Id -->
+			<apex:pageBlockSectionItem rendered="{!AND(displayUserList,FALSE)}">
+				<apex:outputLabel value="{!$Label.ConsumerSettings_value_CyberU_Group_Id}" rendered="{!displayUserList}"/>
+				<apex:outputText value="{!lmsConfig.lmscons__Group_Ref_ID__c}" rendered="{!displayUserList}"/>
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="CyberU Integration" />
+				<apex:outputLink title="CyberU Integration" value="javascript:void()" onclick="open_popup()" styleClass="btn" style="text-decoration:none">Setup</apex:outputLink>
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Certificate_Page_Name__c.label}" />
+				<apex:inputField value="{!lmsConfig.lmscons__Certificate_Page_Name__c}" />
+			</apex:pageBlockSectionItem>
+
+		<apex:pageBlockSection columns="2">
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_progress_bar__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_progress_bar__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_module_in_new_window__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_module_in_new_window__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_Duration__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_Duration__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Enable_Catalog_Search__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Enable_Catalog_Search__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_Due_Date__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_Due_Date__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Enable_certificate__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Enable_certificate__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_status__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_status__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__shareable_launch_link__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__shareable_launch_link__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_Score__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_Score__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Social_Learning__c.label}" />
+				<apex:inputCheckbox id="social_learning" value="{!lmsConfig.lmscons__Social_Learning__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Show_Type__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Show_Type__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__User_Generated_Learning__c.label}" />
+				<apex:inputCheckbox id="user_generated_content" value="{!lmsConfig.lmscons__User_Generated_Learning__c}" />
+			</apex:pageBlockSectionItem>
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Is_Public_Link_Available__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Is_Public_Link_Available__c}" />
+			</apex:pageBlockSectionItem>
+<!--
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.LMSConfig_Learning__c.fields.Use_Manager_field_for_My_Team_hierarchy__c.label}" />
+				<apex:inputCheckbox value="{!lmsConfig.lmscons__Use_Manager_field_for_My_Team_hierarchy__c}" />
+			</apex:pageBlockSectionItem>
+-->
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$Label.ConsumerSettings_MyTeamHierarchy}" styleclass="position:relative;left:5px;"/>
+					<apex:outputPanel layout="block" style="position:relative; right:6px; top:-4px;">
+						<apex:selectRadio value="{!lmsConfig.lmscons__Use_Manager_field_for_My_Team_hierarchy__c}">
+							<apex:selectOptions value="{!RoleItems}"/>
+						</apex:selectRadio>
+					</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+
+			<apex:inputHidden value="{!testMode}" />
+
+			<!-- <apex:pageBlockSectionItem rendered="{!$ObjectType.LMS_Consumer_Settings__c.fields.Test_Mode__c.Accessible}">
+				<apex:outputLabel value="{!$ObjectType.LMS_Consumer_Settings__c.fields.Test_Mode__c.label}" />
+				<apex:inputCheckbox value="{!testMode}" />
+			</apex:pageBlockSectionItem> -->
+
+		</apex:pageBlockSection>
+
+		<apex:pageBlockSection columns="1">
+
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.lmscons__LMSConfig_Learning__c.fields.lmscons__Public_Catalog__c.label}" />
+				<apex:inputField value="{!lmsConfig.lmscons__Public_Catalog__c}" />
+			</apex:pageBlockSectionItem>
+
+		</apex:pageBlockSection>
+
+		</apex:pageBlockSection>
+
+			<apex:pageBlockSection columns="1" title="Default License Information"  id="mTwist2">
+				<apex:inputField value="{!settings.lmscons__Default_License_Term__c}" required="true" />
+				<apex:inputField value="{!settings.lmscons__Default_License_Period__c}" required="true" />
+				<apex:inputField value="{!settings.lmscons__Default_Seats__c}" />
+			</apex:pageBlockSection>
+
+	</apex:pageBlock>
+
+<!-- search -->
+<apex:outputPanel id="search_pan" rendered="{!displayUserList}">
+	<apex:pageBlock rendered="{!displayUserList}">
+		<apex:pageBlockSection Title="Search Users ({!searchResultsSize})" columns="3">
+			<apex:inputText id="SearchKeyWord" value="{!searchKeyWord}" maxlength="200" style="width:400px;font-size:8pt" onkeypress="return handleKeyPress(event)"></apex:inputText>
+
+			<apex:commandButton value="{!$Label.ConsumerUser_value_Search}" action="{!refreshConsumerUsers}" id="go"   status="loadStatus" reRender="resultsCU, pageMessages, search_pan, opPrevNextup, opPrevNextd"/>
+
+		</apex:pageBlockSection>
+	</apex:pageBlock>
+</apex:outputPanel>
+<!-- e search -->
+
+			<div class="relatedListsearchHeader">
+				<div class="pSearchShowMore">
+				<apex:outputPanel id="opPrevNextup" rendered="{!displayUserList}">
+					<table width="100%" id="tablePrevNextup" >
+						<tr >
+							<td width="50%" align="center" >
+
+								<font style="font-size:8.5pt">
+								<apex:image url="/img/search_prevarrow.gif" styleClass="prevArrow" rendered="{!(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+								<apex:image url="/img/search_prevarrow_disabled.gif" styleClass="prevArrow" rendered="{!NOT(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+								<apex:outputlink onclick="previousCall(); return false;" disabled="{!NOT(hasPrevious)}" title="{!$Label.ConsumerUser_title_Previous_Page}" style="color:{!If(hasPrevious,'#000000','#999999')}" >{!$Label.ConsumerUser_oT_Previous_Page}</apex:outputlink>&nbsp;&nbsp;({!PageStartIndex}-{!PageStopIndex})&nbsp;&nbsp;<apex:outputlink onclick="nextCall(); return false;" disabled="{!NOT(hasNext)}" title="{!$Label.ConsumerUser_title_Next_Page}" style="color:{!If(hasNext,'#000000','#999999')}">{!$Label.ConsumerUser_oT_Next_Page}</apex:outputlink>
+								<apex:image url="/img/search_nextarrow_disabled.gif" styleClass="nextArrow" rendered="{!NOT(hasNext)}" alt="{!$Label.ConsumerUser_oT_No_Next_Page}" title="{!$Label.ConsumerUser_oT_No_Next_Page}"/>
+								<apex:image url="/img/search_nextarrow.gif" styleClass="nextArrow" rendered="{!(hasNext)}" alt="{!$Label.ConsumerUser_oT_Next_Page}" title="{!$Label.ConsumerUser_oT_Next_Page}"/>
+								</font>
+
+							</td>
+						</tr>
+					</table>
+				</apex:outputpanel>
+				</div>
+			</div>
+	<apex:outputPanel id="resultsCU">
+	<apex:pageBlock title="{!$Label.ConsumerSettings_title_Consumer_Users}" rendered="{!displayUserList}" id="pageBlock">
+		<apex:pageBlockButtons >
+			<apex:commandButton value="{!$Label.ConsumerSettings_value_New_Consumer_Users}" action="{!newConsumerUser}" />
+		</apex:pageBlockButtons>
+
+		<apex:pageBlockTable value="{!NCornerstoneUsers}" var="lms_user">
+			<apex:column headerValue="{!$Label.ConsumerSettings_headerValue_Action}">
+				<apex:commandLink value="{!$Label.ConsumerSettings_value_Delete}" action="{!deleteUser}" onclick="return confirm('{!$Label.ConsumerSettings_jS_Alert1}')" style="font-weight:bold" rendered="{!AND(NOT($User.Id=lms_user.sfuser.Id),isCurrentUserCyberUAdmin)}">
+					<apex:param name="lmsUid" value="{!lms_user.sfuser.Id}" assignTo="{!userToDelete}" />
+				</apex:commandLink>
+			</apex:column>
+			<apex:column headerValue="{!$Label.ConsumerSettings_headerValue_Consumer_User}">
+				<a href="/{!lms_user.sfuser.Id}">{!lms_user.sfuser.Name}</a>
+			</apex:column>
+			<apex:column headerValue="{!$Label.ConsumerSettings_headerValue_Admin}" value="{!lms_user.sfuser.lmscons__Cornerstone_Group_Admin__c}" />
+			<apex:column headerValue="{!$ObjectType.lmscons__Transcript__c.label}">
+				<a href="/{!lms_user.transcript.id}">{!lms_user.transcript.Name}</a>
+			</apex:column>
+			<apex:column headerValue="{!$Label.ConsumerSettings_headerValue_CyberU_ID}" value="{!lmsConfig.lmscons__Cornerstone_ID__c}" rendered="false"/>
+		</apex:pageBlockTable>
+	</apex:pageBlock>
+	</apex:outputPanel>
+			<div class="relatedListsearchHeader">
+				<div class="pSearchShowMore">
+				<apex:outputPanel id="opPrevNextd" rendered="{!displayUserList}">
+					<table width="100%" id="tablePrevNextup" >
+						<tr >
+							<td width="50%" align="center" >
+
+								<font style="font-size:8.5pt">
+								<apex:image url="/img/search_prevarrow.gif" styleClass="prevArrow" rendered="{!(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+								<apex:image url="/img/search_prevarrow_disabled.gif" styleClass="prevArrow" rendered="{!NOT(hasPrevious)}" alt="{!$Label.ConsumerUser_oT_Previous_Page}" title="{!$Label.ConsumerUser_oT_Previous_Page}" />
+								<apex:outputlink onclick="previousCall(); return false;" disabled="{!NOT(hasPrevious)}" title="{!$Label.ConsumerUser_title_Previous_Page}" style="color:{!If(hasPrevious,'#000000','#999999')}" >{!$Label.ConsumerUser_oT_Previous_Page}</apex:outputlink>&nbsp;&nbsp;({!PageStartIndex}-{!PageStopIndex})&nbsp;&nbsp;<apex:outputlink onclick="nextCall(); return false;" disabled="{!NOT(hasNext)}" title="{!$Label.ConsumerUser_title_Next_Page}" style="color:{!If(hasNext,'#000000','#999999')}">{!$Label.ConsumerUser_oT_Next_Page}</apex:outputlink>
+								<apex:image url="/img/search_nextarrow_disabled.gif" styleClass="nextArrow" rendered="{!NOT(hasNext)}" alt="{!$Label.ConsumerUser_oT_No_Next_Page}" title="{!$Label.ConsumerUser_oT_No_Next_Page}"/>
+								<apex:image url="/img/search_nextarrow.gif" styleClass="nextArrow" rendered="{!(hasNext)}" alt="{!$Label.ConsumerUser_oT_Next_Page}" title="{!$Label.ConsumerUser_oT_Next_Page}"/>
+								</font>
+
+							</td>
+						</tr>
+					</table>
+				</apex:outputpanel>
+				</div>
+			</div>
+</apex:form>
+
+</apex:page>

@@ -1,0 +1,296 @@
+<apex:component controller="EventTagController">
+<script>
+    $(document).ready(function() {
+        $('[id$=eventStart]').datetimepicker({
+            timepicker: false, 
+            format: 'm/d/Y',
+            scrollInput: false,
+            onSelectDate:function(db,$input){
+                $('[id$=eventEnd]').datetimepicker({
+                    defaultDate: $('[id$=eventStart]').val()?$('[id$=eventStart]').val() : false, formatDate:'m/d/Y'
+                });
+                $input.datetimepicker('hide');
+            }
+        });
+        $('[id$=eventEnd]').datetimepicker({
+            timepicker: false, 
+            format: 'm/d/Y',
+            scrollInput: false,
+            onShow:function( ct ) {
+                this.setOptions({
+                    defaultDate: $('[id$=eventStart]').val()?$('[id$=eventStart]').val() : false, formatDate:'m/d/Y',
+                    minDate: $('[id$=eventStart]').val() ? $('[id$=eventStart]').val() : false, formatDate:'m/d/Y'
+                });
+            },
+            onSelectDate:function(dp,$input){
+                $input.datetimepicker('hide');
+            }
+        });
+    });
+    $('#eventTagDiv input').keypress(function(e) {
+        if (window.event && window.event.keyCode == 13 || e.which == 13) {
+            return false;
+         } else {
+            return true;
+         }
+    });
+</script>
+<style>
+    .title {
+        text-align:center;
+        font-weight:700;
+        font-size:large;
+        margin-bottom:20px;
+    }
+    .smallText {
+        font-size: small;
+        line-height: 70%;
+    }
+    .smallHeight {
+        line-height: 70%;
+    }
+</style>
+    <apex:attribute name="pgController"
+        type="BulkEntryController"
+        assignTo="{!pageController}"
+        required="true"
+        description="The controller for the page"
+    />
+    <apex:actionRegion id="eventTagRegion">
+    <div id="eventTagDiv">
+    <apex:outputPanel id="criteriaPanel">
+    <apex:outputPanel rendered="{! (ISNULL(eventList) && ISNULL(selectedEvent)) }">
+    <div class="title">
+        Choose Event Campaign<br/>
+        <span class='smallText'>Enter fields to search by:</span>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="eventName" value="Name" styleClass="smallHeight"/>
+            <br/>
+            <span class='smallText'>(10-character code)</span>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputText id="eventName" size="25" styleClass="form-control" value="{!eventNameMatch}"/>
+        </div>
+        <div class="col-md-3">
+            <apex:outputLabel for="eventStart" value="Earliest Start Date"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputText id="eventStart" size="7" styleClass="form-control" value="{!eventStartString}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="promoDescription" value="Internal Description Contains"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputText id="promoDescription" size="25" styleClass="form-control" value="{!promoDescription}"/>
+        </div>
+        <div class="col-md-3 form-group">           
+            <apex:outputLabel for="eventEnd" value="Latest Start Date"/>
+        </div>
+        <div class="col-md-3 form-group">           
+            <apex:inputText id="eventEnd" size="7" styleClass="form-control" value="{!eventEndString}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="entityName" value="Entity Name Contains"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputText id="entityName" size="25" styleClass="form-control" value="{!entityName}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="category" value="Event Category"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="category" styleClass="form-control" value="{!camp.Events_Category__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="tacticOwnerCategory" value="Tactic Owner Category"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="tacticOwnerCategory" styleClass="form-control" value="{!camp.Tactic_Owner_Category_Global__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="tacticOwner" value="Tactic Owner"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="tacticOwner" styleClass="form-control" value="{!camp.Tactic_Owner_Global__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="state" value="State"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="state" styleClass="form-control" value="{!camp.State_Global__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="national" value="National Campaign"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="national" styleClass="form-control" value="{!camp.National_Campaign_Global__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="strategy" value="National Campaign Strategy"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="strategy" styleClass="form-control" value="{!camp.Campaign_Strategy_Global__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="local" value="National Sub-Campaign"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputField id="local" styleClass="form-control" value="{!camp.Local_Campaign_Global__c}"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <apex:outputLabel for="grassroots" value="Local/Grassroots Campaign Contains"/>
+        </div>
+        <div class="col-md-3 form-group">
+            <apex:inputText id="grassroots" styleClass="form-control" value="{!localGrassrootsCampName}"/>
+        </div>
+    </div>
+    </apex:outputPanel>
+    <apex:outputPanel rendered="{! ISNULL(selectedEvent)}">
+    <div class="row">
+        <div style="text-align:center">
+            <apex:outputPanel id="eventSearchPanel">
+            <apex:commandButton value="Search"
+                action="{!searchEvents}"
+                reRender="eventRowsPanel, criteriaPanel"
+                rendered="{! ISNULL(eventList)}"
+            />
+            <apex:commandButton value="Cancel"
+                style="margin-left:20px"
+                action="{!cancelTag}"
+                onClick="closeTagModal(); return false"
+            />
+            <apex:commandButton value="Choose a different Event"
+                style="margin-left:20px"
+                rendered="{! ( ! ISNULL(eventList) )}" 
+                action="{!resetEvent}"
+                reRender="selectedEventPanel, eventRowsPanel, criteriaPanel"
+                onClick=""
+            />
+            </apex:outputPanel>
+        </div>
+    </div>
+    </apex:outputPanel>
+    </apex:outputPanel>
+    <div class="alignLeft">
+        <div class="row">
+          <div class="col-md-12">
+            <apex:actionStatus for="eventTagRegion">
+              <apex:facet name="start">
+                <apex:image value="/img/loading.gif" style="vertical-align: middle;" >Searching...</apex:image>
+              </apex:facet>
+            </apex:actionStatus>
+          </div>
+        </div>
+        <apex:outputPanel id="eventRowsPanel" styleClass="entryTable">
+            <apex:dataTable value="{!eventList}"
+                var="el"
+                rendered="{! ( ! ISNULL(eventList) ) }"
+            >
+                <apex:column >
+                    <apex:facet name="header">Name</apex:facet>
+                    <apex:commandLink value="{!el.Name}"
+                        rendered="{!el.Status__c == 'Active' || el.Status__c == 'At Capacity' || el.Status__c == 'In Development'}"
+                        action="{!setSelectedEvent}"
+                        reRender="eventSearchPanel, eventRowsPanel, selectedEventPanel, criteriaPanel"
+                    >
+                        <apex:param name="selectedEventId" value="{!el.Id}" assignTo="{!selectedEventId}"/>
+                    </apex:commandLink>
+                    <apex:outputText value="{!el.Event_Name__c}" 
+                        rendered="{!el.Status__c != 'Active' && el.Status__c != 'At Capacity' && el.Status__c != 'In Development'}"
+                    />
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">Description</apex:facet>
+                    {!el.Promo_Description__c}
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">Entity Name</apex:facet>
+                    {!el.Club_Entity__r.Name}
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">Start Date</apex:facet>
+                    <apex:outputText value="{0, date, M'/'d'/'yyyy}">
+                        <apex:param value="{!el.Start_Date__c}" /> 
+                    </apex:outputText>
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">Status</apex:facet>
+                    {!el.Status__c}
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">Category</apex:facet>
+                    {!el.Events_Category__c}
+                </apex:column>
+                <apex:column >
+                    <apex:facet name="header">Type</apex:facet>
+                    {!el.Events_Type__c}
+                </apex:column>
+            </apex:dataTable>
+        </apex:outputPanel>
+        
+        <apex:outputPanel id="selectedEventPanel">
+            <apex:outputPanel rendered="{! ( ! ISNULL(selectedEvent) ) }">
+                <div class="row">
+                    <div class="col-md-3">
+                        <apex:outputLabel for="selectedEventName" value="Selected Event"/>
+                    </div>
+                    <div class="col-md-3">
+                        <apex:outputText id="selectedEventName" value="{!selectedEvent.Name}"/>
+                    </div>
+                    <div class="col-md-3">
+                        <apex:outputLabel for="selectedEventStatus" value="Registration Status"/>
+                    </div>
+                    <div class="col-md-3">
+                        <apex:selectList value="{!eventRegistrationStatus}" size="1" styleClass="form-control">
+                            <apex:selectOptions value="{!registrationStatusOptions}"/>
+                        </apex:selectList>
+                    </div>
+                </div>
+                <div style="text-align:center">
+                        <apex:commandButton value="Save"
+                            action="{!saveTag}"
+                            reRender="bulkProcessingOptionsPanel"
+                            onClick="closeTagModal()"
+                        />
+                        <apex:commandButton value="Choose a different Event"
+                            style="margin-left:20px"
+                            rendered="{! ( ! ISNULL(selectedEvent) )}" 
+                            action="{!resetEvent}"
+                            reRender="selectedEventPanel, eventRowsPanel, criteriaPanel"
+                            onClick=""
+                        />
+                        <apex:commandButton value="Cancel"
+                            style="margin-left:20px"
+                            action="{!cancelTag}"
+                            onClick="closeTagModal(); return false"
+                        />
+                </div>
+            </apex:outputPanel>
+        </apex:outputPanel>
+    </div>
+    </div>
+    </apex:actionRegion>
+          
+</apex:component>

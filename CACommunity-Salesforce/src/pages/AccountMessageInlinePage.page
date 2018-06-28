@@ -1,0 +1,94 @@
+<apex:page standardController="Account">
+
+    <!-- This div is hidden by default, the javascipt below checks the value of the checkbox and displays the message
+     only if the checkbox is checked -->     
+     
+     <!-- <h2> CA Owner: {!Account.CA_Owner_For_Inter_Cert__c} </h2> -->
+     
+    <div id="AddUpdatePemInfoMessage" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+         Please use the "Add/Update PEM Info" button to add or update PEM info on this record.
+    </div>
+  
+    <div id="UpdateAccountNameMessage" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+         Please Update the Intermediate Cert Name.
+    </div>
+    
+    <div id="ParentNameDoesNotMatchIssuerOrgMessage" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+         The 'Parent CA Owner/Certificate' does not match 'Certificate Issuer Common Name'
+    </div>
+ 
+     <div id="AccountNameDoesNotMatchSubCommNameMessage" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+        The 'CA Owner/Certificate Name' does not match 'Certificate Subject Common Name'. Additional characters can be suffixed to CA Owner/Certificate Name.'
+     </div>
+     
+     <div id="FillAuditInfoOrCheckAuditSameAsParentMessage" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+        Please fill in Audit Information section or mark the checkbox 'Audits Same as Parent'
+     </div>
+    
+     <div id="FillCPCPSInfoOrCheckCPCPSSameAsParentMessage" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+        Please fill in Policies and Practices Information section or mark the checkbox 'CP/CPS Same as Parent'
+     </div>
+    
+  <!--  <div id="WebserviceFailed" style="display:none; background-color:#F0F5F5; border:1px solid #ccc; color: red; font-weight: bold; text-align: center; padding: 2px; padding-left:2px; -moz-border-radius: 5px; border-radius: 5px;">      
+         Parsing of cert data has failed with errors. Please provided correct PEM format for the Intermediate cert.
+    </div>
+ -->
+ <apex:outputText value="{!Account.Display_PEM_Info_Warning_Message__c}" rendered="false"/>
+ <apex:outputText value="{!Account.Audits_Same_as_Parent__c}" rendered="false"/>
+ <apex:outputText value="{!Account.Standard_Audit__c}" rendered="false"/>
+ <apex:outputText value="{!Account.BR_Audit__c}" rendered="false"/>
+ <apex:outputText value="{!Account.EV_Audit__c}" rendered="false"/>
+ <apex:outputText value="{!Account.CP_CPS_Same_as_Parent__c}" rendered="false"/>
+ <apex:outputText value="{!Account.Certificate_Policy_CP__c}" rendered="false"/>
+ <apex:outputText value="{!Account.Certification_Practice_Statement_CPS__c}" rendered="false"/>
+ <apex:outputText value="{!Account.Certificate_Issuer_Common_Name__c}" rendered="false"/>
+ <apex:outputText value="{!Account.Record_Type_name__c }" rendered="false"/>
+ <apex:outputText value="{!Account.Certificate_Subject_Common_Name__c }" rendered="false"/>
+ <apex:outputText value="{!Account.Name}" rendered="false"/>  
+ <apex:outputText value="{!Account.Parent.name}" rendered="false"/>
+ <apex:outputText value="{!Account.Parent.name}" rendered="false"/>
+    <script type="text/javascript">
+   
+    if ({!Account.Display_PEM_Info_Warning_Message__c== true} ) {
+         document.getElementById('AddUpdatePemInfoMessage').style.display = "block";
+    }
+
+     if ({!Account.name== '<Fill in Intermediate Cert Name>'} ) {
+         document.getElementById('UpdateAccountNameMessage').style.display = "block";
+    }
+    
+    if ({!Account.parent.name!= Account.Certificate_Issuer_Common_Name__c && Account.Record_Type_Name__c == 'Intermediate Certificate'} ) {
+         document.getElementById('ParentNameDoesNotMatchIssuerOrgMessage').style.display = "block";
+    } 
+    
+    //Code added by Axay
+    var subjectCommonName = "{!Account.Certificate_Subject_Common_Name__c}";
+    var accountName = "{!Account.Name}";
+    var subjectLen = subjectCommonName.length;
+    var subStringAccName = accountName.substring(0, subjectLen);
+    var accRecordType = "{!Account.Record_Type_Name__c}";
+    
+    /*
+    console.log('subjectCommonName: '+subjectCommonName);
+    console.log('subjectLen: '+subjectLen);
+    console.log('subStringAccName: '+subStringAccName);
+    console.log('accRecordType: '+accRecordType);
+    */
+    
+    if (subjectCommonName != subStringAccName && accRecordType == 'Intermediate Certificate') {
+         document.getElementById('AccountNameDoesNotMatchSubCommNameMessage').style.display = "block";    
+    }
+    //end of code- Axay
+   
+
+    if ({!Account.Audits_Same_as_Parent__c == false && Account.Standard_Audit__c == null && Account.BR_Audit__c == null && Account.EV_Audit__c == null}) {
+         document.getElementById('FillAuditInfoOrCheckAuditSameAsParentMessage').style.display = "block";
+    }
+    
+    if ({!Account.CP_CPS_Same_as_Parent__c == false && Account.Certificate_Policy_CP__c == null && Account.Certification_Practice_Statement_CPS__c == null}) {
+         document.getElementById('FillCPCPSInfoOrCheckCPCPSSameAsParentMessage').style.display = "block";
+    }
+    
+    
+   </script>
+</apex:page>

@@ -1,0 +1,321 @@
+<apex:page id="loginPage" language="en" showHeader="true" standardStylesheets="true" sidebar="false" controller="zisf.LoginController">
+	
+	<apex:variable id="sessionRenewBlock" var="sessionRenewBlock" value="" rendered="{!IsSessionRenewRequired}">
+		<apex:form styleClass="zoom_noselect" id="zoom_form">
+			<div id="renewSessionLink">
+				<apex:commandLink action="{!renewSession}" target="_self" oncomplete="window.location='{!CallBackUrl}';"></apex:commandLink>
+			</div>
+			<input type="hidden" name="callBackUrl" value="{!CallBackUrl}" />
+		</apex:form>
+		<script type="text/javascript">
+			document.getElementById("renewSessionLink").getElementsByTagName("a")[0].click();
+	        if(!String.prototype.trim) {  
+			  String.prototype.trim = function () {  
+			    return this.replace(/^\s+|\s+$/g,'');  
+			  };  
+			}
+		</script>
+	</apex:variable>
+	
+	<apex:variable id="sessionRenew" var="sessionRenew" value="" rendered="{!NOT(IsSessionRenewRequired)}">
+	
+		<c:coreCSS />
+		<style type="text/css">
+			.loginForm {
+				height: 535px; /* cover the whole page */
+			}
+			#pageHeader {
+				height: 45px; /* header padding */
+			}
+			#bodyWrap {
+				height: 490px;
+				width: 100%;
+			}
+			#loginPageBlock {
+				max-width: 450px;
+				width: 300px;
+				margin: 120px auto;
+				text-align: left;
+				color: #333;
+			}
+			#loginPageBlock .leftSection {
+				max-width: 300px;
+			}
+			#loginPageBlock .rightSection {
+				float: right;
+				max-width: 100px;
+				display: none;
+			}
+			#loginPageBlock .loginInputSubtitle {
+				color:#0067B1; 
+				font-family: arial,helvetica,clean,sans-serif; 
+				font-size: 28px; 
+				font-weight: bold;
+			}
+			#loginPageBlock .loginInputTitle {
+				display: block;
+				font-size: 10px;
+				color: #777;
+				height: 2em;
+			}
+			#loginPageBlock label {
+				float: left;
+				text-transform: capitalize;
+				margin-top: 4px;
+			}
+			#loginPageBlock input {
+				margin-left: 80px;
+				margin-top: 10px;
+				display: block;
+			}
+			#loginPageBlock input[type="text"],
+			#loginPageBlock input[type="password"] {
+				border-radius: 5px;
+				border: 1px solid #CCC;
+				background: white;
+				border: 1px solid #BBB;
+				padding: 2px;
+				-webkit-border-radius: 0;
+				-webkit-box-shadow: inset 0 2px 2px #DDD;
+				box-shadow: inset 0 2px 2px #DDD;
+				width: 200px;
+				max-width: 100%;			
+			}
+			#loginPageBlock input[type="submit"] {
+				padding: 4px 10px;
+				float: right;
+				margin-right: 16px;
+				text-transform: capitalize;
+			}
+			#loginPageBlock .forgotPasswordBtn {
+				float: left;
+				margin-top: 14px;
+				color: #0067B1;
+				font-weight: 100;
+				font-size: 10px;
+				text-decoration: none;
+			}
+			#loginPageBlock .securityNote span {
+				vertical-align: middle;
+				margin-top: 2px;
+				margin-right: 4px;
+				float: left;
+			}
+			#loginPageBlock .securityNote {
+				clear: both;
+				float: right;
+				margin-top: 4px;
+				margin-right: 16px;
+				color: #515151;
+				font: 12px/1.231 arial,helvetica,clean,sans-serif;
+				font-size: 9px;
+			}
+
+
+
+
+
+
+			#footer {
+				position: absolute;
+				min-height: 20px;
+				color: #777;
+				font-size: 11px;
+				bottom: 0;
+				left: 10px;
+				right: 10px;
+			}
+			.zoom_reg_mark {
+				font-size: 8px;
+			}
+			.tosText {
+			    width:500px;
+			}
+			.tosDiv {
+				display: block;
+			    margin-left: auto;
+			    margin-right: auto;
+			    text-align: center;
+		    }
+			.tosInnerDiv {
+				display: block;
+			    margin-left: auto;
+			    margin-right: auto;
+			    text-align: left;
+			    width:505px;
+		    }
+		    .tosLabel {
+		    	font-weight: bold;
+		    	font-size: 12px;
+		    }
+ 			.passwordTitle {
+		    	font-weight: bold;
+		    	font-size: 14px;
+ 			}		    
+ 			.passwordLabel {
+		    	font-weight: bold;
+		    	font-size: 12px;
+		    	width: 150px;
+		    	display: inline-block;
+ 			}		    
+		</style>
+		
+		<apex:form id="zoom_form" styleClass="loginForm"> 
+			<apex:pageBlock id="mainBlock" title="{!$Label.loginPageTitle}">
+				<apex:pageMessages />
+				
+				<div id="pageHeader">
+					<apex:facet name="header">
+						<apex:outputPanel layout="block" id="zoom_title_panel">
+							<!--  
+							<apex:outputPanel rendered="{!ZoomContacts.TotalResults > 1}">
+								&nbsp;&nbsp;&nbsp;&nbsp;
+							
+								<apex:repeat value="{!TotalResultsIndexes}" var="i">
+									<apex:outputText value="{!i}" rendered="{!i-1 == currentIndex}" />
+									<apex:commandLink value="{!i}" action="{!SelectContactByIndex}" rendered="{!i-1 != currentIndex}">
+										<apex:param name="index" value="{!i-1}" assignTo="{!currentIndex}"/>
+									</apex:commandLink>
+									<apex:outputText value=" | " rendered="{!i < TotalResultsIndexes.size}" />
+								</apex:repeat>		
+								&nbsp;
+								<apex:image url="/s.gif" styleClass="helpIcon" style="vertical-align: text-bottom" title="ZoomInfo has found more than one match for your query. Click these numbers to browse through all matches."/>
+							</apex:outputPanel>
+							-->
+							<apex:image styleClass="zoom_logo" value="{!URLFOR($Resource.zisf__bundle, 'bundle/images/logo.png')}" />
+							<span class="zoom_header_actions">
+								<apex:outputLink value="mailto:websupport@zoominfo.com?subject=SF App Feedback" styleClass="action" target="_blank">{!$Label.betaFeedbackTitle}</apex:outputLink>
+							</span>
+						</apex:outputPanel>
+					</apex:facet>
+				</div>
+			</apex:pageBlock>
+			<apex:pageBlock id="loginBlock" rendered="{!stateAsString == 'SHOW_LOGIN'}">
+				<script type="text/JavaScript">
+					function replicateCredentials() {
+						document.getElementById('loginPage:sessionRenew:zoom_form:loginBlock:usernameInput').value = document.getElementById('loginPage:sessionRenew:zoom_form:loginBlock:loginInputUsernameEntry').value;
+						document.getElementById('loginPage:sessionRenew:zoom_form:loginBlock:passwordInput').value = document.getElementById('loginPage:sessionRenew:zoom_form:loginBlock:loginInputPasswordEntry').value;
+					}
+				</script>
+				<div id="loginPageBlock">
+					<div id="loginSection" class="leftSection" onmouseover="document.getElementById('loginPage:sessionRenew:zoom_form:loginBlock:loginInputUsernameEntry').disabled=false;document.getElementById('loginPage:sessionRenew:zoom_form:loginBlock:loginInputPasswordEntry').disabled=false;">
+						<div class="loginInputSubtitle">
+							ZoomInfo<span class="zoom_reg_mark">&reg;</span> Sign In
+						</div>
+						<apex:outputText styleClass="loginInputTitle" value="{!$Label.loginPageTitle2}" id="loginInputTitle"/>
+						<div>
+							<apex:outputLabel value="{!$Label.inputFieldEmail}:" for="loginInputUsernameEntry"/>
+							<apex:inputText id="loginInputUsernameEntry" disabled="true" />
+						</div>
+						<div>
+							<apex:outputLabel value="{!$Label.inputFieldPassword}:" for="loginInputPasswordEntry"/>
+							<apex:inputSecret id="loginInputPasswordEntry" disabled="true" /> 
+						</div>
+						<apex:inputHidden id="usernameInput" value="{!ziUser}"/>
+						<apex:inputHidden id="passwordInput" value="{!ziPass}"/>
+						<apex:commandButton action="{!doLogin}" value="{!$Label.actionLogin}" 
+											onclick="replicateCredentials();" reRender="zoom_form"/>
+						<apex:outputLink value="https://www.zoominfo.com/login#myaccount/passwordReminder" styleClass="forgotPasswordBtn" target="_blank">{!$Label.loginForgotPassword}</apex:outputLink>
+						<div class="securityNote">
+							<span>{!$Label.loginPageSecurity}</span>
+							<apex:image styleClass="securityImage" value="{!URLFOR($Resource.zisf__bundle, 'bundle/images/SignInLock.png')}" />
+						</div>
+					</div>
+					<div class="rightSection"></div>
+			    </div>
+			    <div id="footer">
+			    	<apex:outputText style="float: left;" value="app version {!PackageVersion}" rendered="{!NOT(PackageVersion == null)}"/>
+			    	<apex:outputText style="float: right;" value="{!CurrentPageUrl}" rendered="{!NOT(CurrentPageUrl == null)}"/>
+			    </div>
+			</apex:pageBlock>
+			<apex:pageBlock id="tosBlock" rendered="{!stateAsString == 'SHOW_TOS'}">
+               	<div id="tosDiv" class="tosDiv">
+               		<div class="tosInnerDiv">              	
+	               		<apex:outputLabel styleClass="tosLabel" value="You must accept the ZoomInfo Terms of Service to use this application:"/>
+	               		<br/>
+	               		<apex:inputTextArea readonly="true" value="{!tos}" styleClass="tosText" rows="20"/> 
+	               		<apex:inputCheckBox id="tosCheckBox" onclick="clickAcceptTos();" value="{!acceptsTos}"/>
+	               		<apex:outputLabel value="I accept the terms and conditions."/>
+	               		<br/>
+	               		<br/>
+	               		<apex:commandButton id="submitTos" value="Submit" action="{!doAcceptTos}" reRender="zoom_form"/>
+	               		<script type="text/JavaScript">
+	               			clickAcceptTos();
+	               		</script>
+                	</div>
+               	</div>
+            </apex:pageBlock>
+            <apex:pageBlock id="passwordResetBlock" rendered="{!stateAsString == 'SHOW_PASSWORD'}">
+            	<div id="tosDiv">
+					<script type="text/JavaScript">
+						function replicateCredentials() {
+							document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:oldPassword').value = document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:oldPasswordEntry').value;
+							document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:newPassword').value = document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:newPasswordEntry').value;
+						}
+						
+						function setSubmitActive() {
+							document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:submitPassword').disabled = 
+								document.getElementById('{!$Component.zoom_form.passwordResetBlock.oldPasswordEntry}').value.trim() == '' ||
+								document.getElementById('{!$Component.zoom_form.passwordResetBlock.newPasswordEntry}').value.trim() == '' ||
+								document.getElementById('{!$Component.zoom_form.passwordResetBlock.newPasswordConfirm}').value.trim() == '' ||
+								document.getElementById('{!$Component.zoom_form.passwordResetBlock.newPasswordEntry}').value != document.getElementById('{!$Component.zoom_form.passwordResetBlock.newPasswordConfirm}').value;
+							document.getElementById('{!$Component.zoom_form.passwordResetBlock.submitPassword}').className = document.getElementById('{!$Component.zoom_form.passwordResetBlock.submitPassword}').disabled ? 'btnDisabled' : 'btn';
+						}
+					</script>
+					<div id="passwordSection" class="tosInnerDiv" 
+						 onmouseover="document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:oldPasswordEntry').disabled=false;document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:newPasswordEntry').disabled=false;document.getElementById('loginPage:sessionRenew:zoom_form:passwordResetBlock:newPasswordConfirm').disabled=false;">
+						<apex:outputLabel styleClass="passwordTitle" value="Update Your Account Information"/>
+						<br/>
+	               		<br/>
+						<apex:outputLabel value="Your new password must use a combination of letters, numbers, and/or special characters. It cannot be your email and must be between 8 and 20 characters."/>
+						<br/>
+	               		<br/>
+						<div>
+							<apex:outputLabel styleClass="passwordLabel" value="{!$Label.inputFieldOldPassword}:" for="oldPasswordEntry"/>
+							<apex:inputSecret id="oldPasswordEntry" disabled="true" onkeyup="setSubmitActive();" /> 
+						</div>
+						<div>
+							<apex:outputLabel styleClass="passwordLabel" value="{!$Label.inputFieldNewPassword}:" for="newPasswordEntry"/>
+							<apex:inputSecret id="newPasswordEntry" disabled="true" onkeyup="setSubmitActive();" /> 
+						</div>
+						<div>
+							<apex:outputLabel styleClass="passwordLabel" value="{!$Label.inputFieldNewPasswordConfirm}:" for="newPasswordConfirm"/>
+							<apex:inputSecret id="newPasswordConfirm" disabled="true" onkeyup="setSubmitActive();" />
+						</div>
+	               		<br/>
+	               		<br/>
+	               		<apex:commandButton id="submitPassword" value="Submit" action="{!doResetPassword}" 
+	               							onclick="replicateCredentials();" reRender="zoom_form"/>
+					</div>
+					<apex:inputHidden id="oldPassword" value="{!ziPass}"/>
+					<apex:inputHidden id="newPassword" value="{!newPass}"/>
+					<script type="text/JavaScript">
+						setSubmitActive();
+						document.getElementById('{!$Component.zoom_form.passwordResetBlock.oldPasswordEntry}').value = '';
+						document.getElementById('{!$Component.zoom_form.passwordResetBlock.newPasswordEntry}').value = '';
+						document.getElementById('{!$Component.zoom_form.passwordResetBlock.newPasswordCommit}').value = '';
+					</script>
+				</div>
+            </apex:pageBlock>
+			<apex:pageBlock id="redirectBlock" rendered="{!stateAsString == 'DO_REDIRECT'}">
+				<apex:actionFunction id="redirectFunction" name="doRedirect" action="{!doRedirect}"/>
+				<script type="text/JavaScript">
+					doRedirect();
+				</script>
+			</apex:pageBlock>
+			<input type="hidden" name="callBackUrl" value="{!CallBackUrl}" />
+		</apex:form>
+		
+		<script type="text/javascript">
+			function clickAcceptTos() {
+				document.getElementById('{!$Component.zoom_form.tosBlock.submitTos}').disabled = !document.getElementById('{!$Component.zoom_form.tosBlock.tosCheckBox}').checked;
+				document.getElementById('{!$Component.zoom_form.tosBlock.submitTos}').className = document.getElementById('{!$Component.zoom_form.tosBlock.submitTos}').disabled ? 'btnDisabled' : 'btn';
+			}
+			/*
+			window.setTimeout(function() {
+				(parent = window.parent) && (location = parent.location) && (window.parent.location = location); 
+			}, 3000);
+			*/
+		</script>
+	</apex:variable>
+</apex:page>

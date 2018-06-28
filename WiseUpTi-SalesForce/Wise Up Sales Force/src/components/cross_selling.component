@@ -1,0 +1,220 @@
+<apex:component controller="Cross_Selling" allowDML="true" >
+	<apex:attribute name="iframe" type="string" default="true" description="indica o título do iframe onde este componente está sendo chamado"/>
+	<!-- para chamar este formulário em um iframe, é necessário informar o título do iframe -->
+	
+	<script>
+		$(function() {
+
+			//se o componente está sendo chamado em um iframe, ajusta o tamanho do iframe de acordo com o conteúdo e muda a cor de fundo para o pai
+			if('{!iframe}' != ''){
+
+				$('iframe[title="{!iframe}"]', window.parent.document).height( (document['body'].offsetHeight + 10) + 'px');
+
+				var cor = $('iframe[title="{!iframe}"]', window.parent.document).parent().parent().css('background-color');
+				$('html, body, .container-fluid').css('background-color', cor);
+			}
+				
+			
+		});
+
+		function preencheQuantidade (prodId) {
+			verificaQuantidadesControlador();
+		};
+	</script>
+
+	<style>
+		body{
+			font-family: Arial,Helvetica,sans-serif;
+			font-size: 12px;
+		}
+
+		div.carousel {
+			height: 160px;
+		}
+		.btn{
+			padding: 2px 3px;
+			font-size: 11px;
+		}
+		div.requiredInput {
+			display: inline;
+		}
+
+		div.info h5 {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.quantity-text-color {
+			color: #4da6ff;
+		}
+
+		.modal-footer {
+			padding: 5px 20px;
+		}
+		
+		/*cleafix no modal*/
+		.modal-body:after {
+			content: ' ';
+			display: table;
+			clear: both;
+		}
+
+		.message .messageText h4 {
+			display: block;
+			font-size: 100%;
+			margin-right: 0px;
+			text-transform: none;
+		}
+	</style>
+
+	<div class="container-fluid">
+		<apex:outputPanel rendered="{!erro}" id="mensagens">
+			<div class="col-md-offset-3 col-md-6">
+				<apex:pageMessages />
+			</div>
+		</apex:outputPanel>
+
+		<apex:outputPanel rendered="{!NOT(erro)}"  id="carousel">
+		<!-- script para forçar o recarregamento quando o componente estiver sendo chamado pelo página de oportunidade -->
+		<apex:outputPanel rendered="{!refresh}">
+			<div class="modal-backdrop fade in"></div>
+			<div class="modal show">
+				<div class="modal-dialog modal-sm">
+					<div class="modal-content">
+						<div class="modal-body text-center" style="margin:0;">
+							<img src="http://free-121d5f44d20-121d603d1c5-121ee2b8103.force.com/img/loading32.gif" width="15" alt="Carregando" class="status" /> Aguarde...
+						</div>
+					</div><!-- /.modal-content -->
+				</div><!-- /.modal-dialog -->
+			</div><!-- /.modal -->
+			<script>window.top.location = '/{!sObjId}';</script>
+		</apex:outputPanel>
+
+		<div class="row">
+			<div class="col-md-offset-8 col-md-4">
+				
+				<div class="controls pull-right" style="margin: 0 0 15px;">
+					<a class="left btn" data-slide="prev" href="#carousel-example-generic">Anterior</a>
+					<a class="right btn" data-slide="next" href="#carousel-example-generic">Próximo</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="carousel slide" id="carousel-example-generic" data-interval="false">
+			
+			<div class="carousel-inner" role="">
+				<apex:variable var="i" value="{!1}"/>
+
+				<apex:repeat var="produtos" value="{!paginas}">
+					<div class="item {!IF(i==1, 'active', '')}">
+						<div class="row">
+							
+							<apex:repeat value="{!produtos}" var="prod">
+
+								<div class="col-xs-{!12/itensPagina}">
+									<div class="col-item">
+										<!-- <div class="photo">
+											<img alt="a" src="http://placehold.it/350x260" />
+										</div> -->
+										<div class="info">
+											<div class="row">
+												<div class="col-xs-12">
+													<h5 title="{!prod.nomeProduto}">{!prod.nomeProduto}</h5>
+												</div>
+											</div>
+											<div class="row">
+												<div class="col-xs-6">
+													<h5 class="price-text-color"> <apex:outputField value="{!prod.produto['UnitPrice']}" /></h5>
+												</div>
+												<div class="col-xs-6 text-right">
+													<h5 class="quantity-text-color"><apex:outputField value="{!prod.produto['Quantity']}" style="display:none;" styleClass="{!prod.produto['PriceBookEntryId']}" rendered="{!prod.adicionar}" /></h5>
+												</div>
+											</div>
+												
+											<div class="row">
+												<div class="col-xs-12 text-center">
+													<button class="btn" data-toggle="modal" data-target="#{!prod.produto['PriceBookEntryId']}" onclick="return false;" >Adicionar</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+
+							</apex:repeat> <!-- fim do repeat de produtos -->
+
+						</div>
+					</div>
+					<apex:variable var="i" value="{!i+1}"/>
+				</apex:repeat> <!-- fim do repeat de páginas -->
+			</div>
+		</div>
+	
+		<script type="text/javascript">
+
+			// diminui o tamanho da letra de acordo com a quantidade de caracteres
+			$(".info div h5[title]:first-child").each(function () {
+				var tamanho = $(this).text().length;
+				if(tamanho > 20){
+					var size = 17 - 3*((tamanho/20)); 
+					
+					if(size > 12)   $(this).css("font-size", size.toFixed(0)+"px"); 
+					else            $(this).css("font-size", "12px");
+				}
+				
+			});
+
+		</script>
+
+		</apex:outputPanel>
+		
+		<apex:form styleClass="form-inline" id="form">
+		<div class="modals">
+			<apex:repeat value="{!paginas}" var="produtos">
+				<apex:repeat value="{!produtos}" var="prod">
+					<div class="modal fade" id="{!prod.produto['PriceBookEntryId']}" tabindex="-1" role="dialog" aria-labelledby="{!prod.produto['PriceBookEntryId']}Label">
+						<div class="modal-dialog" role="document">
+							<div class="modal-content">
+
+								<apex:pageBlock >
+									<apex:facet name="header"><h4 style="display:block; margin: 5px;">{!prod.nomeProduto}</h4></apex:facet>
+
+									<apex:pageBlockSection columns="2">
+										<apex:pageBlockSectionItem >
+											<apex:outputLabel value="{!$ObjectType.OpportunityLineItem.fields.Quantity.Label}" for="quantidade" />
+											<apex:input type="number" value="{!prod.quantidade}"
+												html-data-ref="{!prod.produto['PriceBookEntryId']}"
+												html-min="0"
+												html-step="any"
+												html-placeholder="{!$ObjectType.OpportunityLineItem.fields.Quantity.Label}"
+											/>
+										</apex:pageBlockSectionItem>
+										
+										<apex:inputField value="{!prod.produto['UnitPrice']}" id="preco"/>
+
+									</apex:pageBlockSection>
+									
+									<apex:pageBlockButtons location="bottom">
+											<button type="button" class="btn" data-dismiss="modal" onclick="preencheQuantidade('{!prod.produto['PriceBookEntryId']}');" > Salvar </button>
+											<button type="button" class="btn" data-dismiss="modal" aria-label="Close"> Cancelar</button>
+									</apex:pageBlockButtons>
+								
+								</apex:pageBlock>
+
+							</div>
+						</div>
+					</div>
+				</apex:repeat>
+			</apex:repeat>
+
+		</div>
+
+		
+		<apex:actionFunction action="{!verificaQuantidades}" name="verificaQuantidadesControlador" reRender="mensagens, carousel, form" />
+		<apex:actionFunction action="{!salvar}" name="salvar" />
+		</apex:form>
+
+
+	</div>
+
+</apex:component>
