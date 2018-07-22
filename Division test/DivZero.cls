@@ -58,7 +58,7 @@ public class DivZero {
 	}
 //coment
  private static void unreach(String newParam) {
-
+   //small change for the PR
 
  }
 	
