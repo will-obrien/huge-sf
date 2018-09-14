@@ -24,7 +24,7 @@ public class Add_Multiple_Subscriptions_Contact {
             for (Curso__c c: [SELECT Id, Name, Inscriptos__c, Limite_de_inscripciones__c,
                               Fecha_de_Inicio__c, Fecha_de_Finalizacion__c, D_as__c,
                               Frecuencia__c
-                      	  	  FROM Curso__c]) {
+                      	  	  FROM Curso__c]) { 
         	coursesInternal.add(new cCurso(c));
         	}
         }
