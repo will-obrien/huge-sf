@@ -1,0 +1,173 @@
+<apex:page controller="zqu.ZQConfigController" action="{!onload}" title="{!$Label.CONFIG_QUOTE_TITLE}"
+  sidebar="false" tabStyle="Z_Quote_Config__tab"
+  id="thepage">
+  <apex:includeScript value="{!$Resource.zqu__JQuery142}" />
+  <script>
+    var j$ = jQuery.noConflict();
+
+    function checkProcessPaymentsState(chkGenerateInvoice) {
+      if (j$("input[id*='isToProcessPayments']").attr("checked")) {
+        if (!chkGenerateInvoice.checked) {
+          j$("input[id*='isToProcessPayments']").attr("checked", false);
+        }
+      }
+    }
+
+    function checkGenerateInvoiceState(chkProcessPayments) {
+      if (!j$("input[id*='isToGenerateInvoice']").attr("checked")) {
+        if (chkProcessPayments.checked) {
+          j$("input[id*='isToGenerateInvoice']").attr("checked", true);
+        }
+      }
+    }
+  </script>
+  <style>
+body .bPageBlock .pbBody .labelCol {
+  color: #4A4A56;
+  padding-top: 10px !important;
+}
+
+body .bPageBlock .pbBody .dataCol {
+  padding-top: 10px !important;
+}
+
+.tertiaryPalette {
+  background-color: #DADFEB !important;
+}
+</style>
+  <c:HelpComponent cid="COM-0008" rightAlign="true" />
+  
+  <c:PageTitle title="{!$Label.CONFIG_QUOTE_TITLE}"
+    subTitle="{!$Label.CONFIG_QUOTE_SUBTITLE}" />
+    
+  <apex:outputPanel id="msg">
+    <c:Notification />
+  </apex:outputPanel>
+  
+  <apex:form id="theform">
+    <apex:pageBlock id="zclp">
+      <apex:pageBlockButtons >
+        <apex:commandButton value="{!$Label.BUTTON_EDIT_SETTINGS}"
+          rendered="{!NOT(editMode)}" action="{!edit}"
+          style="margin-left:10%" reRender="zclp, msg" />
+        <apex:commandButton value="{!$Label.BUTTON_BACK_SETTINGS}"
+          rendered="{!NOT(editMode)}" action="{!back}"
+          reRender="zclp, msg" />
+        <apex:commandButton value="{!$Label.BUTTON_SAVE}" 
+          rendered="{!editmode}" action="{!save}" style="margin-left:10%"
+          reRender="zclp, msg" />
+        <apex:commandButton value="{!$Label.BUTTON_CANCEL}"
+          rendered="{!editmode}" immediate="true" action="{!onload}"
+          reRender="zclp, msg" />
+      </apex:pageBlockButtons>
+
+      <apex:pageBlockSection title="{!$Label.CONFIG_QUOTES_PACKAGE_STATUS}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:pageBlockSectionItem >
+          <apex:outputLabel value="{!$ObjectType.zqu__Zuora_Config__c.Fields.zqu__Z360Installed__c.Label}" />
+          <apex:outputText >
+            <apex:outputField value="{!zqconfig.zqu__Z360Installed__c}" />
+            <apex:outputText rendered="{!hasZ360Version}">
+              (Version {!zqconfig.zqu__Z360MajorVersion__c}.{!zqconfig.zqu__Z360MinorVersion__c}, 
+              Namespace: {!z360Namespace})
+            </apex:outputText>
+          </apex:outputText>
+        </apex:pageBlockSectionItem>
+
+        <apex:pageBlockSectionItem >
+          <apex:outputLabel value="{!$ObjectType.zqu__Zuora_Config__c.Fields.zqu__ZQuotesInstalled__c.Label}" />
+          <apex:outputText >
+            <apex:outputField value="{!zqconfig.zqu__ZQuotesInstalled__c}" />
+            <apex:outputText rendered="{!hasZQuotesVersion}">
+              (Version {!zqconfig.zqu__ZQuotesMajorVersion__c}.{!zqconfig.zqu__ZQuotesMinorVersion__c}, 
+              Namespace: {!zQuotesNamespace})
+            </apex:outputText>
+          </apex:outputText>
+        </apex:pageBlockSectionItem>
+      </apex:pageBlockSection>
+
+      <apex:pageBlockSection title="{!$Label.SECTION_QUOTE_CONFIGURATIONS}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:outputField value="{!zqconfig.zqu__Disable_Discounting__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Get_Tiers_From_Zuora__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Get_Billing_Account_From_360__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Copy_QuoteRatePlanCharge_To_QuoteCharge__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_QUOTE_PDF}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:outputField value="{!zqconfig.zqu__Use_SFDC_Locale_For_ZQDocs__c}" />
+        <apex:outputField value="{!zqconfig.zqu__AttachToOpportunity__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_QUOTE_PROCESSING_OPTIONS}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:outputField value="{!zqconfig.zqu__Update_Opportunity_Amount_with_Quote_TCV__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Auto_replace_Expired_Rate_Plans__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_HPM_PROCESSING_OPTIONS}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:outputField value="{!zqconfig.zqu__ElectronicPaymentMethodSetting__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_SENDTOZBILLING}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:outputField value="{!zqconfig.zqu__Allow_Updating_Zuora_Account_Info__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Generate_Invoice__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Process_Payments__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Apply_Credit_Balance__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Always_Active_Amendment__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Quote_Read_Only__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Autofill_Dates_For_Preview__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_FIELD_CONFIGURATIONS}"
+        columns="2" collapsible="false" rendered="{!NOT(editMode)}">
+        <apex:outputField value="{!zqconfig.zqu__Enable_Invoice_Owner__c}" />
+        <apex:outputField value="{!zqconfig.zqu__Enable_Parent_Customer_Account__c}" />
+      </apex:pageBlockSection>
+      
+      <apex:pageBlockSection title="{!$Label.SECTION_QUOTE_CONFIGURATIONS}"
+        columns="2" collapsible="false" rendered="{!(editMode)}">
+        <apex:inputField value="{!zqconfig.zqu__Disable_Discounting__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Get_Tiers_From_Zuora__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Get_Billing_Account_From_360__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Copy_QuoteRatePlanCharge_To_QuoteCharge__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_QUOTE_PDF}"
+        columns="2" collapsible="false" rendered="{!(editMode)}">
+        <apex:inputField value="{!zqconfig.zqu__Use_SFDC_Locale_For_ZQDocs__c}" />
+        <apex:inputField value="{!zqconfig.zqu__AttachToOpportunity__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_QUOTE_PROCESSING_OPTIONS}"
+        columns="2" collapsible="false" rendered="{!(editMode)}">
+
+        <apex:inputField value="{!zqconfig.zqu__Update_Opportunity_Amount_with_Quote_TCV__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Auto_replace_Expired_Rate_Plans__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_HPM_PROCESSING_OPTIONS}"
+        columns="2" collapsible="false" rendered="{!(editMode)}">
+        <apex:pageBlockSectionItem >
+          <apex:outputLabel value="{!$Label.CONFIG_PAYMENT_METHOD_SETTING}"></apex:outputLabel>
+          <apex:outputPanel id="fieldPaymentMethodSettingOption">
+            <apex:selectList value="{!zqconfig.zqu__ElectronicPaymentMethodSetting__c}"
+              size="1" multiselect="false">
+              <apex:selectOptions value="{!paymentMethodSettingSelectList}"></apex:selectOptions>
+            </apex:selectList>
+          </apex:outputPanel>
+        </apex:pageBlockSectionItem>
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_SENDTOZBILLING}"
+        columns="2" collapsible="false" rendered="{!(editMode)}">
+        <apex:inputField value="{!zqconfig.zqu__Allow_Updating_Zuora_Account_Info__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Generate_Invoice__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Process_Payments__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Apply_Credit_Balance__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Always_Active_Amendment__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Quote_Read_Only__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Autofill_Dates_For_Preview__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection title="{!$Label.SECTION_FIELD_CONFIGURATIONS}"
+        columns="2" collapsible="false" rendered="{!(editMode)}">
+        <apex:inputField value="{!zqconfig.zqu__Enable_Invoice_Owner__c}" />
+        <apex:inputField value="{!zqconfig.zqu__Enable_Parent_Customer_Account__c}" />
+      </apex:pageBlockSection>
+    </apex:pageBlock>
+  </apex:form>
+</apex:page>

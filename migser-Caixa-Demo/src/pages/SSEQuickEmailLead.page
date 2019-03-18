@@ -1,0 +1,126 @@
+<apex:page extensions="SSEQuickEmailContLead" standardController="Lead" showHeader="false" standardStylesheets="true" cache="false" id="quickMail">
+<apex:includescript value="{!URLFOR($Resource.CkEditor, 'ckeditor/ckeditor.js')}" />
+    
+    <script>
+        function ReloadCKEditor() {
+            for(name in CKEDITOR.instances)
+            {
+                delete CKEDITOR.instances[name];
+            }
+            CKEDITOR.replaceAll();
+        }
+        
+    </script>    
+    
+<style>
+
+    textarea:focus, input:focus{
+        outline: 0;
+    }
+    *:focus {
+        outline: 0;
+    }  
+    
+    #wrapper {
+        margin-right:2px;
+    }  
+
+    #header {
+        background-color:#2A9CCF;
+        height:30px;
+        width:100%;
+        padding-left:7px;
+    }
+    #header span {
+        color:#fff;
+        line-height: 30px;
+    }
+    .inputs {
+        border: 0px;
+        width: 100%;
+        font-size:12px;
+        position:relative;
+        top: 5px;
+        color:#000;
+    } 
+    .title {
+        width: 18%;
+        float: left;
+        padding-left: 7px;
+    }
+    .inputWrap {
+        float: left;
+        width: 78%;
+    }
+    .lineWrap {
+        color:#A7A7A7;
+        border-bottom: 1px solid #A7A7A7;
+        height: 30px;
+        line-height: 30px;
+    }
+    textarea {
+        height: 199px;
+        overflow:scroll;
+    }
+    #editor {
+        width:400px;
+    }
+    .theTemplate {
+        width: 100%;
+        position: relative;
+        top: 4px;
+        border: 1px solid #000 !important;
+        color: #fff !important;;
+        background: #2A9CCF !important;;
+        padding: 5px !important;;
+    }
+    .sendBtn {
+        float: right;
+        margin-top: 10px !important;
+        -webkit-box-shadow: none;
+        box-shadow: none;
+        background: #2A9CCF !important;
+        border: 1px solid #3079ed !important;
+        color: #fff !important;
+        font-size: 15px !important;
+    }
+    #apexMsg {
+        width: 250px;
+    }
+</style>
+
+    <div id="wrapper">
+        <div id="header"><span>New Message</span></div>
+        <apex:form id="emailForm">
+            <div class="lineWrap">
+                <div class="title">To</div><div class="inputWrap"><apex:inputText value="{!to}" styleClass="inputs"/></div>
+            </div>
+
+            <div class="lineWrap">
+                <div class="title">Cc</div><div class="inputWrap"><apex:inputText value="{!cc}" styleClass="inputs"/></div>
+            </div>
+
+            <div class="lineWrap">
+                <div class="title">Bcc</div><div class="inputWrap"><apex:inputText value="{!bcc}" styleClass="inputs"/></div>
+            </div>
+            <div class="lineWrap">
+                <div class="title">Template</div><div class="inputWrap">
+                    <apex:actionFunction name="AJAXRefresh" rerender="templatePanel" status="myStatus1" oncomplete="ReloadCKEditor();"/>
+                        <apex:selectList styleClass="theTemplate" value="{!selectedTemplateId}" multiselect="false" size="1" onchange="AJAXRefresh();">
+                    <apex:selectOptions value="{!TemplateOptions}"/>  
+        </apex:selectList>
+                </div>
+            </div>
+            <div class="lineWrap">
+                <div class="title">Subject</div><div class="inputWrap"><apex:inputText value="{!subject}" styleClass="inputs"/></div>
+            </div>
+            <apex:outputPanel id="templatePanel" rendered="true">
+                <apex:inputTextArea styleClass="ckeditor" richtext="false" value="{!emailContent}"/> 
+            </apex:outputPanel>
+            <apex:commandButton action="{!sendEmail}" styleClass="sendBtn" value="Send"/>
+        </apex:form>
+        <div id="apexMsg">
+            <apex:pageMessages />
+        </div>
+    </div>  
+</apex:page>

@@ -1,0 +1,260 @@
+<apex:component allowDML="true" access="global" layout="none" controller="zqu.LookupComponentController">
+  <apex:attribute name="options" assignTo="{!theOptions}" access="global" type="zqu.LookupComponentOptions" description="The LookupComponent's configuration options." />
+  <apex:attribute name="isRequired" assignTo="{!theOptions.lookupController.isValueRequired}" access="global" type="Boolean" description="This attribute is only used when the lookup component is custom rendering" />
+  
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery-ui-1.10.3.custom-compressed.js')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, 'jquery-ui-1103.css')}" />
+  <script src="{!URLFOR($Resource.ImagesAndJavascriptZip, '/js/postmessage-compressed.js')}" />
+  <style>
+    
+    .deleteIconOn {
+      background-image: url("{!$Resource.IconDelete}");
+      background-position: top right; 
+      vertical-align:middle; 
+      height: 20px;
+      width: 20px;
+    }
+
+    .deleteIcon {
+      background-image: url("{!$Resource.IconDelete}");
+      background-position: top left; 
+      vertical-align:middle; 
+      height: 20px;
+      width: 20px;
+    }
+    
+    .ui-autocomplete {
+      font-family: arial;
+      font-size: 1em;
+      max-height: 100px;
+      max-width: 225px;
+      overflow-y: auto;
+      padding-right: 12px;
+    }
+    
+    .ui-state-focus {
+      background : #5074D3 !important;
+      border : 1px solid #5074D3 !important;
+    }
+    
+    .ui-menu .ui-menu-item a {
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width:100%;
+    }
+    
+  </style>
+  
+  <script>
+    var $jq = jQuery.noConflict();
+    function {!theOptions.Id}() {}
+    
+    {!theOptions.Id}.optionParameters = "{!optionParameters}";
+    
+    {!theOptions.Id}.receiveMessage = function(event){
+      
+      if ( typeof String.prototype.startsWith != 'function' ) {
+          String.prototype.startsWith = function( str ) {
+          return this.substring( 0, str.length ) == str;
+        }
+      };
+      var data;
+      // Remove Sandbox or Production namespace from url
+      if(event.origin){
+        var urlArray = event.origin.split('--');
+        var urlWithOnlyZuoraNamespace;
+        if(urlArray.length > 1){
+          var http = urlArray[0].substring(0, urlArray[0].indexOf("//") + 2);
+          urlWithOnlyZuoraNamespace = http + urlArray[urlArray.length-1];
+        }
+        else
+          urlWithOnlyZuoraNamespace = urlArray[urlArray.length-1];
+      
+        if(urlWithOnlyZuoraNamespace == null)
+          urlWithOnlyZuoraNamespace = event.origin;
+      
+        if((urlWithOnlyZuoraNamespace.startsWith("http://{!namespace}") || urlWithOnlyZuoraNamespace.startsWith("https://{!namespace}"))){
+          data = event.data;
+        }
+      }
+      else {
+        data = $jq.parseJSON(event.data);
+      }
+      if(data && data.componentId == "{!theOptions.Id}"){
+        var nameElement = document.getElementById('{!$Component.targetName}');
+        var nameDisplayElement = document.getElementById('{!$Component.targetNameDisplay}');
+        var idElement = document.getElementById('{!$Component.targetId}');
+        var previousValue = idElement.value;
+        var previousLabel = nameElement.value;
+        nameElement.value = data.name;
+        nameDisplayElement.value = data.name;
+        idElement.value = data.id;
+        
+        // Execute custom js functions
+        if( window.onChange{!JSENCODE(theOptions.Id)} ) {
+          window.onChange{!JSENCODE(theOptions.Id)}(data.id, data.name, data.record, previousValue, previousLabel);
+        }
+        if( window.change{!JSENCODE(theOptions.Id)} ) {
+          window.change{!JSENCODE(theOptions.Id)}(data.id, data.name, data.record);
+        }
+      }
+    }
+    
+    
+   // window.addEventListener("message", {!theOptions.Id}.receiveMessage, false);
+    
+    {!theOptions.Id}.openLookupPopupWindow = function() {
+      ZXD.receiveMessage({!theOptions.Id}.receiveMessage, '{!$CurrentPage.URL}', '{!namespace}');
+      var url = "/apex/{!namespacePrefix}LookupComponentPopupWindow?namefield={!$Component.targetName}&idfield={!$Component.targetId}&displaynamefield={!$Component.targetNameDisplay}&optionParameters=" + {!theOptions.Id}.optionParameters + "&id={!theOptions.Id}";
+      var newWin = window.open(url, 'Popup', 'height=600,width=600,left=200,top=100,resizable=no,scrollbars=yes,toolbar=no,status=no');
+      if (window.focus) {
+        newWin.focus();
+      }
+      return false;
+    }
+    
+    {!theOptions.Id}.clear = function() {
+      
+      if( window.customizedClearFunction{!JSENCODE(theOptions.Id)} ) {
+        window.customizedClearFunction{!JSENCODE(theOptions.Id)}();
+        return;
+      }
+      
+      var nameElement = document.getElementById('{!$Component.targetName}');
+      var nameDisplayElement = document.getElementById('{!$Component.targetNameDisplay}');
+      var idElement = document.getElementById('{!$Component.targetId}');
+      
+      nameElement.value = '';
+      nameDisplayElement.value = ''; 
+      idElement.value = '';
+      
+      if( window.onChange{!JSENCODE(theOptions.Id)} ) {
+        window.onChange{!JSENCODE(theOptions.Id)}(idElement.value, nameElement.value, {});
+      }
+      if( window.change{!JSENCODE(theOptions.Id)} ) {
+        window.change{!JSENCODE(theOptions.Id)}(idElement.value, nameElement.value, {});
+      }
+    }
+    
+    {!theOptions.Id}.previousItem;
+    {!theOptions.Id}.selectedItem;
+    
+    // Auto-complete function
+    $jq(function() {
+        $jq(document.getElementById('{!$Component.targetNameDisplay}')).autocomplete({
+          source: function(request, response) {
+                    var sourceResult = [];
+                    Visualforce.remoting.Manager.invokeAction(
+                      '{!$RemoteAction.LookupComponentController.getAutoCompleteResult}', 
+                      {!theOptions.Id}.optionParameters,
+                      request.term,
+                      function(result, event){
+                        if (event.status) {
+                          for(var index=0; index<result.length; index++){
+                              var r = result[index];
+                              // Convert html to text for Name field, for example '&amp;' -> '&'
+                              r.Name = $jq('<div/>').html(r.Name).text();
+                              var item = { "label": r.Name, "value": r.Id, "record": r }
+                              sourceResult.push(item);
+                          }
+                        }
+                        response(sourceResult);
+                      }
+                    )
+                  },
+          change: function( event, ui ) {
+                    var targetNameDisplay = document.getElementById('{!$Component.targetNameDisplay}');
+                    var targetName = document.getElementById('{!$Component.targetName}');
+                    
+                    //If user remove some characters from input text field, reset its value
+                    if(targetNameDisplay.value != '' ){
+                      if(targetNameDisplay.value != targetName.value){
+                        targetNameDisplay.value = targetName.value;
+                      }
+                      // When focus on an item and then click anywhere outside the menu, the argument 'ui.item' will be null, use '{!theOptions.Id}.selectedItem' instead
+                      else if(ui.item == null && {!theOptions.Id}.selectedItem != null){
+                        if( window.onChange{!JSENCODE(theOptions.Id)} ) {
+                          window.onChange{!JSENCODE(theOptions.Id)}({!theOptions.Id}.selectedItem.value, {!theOptions.Id}.selectedItem.label, {!theOptions.Id}.selectedItem.record, {!theOptions.Id}.previousItem.value, {!theOptions.Id}.previousItem.label);
+                        }
+                        if( window.change{!JSENCODE(theOptions.Id)} ) {
+                          window.change{!JSENCODE(theOptions.Id)}({!theOptions.Id}.selectedItem.value, {!theOptions.Id}.selectedItem.label, {!theOptions.Id}.selectedItemui.item.record);
+                        }
+                        {!theOptions.Id}.previousItem = undefined;
+                      }
+                    }
+                    // If user remove all characters from input text field, clear hidden values
+                    else{
+                      {!theOptions.Id}.clear();
+                    }
+                  },
+          select: function(event, ui) {
+                    event.preventDefault();
+                    $jq(this).val(ui.item.label);
+                    
+                    document.getElementById('{!$Component.targetId}').value = ui.item.value;
+                    document.getElementById('{!$Component.targetName}').value = ui.item.label;
+                    
+                    if( window.onChange{!JSENCODE(theOptions.Id)} ) {
+                      window.onChange{!JSENCODE(theOptions.Id)}(ui.item.value, ui.item.label, ui.item.record, {!theOptions.Id}.previousItem.value, {!theOptions.Id}.previousItem.label);
+                    }
+                    if( window.change{!JSENCODE(theOptions.Id)} ) {
+                      window.change{!JSENCODE(theOptions.Id)}(ui.item.value, ui.item.label, ui.item.record);
+                    }
+                    
+                    {!theOptions.Id}.previousItem = undefined;
+                  },
+          focus:  function(event, ui) {
+                    event.preventDefault();
+                    $jq(this).val(ui.item.label);
+                    // Store the previous target id & name
+                    if({!theOptions.Id}.previousItem == undefined){
+                      {!theOptions.Id}.previousItem = {};
+                      {!theOptions.Id}.previousItem.value = document.getElementById('{!$Component.targetId}').value;
+                      {!theOptions.Id}.previousItem.label = document.getElementById('{!$Component.targetName}').value;
+                    }
+                    
+                    document.getElementById('{!$Component.targetId}').value = ui.item.value;
+                    document.getElementById('{!$Component.targetName}').value = ui.item.label;
+                    {!theOptions.Id}.selectedItem = ui.item;
+                  }
+        });
+    });
+      
+  </script>
+  
+  <apex:actionRegion rendered="{!theOptions.isEditMode}">
+  
+    <apex:outputPanel layout="block" styleClass="requiredInput">
+      
+      <!-- Show red bar if the field is required -->
+      <apex:outputPanel layout="block" styleClass="requiredBlock" rendered="{!OR(theOptions.isRequired, isRequired)}"/>
+      
+      <apex:inputHidden value="{!theOptions.targetId}" id="targetId" />
+      <apex:inputHidden value="{!theOptions.targetName}" id="targetName" />
+      <apex:inputText size="40" value="{!theOptions.targetName}" id="targetNameDisplay" style="width:235px;"/>
+      
+      <img title="{!$Label.LOOKUP_COMPONENT_BUTTON_LOOKUP}"
+        onmouseover="this.className = 'lookupIconOn';this.className = 'lookupIconOn';"
+        onmouseout="this.className = 'lookupIcon';this.className = 'lookupIcon';"
+        onfocus="this.className = 'lookupIconOn';"
+        onclick="{!theOptions.Id}.openLookupPopupWindow(); return false"
+        onblur="this.className = 'lookupIcon';" class="lookupIcon"
+        src="/s.gif" />
+      <img title="{!$Label.LOOKUP_COMPONENT_BUTTON_CLEAR_VALUE}"
+        onmouseover="this.className = 'deleteIconOn';" 
+        onmouseout="this.className = 'deleteIcon';"
+        onfocus="this.className = 'deleteIconOn';"
+        onclick="{!theOptions.Id}.clear();return false"
+        onblur="this.className = 'deleteIcon';" class="deleteIcon"
+        src="/s.gif" />
+
+    </apex:outputPanel>
+  </apex:actionRegion>
+  
+  <!-- Render as link if field is read-only -->
+  <apex:outputLink value="/{!theOptions.targetId}" rendered="{!AND(NOT(theOptions.isEditMode), theOptions.renderAsLink)}">{!theOptions.targetName}</apex:outputLink>
+  <!-- Render as text if field is read-only -->
+  <apex:outputText value="{!theOptions.targetName}" rendered="{!AND(NOT(theOptions.isEditMode), NOT(theOptions.renderAsLink))}"></apex:outputText>
+</apex:component>

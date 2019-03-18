@@ -1,0 +1,144 @@
+<apex:page standardStylesheets="false" sidebar="false">
+	<apex:stylesheet value="{!URLFOR($Resource.taskManager, 'styles/material.css')}"/>
+	<style>
+		.priority {
+			width: 24px;
+			margin: 16px;
+		}
+	</style>
+	<div ng-app="TaskManager" id="ngApp">
+		<md-toolbar>
+			<div class="md-toolbar-tools">
+				<span>My Task List</span>
+			</div>
+		</md-toolbar>
+		<div layout="column" ng-controller="taskController as taskctrl">
+			<md-content>
+				<md-list>
+					<md-item ng-repeat="task in taskctrl.tasks track by task.Id">
+						<md-item-content>
+							<div class="md-tile-left" flex="20">
+								<img src="{!URLFOR($Resource.taskManager, 'icons/low.png')}" class="priority" alt="flat" ng-show="{{task.Priority == 'Low'}}" />
+								<img src="{!URLFOR($Resource.taskManager, 'icons/medium.png')}" class="priority" alt="flat" ng-show="{{task.Priority == 'Normal'}}" />
+								<img src="{!URLFOR($Resource.taskManager, 'icons/high.png')}" class="priority" alt="flat" ng-show="{{task.Priority == 'High'}}" />
+							</div>
+							<div class="md-tile-content">
+								<h3>{{task.Subject}}</h3>
+								<h4>{{task.Status}}</h4>
+								<p>
+									{{task.Description}}
+								</p>
+							</div>
+							<div class="md-tile-right">
+								<md-button class="md-fab md-primary" aria-label="Complete" ng-click="taskctrl.markComplete(task)">
+									<md-icon icon="https://google.github.io/material-design-icons/action/svg/ic_done_24px.svg" style="width: 24px; height: 24px;"></md-icon>
+								</md-button>
+							</div>
+						</md-item-content>
+						<md-divider ng-if="!$last"></md-divider>
+					</md-item>
+				</md-list>
+			</md-content>
+			<md-toolbar class="md-accent">
+				<h1 class="md-toolbar-tools">
+					Add New Task
+				</h1>
+			</md-toolbar>
+			<md-content class="md-padding" >
+				<md-whiteframe class="md-whiteframe-z3" layout-align="center center">
+					<md-input-container>
+						<label>Subject</label>
+						<input ng-model="taskctrl.newTask.Subject"></input>
+					</md-input-container>
+					<md-input-container >
+						<label>Description</label>
+						<textarea ng-model="taskctrl.newTask.Description" md-maxlength="150"></textarea>
+					</md-input-container>
+					<md-input-container >
+						<div>
+							<label>Priority</label>
+						</div>
+						<div>
+							<md-radio-group ng-model="taskctrl.newTask.Priority">
+								<md-radio-button value="Low"> Low </md-radio-button>
+								<md-radio-button value="Normal"> Normal </md-radio-button>
+								<md-radio-button value="High"> High </md-radio-button>
+							</md-radio-group>
+						</div>
+					</md-input-container>
+					<md-button class="md-fab md-accent" aria-label="Complete" ng-click="taskctrl.addTask()">
+						<md-icon icon="{!URLFOR($Resource.taskManager, 'icons/ic_add_24px.svg')}" style="width: 24px; height: 24px;"></md-icon>
+					</md-button>
+				</md-whiteframe>
+			</md-content>
+		</div>
+	</div>
+
+	<!-- Define our remote objects -->
+	<apex:remoteObjects jsNamespace="TaskManagerNS">
+		<apex:remoteObjectModel name="Task"
+														fields="Id, OwnerId, Priority, Status, Subject, Description"/>
+	</apex:remoteObjects>
+
+	<!-- Include AngularJS and Material Dependencies -->
+	<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.6/angular.min.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.6/angular-animate.min.js"></script>
+	<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.6/angular-aria.min.js"></script>
+
+	<script src="//ajax.googleapis.com/ajax/libs/angular_material/0.7.1/angular-material.min.js"></script>
+
+	<!-- NGREMOTEOBJECTS -->
+	<c:ngRemote remoteObjectNamespace="TaskManagerNS"
+							remoteObjects="Task" visualforceVariables="true" />
+
+	<!-- Here is our app -->
+	<script type="text/javascript">
+		var ngApp = angular.module('TaskManager', ['ngRemote', 'ngMaterial']);
+
+		ngApp.controller('taskController',['TaskService', 'Visualforce', function(TaskService, Visualforce) {
+			var item = this;
+			item.tasks = [];
+			item.newTask = {};
+			TaskService.retrieve(
+				{
+					where: {
+						OwnerId: {eq: Visualforce.User.Id},
+						Status: {ne: 'Completed'}
+					}
+				}).then(function(result) {
+				if(result) {
+					item.tasks = Object.keys(result.records).map(function (key) {return result.records[key]});
+				}
+			}, function(error) {
+				console.log(error);
+			});
+
+			this.markComplete = function(task){
+				task.Status = "Completed";
+				console.log(task);
+				TaskService.update(task).then(function(result) {
+  				if(result) {
+						var index = item.tasks.indexOf(task);
+						item.tasks.splice(index, 1);
+  				}
+				}, function(error) {
+  				console.log(error);
+				});
+			}
+
+			this.addTask = function(){
+				console.log('add new task ' + item.newTask);
+				TaskService.create(item.newTask).then(function(result) {
+					if(result) {
+						item.newTask.Id = result.id;
+						item.tasks.push(item.newTask);
+						item.newTask = {};
+					}
+				}, function(error) {
+					console.log(error);
+				});
+			}
+		}]);
+
+	</script>
+</apex:page>

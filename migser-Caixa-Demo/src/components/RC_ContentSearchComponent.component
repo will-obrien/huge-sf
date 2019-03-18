@@ -1,0 +1,198 @@
+<!--
+    RC_RelevantContent.component - Visualforce page for the Relevant Content package
+        Provides a list of content relative to keywords in a record
+    Author: Mike Hineline
+
+    Copyright (c) 2013, salesforce.com, Inc.
+    All rights reserved.
+    
+    Redistribution and use in source and binary forms, with or without modification, 
+    are permitted provided that the following conditions are met:
+    
+        * Redistributions of source code must retain the above copyright notice, 
+        this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright notice, 
+        this list of conditions and the following disclaimer in the documentation 
+        and/or other materials provided with the distribution.
+        * Neither the name of the salesforce.com, Inc. nor the names of its contributors 
+        may be used to endorse or promote products derived from this software 
+        without specific prior written permission.
+    
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+    IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+    BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+    LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+    OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
+    OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<apex:component controller="RC_ContentSearch">
+    <!-- Bootstrap core CSS -->
+    <apex:stylesheet value="{!URLFOR($Resource.RC_RelevantContentResources,'css/bootstrap.min.css')}" />
+    <!-- Salesforce console integration JavaScript -->
+    <apex:includeScript value="/support/console/32.0/integration.js"/> 
+    <!-- Custom styles for this page -->
+    <apex:stylesheet value="{!URLFOR($Resource.RC_RelevantContentResources,'css/relevantContent.css')}" />
+
+    <apex:outputText rendered="{!NOT(showForm)}">
+	    <div class='pageHeader'>Relevant Content not available at this time</div>
+    </apex:outputText>
+    
+    <apex:form id="contentSearch" rendered="{!showForm}">
+        <div class="container rcContainer">
+            <!-- Page Title only shown in Salesforce1 -->
+            <script type="text/javascript">
+                if (RC_getPageFormat() == "mobile") {
+                    document.write("<div class='pageHeader pageHeader-smallHidden'>Relevant Content</div>");
+                }
+            </script>
+
+            <!-- Search functions -->
+            <apex:actionFunction name="searchFunction" action="{!updateSearch}" reRender="contentListPanel">
+                <apex:param name="srchStrng" value="" assignTo="{!recordSearchString}" />
+            </apex:actionFunction>
+            <div class="row">
+                <div class="col-sm-12">
+                    <div class="input-group">
+                        <span class="input-group-btn">
+                            <a href="javascript:void(0);" onClick="$( '#recordSearchElement' ).val('{!JSENCODE(recordSearchString)}'); searchFunction($( '#recordSearchElement' ).val()); return false;" title="Reset search">
+                                <button type="button" class="btn btn-default btn-sm" id="pageRefreshButton"><img src="{!URLFOR($Resource.RC_RelevantContentResources,'images/back_button.png')}" /></button>
+                            </a>
+                        </span>
+                        <input type="search" class="form-control" value="{!recordSearchString}" id="recordSearchElement"/>
+                        <span class="input-group-btn">
+                            <a href="javascript:void(0);" onClick="searchFunction($( '#recordSearchElement' ).val()); return false;" title="Search">
+                                <button type="submit" class="btn btn-default btn-sm" id="pageRefreshButton"><img src="{!URLFOR($Resource.RC_RelevantContentResources,'images/search_button.png')}" /></button>
+                            </a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <!-- /Search functions -->
+
+            <!-- Results panel -->
+            <apex:outputPanel id="contentListPanel">
+            <!-- List of Content -->
+            <div class="panel-group" id="contentList">
+                <apex:repeat value="{!recordContentAll}" var="thisContent" id="contentList">
+                <div class="panel panel-default contentPanel" id="ContentCard{!thisContent.contentVersionSObject.Id}">
+                    <div class="panel-heading" id="contentHeading{!thisContent.contentVersionSObject.Id}">
+                        <!-- Content Header -->
+                        <div class="panel-title">
+                            <div class="row">
+                                <div class="col-xs-2 noHPadding text-center anchorDiv" onClick="javascript:RC_openRecord('{!JSENCODE(thisContent.contentVersionSObject.ContentDocumentId)}','sub','{!JSENCODE(thisContent.contentVersionSObject.Title)}','view','{!JSENCODE(contentType)}'); return false;">
+                                    <img class="fileIcon" src="{!URLFOR($Resource.RC_RelevantContentResources,'images/doctype/'+JSENCODE(thisContent.iconFilename))}" />
+                                </div>
+                                <div class="col-xs-8 noLPadding anchorDiv" onClick="javascript:RC_openRecord('{!JSENCODE(thisContent.contentVersionSObject.ContentDocumentId)}','sub','{!JSENCODE(thisContent.contentVersionSObject.Title)}','view','{!JSENCODE(contentType)}'); return false;">
+                                    <div class="fileTitle">{!thisContent.contentVersionSObject.Title}</div>
+                                    <div class="fileDetails">
+                                        {!thisContent.contentModifiedDateFormatted}
+                                        &bull;
+                                        {!IF(ROUND(thisContent.contentVersionSObject.ContentSize / 1024,0) <= 1000,
+                                            ROUND(thisContent.contentVersionSObject.ContentSize / 1024,0),
+                                            ROUND(thisContent.contentVersionSObject.ContentSize / (1024*1024),1)
+                                        )}{!IF(ROUND(thisContent.contentVersionSObject.ContentSize / 1024,0) <= 1000,'KB','MB')}
+                                        &bull;
+                                        {!thisContent.fileTypeFormatted}
+                                    </div>
+                                </div>
+                                <div class="col-xs-2 noHPadding text-center">
+                                    <a data-toggle="collapse" href="#Content{!thisContent.contentVersionSObject.Id}">
+                                        <span class="contentExpand"><button type="button" class="btn btn-default btn-sm"><img src="{!URLFOR($Resource.RC_RelevantContentResources,'/images/details_button.png')}" /></button></span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /Content Header -->
+                        <div id="Content{!thisContent.contentVersionSObject.Id}" class="panel-collapse collapse">
+                            <div class="panel-body">
+                                <div class="row">
+                                    <!-- Content Details -->
+                                    <div class="col-xs-10 anchorDiv" onClick="javascript:RC_openRecord('{!JSENCODE(thisContent.contentVersionSObject.ContentDocumentId)}','sub','{!JSENCODE(thisContent.contentVersionSObject.Title)}','view','{!JSENCODE(contentType)}'); return false;">
+                                        <p>
+                                            <b>Description: </b>
+                                            <span id="contentDescription{!thisContent.contentVersionSObject.Id}">{!thisContent.contentVersionSObject.Description}</span>
+                                        </p>
+                                        <p>
+                                            <b>Pos/Neg Votes: </b>
+                                            <span id="contentVotes{!thisContent.contentVersionSObject.Id}">{!thisContent.contentVersionSObject.PositiveRatingCount}/{!thisContent.contentVersionSObject.NegativeRatingCount}</span>
+                                        </p>
+                                        <p>
+                                            <b>Tags: </b>
+                                            <span id="contentTags{!thisContent.contentVersionSObject.Id}">{!thisContent.contentVersionSObject.TagCsv}</span>
+                                        </p>
+                                    </div>
+                                    <!-- /Content Details -->
+                                    <!-- Content Actions -->
+                                    <div class="col-xs-2 noHPadding" id="contentActionButtons{!thisContent.contentVersionSObject.Id}">
+                                        <a title="Attach to Record" href="javascript:void(0);" onClick="javascript:RC_launchAttachFileModal('{!thisContent.contentVersionSObject.Id}','{!JSENCODE(thisContent.contentVersionSObject.Title)}','{!URLFOR($Resource.RC_RelevantContentResources,'images/doctype/')}','{!JSENCODE(thisContent.iconFilename)}'); return false;" id="contentAttachLink{!thisContent.contentVersionSObject.Id}">
+                                            <span class="contentAction"><button type="button" class="btn btn-default btn-sm" id="contentAttachButton{!thisContent.contentVersionSObject.Id}"><img src="{!URLFOR($Resource.RC_RelevantContentResources,'/images/attach_button.png')}" /></button></span><br />
+                                        </a>
+                                    </div>
+                                    <!-- /Content Actions -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </apex:repeat>
+            </div>
+            <!-- /List of Content -->            
+            </apex:outputPanel>
+            <!-- /Results panel -->
+
+        </div> <!-- /container -->
+    </apex:form>
+    
+    <!-- Attachment modal (only visible when the attach button is clicked on a piece of Content) -->
+    <div class="modal fade" id="attachmentModal">
+        <div class="modal-dialog rcS1ModalDialog">
+            <div class="modal-content rcModalContent">
+                <div class="modal-header rcS1ModalHeader">
+                    <div class="rcS1HeaderLeft">
+                        <a href="javascript:void(0);" onClick="RC_clearAttachFileModal(); return false;">
+                            <button type="button" class="rcS1HeaderButton" data-dismiss="modal" aria-hidden="true">Cancel</button>
+                        </a>
+                    </div>
+                    <div class="rcS1HeaderRight">
+                        <a href="javascript:void(0);" onClick="RC_postFileToFeed($( '#modalContentId' ).val(),'{!thisRecord.Id}',$( '#modalCommentBody' ).val()); return false;">
+                            <button type="button" class="rcS1HeaderButton">Post</button>
+                        </a>
+                    </div>
+                    <div class="rcS1HeaderBody">
+                        <span class="rcS1HeaderText">File</span>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div id="attachmentModalMessageContainer" class="hidden rcPostInfoContainer">
+                        <span id="attachmentModalMessage"></span>
+                    </div>
+                    <div class="form-group">
+                        <textarea class="form-control" rows="3" id="modalCommentBody" placeholder="Say something about this file..." ></textarea>
+                        <input type="hidden" id="modalContentId" />
+                    </div>
+                    <div class="rcPostInfoContainer">
+                        <img id="attachmentModalIconFilename" class="fileIconSmall" src="/s.gif" />
+                        <span id="attachmentModalFileTitle"></span>
+                    </div>
+                    <div class="rcPostInfoContainer">
+                        <img id="attachmentModalRecordFilename" class="recordIconSmall" src="{!URLFOR($Resource.RC_RelevantContentResources,'images/standard/'+objectIcon)}" />
+                        <span id="attachmentModalRecordName">{!recordName}</span>
+                    </div>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div>
+    <!-- /Attachment modal -->
+
+    <!-- ========================================================================================
+        JavaScript Includes - placed at the end of the document so the pages load faster -->
+    <!--  Bootstrap core JavaScript  -->
+    <apex:includeScript value="{!URLFOR($Resource.RC_RelevantContentResources,'js/jquery-1.11.2.min.js')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.RC_RelevantContentResources,'js/bootstrap.min.js')}"/> 
+    <!-- Custom JavaScript for this page -->
+    <apex:includeScript value="{!URLFOR($Resource.RC_RelevantContentResources,'js/relevantContent.js')}"/> 
+</apex:component>

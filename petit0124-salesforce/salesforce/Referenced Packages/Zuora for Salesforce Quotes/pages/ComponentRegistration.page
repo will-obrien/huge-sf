@@ -1,0 +1,296 @@
+<apex:page showHeader="true"
+            sidebar="false"
+            title="Component Registration Edit Page"
+            tabStyle="Z_Quote_Config__tab"
+            controller="zqu.ComponentRegistrationController">
+
+
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/ProductSelector-min.css')}"/>
+
+  <style type="text/css">
+    .inputClassName { width: 25em; }
+    .inputTextField { width: 90%; }
+    .action-table { width: 100%; }
+    .action-table-add { width: 40%; }
+    .action-table tr, .action-table td { border: 0px !important; }
+    .tertiaryPalette { background-color: #DADFEB !important; }
+    .pbBody { margin: 1em !important; }
+  </style>
+
+  <script type="text/javascript">
+    function openWindow() {
+      window.open("{!$Page.zqu__ExportComponent}");
+    }
+  </script>
+
+  <c:StatusModal />
+
+  <c:HelpComponent cid="COM-0016" rightAlign="true" />
+  
+  <c:PageTitle title="{!$Label.CONFIG_COMP_REGISTRATION_TITLE}"
+                subtitle="{!$Label.CONFIG_COMP_REGISTRATION_SUBTITLE}" />
+
+  <apex:form id="main-form">
+
+    <!-- Apex region for those function in order to prevent form validation for the custom setting -->
+    <apex:actionRegion >
+
+      <c:Notification options="{!deleteNotificationOptions}" />
+
+      <!-- Expose apex methods as JavaScript for delete confirmation modal -->
+      <apex:actionFunction name="continueToDelete" action="{!doDelete}" immediate="true" />
+      <apex:actionFunction name="stayOnCurrentPage" action="{!stayOnCurrentPage}" immediate="true" />
+
+      <apex:pageBlock title="Registered Component(s)">
+
+        <apex:pageBlockButtons location="top">
+          <!-- <a href="/apex/ZQConfig" class="btn">Back to Configuration Settings</a> -->
+          <apex:commandButton value="Back to Configuration Settings"
+                              action="{!backToConfig}"
+                              reRender="component-form" />
+        </apex:pageBlockButtons>
+
+        <apex:pageBlockTable value="{!componentWrapperList}"
+                              var="component">
+
+          <apex:column headerValue="Action">
+
+            <apex:commandLink action="{!doEdit}"
+                              reRender="component-form, msg"
+                              value="Edit"
+                              onclick="javascript:displayStatusModal();"
+                              oncomplete="javascript:closeStatusModal();">
+              <apex:param name="componentName"
+                          assignTo="{!selectedComponentName}"
+                          value="{!component.record.Name}" />
+            </apex:commandLink>
+          
+            <apex:outputPanel rendered="{!NOT(component.record.zqu__Is_Protected__c)}">
+
+              &nbsp;|&nbsp;&nbsp;
+              <apex:commandLink action="{!doConfirmDelete}"
+                                reRender="main-form"
+                                value="Del">
+                <apex:param name="cNameToDelete"
+                            assignTo="{!selectedComponentName}"
+                            value="{!component.record.Name}" />
+              </apex:commandLink>
+
+            </apex:outputPanel>
+          
+          </apex:column>
+
+          <apex:column value="{!component.record.zqu__Component_Type__c}" />
+
+          <apex:column value="{!component.record.Name}" />
+
+          <apex:column value="{!component.record.zqu__Description__c}" />
+
+          <apex:column value="{!component.record.LastModifiedDate}" />
+
+          <apex:column headerValue="Protected">
+            <apex:outputPanel rendered="{!component.record.zqu__Is_Protected__c}">
+              <img src="{!URLFOR($Resource.ImagesAndJavascriptZip, '/images/iconLock.png')}" alt="Lock" />
+            </apex:outputPanel>
+          </apex:column>
+
+        </apex:pageBlockTable>
+
+      </apex:pageBlock>
+
+    </apex:actionRegion>
+
+    <apex:pageBlock title="{!IF(editMode, 'Update component', 'Register a New Component')}"
+                    id="component-form">
+
+      <apex:pageBlockSection collapsible="false"
+                              title="Basic information"
+                              columns="1">
+
+        <apex:inputField value="{!currentComponent.Name}"
+                          styleClass="inputClassName"
+                          rendered="{!NOT(currentComponent.zqu__Is_Protected__c)}" />
+
+        <apex:outputField value="{!currentComponent.Name}"
+                          rendered="{!currentComponent.zqu__Is_Protected__c}" />
+
+        <apex:inputField value="{!currentComponent.zqu__Description__c}"
+                          styleClass="inputClassName"
+                          rendered="{!NOT(currentComponent.zqu__Is_Protected__c)}" />
+
+        <apex:outputField value="{!currentComponent.zqu__Description__c}"
+                          rendered="{!currentComponent.zqu__Is_Protected__c}" />
+
+        <apex:pageBlockSectionItem >
+
+          <apex:outputLabel >Component Type</apex:outputLabel>
+
+          <apex:actionRegion >
+
+            <apex:selectList value="{!currentComponent.zqu__Component_Type__c}"
+                              size="1"
+                              disabled="{!currentComponent.zqu__Is_Protected__c}">
+              <apex:selectOptions value="{!componentTypeOptions}" />
+              <apex:actionSupport event="onchange" reRender="plugins-table" />
+            </apex:selectList>
+
+          </apex:actionRegion>
+
+        </apex:pageBlockSectionItem>
+
+      </apex:pageBlockSection>
+
+      <apex:outputPanel id="plugins-form">
+
+        <apex:actionRegion >
+
+          <apex:pageBlockSection collapsible="false"
+                                  title="Component Plugins"
+                                  columns="1"
+                                  id="component-plugins">
+
+            <apex:outputText value="{!$Label.PLUGINS_HAVE_BEEN_MODIFIED}" rendered="{!hasBeenModified}" style="color: #7AC141;" />
+
+            <apex:pageBlockTable value="{!currentPlugins}" var="p" id="plugins-table">
+
+              <!-- Status column -->
+              <apex:column headerValue="Status">
+                  <apex:image value="{!$Resource.zqu__IconSaveOk}" title="{!p.status}" rendered="{!p.status == 'Overridden'}" />
+                  <apex:image value="{!$Resource.zqu__IconSaveAlert}" title="{!p.status}" rendered="{!p.status == 'Incorrect class name'}" />
+              </apex:column>
+
+              <!-- Plugin Type column -->
+              <apex:column headerValue="Plugin Type">
+                <apex:selectList value="{!p.record.zqu__Plugin_Type__c}"
+                                  styleClass="inputTextField"
+                                  disabled="{!OR(currentComponent.zqu__Is_Protected__c, currentComponent.zqu__Component_Type__c == '--')}"
+                                  size="1">
+                  <apex:selectOptions value="{!mapPluginOptions[currentComponent.zqu__Component_Type__c]}" />
+                  <apex:actionSupport event="onchange"
+                                      reRender="plugins-table"
+                                      action="{!onPluginTypeChange}">
+                    <apex:param value="{!p.index}" assignTo="{!selectedPluginRow}" name="indexRow" />
+                  </apex:actionSupport>
+                </apex:selectList>
+              </apex:column>
+
+              <!-- Interface Name column -->
+              <apex:column value="{!p.record.zqu__Interface_Name__c}" rendered="{!currentComponent.zqu__Is_Protected__c}" />
+
+              <apex:column headerValue="Interface Name" rendered="{!NOT(currentComponent.zqu__Is_Protected__c)}">
+                <apex:inputField value="{!p.record.zqu__Interface_Name__c}" styleClass="inputTextField" />
+              </apex:column>
+
+              <!-- Default class name (only rendered for OOB components) -->
+              <apex:column headerValue="Default Implementation Class Name"
+                            rendered="{!currentComponent.zqu__Is_Protected__c}"
+                            value="{!p.record.zqu__Default_Class_Name__c}" />
+
+              <apex:column value="{!p.record.zqu__Can_Be_Extended__c}"
+                            rendered="{!currentComponent.zqu__Is_Protected__c}" />
+
+              <!-- Class Name column -->
+              <apex:column headerValue="Class Name">
+                <apex:inputField value="{!p.record.zqu__Class_Name__c}" styleClass="inputTextField" />
+              </apex:column>
+
+              <!-- Description column -->
+              <apex:column headerValue="Description">
+                <apex:inputField value="{!p.record.zqu__Description__c}" styleClass="inputTextField" />
+              </apex:column>
+
+              <!-- Action column -->
+              <apex:column headerValue="Action" rendered="{!NOT(currentComponent.zqu__Is_Protected__c)}" width="15%">
+                <table class="action-table">
+                  <tr>
+                    <td>
+                      <apex:commandLink value="Remove"
+                                        styleClass="removeRowLink"
+                                        rendered="{!currentPlugins.size > 1}"
+                                        action="{!doDeletePluginRow}"
+                                        reRender="plugins-table">
+                        <apex:param value="{!p.index}" assignTo="{!selectedPluginRow}" name="indexRow" />
+                      </apex:commandLink>
+                    </td>
+                    <td class="action-table-add">
+                      <apex:commandLink value="Add"
+                                        styleClass="addRowLink"
+                                        action="{!doAddPluginRow}"
+                                        reRender="plugins-table"
+                                        rendered="{!p.index == lastRowIndex}" />
+                    </td>
+                  </tr>
+                </table>
+              </apex:column>
+
+            </apex:pageBlockTable>
+
+          </apex:pageBlockSection>
+
+        </apex:actionRegion>
+
+      </apex:outputPanel>
+
+      <apex:pageBlockButtons location="bottom">
+
+        <apex:outputPanel rendered="{!NOT(editMode)}">
+
+          <apex:commandButton value="Register Component"
+                              action="{!doRegister}"
+                              onclick="javascript:displayStatusModal();"
+                              oncomplete="javascript:closeStatusModal();"
+                              reRender="main-form" />
+
+        </apex:outputPanel>
+
+        <apex:outputPanel rendered="{!editMode}">
+
+          <apex:commandButton value="Update"
+                              action="{!doUpdate}"
+                              onclick="javascript:displayStatusModal();"
+                              oncomplete="javascript:closeStatusModal();"
+                              reRender="main-form" />
+
+          <apex:commandButton value="Cancel"
+                              action="{!doCancelUpdate}"
+                              onclick="javascript:displayStatusModal();"
+                              oncomplete="javascript:closeStatusModal();"
+                              reRender="main-form" />
+
+          <apex:commandButton value="{!$Label.BUTTON_RESTORE_DEFAULTS}"
+                              reRender="main-form"
+                              action="{!doConfirmReset}"
+                              rendered="{!currentComponentDeletable}" />
+
+        </apex:outputPanel>
+
+      </apex:pageBlockButtons>
+
+    </apex:pageBlock>
+
+  </apex:form>
+
+  <apex:form enctype="multipart/form-data">
+
+    <apex:pageBlock title="Import/Export Component(s)">
+
+      <apex:pageBlockSection >
+
+        <apex:pageBlockSectionItem >
+          <apex:outputLabel value="Component(s) to import" for="importFile" />
+          <apex:inputFile value="{!document.body}" id="importFile" />
+        </apex:pageBlockSectionItem>
+
+      </apex:pageBlockSection>
+
+      <apex:pageBlockButtons location="bottom">
+        <apex:commandButton value="Import from File" action="{!doImportFile}" />
+        <apex:commandButton value="Clear" action="{!doClearUpload}" />
+        <apex:commandButton value="Export to File" onclick="openWindow();" />
+      </apex:pageBlockButtons>
+
+    </apex:pageBlock>
+
+  </apex:form>
+
+</apex:page>

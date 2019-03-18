@@ -1,0 +1,220 @@
+<apex:component controller="TimeRemote">
+    <apex:includeScript value="/soap/ajax/34.0/connection.js"/>
+    <apex:includeScript value="/support/console/34.0/integration.js"/>
+    <apex:includeScript value="{!$Resource.sos_jquery_report_js}"/>
+    <apex:includeScript value="{!$Resource.sos_underscore_report_js}"/>
+    <apex:stylesheet value="{!$Resource.sos_report_css}"/>
+    <apex:includeScript value="{!$Resource.sos_highcharts_js}"/>
+
+    <script type="text/javascript">
+    sforce.connection.sessionId = '{!$Api.Session_ID}';
+
+    var sfdcColors = {
+        blue: 'rgb(40,145,212)',
+        red: 'rgb(255,79,79)',
+        green: 'rgb(23,176,49)',
+        orange: 'rgb(255,226,102)',
+        purple: 'rgb(141,40,212)',
+        'red2': 'rgba(255,79,79,0.5)',
+        'orange2': 'rgba(255,226,102,0.5)',
+        'blue2': 'rgba(40,145,212,0.5)',
+    };
+
+    function getTime(cb) {
+        cb = cb || function() {};
+
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.TimeRemote.getTimeNow}', function(result, event) {
+            if (!event.status) {
+                console.log('getTime Error', result, event);
+                return cb();
+            }
+
+            cb(result);
+        });
+    }
+
+    function escapeSoql(str) {
+        return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function soqlCall(query) {
+
+        var queryResult = sforce.connection.query(query);
+        
+        if (queryResult.done != 'false') {
+            return queryResult.getArray('records');
+        }
+        
+        var allRows = queryResult.getArray('records');
+        var queryDone = false;
+        
+        while (!queryDone) {
+			window.moreResult = sforce.connection.queryMore(queryResult.queryLocator);
+            allRows = allRows.concat(moreResult.getArray('records'));
+            queryDone = moreResult.done;
+        }
+        
+        return allRows;
+    }
+
+    function timeToString(time, hideSeconds) {
+        if (isNaN(time) || !time) {
+            return 'N/A';
+        }
+
+        time = Math.round(time/1000);
+
+        var weeks = Math.floor(time / 604800);
+        time = time - weeks * 604800;
+        var days = Math.floor(time / 86400)
+        time = time - days * 86400;
+        var hours = Math.floor(time / 3600);
+        time = time - hours * 3600;
+        var minutes = Math.floor(time / 60);
+        var seconds = time - minutes * 60;
+
+        var timeString = '';
+        
+        if (weeks) {
+            timeString = weeks + ' week';
+            if (weeks > 1) {
+                timeString += 's';
+            }
+        }
+
+        if (!weeks && days) {
+            timeString = days + ' day';
+            if (days > 1) {
+                timeString += 's';
+            }
+        }
+
+        if (timeString) {
+            return timeString;
+        }
+
+        if (hours) {
+            timeString += hours + 'h ';
+        }
+
+        if (hours || minutes) {
+            timeString += minutes + 'm ';
+        }
+
+        if (!hideSeconds || seconds) {
+            timeString += seconds + 's'
+        }
+
+        return timeString;
+    }
+
+
+    function createPieChart(title, data) {
+        var chartData = {
+            chart: {
+                type: 'pie',
+                style: {
+                  fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif'
+                }
+            },
+            colors: _.values(sfdcColors),
+            title: {
+                text: '<strong>'+title+'</strong>'
+            },
+            tooltip: {
+                pointFormat: '{series.name}: <b>{point.y} ({point.percentage:.1f}%)</b>'
+            },
+            plotOptions: {
+                pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: false
+                        // format: '<b>{point.name}</b>: {point.percentage:.1f}&',
+                    },
+                    showInLegend: true
+                }
+            },
+            series: [{
+                type: 'pie',
+                name: 'SOS Sessions',
+                data: data
+            }]
+        };
+
+        chartData.credits = { enabled: false };
+        $('#pie-chart').highcharts(chartData).addClass('add-border');
+    }
+
+    var showingSessions = {};
+
+    function showHideSessions(type) {
+        var toggleState = $('#toggle-'+type)
+
+        if (showingSessions[type]) {
+            delete showingSessions[type];
+            $('.'+type+'-row').hide();
+
+            if (_.isEmpty(showingSessions)) {
+                $('#session-table').hide();
+            }
+            toggleState.text('Show '+type);
+        } else {
+            showingSessions[type] = true;
+            $('#session-table').show();
+            $('.'+type+'-row').show();
+            toggleState.text('Hide '+type);
+        }
+    }
+
+    function addToTable(row, rowClass) {
+        var emptyRow = $('#empty-row').clone().removeClass('hideit').removeAttr('id').addClass(rowClass);
+        var sessionTable = $('#session-table > tbody:last');
+
+        if (row.Contact) {
+            var contactLink = emptyRow.find('.contact-name a');
+            contactLink.text(row.Contact.Name).attr('href', '/'+row.Contact.Id);;
+        } else {
+            emptyRow.find('.contact-name').text('UNKNOWN');
+        }
+
+        emptyRow.find('.session-link a').attr('href','/'+row.Id).text(row.Id);
+        emptyRow.find('.date').text(new Date(row.CreatedDate).toLocaleString());
+        emptyRow.find('.wait-time').text(timeToString(row.WaitDuration *1000));
+        emptyRow.find('.duration').text(timeToString(row.SessionDuration * 1000));
+
+        if(row.OwnerId) {
+            var ownerCell = emptyRow.find('.owner');
+            if (row.OwnerId.indexOf('00G') == 0) {
+                ownerCell.text('QUEUED').addClass('italic');
+            } else {
+                if (allAgents[row.OwnerId]) {
+                    ownerCell.text(allAgents[row.OwnerId]);
+                } else {
+                    ownerCell.text('NO OWNER').addClass('italic'); 
+                }
+            }
+        }
+
+        if (row.CaseId) {
+            emptyRow.find('.case a').text(row.CaseId).attr('href', '/'+row.CaseId);
+        } else {
+            emptyRow.find('.case').text('NONE');
+        }
+
+        sessionTable.append(emptyRow);
+    }
+
+    var allAgents = {};
+
+    function setAllAgents() {
+        var q = 'SELECT Id,Name FROM User';
+        var results = soqlCall(q);
+
+        _.each(results, function(row) {
+            allAgents[row.Id] = row.Name;
+        });
+    }
+
+    </script>
+</apex:component>

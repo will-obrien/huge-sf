@@ -1,0 +1,86 @@
+<apex:component allowDML="true">
+<apex:attribute name="pkbCon" type="pkb_Controller" required="true" description="handle to the pkb controller" />
+<apex:attribute name="showBackLinks" type="Boolean" required="false" description="flag to indicate if 'back to...' buttons should be shown" />
+
+<apex:variable var="pageNum" value="{!pkbCon.pageNumParam}={!pkbCon.currPage}" />
+
+  <apex:form >
+	  <apex:outputPanel layout="block" style="width: 100%; margin-top: 5px;">
+	    <div style="font-weight: bold; font-size: 125%; float: left;">
+	     <apex:outputText rendered="{!pkbCon.displayContactUs}">
+          <apex:outputLink value="{!pkbCon.currentSiteUrl}" rendered="{!NOT(pkbCon.facebook)}">Home</apex:outputLink>
+          <apex:outputLink value="{!pkbCon.currentSiteUrl}" rendered="{!pkbCon.facebook}">Knowledge Base</apex:outputLink>
+          <apex:outputText rendered="{!NOT(pkbCon.facebook)}">&nbsp;&gt;&nbsp;</apex:outputText>
+          <apex:outputText rendered="{!pkbCon.facebook}">&nbsp;&#124;&nbsp;</apex:outputText>
+	       {!$Label.PKB2_Contact_Us}
+	     </apex:outputText>
+	    </div>
+	    <apex:outputPanel layout="block" style="float: right;" rendered="{!pkbCon.multiLanguage}">
+<!--
+	      <apex:selectList styleClass="languages" value="{!pkbCon.selectedLanguage}" multiSelect="false" size="1" onchange="setLanguage(this);">
+	        <apex:selectOptions value="{!pkbCon.languageOptions}" />
+	      </apex:selectList>
+-->
+
+
+  <select id='langFilter' class="languages" onchange="setLanguage(this);" >
+    <apex:repeat value="{!pkbCon.languageOptions}" var="opt" id="theRepeat">
+      <option value="{!opt.Value}"> {!$Label[opt.Label]}</option>
+
+    </apex:repeat>
+
+  </select>
+
+
+
+      </apex:outputPanel>
+	  </apex:outputPanel>
+  </apex:form>
+
+  <div style="clear: both;"></div>
+
+  <form class="form" id="searchAskForm">
+    <div style="float: left;">
+	    <div id="searchAskInputContainer">
+				<textarea
+				  onfocus="clearPrompt(this);"
+				  onblur="restorePrompt(this); buildSearchHref();"
+				  onkeypress="checkForEnter(event, this);"
+				  title="{!pkbCon.searchPrompt}"
+				  tabindex="1"
+				  type="text"
+				  name="inputboxform"
+				  class="{!IF(pkbCon.enteredSearchQuery == pkbCon.searchPrompt, 'default', '')}"
+				  id="searchAskInput"
+				  style="height: 36px;">{!pkbCon.enteredSearchQuery}</textarea>
+				<a href="#" id="resetButton" style="display: inline;" class="reset" onclick="resetPrompt($$('#' +SEARCH_TEXT_ID)[0]); return false;">{!$Label.PKB2_Reset_Search}</a>
+	    </div>
+    </div>
+
+    <div style="float: left;">
+      <a href="#" id="searchAskButton" tabindex="2" class="action" onclick="searchButtonClicked(); return false;">
+        <span title="{!pkbCon.buttonPrompt}" class="tip">{!pkbCon.buttonPrompt}</span>
+      </a>
+    </div>
+  </form>
+  <div style="margin-top: 10px;">&nbsp;</div>
+  <div id="backbuttoncontainer">
+   <apex:outputPanel layout="block" rendered="{!showBackLinks}" id="backbutton" style="margin-bottom: 5px;">
+      <apex:outputText rendered="{!pkbCon.displaySearchResultsLink}">
+        <a class="relatedLink" href="{!$Site.CurrentSiteUrl}?{!pkbCon.allSearchParams}&{!pageNum}">&lt; {!$Label.PKB2_Back_To_Results}</a>
+      </apex:outputText>
+      <apex:outputText rendered="{!NOT(pkbCon.displaySearchResultsLink)}">
+        <a class="relatedLink" href="{!$Site.CurrentSiteUrl}">&lt; {!$Label.PKB2_Back_To_Search_Page}</a>
+      </apex:outputText>
+   </apex:outputPanel>
+   </div>
+<script type="text/javascript">
+    buildSearchHref();
+
+    //place initial language
+    if ('{!pkbCon.selectedLanguage}' != '')
+      document.getElementById('langFilter').value = '{!pkbCon.selectedLanguage}';
+
+
+</script>
+</apex:component>

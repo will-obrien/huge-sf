@@ -1,0 +1,97 @@
+<apex:page standardController="Opportunity" extensions="OpportunityPhaseController" standardStylesheets="false" showHeader="false">
+<style>
+.step {
+    margin-top: 0;
+    margin-left: 0;
+    height: 44px;
+    width: 100%;
+    list-style-type: none;
+    padding-left: 0;
+}
+.step li {
+    background: #E1E1E2;
+    color: #444;
+    font-size: 11px;
+    position: relative;
+    margin-left: 0;
+    display: inline-block;
+    float: left;
+    width: 60px;
+    height: 50px;
+    text-align: center;
+    display: -webkit-box;
+    display: -moz-box;
+    display: -webkit-flexbox;
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 2%;
+}
+.step li.active {
+    background: #F88F27;
+    color: white;
+}
+.step li.active:before {
+    border-left-color: #AC4017;
+}
+.step li.active:after {
+    border-left-color: #F88F27;
+}
+.step li:last-child:after {
+    display: none;
+}
+.step li:last-child:before {
+    display: none;
+}
+.step li:before {
+    border-bottom: 24px solid transparent;
+    border-right: 18px solid transparent;
+    border-left: 18px solid #C4C4C5;
+    border-top: 24px solid transparent;
+    content: "";
+    display: block;
+    opacity: 0.4;
+    position: absolute;
+    right: -37px;
+    top: 0;
+    z-index: 1;
+}
+.step li:after {
+    border-bottom: 24px solid transparent;
+    border-right: 18px solid transparent;
+    border-left: 18px solid #E1E1E2;
+    border-top: 24px solid transparent;
+    content: "";
+    display: block;
+    position: absolute;
+    right: -36px;
+    top: 0;
+    z-index: 2;
+}
+</style>
+
+<input type="hidden" id="opportunityStageName" value="{!Opportunity.stageName}"/>
+<ul class="step" id="stepList"></ul>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function(){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.OpportunityPhaseController.getPhaseList}', $('#opportunityStageName').val(),
+            function(result, event){
+                if (event.status) {
+                    var appendList = '';
+                    $.each(result, function(){
+                        appendList = appendList + '<li class="' + (this.isActive ? 'active' : '') + '">' + this.phase + '</li>';
+                    });
+                    $('#stepList').append(appendList);
+                    $('#stepList li').css('width', ((100/result.length)-2)+'%');
+                    console.log($('#stepList li').css('width'));
+                }
+            }, {escape: true}
+        );
+    });
+</script>
+
+</apex:page>

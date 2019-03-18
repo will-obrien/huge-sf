@@ -1,0 +1,106 @@
+<apex:component allowDML="true">
+
+<apex:attribute name="pkbCon" type="pkb_Controller" required="true" description="handle to the pkb controller" />
+<apex:attribute name="showHeaderInfo" type="Boolean" required="true" description="flag to indicate whether to show results header and empty results message" />
+
+<!-- note that noResultsFound is actually a string, not a boolean, due to the inability to 
+     explicitly declare types in VF apex:variable tags, so must pass the strings 'true' and 'false' instead of using an expression that returns true or false -->      
+<apex:variable var="noResultsFound" value="{!IF(pkbCon.foundRecommended, 'false', 'true')}" />
+<apex:variable var="currPage" value="{!IF(pkbCon.displayContactUs, 1, pkbCon.currPage)}" />
+
+  <apex:form >
+  <apex:outputPanel layout="block" id="results">
+    <div id="results">
+
+      <apex:outputText rendered="{!showHeaderInfo}">
+          <h2 class="section">{!$Label.PKB2_Search_Results}</h2>
+          <div class="articleViewIcons" id="resultsRssLink">
+            <a href="{!$Page.pkb_RSS}?{!pkbCon.allSearchParams}" target="_blank" title="{!$Label.PKB2_Subscribe_Feed_Results}"><apex:image url="{!URLFOR($Resource.pkb_icons, 'rss.png')}" /></a>
+          </div>
+    
+          <h3>
+            {!$Label.PKB2_You_Searched_For}: <i>{!pkbCon.urlSearchQuery}</i>
+            <apex:outputText escape="false" rendered="{!NOT(ISBLANK(pkbCon.selectedCategory))}"><br/>{!$Label.PKB2_Within_Category}: <i>{!pkbCon.selectedCategoryLabel}</i></apex:outputText>
+          </h3>
+      </apex:outputText>
+
+      <apex:outputPanel layout="block" styleClass="recommendedArticles" rendered="{!(pkbCon.foundRecommended) && (pkbCon.currPage == 1)}">
+        <apex:repeat var="a" value="{!pkbCon.recommendedKads}">
+            <c:pkb_article pkbCon="{!pkbCon}" 
+              aid="{!a.id}"
+              title="{!a.title}"
+              summary="{!a.summary}"
+              urlName="{!a.urlName}"
+              articleTypeName="{!a.articleTypeName}"
+              articleTypeLabel="{!a.articleTypeLabel}"
+              lastModifiedDate="{!a.lastModifiedDate}"
+              firstPublishedDate="{!a.firstPublishedDate}"
+              lastPublishedDate="{!a.lastPublishedDate}"
+            />
+          <apex:variable var="noResultsFound" value="false" />
+        </apex:repeat>
+        <div class="rec">{!$Label.PKB2_Recommended}</div>
+      </apex:outputPanel>
+
+      <knowledge:articleList articleVar="a" 
+        pageSize="{!pkbCon.articlesPerPage}"
+        categories="{!pkbCon.selectedCategory}"
+        hasMoreVar="more"
+        keyword="{!pkbCon.urlSearchQuery}"
+        language="{!pkbCon.selectedLanguage}"
+        pageNumber="{!currPage}">
+
+        <c:pkb_article pkbCon="{!pkbCon}" 
+          aid="{!a.id}"
+          title="{!a.title}"
+          summary="{!a.summary}"
+          urlName="{!a.urlName}"
+          articleTypeName="{!a.articleTypeName}"
+          articleTypeLabel="{!a.articleTypeLabel}"
+          lastModifiedDate="{!a.lastModifiedDate}"
+          firstPublishedDate="{!a.firstPublishedDate}"
+          lastPublishedDate="{!a.lastPublishedDate}"
+        />
+
+        <script type="text/javascript">moreResults = {!more};</script>
+        <apex:variable var="noResultsFound" value="false" />
+        <script type="text/javascript">noResultsFound = {!noResultsFound}</script>
+      </knowledge:articleList>
+      
+      <apex:outputPanel layout="block" rendered="{!(noResultsFound == 'true') && (NOT(pkbCon.displayContactUs))}" style="margin-top: 10px;">
+        {!$Label.PKB2_No_Results}
+      </apex:outputPanel>
+    
+      <apex:outputPanel layout="block" style="height: 20px; margin-top: 10px;" styleClass="resultsPaginationLinks" rendered="{!NOT(pkbCon.displayContactUs)}">
+          <div style="float: left; margin-bottom: 10px;">
+              <apex:commandLink action="{!pkbCon.prevPage}" rerender="results" rendered="{!(pkbCon.currPage > 1)}" status="prevStatus">&lt; {!$Label.PKB2_Previous_Link}</apex:commandLink>
+              &nbsp; 
+              <apex:actionStatus id="prevStatus">
+                <apex:facet name="start"><apex:image value="{!$Resource.pkb_loadingdots}" /></apex:facet>
+                <apex:facet name="stop"></apex:facet>
+              </apex:actionStatus>
+          </div>
+    
+          <div style="float: right; margin-bottom: 10px;">
+            <span id="nextLink">
+              <apex:actionStatus id="nextStatus">
+                <apex:facet name="start"><apex:image value="{!$Resource.pkb_loadingdots}" /></apex:facet>
+                <apex:facet name="stop"></apex:facet>
+              </apex:actionStatus>
+                &nbsp;
+                <apex:commandLink action="{!pkbCon.nextPage}" rerender="results" status="nextStatus">{!$Label.PKB2_Next_Link} &gt;</apex:commandLink>
+            </span>
+          </div>
+      </apex:outputPanel>
+
+    <apex:outputText rendered="{!pkbCon.displayContactUs && pkbCon.searchExecuted}">
+      <script type="text/javascript">if ({!noResultsFound}) prepareToRenderOverlay();</script>
+    </apex:outputText>    
+  
+    <script type="text/javascript">hideNext(); hideResultsRss(); hideImmediateHelp({!noResultsFound});</script>
+    </div>
+  </apex:outputPanel>
+  </apex:form>
+
+
+</apex:component>

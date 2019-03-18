@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="/soap/ajax/14.0/connection.js"></script>
+    <script src="/resource/zqu__Jquery126"></script>
+    <!--<script src="/resource/zqu__1232510739000/jqXMLUtils"></script> -->
+  	<script src="/resource/zqu__jqXML2JSON"></script> 
+    <script src="/resource/zqu__jqSOAPClient"></script>
+    <script type="text/javascript">
+	
+	var testquery = function(){
+		zConnection.query('select id,name from account');
+	};
+	
+	var testcreate = function(){
+		var zobj = new zuora.ZObject("Account");
+		zobj.Name = "SomeAccount2347124903303";
+		zobj.Batch = "Batch1";
+		zobj.BillCycleDay = 1;
+		zobj.Currency = "USD";
+		zobj.AllowInvoiceEdit = true;
+		zobj.AutoPay = false;
+		zobj.CrmId = "SFDC-1223471249003";
+		zobj.CustomerServiceRepName = "CSR Person";
+		zobj.PaymentTerm = "Due Upon Receipt";
+		zobj.PurchaseOrderNumber = "PO-1223471249003";
+		zobj.SalesRepName = "Sales Person";
+		zobj.Status = "Draft";
+		zConnection.create([zobj]);
+	};
+	
+	//start zuora api libs
+	var zuora = {};
+	zuora.connection=function(){
+		this.header = null;
+		this.sessionId = null;
+		this.zAPI = "http://api.zuora.com/";
+		this.zObject = "http://object.api.zuora.com/";
+		this.endpoint = "http://apisandbox.zuora.com/apps/services/a/3.0";
+		this.serverUrl = "http://apisandbox.zuora.com/apps/services/a/3.0";
+		this.xsi = "http://www.w3.org/2001/XMLSchema-instance";
+		
+		this.zObjects = {};
+		
+	};
+	zuora.connection.prototype.invok = function(type,soapBody){
+		var sr = new SOAPRequest(this.endpoint, soapBody);
+	    SOAPClient.Proxy = this.endpoint;
+	    SOAPClient.SOAPServer = this.serverUrl;
+	    if(this.sessionId!=null) {
+	    	var ns1 = new SOAPClient.Namespace("ns1",this.zAPI);
+	    	var header = new SOAPObject("SessionHeader");
+	    	header.ns =ns1;
+	    	header.appendChild(new SOAPObject("ns1:session")).val(this.sessionId);
+	    	sr.addHeader(header);
+	    }
+	
+		if(type=='login')	SOAPClient.SendRequest(sr, this.loginResponse);
+		if(type=='query')	SOAPClient.SendRequest(sr, this.queryResponse);
+		if(type=='create')	SOAPClient.SendRequest(sr, this.createResponse);
+
+	};
+	zuora.connection.prototype.login = function(username,password){
+		var ns1 = new SOAPClient.Namespace("ns1",this.zAPI);
+	    var soapBody = new SOAPObject("login");
+	    soapBody.ns = ns1;
+	    
+	    soapBody.appendChild(new SOAPObject("ns1:username")).val(username);
+	    soapBody.appendChild(new SOAPObject("ns1:password")).val(password);
+	    
+	    this.invok('login',soapBody);
+	    
+	
+	};
+	zuora.connection.prototype.loginResponse = function(data){
+		zConnection.sessionId = data.Body.loginResponse.result.Session;
+		zConnection.serverUrl = data.Body.loginResponse.result.ServerUrl;
+	};
+	
+	zuora.connection.prototype.query = function(zoql){
+		var ns1 = new SOAPClient.Namespace("ns1",this.zAPI);
+	    var soapBody = new SOAPObject("query");
+	    soapBody.ns = ns1;
+	    
+	    soapBody.appendChild(new SOAPObject("ns1:queryString")).val(zoql);	    
+	    this.invok('query',soapBody);
+	};
+	zuora.connection.prototype.queryResponse = function(data){
+		return data.Body.queryResponse.result;
+		//result.done
+		//result.queryLocator
+		//result.size
+		//result.records
+	};
+	zuora.ZObject = function(type){
+		this.zType=type;
+	};
+	
+	zuora.connection.prototype.prepareCUData = function(type,zObjs){
+		if(! (zObjs instanceof Array)) {
+			alert("arg of create is an array. But passed in value is not an array");
+			return;
+		}
+		//sforce.debug.log(zObjs);
+		var ns1 = new SOAPClient.Namespace("ns1",this.zAPI);
+	    var soapBody = new SOAPObject(type);
+	    soapBody.ns = ns1;
+	    
+	    var ns2 = new SOAPClient.Namespace("ns2",this.zObject);
+	    
+	   // sforce.debug.log(this.zObjects);
+	    
+		for(var i=0;i<zObjs.length;i++){
+			var zObj = zObjs[i];
+			var soapCreateBody = new SOAPObject("ns1:zObjects");
+			//soapCreateBody.ns = ns1;
+			soapCreateBody.attr("xmlns:xsi",this.xsi);
+			soapCreateBody.attr("xsi:type","ns2:"+zObj.zType);
+			soapCreateBody.attr("xmlns:ns2",this.zObject);
+			var zObjType = zObj.zType;
+			delete zObj.zType;
+			
+			
+			if(typeof(this.zObjects[zObjType])!='undefined') { //reorder the sequence
+		    	for(var j=0;j<this.zObjects[zObjType].length;j++) {
+		    		for(name in zObj) {
+			    		if(this.zObjects[zObjType][j].name==name){
+			    			var sfield = new SOAPObject("ns2:"+name);
+							soapCreateBody.appendChild(sfield).val(zObj[name]);
+			    		}
+			    	}
+		    	}
+		   }
+			
+			
+			soapBody.appendChild(soapCreateBody);
+		}
+		return soapBody;
+		//sforce.debug.log(soapBody);
+	
+	};
+	
+	zuora.connection.prototype.create = function(zObjs){
+		this.invok('create',this.prepareCUData("create",zObjs));
+	};
+	
+	
+	zuora.connection.prototype.createResponse = function(data){
+		var result = data.Body.createResponse.result;
+		var success = result.Success == "true" ? true : false;
+		if(!success) {
+			alert(result.Errors.Code+"\n"+result.Errors.Message);
+			return;
+		}
+		sforce.debug.log(data);
+		return result.Id;
+		
+	};
+    
+    //initial
+    
+    zConnection = new zuora.connection();
+    zConnection.login("admin@protime.com.cn","protime");
+    
+    //get the zObjects and the fields sequence
+    $.get("/resource/zqu__zuoraWSDL", function(data){
+		var jdata = $.xml2json(data);
+	  	var ztypes = jdata.types.schema[0].complexType;
+	  	
+	  	jdata = null;
+	  	
+	  	if((ztypes instanceof Array)) {
+	  		for(var i=1;i<ztypes.length;i++){
+	  			
+	  			zConnection.zObjects[ztypes[i].name]=[];
+	  			//alert(ztypes[i].name);
+	  			var zfields = ztypes[i].complexContent.extension.sequence.element;
+	  			for(var j=1;j<zfields.length;j++) {
+	  				zConnection.zObjects[ztypes[i].name].push(zfields[j]);
+	  			}
+	  		}
+	  	}
+		  		  
+	});
+    
+    //end of zuora lib
+    
+    $(document).ready(function(){
+    	
+    });
+    </script>
+   
+</head>
+
+<body>
+{!Account.Id}
+<input type="button" value="query" onclick="testquery()">
+<input type="button" value="create" onclick="testcreate()">
+</body>
+</html>

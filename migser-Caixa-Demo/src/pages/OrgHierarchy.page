@@ -1,0 +1,387 @@
+<apex:page showHeader="false" controller="OrgHierarchyCtrl">
+    <title>Org Hierarchy</title>
+	<link rel="stylesheet" href="{!URLFOR($Resource.jQueryZip,'jquery-ui.css')}"/>
+	<link rel="stylesheet" href="{!URLFOR($Resource.twitterbootstrap,'/bootstrap/css/bootstrap.min.css')}"/>
+	<!--<link rel="stylesheet" href="{!URLFOR($Resource.twitterbootstrap,'/bootstrap/css/bootstrap-responsive.min.css')}"/>-->
+
+	<script src="{!URLFOR($Resource.jQueryZip,'jquery-1.9.1.js')}"/>
+    <script src="{!URLFOR($Resource.jQueryZip,'jquery-ui-1.10.3.custom.js')}"/>
+    <script src="{!URLFOR($Resource.twitterbootstrap,'/bootstrap/js/bootstrap.js')}"/>
+
+	<style>
+		body
+		{
+			font-size:10px;
+		}
+		ul
+		{
+			margin: 0px;
+		}
+		li
+		{
+			margin: 0px !important;
+		}
+		.well
+		{
+			min-height: 0px;
+			padding: 0px;
+		}
+		#wrapper
+		{
+			width: 100%;	
+		}
+		.img-polaroid
+		{
+			border-radius:10px;
+		}
+
+		#sliderWrapper
+		{
+			position:relative;
+			float:right;
+			width: 110px;
+			margin: 0px 10px 350px 10px;
+			text-align:center;
+		}
+		#sliderWrapper p
+		{
+			padding:10px 0 0 5px;
+		}
+		#mySlider
+		{
+			margin: auto;
+		}
+		.level
+		{
+			/*display:none;*/
+			position:relative;
+			clear:left;
+			margin: 0 auto;
+			-webkit-transition:all 1.0s ease-in-out;
+			/*opacity:0;*/
+			height:0;
+			padding: 0px 5px;
+			overflow:hidden;
+		}
+		.container
+		{
+			position:relative;
+			float:left;
+			width: 105px;
+			height:130px;
+			padding: 5px;
+			margin: 3px;
+		}
+		#myLevelDiv
+		{
+			height: 100%;
+		}
+		.myContainer
+		{
+			float: none;
+			margin: 0 auto;
+		}
+		.profilePic
+		{
+			/*border-radius: 40px;*/
+			width: 40px;
+			height:40px;
+			margin: 5px;
+			border: 1px solid rgb(202, 201, 201);
+		}
+		.profilePicOfMe
+		{
+			box-shadow: 0 0 0px 3px rgba(3, 141, 250, 0.67);
+			width: 80px;
+			height: 80px;
+		}
+		.list-group
+		{
+			list-style: none;
+			text-align: center;
+		}
+		.arrowDiv
+		{
+			position:relative;
+			clear: left;
+			margin:0 auto;
+			height:0px;
+			text-align: center;
+			overflow:hidden;
+		}
+		.arrowImg
+		{
+			margin: 0px;
+			width: 30px;
+		}
+		#myfellowSlaveDiv
+		{
+			position:relative;
+			margin: 0 auto;
+			/*display:none;*/
+			height: 0;
+			overflow:hidden;
+		}
+		#mySlaveDiv, #masterDiv
+		{
+			display:none;
+		}
+		.emptyPanel
+		{
+			padding:30px 0px;
+		}
+		.roleDiv
+		{
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+	</style>
+	<script>
+		var previousSlideValue = 1;
+
+		$(document).ready(function(){
+			//set slider
+			$('#mySlider').slider({
+				orientation: "vertical",
+				value:1,
+				min:0,
+				max:2,
+				step:1,
+				slide: function(event, ui){
+					//hideAll();
+					console.log(ui.value);
+					switch(ui.value)
+					{
+						case 0: //show underlings, bottom
+							//change slider text
+							showDiv($("#mySlaveDiv"));
+							(function(){ $("#underlingsText").animate({fontSize: 14,fontWeight: 900}); })();
+
+							(function(){ zoomTextOut($("#myLevelDiv")); })();
+							(function(){ $("#myLevelDiv").animate({"height": "100%"}); })();
+							(function(){ $("#mySlaveDiv").animate({"height": "100%"}); })();
+							(function(){ $("#myfellowSlaveDiv").animate({"height": 0}); })();
+							(function(){ zoomTextIn($("#mySlaveDiv")); })();
+							(function(){ $("#arrowDiv2").animate({"height": 30}); })();
+
+							//zoom me out
+							(function(){ zoomImgOut($("#myLevelDiv .profilePic")); })();
+							//zoom in underlings
+							(function(){ zoomImgIn($("#mySlaveDiv .profilePic")); })();
+
+							previousSlideValue = 0;
+							break;
+						case 1: //show your fellows, middle
+							
+							//zoom me in
+							(function(){ zoomImgIn($(".profilePicOfMe")); })();
+							(function(){ zoomTextIn($("#myLevelDiv")); })();
+
+							if(previousSlideValue == 0)
+							{
+								//change slider text
+								(function(){ $("#underlingsText").animate({fontSize: 12,fontWeight: 400}); })();
+
+								(function(){ $("#mySlaveDiv").animate({"height": 0}); })();
+								//zoom out underlings
+								(function(){ zoomImgOut($("#mySlaveDiv .profilePic")); })();
+								(function(){ zoomTextOut($("#mySlaveDiv")); })();
+								(function(){ $("#arrowDiv2").animate({"height": 0}); })();
+								hideDiv($("#mySlaveDiv"));
+							}
+							else // is 2
+							{
+								//change slider text
+								(function(){ $("#bossText").animate({fontSize: 12,fontWeight: 400}); })();
+
+								(function(){ $("#masterDiv").animate({"height": 0}) })();
+								(function(){ $("#myfellowSlaveDiv").animate({"height": 0}); })();
+								//zoom out on master
+								(function(){ zoomImgOut($("#masterDiv .profilePic")); })();
+								(function(){ zoomTextOut($("#masterDiv")); })();
+								(function(){ $("#arrowDiv1").animate({"height": 0}); })();
+								hideDiv($("#masterDiv"));
+							}
+							
+							previousSlideValue = 1;
+							break;
+						case 2: //show master, top
+							//change sliderText
+							(function(){ $("#bossText").animate({fontWeight: 900,fontSize: 14}); })();
+
+							//zoom in on master
+							showDiv($("#masterDiv"));
+							(function(){ $("#masterDiv").animate({"height": 100}); })();
+							(function(){ zoomImgIn($("#masterDiv .profilePic")); })();
+							(function(){ zoomTextIn($("#masterDiv")); })();
+							(function(){ $("#arrowDiv1").animate({"height": 30}); })();
+							
+							//zoom me out
+							(function(){ zoomTextOut($("#myLevelDiv")); })();
+							(function(){ zoomImgOut($("#myLevelDiv .profilePic")); })();
+							(function(){ $("#myLevelDiv").animate({"height": "100%"}); })();
+							//see all fellowSlaves
+							(function(){ $("#myfellowSlaveDiv").animate({"height": "100%"}); })();
+							previousSlideValue = 2;
+							break;
+
+					}
+				}
+			});
+			$("#myLevelDiv").animate({"font-size":12});
+		});
+		function showDiv(myDiv)
+		{
+			if(myDiv.children().length > 0)
+			{
+				console.log(myDiv.children());
+				(function(){ myDiv.css("display","table");  })();
+			}
+		}
+		function hideDiv(myDiv)
+		{
+			(function(){ myDiv.css("display","block"); })();
+			(function(){myDiv.css("display","none"); })();
+		}
+		function zoomTextIn(myDiv)
+		{
+			(function(){ myDiv.animate({"font-size":12}); })();
+		}
+		function zoomTextOut(myDiv)
+		{
+			(function(){ myDiv.animate({"font-size":10}); })();
+			//console.log(myDiv.attr("id") + " text to small");
+		}
+		function zoomImgIn(myDiv)
+		{
+			(function(){ myDiv.animate({"width":80,"height":80}); })();
+		}
+		function zoomImgOut(myDiv)
+		{
+			(function(){ myDiv.animate({"width":60,"height":60}); })();
+		}
+	</script>
+	<div id="wrapper">
+		<apex:form >
+			<apex:InputHidden id="focusUserId" value="{!currentFocusUserId}"/>
+			<div id="sliderWrapper">
+				<p id="bossText">manager(s)</p>
+				<div id="mySlider"></div>
+				<p id="underlingsText">direct report(s)</p>
+			</div>
+			<div id="masterDiv" class="level">
+				<apex:repeat value="{!me.masters}" var="master">
+					<div class="container">
+						<ul class="list-group">
+							<li>
+								<a class="imgHref" href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!master.Id}&tab=Org_Chart">
+									<img class="profilePic img-circle" src="{!master.SmallPhotoUrl}"/>
+								</a>
+							</li>
+							<li>
+								<a href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!master.Id}&tab=Org_Chart">
+									<apex:outputField value="{!master.Name}"/>
+								</a>
+							</li>
+							<li>
+								<apex:outputField value="{!master.UserRole.Name}" styleClass="list-group-item"/>
+							</li>
+						</ul>
+					</div>
+				</apex:repeat>
+				<apex:outputPanel id="emptyMasterPanel" rendered="{!masterCount == 0}">
+					<div class="emptyPanel">
+						<p>No Manager!</p>
+					</div>
+				</apex:outputPanel>
+			</div>
+
+			<div id="arrowDiv1" class="arrowDiv">
+				<img class="arrowImg" src="{!$Resource.upArrow}"/>
+			</div>
+
+			<div id="myLevelDiv" class="level">
+				<div class="container myContainer">
+					<ul class="list-group">
+						<li>
+							<a href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!me.User.Id}&tab=Org_Chart">
+								<img class="profilePic img-circle profilePicOfMe" src="{!me.User.SmallPhotoUrl}"/>
+							</a>
+						</li>
+						<li>
+							<a href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!me.User.Id}&tab=Org_Chart">
+								<apex:outputField value="{!me.User.Name}"/>
+							</a>
+						</li>
+						<li>
+							<div class="roleDiv list-group-item">{!me.User.UserRole.Name}</div>
+						</li>
+					</ul>
+				</div>
+				<div id="myfellowSlaveDiv">
+					<apex:repeat value="{!me.otherSlavesUnderMaster}" var="otherSlaveUnderMaster">
+						<div class="container">
+							<ul class="list-group">
+								<li>
+									<a class="imgHref" href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!otherSlaveUnderMaster.Id}&tab=Org_Chart">
+										<img class="profilePic img-circle" src="{!otherSlaveUnderMaster.SmallPhotoUrl}"/>
+									</a>
+								</li>
+								<li>
+									<a class="" href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!otherSlaveUnderMaster.Id}&tab=Org_Chart">
+										<apex:outputField value="{!otherSlaveUnderMaster.Name}"/>
+									</a>
+								</li>
+								<li>
+									<div class="roleDiv list-group-item">{!otherSlaveUnderMaster.UserRole.Name}</div>
+								</li>
+							</ul>
+						</div>
+					</apex:repeat>
+				</div>
+			</div>
+
+			<div id="arrowDiv2" class="arrowDiv">
+				<img class="arrowImg" src="{!$Resource.upArrow}"/>
+			</div>
+
+			<div id="mySlaveDiv" class="level">
+				<apex:repeat value="{!me.slaves}" var="slave">
+					<div class="container">
+						<ul class="list-group">
+							<li>
+								<a href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!slave.Id}&tab=Org_Chart">
+									<img class="profilePic img-circle" src="{!slave.SmallPhotoUrl}"/>
+								</a>
+							</li>
+							<li>
+								<a href="{!$Site.Prefix}/_ui/core/userprofile/UserProfilePage?u={!slave.Id}&tab=Org_Chart">
+									<apex:outputField value="{!slave.Name}"/>
+								</a>
+							</li>
+							<li>
+								<div class="roleDiv list-group-item">{!slave.UserRole.Name}</div>
+							</li>
+						</ul>
+					</div>
+				</apex:repeat>
+				<apex:outputPanel id="emptySlavePanel" rendered="{!slaveCount == 0}">
+					<div class="emptyPanel">
+						<p>You have no direct reports!</p>
+					</div>
+				</apex:outputPanel>
+			</div>
+		</apex:form>
+	</div>
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

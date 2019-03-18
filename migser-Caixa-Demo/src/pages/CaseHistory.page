@@ -1,0 +1,78 @@
+<apex:page showHeader="false" controller="CaseHistoryController">
+    <title>Case History </title>
+
+   <div id="caseHeaderImg" style="background: #B7A752 url(/img/sprites/master.png) no-repeat 4px -982px; height:32px; width:100%; padding:8px 4px 0px 40px; font-size:14px; font-weight: bold; color:white;">Case: {!aCase.CaseNumber}</div>
+   
+	 <apex:pageblock tabStyle="Case" ><b>
+	  <apex:panelGrid columns="2" id="top">
+	   <apex:outputText value="SUBJECT:"/> 
+       <apex:outputText value="{!aCase.Subject}"/>
+	   <apex:outputText value="ACCOUNT NAME:"/>  
+	     <apex:outputText ><apex:outputLink value="/{!aCase.AccountId}" id="AccountLink">{!aCase.Account.Name}</apex:outputLink></apex:outputText>
+	   <apex:outputText value="CONTACT NAME: "/>
+	     <apex:outputText ><apex:outputLink value="/{!aCase.ContactId}" id="ContactLink">{!aCase.Contact.Name}</apex:outputLink></apex:outputText>
+	   </apex:panelGrid>
+ </b> </apex:pageblock>
+  <apex:pageblock tabStyle="Case">
+  <apex:form id="lists"> 
+	    <apex:pageBlockTable value="{!CHIlist}" var="list">
+	     
+	      <apex:column >
+	      <apex:facet name="header">
+	       <apex:commandLink action="{!sortByCreateBy}" Value="Created By" rerender="lists"/>
+	      </apex:facet>
+	      <apex:outputLink rendered="{!(list.isActivity||showAll)}" value="/{!list.createdId}" id="createdLink">{!list.createdName}</apex:outputLink>
+	      </apex:column> 
+	      
+	      <apex:column >
+          <apex:facet name="header">
+           <apex:commandLink action="{!sortByOwner}" Value="Owner(Activities Only)" rerender="lists"/>
+          </apex:facet>
+          <apex:outputText ><apex:outputLink rendered="{!NOT(ISBLANK(list.dueDate))}" value="/{!list.ownerId}" id="ownerIdLink">{!list.ownerName}</apex:outputLink></apex:outputText>
+          <apex:outputText value="N/A" rendered="{!ISBLANK(list.dueDate)}"/>
+        </apex:column> 
+	     
+	      <apex:column >
+	       <apex:facet name="header">
+          <apex:commandLink action="{!sortBySubject}" Value="Subject/Comments" rerender="lists"/>
+         </apex:facet>
+	       <apex:outputText ><apex:outputLink rendered="{!NOT(ISBLANK(list.mainId))}" value="/{!list.mainId}" id="mainIdLink">{!LEFT(list.Subject, 32000)}{!IF(LEN(list.Subject)>32000,"...","")}</apex:outputLink>{!list.taskDescription}</apex:outputText>
+	       <apex:outputText value="{!LEFT(list.Subject, 32000)}{!IF(LEN(list.Subject)>32000,"...","")}" rendered="{!ISBLANK(list.mainId)}"/> 
+	      </apex:column>
+	     
+	      <apex:column >
+		     <apex:facet name="header">
+	        <apex:commandLink action="{!sortByType}" Value="Type" rerender="lists"/>
+	       </apex:facet>
+	         <apex:image id="imageType" value="{!list.itemType}"/><apex:outputText value="{!list.itemTypeName}"/>
+	      </apex:column>
+	      
+	      <apex:column >
+		      <apex:facet name="header">
+	         <apex:commandLink action="{!sortByCreateDate}" Value="Created Date" rerender="lists"/>
+	        </apex:facet>
+	        <apex:outputText value="{!list.createDateFix}" rendered="{!(list.isActivity||showAll)}" />
+		    </apex:column>
+		   
+		    <apex:column >
+		      <apex:facet name="header">
+           <apex:commandLink action="{!sortByDueDate}" Value="Due Date(Activities Only)" rerender="lists"/>
+          </apex:facet>
+	        <apex:outputText value="{!list.dueDateFix}" rendered="{!NOT(ISBLANK(list.dueDate))}"/>
+	        <apex:outputText value="N/A" rendered="{!ISBLANK(list.dueDate)}"/>
+	      </apex:column> 
+	    
+	    </apex:pageBlockTable>
+    </apex:form> 
+  </apex:pageblock>  
+      <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

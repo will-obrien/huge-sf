@@ -1,0 +1,400 @@
+<apex:component controller="zqu.QuickFilterController" access="global" >
+
+  <!-- include LocalStorageUtils -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/LocalStorageUtils-compressed.js')}" />
+
+  <!-- include jQuery -->
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+
+  <!-- Attributes -->
+  <apex:attribute description="The name identifier of the filter config object" name="filterName" type="String" assignTo="{!instanceFilterName}" required="true" access="global" />
+  <apex:attribute description="The filter items to be displayed to the user" name="filterItems" type="zqu.FilterItem[]" assignTo="{!instanceFilterItems}" required="false" access="global" />
+
+  <!-- The breadcrumb name used to identify the breadcrumb component -->
+  <apex:variable var="breadcrumbName" value="{!listName}_breadcrumb" />
+
+  <style>
+
+    table#{!instanceFilterName}Filter td {
+      padding: 0;
+    }
+
+    table#{!instanceFilterName}Filter td.filterLabelContainer {
+      vertical-align: top;
+    }
+
+    table#{!instanceFilterName}Filter td.filterListContainer {
+      display: block;
+      width: 600px;
+    }
+
+    div.filterLabel {
+      font-size: 10px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    /* UL should have no bullets*/
+    ul.filterList {
+      list-style-type: none;
+      margin: 0px;
+      padding: 0;
+    }
+
+    ul.doubleColumn {
+      margin: 0;
+    }
+
+    ul.doubleColumn {
+      margin: 0;
+    }
+
+    ul.singleColumn li {
+      list-style-type: none;
+      margin: 0;
+      padding: 5px;
+    }
+
+    ul.singleColumn li label {
+      display: inline-block;
+      line-height: 1.8;
+      max-width: 50%;
+      margin-right: 10px;
+      text-align: right;
+      vertical-align: top;
+      width: 40%;
+    }
+
+    ul.doubleColumn {
+      width: 800px;
+    }
+
+    ul.doubleColumn li {
+      list-style-type: none;
+      margin: 0;
+      padding: 5px;
+
+      width: 48%;
+      float: left;
+      display: inline;
+    }
+
+    ul.doubleColumn li label {
+      display: inline-block;
+      line-height: 1.8;
+      max-width: 50%;
+      margin-right: 10px;
+      text-align: right;
+      vertical-align: top;
+      width: 40%;
+    }
+
+    ul.doubleColumn select {
+      max-width: 55%;
+      width: auto;
+    }
+
+  </style>
+
+  <script>
+    var $jq = jQuery.noConflict();
+    var {!instanceFilterName}Filter = {};
+
+    $jq(
+      function() {
+        // Set multiselect multiple on select tags marked multiselect
+        $jq('table#{!instanceFiltername}Filter select.multiSelect').attr('multiple', 'multiple');
+
+        // Register events to update the breadcrumbs on all of the filters within this component
+        $jq('table#{!instanceFiltername}Filter select.singleSelect').on('change', function(){{!instanceFilterName}Filter.updateBreadcrumb(event);});// click does not work, only change
+        $jq('table#{!instanceFiltername}Filter select.multiSelect').on('change', function(){{!instanceFilterName}Filter.updateBreadcrumb(event);});
+        $jq('table#{!instanceFiltername}Filter input[type="checkbox"]').on('click', function(){{!instanceFilterName}Filter.updateBreadcrumb(event);});
+      }
+    );
+
+    // Update the breadcrumbs when the user updates one of the filter values
+    {!instanceFilterName}Filter.updateBreadcrumb = function(event) {
+      // The parameters to be passed to the breadcrumb
+      var id = event.target.id;
+      var value;
+
+      var elementType = event.target.tagName;
+
+      if(elementType === 'SELECT') {
+        // Check if the wildcard ('All') option is selected, remove the breadcrumb
+        if($jq('option', event.target)[0].selected) {
+          window['breadcrumbs']['{!breadcrumbName}'].remove(id);
+          return;
+        }
+
+        // Find all the selected child options
+        var selectedOptions = [];
+        $jq('option', event.target).each( function() {
+            if(this.selected) selectedOptions.push(this.value);
+          }
+        );
+        value = selectedOptions.join(', ');
+      }
+      else if(elementType === 'INPUT') {
+        value = $jq(event.target).closest('li').attr('data-label');
+
+        // If the checkbox was unchecked, remove its breadcrumb
+        if(!event.target.checked) {
+          window['breadcrumbs']['{!breadcrumbName}'].remove(id);
+          return;
+        }
+      }
+
+      // Do not append a breadcrumb if no value is selected (this may happen if the user clicks on a multiselect picklist without actually clicking on a value)
+      if(!value) return;
+
+      // Append the breadcrumb
+      window['breadcrumbs']['{!breadcrumbName}'].append(id, value);
+    }
+    
+    // Function to update the soql fragments 
+    {!instanceFilterName}Filter.updateSoqlFragments = function() {
+      var soqlFragments = [];
+      var relatedObjectSoqlFragmentsByObjectName = {};
+
+      $jq('table#{!instanceFiltername}Filter select').each(function() {
+        var thisElement = $jq(this);
+        var fieldName = thisElement.closest('li').attr('data-field-name');
+        var selectedOptions = [];
+        var fieldValue = '';
+        var relObjName = thisElement.closest('li').attr('data-rel-obj');
+        var relObjectField = thisElement.closest('li').attr('data-rel-field');
+
+        // Push all of the selected values of this filter into an array
+        $jq('option', thisElement).each(function() {
+          if(this.selected && this.value) {
+            selectedOptions.push(this.value);
+          }
+        });
+
+        // Do not create a soql fragment if no values are selected
+        if(!selectedOptions.length) return;
+
+        // Join the selected values into a single string with a semicolon
+        fieldValue = selectedOptions.join(';');
+
+        var soqlFragment = fieldName + ' = \'' + fieldValue + '\'';
+
+        // If this filter is for a related sub-object, group the soqlFragment
+        if(relObjName && relObjectField) {
+          var relatedObjectSoqlFragmentList = relatedObjectSoqlFragmentsByObjectName[relObjName];
+
+          // If not list of related object soql fragments exist yet, create a new one
+          if(!relatedObjectSoqlFragmentList) {
+            relatedObjectSoqlFragmentList = [relObjectField];// the first element is the object field
+            relatedObjectSoqlFragmentsByObjectName[relObjName] = relatedObjectSoqlFragmentList;
+          }
+
+          // Add the new soql fragment
+          relatedObjectSoqlFragmentList.push(soqlFragment);
+        }
+        else {
+          soqlFragments.push(soqlFragment);
+        }
+      });
+
+      $jq('table#{!instanceFiltername}Filter input[type="checkbox"]').each(function() {
+        var thisElement = $jq(this);
+        var fieldName = thisElement.closest('li').attr('data-field-name');
+        var fieldValue = thisElement[0].checked;
+        var relObjName = thisElement.closest('li').attr('data-rel-obj');
+        var relObjectField = thisElement.closest('li').attr('data-rel-field');
+
+        // Assemble the soql fragment
+        var soqlFragment = fieldName + ' = ' + fieldValue;
+
+        // If this filter is for a related sub-object, group the soqlFragment
+        if(relObjName && relObjectField) {
+          var relatedObjectSoqlFragmentList = relatedObjectSoqlFragmentsByObjectName[relObjName];
+
+          // if not found in map
+          if(!relatedObjectSoqlFragmentList) {
+            relatedObjectSoqlFragmentList = [relObjectField];// first element is the object field
+            relatedObjectSoqlFragmentsByObjectName[relObjName] = relatedObjectSoqlFragmentList;//add to map
+          }
+
+          // Add the new soql fragment
+          relatedObjectSoqlFragmentList.push(soqlFragment);
+        }
+        else {
+          soqlFragments.push(soqlFragment);
+        }
+
+      });
+
+      // Assemble related object soql fragments here
+      for(relatedObject in relatedObjectSoqlFragmentsByObjectName) {
+        // The field name of the select clause is the first element
+        var fieldName = relatedObjectSoqlFragmentsByObjectName[relatedObject].shift();
+        // Join the sub soql fragments by the AND keyword
+        var relatedObjectSoqlFragments = relatedObjectSoqlFragmentsByObjectName[relatedObject].join(' AND ');
+
+        var soqlFragment = 'Id IN (SELECT ' + fieldName + ' FROM ' + relatedObject + ' WHERE ' + relatedObjectSoqlFragments + ')';
+
+        // push to master list
+        soqlFragments.push(soqlFragment);
+      }
+
+      // Store the soql fragment into the local storage
+      LocalStorageUtils.resetComponentFragment('{!listName}', LocalStorageUtils.USER_FILTER_COMPONENT);
+      if(soqlFragments.length) LocalStorageUtils.storeSoqlFragment('{!listName}', LocalStorageUtils.USER_FILTER_COMPONENT, soqlFragments);
+
+      // redraw the list
+      if (typeof({!listName}Redraw) !== 'undefined') {!listName}Redraw();
+    }
+
+    // Clears all filters of the current instance
+    {!instanceFilterName}Filter.clearFilters = function() {
+      // Deselect all options
+      $jq('table#{!instanceFiltername}Filter select option').prop('selected', false);
+
+      // Uncheck all checkboxes
+      $jq('table#{!instanceFiltername}Filter input[type="checkbox"]').prop('checked', false);
+
+      // Clear the soql fragments out of local storage
+      LocalStorageUtils.resetComponentFragment('{!listName}', LocalStorageUtils.USER_FILTER_COMPONENT);
+    }
+
+    // Applies all filters in local storage to the current filter
+    {!instanceFilterName}Filter.restoreFilters = function() {
+      // Retrieve the soql fragments for the filter component associated with this list
+      var filterFragments = LocalStorageUtils.retrieveFragmentByComponent('{!listName}', LocalStorageUtils.USER_FILTER_COMPONENT);
+
+      for(var i = 0; i < filterFragments.length; i++) {
+        // Get the current fragment and split into field name and field value
+        var currentFragment = filterFragments[i];
+        var splitFragment = currentFragment.split(' = ');
+
+        var fieldName = splitFragment[0];
+        var fieldValue = splitFragment[1];
+
+        // If boolean (value is not a string within quotes)
+        if(fieldValue.indexOf('\'') === -1) {
+          // The input will be checked if the fieldValue is "true"
+          var checked = fieldValue === 'true';
+          
+          // Find the checkbox input within the LI of the corresponding fieldName
+          $jq('table#{!instanceFiltername}Filter li[data-field-name="' + fieldName + '"] input[type="checkbox"]').prop('checked', checked);
+        }
+        else {
+          // Remove the leading and trailing quotes from fieldValue and split all selected values into an array (delimited by ';') 
+          // This will have only one member for single-select picklists
+          fieldValue = fieldValue.slice(1, fieldValue.length - 1);
+          var values = fieldValue.split(';');
+
+          // Get the containing LI by field name
+          var currentLi = $jq('table#{!instanceFiltername}Filter li[data-field-name="' + fieldName + '"]');
+
+          // Deselect all options
+          $jq($jq('option', currentLi)).prop('selected', false);
+
+          // Reselect the options found in fieldValue from local storage 
+          $jq.each(values, function(key, value) {
+            $jq('option[value="' + value + '"]', currentLi).prop('selected', true);
+          });
+        }
+      }
+    }
+
+    // Subscribe to the "item deleted from breadcrump" topic
+    pubsubz.subscribe(Topic.BREADCRUMB_ITEM_DELETED, function (topics, data) {
+      // Get the element id and breadcrumb name from the data argument
+      var id = data['id'];
+      var breadcrumbName = data['breadcrumbName'];
+
+      // Get the element to clear
+      var elementToClear = $jq('#' + id);
+
+      // Halt if no element was found
+      if(!elementToClear.length) return;
+
+      // How the element is cleared depends on the element type
+      var elementType = elementToClear[0].tagName;
+
+      // If the element to clear is a select tag, deselect all of its child options
+      if(elementType === 'SELECT') {
+        $jq('option', elementToClear).attr('selected', false);
+      }
+      // If the element to clear is an input, uncheck it
+      else if(elementType === 'INPUT') {
+        elementToClear.attr('checked', false);
+      }
+
+      // Update the soql fragments and redraw the list
+      {!instanceFilterName}Filter.updateSoqlFragments();
+    });
+
+  </script>
+
+
+  <table id="{!instanceFilterName}Filter">
+    <tr>
+      <td class="filterLabelContainer" >
+        <div class="filterLabel" >Filter:</div>
+      </td>
+      
+      <td class="filterListContainer" >
+
+        <!-- test single column -->
+        <apex:outputPanel rendered="{!filter.zqu__IsSingleColumn__c}" >
+          <ul class="singleColumn" >
+            <apex:repeat value="{!instanceFilterItems}" var="userFilter" >
+              <li data-field-name="{!userFilter.filterFieldName}" data-label="{!userFilter.label}" data-rel-obj="{!userFilter.relatedObjectName}" data-rel-field="{!userFilter.relatedObjectField}" >
+
+                <!-- For type picklist -->
+                <apex:outputPanel rendered="{!userFilter.isPicklist}" >
+                  <label for="{!userFilter.id}" >{!HTMLENCODE(userFilter.label)}:</label>
+                  <select onchange="{!instanceFilterName}Filter.updateSoqlFragments();" class="userSelect {!IF(userFilter.isMultiSelect, 'multiSelect', 'singleSelect')}" id="{!userFilter.id}" size="{!userFilter.size}" >
+                    <apex:repeat value="{!userFilter.selectOptions}" var="option">
+                      <option value="{!JSENCODE(option.value)}">{!option.label}</option>
+                    </apex:repeat>
+                  </select>
+                </apex:outputPanel>
+
+                <!-- For type boolean -->
+                <apex:outputPanel rendered="{!userFilter.isCheckbox}" >
+                  <label for="{!userFilter.id}">{!HTMLENCODE(userFilter.label)}:</label>
+                  <input onclick="{!instanceFilterName}Filter.updateSoqlFragments();" type="checkbox" id="{!userFilter.id}" />
+                </apex:outputPanel>
+
+              </li>
+            </apex:repeat>
+          </ul>
+        </apex:outputPanel>
+
+        <apex:outputPanel rendered="{!NOT(filter.zqu__IsSingleColumn__c)}" >
+          <ul class="doubleColumn" >
+            <apex:repeat value="{!instanceFilterItems}" var="userFilter" >
+              <li data-field-name="{!userFilter.filterFieldName}" data-label="{!userFilter.label}" data-rel-obj="{!userFilter.relatedObjectName}" data-rel-field="{!userFilter.relatedObjectField}" >
+
+                <!-- For type picklist -->
+                <apex:outputPanel rendered="{!userFilter.isPicklist}" >
+                  <label for="{!userFilter.id}" >{!HTMLENCODE(userFilter.label)}:</label>
+                  <select onchange="{!instanceFilterName}Filter.updateSoqlFragments();" class="userSelect {!IF(userFilter.isMultiSelect, 'multiSelect', 'singleSelect')}" id="{!userFilter.id}" size="{!userFilter.size}" >
+                    <apex:repeat value="{!userFilter.selectOptions}" var="option">
+                      <option value="{!JSENCODE(option.value)}">{!option.label}</option>
+                    </apex:repeat>
+                  </select>
+                </apex:outputPanel>
+
+                <!-- For type boolean -->
+                <apex:outputPanel rendered="{!userFilter.isCheckbox}" >
+                  <label for="{!userFilter.id}">{!HTMLENCODE(userFilter.label)}:</label>
+                  <input onclick="{!instanceFilterName}Filter.updateSoqlFragments();" type="checkbox" id="{!userFilter.id}" />
+                </apex:outputPanel>
+
+              </li>
+            </apex:repeat>
+          </ul>
+        </apex:outputPanel>
+
+      </td>
+    </tr>
+  </table>
+
+</apex:component>

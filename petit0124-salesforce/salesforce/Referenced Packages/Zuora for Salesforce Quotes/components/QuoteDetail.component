@@ -1,0 +1,626 @@
+<apex:component controller="zqu.QuoteDetailController"
+  extensions="zqu.QuoteRecalculateController,zqu.JsRemoteController">
+
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery-ui-1.10.3.custom-compressed.js')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, 'jquery-ui-1103.css')}" />
+  <apex:includeScript value="{!$Resource.zqu__jshashtable}" />
+  <apex:includeScript value="{!$Resource.zqu__jquerynumberformat}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/QuoteDetail-min.css')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/TermsAndConditions-min.css')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/TermsAndConditions-compressed.js')}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/RadioButtonField-compressed.js')}" />
+
+  <apex:attribute name="theQuoteId" assignTo="{!quoteId}"
+    description="the quote id" type="String" required="true" />
+
+  <script>
+    var $jq = jQuery.noConflict();
+    var zQuotesNamespace = '{!namespace}';
+
+    function createQuote_CSSSet(dataId) {
+      var selector = "span[data-id='" + dataId + "']";
+      var ele = $jq(selector);
+      if (ele.length) {
+        ele.each(function(index) {
+          var parentEle = $jq(this).parent(".dataCol");
+          var parentEle2 = $jq(this).parent(".data2Col");
+          if (parentEle.length) {
+            parentEle.removeClass("dataCol"); 
+          }
+          if (parentEle2.length) {
+            parentEle2.removeClass("data2Col");
+          }
+        });
+      }
+    };
+    
+    function zhelpMouseOver(ele, isOver){
+      if(ele){
+        if(isOver === true){
+          $jq(ele).removeClass("zcustomField");
+          $jq(ele).addClass("zcustomFieldOn");
+        }
+        else {
+          $jq(ele).removeClass("zcustomFieldOn");
+          $jq(ele).addClass("zcustomField"); 
+        }
+      }
+    }
+
+    // Toggle the view of the Renewal Term field based on Renewal Setting value (new subscription quotes only)
+    function toggleRenewalTerm(renewalSettingValue) {
+      // Find the RenewalTerm marker
+      var renewalTermMarker = $jq('span[data-field-name="{!namespace}RenewalTerm__c"]');
+
+      // If the renewal term field was found, change it
+      if(renewalTermMarker.length) {
+        var parentTd = renewalTermMarker.closest('td');
+
+        if(renewalSettingValue == 'RENEW_TO_EVERGREEN') {
+          // Hide
+          parentTd.css('display', 'none');
+          parentTd.prev('th').css('display', 'none');
+        }
+        else {
+          // Show
+          parentTd.css('display', 'table-cell');
+          parentTd.prev('th').css('display', 'table-cell');
+        }
+      }
+    }
+
+    function initRenewalSetting() {
+      var renewalSettingRadioButtonOptions = {};
+      renewalSettingRadioButtonOptions.fieldName = '{!namespace}RenewalSetting__c';
+      renewalSettingRadioButtonOptions.editMode = {!isInEditMode};// For quote detail component, editMode depends on url parameter
+
+      renewalSettingRadioButtonOptions.defaultValue = '{!quote.RenewalSetting__c}';
+      renewalSettingRadioButtonOptions.onclick = function(event){
+        $jq('input[data-id="renewalSettingHiddenInput"]').val(event.data.updatedValue);
+
+        // Toggle the visibility of the RenewalTerm input field (different function for new subscription quote type)
+        TermsAndConditions.toggleRenewalTerm(event.data.updatedValue);
+      };
+      renewalSettingRadioButtonOptions.values = [
+        {'label' : '{!$Label.RENEWAL_SETTING_RENEW_WITH_SPECIFIC_TERM}', 'value' : 'RENEW_WITH_SPECIFIC_TERM'}, 
+        {'label' : '{!$Label.RENEWAL_SETTING_RENEW_TO_EVERGREEN}', 'value' : 'RENEW_TO_EVERGREEN'}
+      ];
+
+      // Initialize the radio button
+      RadioButtonField.initRadioButtonField(renewalSettingRadioButtonOptions);
+    }
+    
+    $jq(function() {
+      createQuote_CSSSet("customRenderedMrr");
+      createQuote_CSSSet("customRenderedTcv");
+      createQuote_CSSSet("customRenderedSubTotal");
+      createQuote_CSSSet("customRenderedTotal");
+      createQuote_CSSSet("customRenderedDiscount");
+      createQuote_CSSSet("customRenderedTax");
+      createQuote_CSSSet("customRenderedQuoteMetrics");
+      createQuote_CSSSet("customRenderedCurrency");
+      createQuote_CSSSet("customRenderedInvoiceOwner");
+      createQuote_CSSSet("customRenderedParentBillingAccount");
+      createQuote_CSSSet("customRenderedTermType");
+
+      setTermTypeRelatedFieldsCSS();
+      changeTermType("{!quote.Subscription_Term_Type__c}");
+      var imgEle = $jq( "img[id*='z-help-orb']" );
+      if(imgEle.length){
+        imgEle.each(function(index){
+          $jq(this).tooltip({position: {my: "right top+5"}});
+        });
+        recalculate();
+      }
+
+      // Get debugMode from URL parameters
+      var debugMode = '{!$CurrentPage.parameters.jsDebugMode}';
+
+      // Init renewal setting radio button
+      initRenewalSetting();
+
+      // Init TermsAndConditions JS and toggle the RenewalTerm field
+      var defaultVals = $jq.parseJSON('{!defaultTermsAndConditionsJson}');
+      TermsAndConditions.init(zQuotesNamespace, defaultVals, "{!quote.Subscription_Term_Type__c}", "{!$RemoteAction.JsRemoteController.recalculateTermEndDate}", debugMode);
+      if('{!quote.Subscription_Term_Type__c}' != 'Evergreen' && '{!quote.RenewalSetting__c}' == 'RENEW_TO_EVERGREEN') TermsAndConditions.toggleRenewalTerm('{!quote.RenewalSetting__c}');
+          
+      //COM-6015 - Related links should target top frame to avoid page within a page
+      $jq("a[id^='lookup']").each(function() {
+
+        //Set hyperlink target to top
+        this.target = "_top";
+        
+        //When user mouses over related object link, fix hyperlinks/inputs of object summary popup
+        $jq(this).bind("mouseover", function() {
+      
+          //Get related object id from link URL
+          var objId = this.href.substr(this.href.lastIndexOf('/') + 1, 15);
+            
+          //If user mouses over a hover detail, set the hyperlink/input targets upon mouseenter
+          $jq("div.lookupHoverDetail").mouseenter( function(event) {
+            $jq("a", this).attr("target", "_top");
+            $jq("input.btn", this).attr("onclick", function() {
+              if(this.name == "edit") return "window.top.location.href='/{objId}/e?retURL=%2F{!quoteId}'".replace('{objId}', objId);
+              return "window.top.location.href='/{objId}'".replace('{objId}', objId);
+              }
+            );
+            }
+          );
+          }
+        );
+        }
+      );
+    });
+        
+    function updateNum(selector, val){
+      if(val != null && typeof val == 'number'){
+        $jq(selector).html(val);
+        $jq(selector).formatNumber({
+          format : "#,##0.00",
+          locale : "{!userLocaleForJS}"
+        });
+      }
+      else {
+        $jq(selector).html('');
+      }
+    }
+
+    function recalculate() {
+      $jq("#jsModalMsg").html("").hide();
+      var selector = "img[id*='chargeUpdateImage'][src*='{!$Resource.zqu__refresh}']";
+      var refreshIconUrl = '{!$Resource.zqu__refresh}';
+
+      // Set imgs src from refresh to loading icon
+      var imgs = $jq(selector);
+      if (imgs.length) {
+        imgs.each(function(index) {
+          this.src = '{!$Resource.loading}';
+        });
+      }
+      else {
+        return false;
+      }
+      var quoteId = '{!quote.Id}';
+      Visualforce.remoting.Manager
+          .invokeAction(
+              '{!$RemoteAction.QuoteRecalculateController.JR_recalculate}',
+              quoteId,
+              function(result, event) {
+                if (event.status) {
+                  if (result.success) {
+                    // Remove the imgs from the DOM
+                    imgs.remove();
+
+                    $jq("span[data-id='chargePanel']")
+                        .removeClass("expiredCharge");
+                    if(!result.message){
+
+                      updateNum('#mrrValue', result.totalMrr);
+                      updateNum('#tcvValue', result.totalTcv);
+                      if(result.totalInfo){
+                        updateNum('#subTotalValue', result.totalInfo.subTotal);
+                        updateNum('#totalValue', result.totalInfo.total);
+                        updateNum('#discountValue', result.totalInfo.discount);
+                        updateNum('#taxValue', result.totalInfo.tax);
+                      }
+                      else {
+                        updateNum('#subTotalValue', '');
+                        updateNum('#totalValue', '');
+                        updateNum('#discountValue', '');
+                        updateNum('#taxValue', '');
+                      }
+
+                      // Update charge metrics in the product selector (for new subscriptions only)
+                      if('{!quote.SubscriptionType__c}' == 'New Subscription' && result.chargeMetrics && result.chargeMetrics.length) {
+                        console.log('updating UI chargeMetrics');
+                        for(var i = 0; i < result.chargeMetrics.length; i++) {
+                          var cm = result.chargeMetrics[i];
+
+                          // Update the previewed MRR and TCV
+                          if(cm.sfdcQuoteRatePlanChargeId) {
+                            if(cm.mrr) {
+                              updateNum('tr[data-id="' + cm.sfdcQuoteRatePlanChargeId + '"] > td.{!namespace}previewedmrr__c', cm.mrr);
+                            }
+                            if(cm.tcv) {
+                              updateNum('tr[data-id="' + cm.sfdcQuoteRatePlanChargeId + '"] > td.{!namespace}previewedtcv__c', cm.tcv);
+                            }
+                          }
+                        } 
+                      }
+
+                    }
+                  } else {
+                    if (imgs.length) {
+                      imgs.each(function(index) {
+                            this.src = refreshIconUrl;
+                          });
+                    }
+                    showMessage(result.message, 'error');
+                  }
+                } else {
+                  if (imgs.length) {
+                    imgs.each(function(index) {
+                      this.src = refreshIconUrl;
+                    });
+                  }
+                  if (event.type == 'exception') {
+                    if(event.code != 'xhr'){
+                      showMessage(event.message, 'error');
+                    }
+                  } else {
+                    showMessage(event.message, 'error');
+                  }
+                }
+              });
+
+    }
+    
+    function showMessage(msg, type){
+      var cls = 'msg-success';
+      if(type && type == 'error'){
+        cls = 'msg-failure';
+      }
+      else if(type && type == 'warning'){
+        cls = 'msg-warning';
+      }
+      $jq("#jsModalMsg").html(msg).addClass(cls).show();
+    }
+
+    function setTermTypeRelatedFieldsCSS() {
+      if ($jq("span[data-id='termTypeRelatedFields_false']")) {
+        var ele = $jq("span[data-id='customRenderedTermType']");
+        var parentTd = ele.parents("td:first");
+        var parentSiblingTd = parentTd.prevUntil("td:first");
+        if (parentSiblingTd.length) {
+          var relatedFields = $jq("span[data-id='termTypeRelatedFields_false']");
+          relatedFields.css("margin-left", "-100%");
+        }
+      }
+    }
+
+    function changeCurrency(val) {
+      if (validateInvoiceOwner)
+        validateInvoiceOwner(val);
+    }
+
+    var relatedFields;
+
+    function changeTermType(val) {
+      if ($jq("span[data-id='termTypeRelatedFields_false']").length) {
+        relatedFields = $jq("span[data-id='termTypeRelatedFields_false']");
+      }
+      if ($jq("span[data-id='termTypeRelatedFields_true']").length) {
+        relatedFields = $jq("span[data-id='termTypeRelatedFields_true']");
+      }
+      if (relatedFields != null) {
+        if (val == "Termed") {
+          parentNodeOfRelatedFields = $jq("span[data-id='customRenderedTermType']");
+          parentNodeOfRelatedFields.append(relatedFields);
+        } else {
+          relatedFields.remove();
+        }
+      }
+    }
+    
+    var zqc = {};
+    zqc.updateQuoteMetricsThrough = function(val){
+      $jq('input[id*="zqcqmt"]').val(val);
+    }
+    zqc.afterPeriodsInput = function(val){
+      var zqcbp = $jq('[name="zqc-quoteMetricsThrough"]')[0];
+      if(!zqcbp.checked){
+        return;
+      }
+      if((typeof val) != 'undefined' && val != null && !isNaN(val) && parseInt(val).toString() == val){
+        if(parseInt(val) > 0 && parseInt(val) <= 36){
+          zqc.updateQuoteMetricsThrough(val);
+          return;
+        }
+      }
+      alert('{!$Label.BILLING_PERIODS_VALIDATION_MSG}');
+    }
+    zqc.updateBillingPeriods = function(ele){
+      if(!ele.value)
+        return;
+      var val = ele.value;
+      zqc.updateQuoteMetricsThrough(val);
+    }
+  </script>
+  
+  <div id="zqu-quoteDetailPanel">
+    <div id="quotePropertyContainer" >
+      <apex:sectionHeader rendered="{!isInEditMode}" title="{!$Label.QUOTE_ENHANCEMENT_TITLE}"
+        subtitle="{!$Label.Edit_Quote_Details}" />
+
+      <!-- Hidden inputs to be used for recalculating term end date -->
+      <apex:outputPanel rendered="{!OR(quote.zqu__SubscriptionType__c == 'Amend Subscription', quote.zqu__SubscriptionType__c == 'Renew Subscription')}" >
+        <apex:inputHidden value="{!updatedTermEndDate}" html-data-id="updatedTermEndDateString" />
+      </apex:outputPanel>
+
+      <p id="jsModalMsg"
+        style="margin-top: 0.5em; margin-bottom: 1em; display: none"></p>
+      <c:PropertyComponent options="{!pcOptions}">
+        <!-- Custom Rendered Invoice Owner -->
+        <apex:outputPanel id="customRenderedInvoiceOwner"
+          html-data-id="customRenderedInvoiceOwner"
+          rendered="{!AND(isInvoiceOwnerEnabled, isInEditMode, IF(field.name == namespace + 'InvoiceOwnerName__c', true, false))}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="padding-right:8px; float: left; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol">
+              <apex:outputLabel style="margin-right: 8px;">{!field.label}</apex:outputLabel>
+            </apex:outputPanel>
+            <apex:outputPanel style="float: left; padding-top:5px;">
+              <c:LookupComponent options="{!invoiceOwnerLookupOptions}"
+                isRequired="{!field.isRequired}"></c:LookupComponent>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+        <!-- Custom Rendered Currency -->
+        <apex:outputPanel styleClass="customRenderedFieldPanel"
+          html-data-id="customRenderedCurrency"
+          rendered="{!AND(isInvoiceOwnerEnabled, isInEditMode, IF(field.name == namespace + 'Currency__c', true, false))}">
+          <apex:outputPanel style="padding-right:8px; float: left; padding-top: 0px; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+            styleClass="labelCol">
+            <apex:outputLabel style="margin-right: 10px;">{!field.label}</apex:outputLabel>
+          </apex:outputPanel>
+          <apex:inputField value="{!quote.zqu__Currency__c}"
+            required="{!field.isRequired}"
+            onchange="displayStatusModal();changeCurrency(this.options[this.selectedIndex].value);" />
+        </apex:outputPanel>
+
+        <!-- billing account -->
+        <apex:outputPanel id="customRenderedParentBillingAccount"
+          html-data-id="customRenderedParentBillingAccount"
+          rendered="{!AND(isParentAccountEnabled, isInEditMode, IF(field.name == namespace + 'ZuoraParentBillingAccountName__c', true, false))}">
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel style="padding-right:8px; float: left; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol">
+              <apex:outputLabel style="margin-left: 10px;">{!field.label}</apex:outputLabel>
+            </apex:outputPanel>
+            <apex:outputPanel style="float: left; padding-top:5px;">
+              <c:LookupComponent options="{!parentBillingAccountLookupOptions}"></c:LookupComponent>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+        </apex:outputPanel>
+        <apex:outputPanel html-data-id="customRenderedQuoteMetrics"
+          rendered="{!AND(field.name == (namespace + 'Calculate_Quote_Metrics_Through__c'), isInEditMode)}">
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel style="padding-right:8px; float: left; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol">
+              <apex:outputLabel style="margin-left: 10px;">{!field.label}</apex:outputLabel>
+            </apex:outputPanel>
+            <apex:outputPanel >
+              <apex:outputPanel rendered="{!quoteMetricsThroughVal == 'EOT'}">
+                <apex:outputPanel >
+                  <input type="radio" value="1"
+                    onclick="zqc.updateQuoteMetricsThrough($jq('[id*=\'zqcbp\']').val());"
+                    name="zqc-quoteMetricsThrough" />
+                  <apex:inputText id="zqcbp1" style="width: 3em"
+                    value="{!quoteMetricsDisplayValue}"
+                    onchange="zqc.afterPeriodsInput(this.value);" />
+                  <apex:outputText value=" {!$Label.BILLING_PERIODS} (1 - 36)"></apex:outputText>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block">
+                  <input type="radio" name="zqc-quoteMetricsThrough" value="EOT"
+                    onclick="zqc.updateQuoteMetricsThrough(this.value);"
+                    checked="checked" />
+                  <apex:outputText value="{!$Label.END_OF_TERM}" />
+                </apex:outputPanel>
+              </apex:outputPanel>
+              <apex:outputPanel rendered="{!quoteMetricsThroughVal != 'EOT'}">
+                <apex:outputPanel rendered="{!(quoteMetricsThroughVal == null || quoteMetricsThroughVal == '')}">
+                  <input type="radio" value="1"
+                    onclick="zqc.updateQuoteMetricsThrough($jq('[name*=\'zqcbp\']').val());"
+                    name="zqc-quoteMetricsThrough" />
+                  <apex:inputText id="zqcbp2" style="width: 3em"
+                    value="{!quoteMetricsDisplayValue}"
+                    onchange="zqc.afterPeriodsInput(this.value);" />
+                  <apex:outputText value=" {!$Label.BILLING_PERIODS} (1 - 36)"></apex:outputText>
+                </apex:outputPanel>
+                <apex:outputPanel rendered="{!NOT(quoteMetricsThroughVal == null || quoteMetricsThroughVal == '')}">
+                  <input type="radio" value="1"
+                    onclick="zqc.updateQuoteMetricsThrough($jq('[name*=\'zqcbp\']').val());"
+                    name="zqc-quoteMetricsThrough" checked="checked" />
+                  <apex:inputText id="zqcbp3" style="width: 3em"
+                    value="{!quoteMetricsThroughVal}"
+                    onchange="zqc.afterPeriodsInput(this.value);" />
+                  <apex:outputText value=" {!$Label.BILLING_PERIODS} (1 - 36)"></apex:outputText>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block">
+                  <input type="radio" name="zqc-quoteMetricsThrough" value="EOT"
+                    onclick="zqc.updateQuoteMetricsThrough(this.value);" />
+                  <apex:outputText value="{!$Label.END_OF_TERM}" />
+                </apex:outputPanel>
+              </apex:outputPanel>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+        </apex:outputPanel>
+        <apex:outputPanel id="customRenderedMrr"
+          html-data-id="customRenderedMrr"
+          rendered="{!AND((field.name == (namespace + 'Previewed_MRR__c') || field.name == (namespace + 'Previewed_Delta_MRR__c')), !isInEditMode)}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol zcustomField"
+              onmouseover="zhelpMouseOver(this, true);"
+              onmouseout="zhelpMouseOver(this, false);">
+              <apex:outputLabel >
+                {!field.label}
+              </apex:outputLabel>
+              <img id="z-help-orb" src="/s.gif" alt="{!field.label}"
+                class="zhelpOrb" title="{!$Label.QUOTE_METRICS_MRR}" />
+            </apex:outputPanel>
+            <apex:outputPanel html-data-id="chargePanel"
+              styleClass="dataCol {!IF(quote[namespace + 'Is_Charge_Expired__c'], 'expiredCharge', '')}"
+              style="padding-left: 1px; float: left;">
+              <apex:image id="chargeUpdateImage" onclick="recalculate();"
+                style="margin-bottom: -1px; cursor: pointer;"
+                rendered="{!quote[namespace + 'Is_Charge_Expired__c']}"
+                title="{!$Label.Update_Expired_Charge}"
+                url="{!$Resource.zqu__refresh}" height="11px" />
+              <span id="mrrValue"><apex:outputField value="{!quote[field.name]}" />
+              </span>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="customRenderedTcv"
+          html-data-id="customRenderedTcv"
+          rendered="{!AND((field.name == (namespace + 'Previewed_TCV__c') || field.name == (namespace + 'Previewed_Delta_TCV__c')), !isInEditMode)}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol zcustomField"
+              onmouseover="zhelpMouseOver(this, true);"
+              onmouseout="zhelpMouseOver(this, false);">
+              <apex:outputLabel >{!field.label}</apex:outputLabel>
+              <img id="z-help-orb" src="/s.gif" alt="{!field.label}"
+                class="zhelpOrb" title="{!$Label.QUOTE_METRICS_TCV}" />
+            </apex:outputPanel>
+            <apex:outputPanel html-data-id="chargePanel"
+              styleClass="dataCol {!IF(quote[namespace + 'Is_Charge_Expired__c'], 'expiredCharge', '')}"
+              style="padding-left: 1px; float: left;">
+              <apex:image alt="Update" title="{!$Label.Update_Expired_Charge}"
+                id="chargeUpdateImage" onclick="recalculate();"
+                style="margin-bottom: -1px; cursor: pointer;"
+                rendered="{!quote[namespace + 'Is_Charge_Expired__c']}"
+                url="{!$Resource.zqu__refresh}" height="11px" />
+              <span id="tcvValue"><apex:outputField value="{!quote[field.name]}" />
+              </span>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="customRenderedSubTotal"
+          html-data-id="customRenderedSubTotal"
+          rendered="{!AND(field.name == (namespace + 'Previewed_SubTotal__c'), !isInEditMode)}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol zcustomField"
+              onmouseover="zhelpMouseOver(this, true);"
+              onmouseout="zhelpMouseOver(this, false);">
+              <apex:outputLabel >{!field.label}</apex:outputLabel>
+              <img id="z-help-orb" src="/s.gif" alt="{!field.label}"
+                class="zhelpOrb" title="{!$Label.QUOTE_METRICS_SUBTOTAL}" />
+            </apex:outputPanel>
+            <apex:outputPanel html-data-id="chargePanel"
+              styleClass="dataCol {!IF(quote[namespace + 'Is_Charge_Expired__c'], 'expiredCharge', '')}"
+              style="padding-left: 1px; float: left;">
+              <apex:image id="chargeUpdateImage" onclick="recalculate();"
+                style="margin-bottom: -1px; cursor: pointer;"
+                rendered="{!quote[namespace + 'Is_Charge_Expired__c']}"
+                title="{!$Label.Update_Expired_Charge}"
+                url="{!$Resource.zqu__refresh}" height="11px" />
+              <span id="subTotalValue"><apex:outputField value="{!quote[field.name]}" />
+              </span>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="customRenderedTotal"
+          html-data-id="customRenderedTotal"
+          rendered="{!AND(field.name == (namespace + 'Previewed_Total__c'), !isInEditMode)}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol zcustomField"
+              onmouseover="zhelpMouseOver(this, true);"
+              onmouseout="zhelpMouseOver(this, false);">
+              <apex:outputLabel >{!field.label}</apex:outputLabel>
+              <img id="z-help-orb" src="/s.gif" alt="{!field.label}"
+                class="zhelpOrb" title="{!$Label.QUOTE_METRICS_TOTAL}" />
+            </apex:outputPanel>
+            <apex:outputPanel html-data-id="chargePanel"
+              styleClass="dataCol {!IF(quote[namespace + 'Is_Charge_Expired__c'], 'expiredCharge', '')}"
+              style="padding-left: 1px; float: left;">
+              <apex:image id="chargeUpdateImage" onclick="recalculate();"
+                style="margin-bottom: -1px; cursor: pointer;"
+                rendered="{!quote[namespace + 'Is_Charge_Expired__c']}"
+                title="{!$Label.Update_Expired_Charge}"
+                url="{!$Resource.zqu__refresh}" height="11px" />
+              <span id="totalValue"><apex:outputField value="{!quote[field.name]}" />
+              </span>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="customRenderedDiscount"
+          html-data-id="customRenderedDiscount"
+          rendered="{!AND(field.name == (namespace + 'Previewed_Discount__c'), !isInEditMode)}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol zcustomField"
+              onmouseover="zhelpMouseOver(this, true);"
+              onmouseout="zhelpMouseOver(this, false);">
+              <apex:outputLabel >{!field.label}</apex:outputLabel>
+              <img id="z-help-orb" src="/s.gif" alt="{!field.label}"
+                class="zhelpOrb" title="{!$Label.QUOTE_METRICS_DISCOUNT}" />
+            </apex:outputPanel>
+            <apex:outputPanel html-data-id="chargePanel"
+              styleClass="dataCol {!IF(quote[namespace + 'Is_Charge_Expired__c'], 'expiredCharge', '')}"
+              style="padding-left: 1px; float: left;">
+              <apex:image id="chargeUpdateImage" onclick="recalculate();"
+                style="margin-bottom: -1px; cursor: pointer;"
+                rendered="{!quote[namespace + 'Is_Charge_Expired__c']}"
+                title="{!$Label.Update_Expired_Charge}"
+                url="{!$Resource.zqu__refresh}" height="11px" />
+              <span id="discountValue"><apex:outputField value="{!quote[field.name]}" />
+              </span>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+
+        <apex:outputPanel id="customRenderedTax"
+          html-data-id="customRenderedTax"
+          rendered="{!AND(field.name == (namespace + 'Previewed_Tax__c'), !isInEditMode)}">
+          <apex:pageblockSectionItem >
+            <apex:outputPanel style="width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+              styleClass="labelCol zcustomField"
+              onmouseover="zhelpMouseOver(this, true);"
+              onmouseout="zhelpMouseOver(this, false);">
+              <apex:outputLabel >{!field.label}</apex:outputLabel>
+              <img id="z-help-orb" src="/s.gif" alt="{!field.label}"
+                class="zhelpOrb" title="{!$Label.QUOTE_METRICS_TAX}" />
+            </apex:outputPanel>
+            <apex:outputPanel html-data-id="chargePanel"
+              styleClass="dataCol {!IF(quote[namespace + 'Is_Charge_Expired__c'], 'expiredCharge', '')}"
+              style="padding-left: 1px; float: left;">
+              <apex:image id="chargeUpdateImage" onclick="recalculate();"
+                style="margin-bottom: -1px; cursor: pointer;"
+                rendered="{!quote[namespace + 'Is_Charge_Expired__c']}"
+                title="{!$Label.Update_Expired_Charge}"
+                url="{!$Resource.zqu__refresh}" height="11px" />
+              <span id="taxValue"><apex:outputField value="{!quote[field.name]}" />
+              </span>
+            </apex:outputPanel>
+          </apex:pageblockSectionItem>
+        </apex:outputPanel>
+      </c:PropertyComponent>
+
+      <apex:outputPanel rendered="{!NOT(isInEditMode)}">
+        <c:SelectProduct options="{!selectProductOptions}" />
+      </apex:outputPanel>
+    </div>
+  </div>
+
+  <!-- Hidden input to access renewal setting -->
+  <apex:inputHidden value="{!updatedRenewalSetting}" html-data-id="renewalSettingHiddenInput" />
+
+  <apex:actionFunction name="validateInvoiceOwner"
+    rendered="{!AND(isInvoiceOwnerEnabled, isInEditMode)}"
+    action="{!onCurrencyChange}"
+    rerender="notificationPanel,customRenderedInvoiceOwner"
+    immediate="true" oncomplete="javascript:closeStatusModal();">
+    <apex:param assignTo="{!selectedCurrency}" value="" name="val" />
+  </apex:actionFunction>
+  <apex:actionFunction name="changeInvoiceOwner"
+    rendered="{!AND(isInvoiceOwnerEnabled, isInEditMode)}"
+    action="{!changeInvoiceOwner}" status="modalStatus"
+    rerender="notificationPanel" immediate="true">
+    <apex:param assignTo="{!invoiceOwnerLookupOptions.targetId}" value=""
+      name="valId" />
+    <apex:param assignTo="{!invoiceOwnerLookupOptions.targetName}"
+      value="" name="valName" />
+  </apex:actionFunction>
+  <apex:actionStatus id="modalStatus" onstart="displayStatusModal();"
+    onstop="closeStatusModal();" />
+  <apex:inputHidden value="{!quoteMetricsThroughVal}" id="zqcqmt" />
+</apex:component>

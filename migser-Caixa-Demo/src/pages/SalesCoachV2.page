@@ -1,0 +1,159 @@
+<apex:page showheader="false" 
+		   controller="SalesCoachControllerV2" 
+		   standardStylesheets="false">
+<title>Sales Coach v2</title>
+<style type = "text/css">
+    body {font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 13px;margin-left:0px;}
+    .content {background-color: #EEECD1; background-repeat:repeat-x; border-radius: 20px; -moz-border-radius: 20px; -webkit-border-radius: 20px; border: #CCCCCC 3px solid; margin: 0 auto; width: 825px; margin-bottom: 15px;}
+    .toptable { margin: 5 auto; width: 97%; color: black; padding: 12px; }
+    .table { margin: 0 auto; margin-left: 10px; color: white; width: 100%;}
+    .activitiesTable {border: 2px solid white;  -moz-border-radius: 5px; -webkit-border-radius: 5px; margin-top: 10px; padding: 10px; margin: 0 auto; background-color:#F1DF96; color:black;}
+    .toptable_box {border: 2px solid white; background-color: #E5C130; -moz-border-radius: 5px; -webkit-border-radius: 5px; margin-top: 10px; padding: 10px;}
+    .midtable {background-color: #E5C130; border: 2px solid white;  -moz-border-radius: 5px; -webkit-border-radius: 5px; margin-top: 10px; padding: 10px; margin: 0 auto;  }
+    .headingtable {background-color: #E5C130; border: 2px solid white;  -moz-border-radius: 5px; -webkit-border-radius: 5px; padding: 10px; color: white; text-align: center; font-weight: bold;}
+    .bottomtable {background-color: #F1DF96; border: 2px solid white;  -moz-border-radius: 14px; -webkit-border-radius: 14px; padding: 10px; color: black; text-align: left; font-size: 12px;}
+    .bottom {height: 25px;}
+    .nosoftware {float: right; padding-right: 10px; margin-top: -30px; z-index: 100;}
+    .toptable td {padding:0px 12px; font-size:11px;}
+</style>
+
+<apex:pageMessages />
+
+<apex:form id="salescoachform">
+<div class="content">
+
+    <div class="toptable">
+    <apex:pageblock >
+        <apex:pageblocksection showheader="false" columns="3">
+            
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="stage" value="Stage Name" />
+                <apex:selectList value="{!opportunityStage}" size="1" multiselect="false">
+                    <apex:selectOptions value="{!OpptyStages}" />
+                    <apex:actionSupport event="onchange" action="{!updateStageData}" reRender="mainBlock,act,errorMessageBlock" status="processingStatus"/>                   
+                </apex:selectList>
+            </apex:pageblocksectionitem>
+            
+        </apex:pageBlockSection>
+        <apex:pageblocksection columns="2" showHeader="false">
+            <apex:pageblocksectionitem >
+            <apex:actionStatus id="processingStatus" startText="whats this">
+            <apex:facet name="start">
+                <apex:outputPanel id="processing">
+                    <img src="{!$Resource.loading_icon}" />
+                    <!-- <apex:pageMessage title="Processing..." severity="info" strength="2" rendered="true" /> -->
+        
+                </apex:outputPanel>
+        
+            </apex:facet>
+            </apex:actionStatus>
+            
+            </apex:pageblocksectionitem>
+            
+        </apex:pageblocksection>
+    </apex:pageblock>
+    </div>
+</div>
+</apex:form>
+<!--  <apex:actionStatus id="processingStatus" startText=" (processing...)" stopText=" (done)"/>  -->
+    
+<apex:outputPanel id="mainBlock">
+<apex:pageBlock rendered="{!NOT(ISNULL(salesCoachStage))&&renderCheck}" >
+<div class = "content">
+    
+    <div class = "table">
+        <table width="98%" cellspacing="3">
+            <tr>
+                <td width="100%">
+                    <div class = "midtable">
+                        <b>Stage Description</b> {!salesCoachStage.Buyer_Stage__c}
+                     </div>
+                </td>
+             </tr>
+         </table>
+    </div>
+    <div class = "table">
+        <table width="98%" cellspacing="3">
+            <tr>
+                <td width="100%">
+                    <div class = "activitiesTable">
+                        <b>Activities to Move</b> this opportunity to next stage:  
+                        <apex:repeat value="{!salesCoachActivities}" var="curItem" id="act">
+                            <p>
+                                <apex:outputField value="{!curItem.Ordering_Number__c}" />
+                                <apex:outputtext value=") {!curItem.Activity_Details__c}" />
+                            </p>
+                        </apex:repeat>
+                     </div>
+                </td>
+             </tr>
+         </table>
+    </div>
+    
+    <div class= "table" >
+        <table width="98%" cellspacing="3">
+            <tr>
+
+                    <apex:repeat value="{!superSections}" var="SuperSec" >
+                        <apex:outputtext >
+                        <td width="{!SuperSec.salesCoachSection.Section_Width__c}%">
+                            <div class="headingtable">
+                                {!SuperSec.salesCoachSection.Section_Name__c}
+                            </div>
+                        </td>
+                        </apex:outputtext>
+                    </apex:repeat>
+
+ 
+            </tr>
+        </table>
+    </div>
+ 
+    <div class= "table" >
+        <table width="98%" cellspacing="3">
+            <tr>
+
+               <apex:repeat value="{!superSections}" var="SuperSec" >
+                   <apex:outputtext >
+                   <td width="{!SuperSec.salesCoachSection.Section_Width__c}%" valign="top">
+                   <div class="bottomtable">
+                   <apex:repeat value="{!SuperSec.salesCoachSectionItems}" var="curItem" >
+                       <p>
+                           <apex:outputLink value="{!curItem.Link_to_Content__c}" id="theValue" target="_blank"  styleClass="sectionLink" rendered="{!if( LEN( curItem.link_to_content__c ) > 0, true, false ) }">{!curItem.Item_Name__c}</apex:outputLink>
+                           <apex:outputtext value="{!curItem.Item_Name__c}" rendered="{!if( LEN(curItem.Link_to_Content__c)==0, true, false )}" />
+                       </p>
+                   </apex:repeat>
+                   </div>
+                   </td>
+                   </apex:outputtext>
+               </apex:repeat>
+
+            </tr>
+        </table>
+    </div>
+
+    <div class = "bottom">
+        <div class = "nosoftware">
+            <img src="{!URLfor($Resource.salescoach, 'nosoftware.png')}" />
+        </div>
+    </div>
+ 
+</div>
+</apex:pageBlock>
+</apex:outputPanel>
+<apex:outputPanel id="errorMessageBlock">
+<apex:pageBlock rendered="{!ISNULL(salesCoachStage)}">
+   <apex:pageMessage title="No information for this stage in this segment.  Contact admin for help." severity="info" strength="2" rendered="true" /> 
+</apex:pageBlock>
+</apex:outputPanel>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

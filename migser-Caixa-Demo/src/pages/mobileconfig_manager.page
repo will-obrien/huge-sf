@@ -1,0 +1,226 @@
+<apex:page controller="mobileconfig_manager" cache="false">
+    <title>Mobileconfig Mgr</title>
+<!--[if lt IE 9]><script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+<style type="text/css">
+    .mobileconfig{
+        position: relative;
+        overflow: hidden;
+        margin: 10px 0 30px;
+    }
+    .vignette{
+        position: relative;
+        overflow: hidden;
+        margin: 0 20px 0 10px;
+        float: left;
+        border-radius: 16px;
+    }
+    img.app_icon{
+        width: 80px;
+        height: auto;
+    }
+    .core{
+        position: relative;
+        overflow: hidden;
+        float: left;
+    }
+    .core .app_name{
+        font-size: 18px;
+        display: block;
+    }
+    .core ul{
+        padding: 0;
+        list-style-type: none;
+        margin: 5px 0;  
+    }
+    .core ul li{
+        line-height: 28px;
+        font-size: 14px;
+        margin: 0px;
+        padding-left: 30px;
+        background-repeat: no-repeat;
+        background-position: left center;
+    }
+    .core li.install{
+        background-image: url({!URLFOR($Resource.mobileconfig_manager, 'download.png')});
+    }
+    .core li.edit{
+        background-image: url({!URLFOR($Resource.mobileconfig_manager, 'edit.png')});
+    }
+    .core li.email{
+        background-image: url({!URLFOR($Resource.mobileconfig_manager, 'email.png')});
+    }
+    .core li.email span{
+        display: block;
+        line-height: 1em;
+        padding-top: 38px;
+        margin-top: -30px;    
+    }
+    .core li.email a, a.send_all{
+        color: #007AFF;
+        padding-left: 10px;
+        font-size: 16px;
+    }
+    .core li.email a:hover, a.send_all:hover{
+        text-decoration: none;
+        color: #007AFF;
+    }
+    .placeholder{
+        font-size: 12px;
+        height: 20px;
+        margin-top: 8px;
+        padding: 2px 6px;
+        width: 190px;
+    }
+    a{
+        text-decoration: none;
+    }
+    .popup_wrapper{
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        background-color: rgba(0,0,0,0.4);
+        z-index: 100;
+    }
+    .customPopup{
+        background-color: white;
+        left: 50%;
+        top: 100px;
+        padding: 30px 35px 15px;
+        position: absolute;
+        z-index: 9999;
+        width: 440px;
+        min-height: 200px;
+        margin-left: -220px;
+    }
+    body .secondaryPalette.bPageBlock, body .individualPalette .secondaryPalette.bPageBlock, body .bPageBlock{
+        background-color: transparent;
+        border: none;
+        border-radius: 0;
+    }
+    body .apexp .bPageBlock.apexDefaultPageBlock .pbHeader, .apexp .bPageBlock.apexDefaultPageBlock .pbHeader>table{
+        border: none;
+    }
+    .bPageBlock .detailList .data2Col.save_section{
+        text-align: center;
+    }
+    .apexp .bPageBlock.apexDefaultPageBlock .pbBody .pbSubheader, .tertiaryPalette, .individualPalette .tertiaryPalette{
+        color: #222;
+        font-size: 16px;
+        padding: 0 0 20px;
+        background-color: transparent;
+    }
+    .apexp .bPageBlock.apexDefaultPageBlock .pbBody .pbSubheader img{
+        display: none;
+    }
+    .save_section .btn{
+        width: 100px;
+        margin-top: 10px;
+    }
+    .close_button{
+        position: absolute;
+        top: 4px;
+        right: 8px;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    .close_button:hover{
+        text-decoration: none;
+        color: #555;
+    }
+    .helpText{
+        z-index: 100;
+    }
+</style>
+<apex:form enctype="multipart/form-data">
+<apex:pageBlock >
+    <apex:pageBlockButtons location="top">
+        <apex:commandButton action="{!showPopup}" rerender="popup" value="New Configuration Profile"></apex:commandButton>
+    </apex:pageBlockButtons>
+
+    <apex:repeat value="{!mobileconfigs}" var="m">
+        <div class="mobileconfig">
+            <div class="vignette">
+                <img src="data:image/png;base64,{!m.Base64_App_Icon__c}" alt="app icon" class="app_icon"/>
+            </div>
+            <div class="core">
+                <h2 class="app_name">{!m.Name}</h2>
+                <ul>
+                    <li class="install"><a href="{!$Page.mobileconfig_installer}?id={!m.Id}">Install app</a></li>
+                    <li class="edit">
+                        <apex:commandLink action="{!showPopup}" rerender="popup" value="Edit">
+                            <apex:param name="mobileconfig_id" value="{!m.Id}"/>
+                        </apex:commandLink>
+                    </li>
+                    <li class="email">
+                        <span>Email configuration profile</span>
+                        <apex:inputText styleClass="placeholder" title="your.email@salesforce.com" value="{!email_addresses[m.Id]}" />
+                        <apex:commandLink action="{!send_mobileconfig}" value="Send">
+                            <apex:param name="mobileconfig_id" value="{!m.Id}"/>
+                        </apex:commandLink>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </apex:repeat>
+    <div class="footer">
+        <apex:inputText styleClass="placeholder" title="your.email@salesforce.com" value="{!email_addresses['all']}" />
+        <apex:commandLink action="{!send_all_mobileconfigs}" value="Send all configuration profiles" styleClass="send_all" />
+    </div>
+</apex:pageBlock>
+
+<apex:outputPanel id="popup">
+    <apex:outputPanel styleClass="popup_wrapper" layout="block" rendered="{!displayPopUp}" > 
+        <apex:outputPanel styleClass="customPopup" layout="block">
+            <apex:actionRegion >
+                <apex:commandLink value="☓" action="{!closePopup}" styleClass="close_button" rerender="popup"/>
+            </apex:actionRegion>
+            <apex:pageBlock >
+                <apex:pageBlockButtons location="bottom">
+                    <apex:commandButton value="Save" action="{!save_mobileconfig}" />
+                    <apex:commandButton value="Delete" action="{!remove_mobileconfig}" rendered="{!NOT(current_mobileconfig.Name == '')}" />
+                </apex:pageBlockButtons>
+                <apex:pageBlockSection columns="1" title="{!IF(current_mobileconfig.Name == '', 'New', 'Edit')} Configuration Profile">
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Name" for="name"/>
+                        <apex:inputField value="{!current_mobileconfig.Name}" id="name" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem helpText="{!$ObjectType.Mobileconfig__c.Fields.Display_Name__c.inlineHelpText}" >
+                        <apex:outputLabel value="Display Name" for="display_name"/>
+                        <apex:inputField value="{!current_mobileconfig.Display_Name__c}" id="display_name" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Start URL" for="vf_page_name"/>
+                        <apex:inputField value="{!current_mobileconfig.Start_URL__c}" id="vf_page_name" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="User" for="user"/>
+                        <apex:inputField value="{!current_mobileconfig.User__c}" id="user" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Password" for="password"/>
+                        <apex:inputField value="{!current_mobileconfig.Password__c}" id="password" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem helpText="Upload a squared PNG image. Max size is 512 x 512 px" >
+                        <apex:outputLabel value="Icon App" for="icon_app"/>
+                        <apex:inputFile value="{!app_icon.body}" filename="{!app_icon.name}" id="icon_app"  />
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </apex:outputPanel>
+    </apex:outputPanel>
+</apex:outputPanel>
+
+</apex:form>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script>
+    $(function(){
+        $('.placeholder').each(function(index, elem){
+            $(elem).prop('placeholder',$(elem).prop('title'));
+        });
+    });  
+</script>
+</apex:page>

@@ -1,0 +1,302 @@
+<apex:page showHeader="false" standardStylesheets="false">
+<script type="text/javascript">
+/*
+Copyright (c) 2011, salesforce.com, Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice, 
+    this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice, 
+    this list of conditions and the following disclaimer in the documentation 
+    and/or other materials provided with the distribution.
+    * Neither the name of the salesforce.com, Inc. nor the names of its contributors 
+    may be used to endorse or promote products derived from this software 
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
+OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+    //angular.module('personaccount',['ngRoute']).config(function($routeProvider){});
+    var myWorkFeedbackRequestApp = angular.module('workfeedbackrequest',['ngAnimate'])
+        .controller('workfeedbackrequestctrl', ['$scope','$window', function($scope, $window){
+            $scope.myFeedbackRequests =[{
+            								FeedbackType: '',
+											Id: '',
+											PerformanceCycle: { Name: '' },
+											PerformanceCycleId: '',
+											QuestionSetId: '',
+											Subject: { Name:'' },
+											SubjectId: '',
+											Title: ''
+            							}];
+            $scope.feedbackQuestions = []; // all the questions for selected request
+			$scope.selectedFeedbackRequest = {};//request object
+			$scope.feedbacks =[]; //all feedback with requestid of selected request
+
+			$scope.showDetail = false;
+        	$scope.showLoadingScreen = false;
+            $scope.showSuccessPopup = false;
+            $scope.onMobile = false;
+            if( (typeof sforce != 'undefined') && (sforce != null) )
+                $scope.onMobile = true;
+
+            //Controller's functions
+            $scope.getFeedbackRequests = function(){
+            	$window.getFeedbackRequests(function(result){
+            		$scope.myFeedbackRequests = result;
+            		//set the title for each feedback request
+            		for(var i=0;i<$scope.myFeedbackRequests.length;i++){
+            			if($scope.myFeedbackRequests[i].PerformanceCycle != null)
+            				$scope.myFeedbackRequests[i].Title = $scope.myFeedbackRequests[i].PerformanceCycle.Name + ' for ' + $scope.myFeedbackRequests[i].Subject.Name;
+            			else
+            				$scope.myFeedbackRequests[i].Title = 'Feedback for ' + $scope.myFeedbackRequests[i].Subject.Name;
+            		}
+                    console.log('-----All FeedbackRequests-----');
+                    console.log($scope.myFeedbackRequests);
+            		$scope.showLoadingScreen = false;
+            		$scope.$apply();
+            	});
+            };
+            $scope.getFeedbacks = function(){
+            	$scope.showLoadingScreen = true;
+            	$window.getFeedbacks($scope.selectedFeedbackRequest.Id, function(result){
+            		$scope.feedbacks = result;
+            		console.log('All Feedbacks-----');
+            		console.log($scope.feedbacks);
+            		$scope.changeRequest();
+            		$scope.$apply();
+            	});
+            };
+            $scope.changeRequest = function(){
+            	$scope.showLoadingScreen = true;
+        		getFeedbackRequestQuestions($scope.selectedFeedbackRequest.QuestionSetId,function(result){
+        			$scope.feedbackQuestions = result;
+        			console.log("got feedback questions from controller in order!");
+        			console.log($scope.feedbackQuestions);
+        			//change Choices string into an list of strings
+        			if($scope.feedbackQuestions != null)//has question
+        				for(var i=0;i<$scope.feedbackQuestions.length;i++)
+        				{
+        					if($scope.feedbacks != null)
+        					{
+        						//decode html tags for feedback
+								$scope.feedbacks[i].Feedback = $("<div/>").html($scope.feedbacks[i].Feedback).text();
+								//remove html tags for feedback
+								$scope.feedbacks[i].Feedback = strip($scope.feedbacks[i].Feedback);
+        					}
+        					
+        					// //add feedback object into question
+        					// if($scope.feedbacks != null)
+        					// {
+        					// 	$scope.feedbackQuestions[i].Draft = {};
+	        				// 	for(var x=0;x<$scope.feedbacks.length;x++) //this is an inefficient way of doing it, might want to use map of questionid to feedback instead
+	        				// 		if($scope.feedbacks[x].QuestionId == $scope.feedbackQuestions[i].Id) //found a match
+	        				// 		{
+	        				// 			$scope.feedbackQuestions[i].Draft = $scope.feedbacks[x]; //put the feedback obj in question
+	        				// 			if($scope.feedbackQuestions[i].Draft.Feedback != null) 
+	        				// 			{
+	        				// 				//replace all <p>
+	        				// 				console.log($scope.feedbackQuestions[i].Draft.Feedback);
+	        				// 				//decode html tags
+	        				// 				$scope.feedbackQuestions[i].Draft.Feedback = $("<div/>").html($scope.feedbackQuestions[i].Draft.Feedback).text();
+	        				// 				//remove html tags
+	        				// 				$scope.feedbackQuestions[i].Draft.Feedback = strip($scope.feedbackQuestions[i].Draft.Feedback);
+	        				// 				console.log($scope.feedbackQuestions[i].Draft.Feedback);
+	        				// 			}
+	        				// 			break; //stop the for loop
+	        				// 		}
+	        				// }
+	        				// else
+	        				// {
+	        				// 	console.log("feedbacks list is null");
+	        				// 	$scope.feedbackQuestions[i].Feedback = {};
+	        				// }
+        					//inject person's name in the question
+        					$scope.feedbackQuestions[i].Text = $scope.feedbackQuestions[i].Text.replace('#first_name',$scope.selectedFeedbackRequest.Subject.FirstName);
+        					//parse choices
+        					if($scope.feedbackQuestions[i].Choices != null)//has choices
+        					{
+        						var originalChoiceString = $scope.feedbackQuestions[i].Choices;
+        						$scope.feedbackQuestions[i].Choices = [];
+        						if(originalChoiceString.indexOf('\n') == -1) //just 1 question
+        							$scope.feedbackQuestions[i].Choices.push(originalChoiceString);//put original string into a list
+        						else
+            					{
+            						while(originalChoiceString.indexOf('\n') != -1) //have multiple questions
+            						{
+            							$scope.feedbackQuestions[i].Choices.push(originalChoiceString.substring(0, originalChoiceString.indexOf('\n')).replace('\r',''));
+            							originalChoiceString = originalChoiceString.substring(originalChoiceString.indexOf('\n')+1);
+            						}
+            						$scope.feedbackQuestions[i].Choices.push(originalChoiceString); //add last choice
+            					}
+        					}
+        				}
+					$scope.showLoadingScreen = false;
+					$scope.showDetail = true;
+                    //enablePublisherSubmit();
+        			$scope.$apply();
+        			console.log('feedback questions with answers--------');
+        			console.log($scope.feedbackQuestions);
+        		});
+        	};
+            $scope.saveFeedbacks = function(){
+				$scope.showLoadingScreen = true;
+                $scope.$apply();
+                submitFeedback($scope.feedbacks,function(result){
+                    console.log("feedback request saved!");
+                    $scope.showLoadingScreen = false;
+                    $scope.showDetail = false;
+                    // closePublisher();
+                    $scope.$apply();
+                });
+			};
+
+            $scope.togglePublisherSubmit = function(){
+                if($scope.feedback.subjectid != '' && $scope.feedback.feedbacktext != '')
+                    enablePublisherSubmit();
+                else
+                    disablePublisherSubmit();
+            };
+
+            $scope.backToList = function(){
+                //disablePublisherSubmit();
+            	$scope.showDetail = false;
+            };
+
+            //function calls
+            $scope.getFeedbackRequests();
+        }])
+		.directive('listView',function(){
+        	return {
+        		restrict:   'E',
+                template:   '<ul class="requestList man pan bg-1 ds-2">'+
+                					'<li class="requestListTitle flag flag--top active--list-1 pam border-bottom border--3">'+
+										'<div class="flag--image prm">'+
+											'<div class="icon icon--custom-18 bgs-100 a-mid sq-30"></div>'+
+										'</div>'+
+										'<div class="flag--body">'+
+											'<span class="db text-color-2 f6 ng-binding">Recent</span>'+
+											'<span class="db text-color-1 f4 ng-binding">Feedback Requests</span>'+
+											'<span class="db text-color-2 f6 ng-binding"></span>'+
+										'</div>'+
+									'</li>'+
+									'<li ng-repeat="request in myFeedbackRequests" class="brtopm db active--list-3 pam border-bottom border--3" ng-click="setSelectedFeedbackRequest(request)">'+
+								        '<div class="flag">'+
+											'<div class="flag--image prm">'+
+												'<img src="{{request.Subject.SmallPhotoUrl}}" class="brm userPicklistImg icon bgs-100 a-mid sq-30" alt="User Img"/>'+
+											'</div>'+
+											'<div class="flag--body">'+
+												'<span class="db text-color-1 f4 ng-binding">{{request.Title}}</span>'+
+												// '<span class="f4 text-color-1">requested by {{request.Owner.Name}}</span>'+
+												// '<span class="f4 text-color-1">Due {{request.QuestionSet.DueDate}}</span>'+
+											'</div>'+
+									    '</div>'+
+								    '</li>'+
+							'</ul>',
+							//+'<button ng-click="test()">go to feedback</button>',
+            				/*
+                			'<h3 class="sectionTitle dib mbm man f6 text-color-1"><strong>Select a Request</strong></h3>'+
+							'<div class="mbm pos-rel">'+
+								'<select ng-model="selectedFeedbackRequest" ng-options="request as request.Title for request in myFeedbackRequests" ng-change="changeRequest()" class="size-full input--picklist"></select>'+
+							'</div>',
+							*/
+                link: function(scope, iElm, iAttrs){
+            		scope.setSelectedFeedbackRequest = function(request)
+            		{
+            			scope.selectedFeedbackRequest = request;
+            			scope.getFeedbacks();//get feedbacks for this request, then get questions
+            		}
+                    scope.removeRequest = function()
+                    {
+                        for(var i = 0; i< scope.myFeedbackRequests.length; i++)
+                        {
+                            if(scope.myFeedbackRequests[i].Id == scope.selectedFeedbackRequest.Id)
+                            {    
+                                scope.myFeedbackRequests.splice(i,1); //remove the current selected one
+                                console.log('remove from request list');
+                            }
+                        }
+                        console.log(scope.myFeedbackRequests);
+                    }
+            		scope.test = function(){
+				        sforce.one.navigateToURL('/apex/WorkFeedbackAction');
+				    };
+                } 
+        	}
+        })
+        .directive('feedbackQuestionWrap',function(){
+        	return {
+        		restrict:   'E',
+                template:   '<div class="questions" ng-repeat="question in feedbackQuestions" class="animate">'+
+                				'<div class="questionTop">'+
+                					'<h3 class="f3 text-color-1 fw-semibold">Question {{question.Number}}</h3><br/>'+
+                					'<div class="f5 text-color-2">{{question.Text}}</div>'+
+            					'</div>'+
+            					'<div class="userInputSection">'+
+	                				'<div id="multipleChoices" ng-repeat="answerChoice in question.Choices" ng-if="question.Type==\'MultipleChoice\'">'+
+	                					'<div class="mbm db">'+
+	                						//'<p>parent.parent.feedback = {{$parent.$parent.$parent.feedbacks}}, ####  </br>parent.parent.index = {{$parent.$parent.$index}}</p>'+
+											'<input ng-model="$parent.$parent.$parent.feedbacks[$parent.$parent.$index].Feedback" name="filter-{{question.Number}}-{{$parent.$parent.$index}}" type="radio" value="{{answerChoice}}" class="radio radio--default radio--states-1 brc mrs bg-secondary-btn sq-22 a-mid dib"/>'+
+											'<label class="f4 text-color-1" for="filter-{{question.Number}}-{{$parent.$parent.$index}}">{{answerChoice}}</label>'+
+											// '<input ng-model="$parent.$parent.question.Draft.Feedback" type="radio" value="{{answerChoice}}" class="radio radio--default radio--states-1 brc mrs bg-secondary-btn sq-22 a-mid dib"/>'+
+											// '<label class="f4 text-color-1" for="filter-{{question.Number}}-{{index}}">{{answerChoice}}</label>'+
+										'</div>'+
+	                				'</div>'+
+	                				'<div ng-if="question.Type==\'FreeText\'">'+
+	                					'<textarea ng-model="$parent.$parent.feedbacks[$parent.$index].Feedback" placeholder="Feedback for Question {{question.Number}}" class="size-full pas textarea textarea--default textarea--ph-1 textarea--focus-1"></textarea>'+
+	                				'</div>'+
+                				'</div>'+
+            				'</div>',
+                link: function(scope, iElm, iAttrs){
+                } 
+        	}
+        })
+        .directive('submitButtons', function(){
+            return{
+                restrict: 'E',
+                template:   '<div class="myButtonDiv">'+
+                                '<button class="mySaveDraftBtn bg-secondary-btn btn--secondary pvs brm mbs border border--2 text-color-4 f3 fw-semibold" style="width:96%;" ng-click="backToList()">Cancel</button>'+
+                                '<button class="mySaveDraftBtn bg-secondary-btn btn--secondary pvs brm border border--2 text-color-4 f3 fw-semibold" ng-click="saveDraft()">Save Draft</button>'+
+                                '<button class="mySubmitBtn bg-primary-btn btn--primary pvs brm border border--1 wht f3 fw-semibold" ng-click="saveSubmit()">Submit</button>'+
+                            '</div>',
+                link: function(scope,iElm,iAttrs){
+                    scope.saveSubmit = function(){
+                        scope.showLoadingScreen = true;
+                        console.log(scope.feedbacks);
+                        submitFeedback(scope.feedbacks,function(result){
+                            console.log("Feedback Submitted!!");
+                            scope.removeRequest();//remove the feedbackrequest from the list
+                            scope.showLoadingScreen = false;
+                            scope.showDetail = false;
+                            scope.$apply();
+                        });
+                    };
+                    scope.saveDraft = function(){
+                        scope.showLoadingScreen = true;
+                        draftFeedbacks(scope.feedbacks,function(result){
+                            console.log("draft saved!");
+                            scope.showLoadingScreen = false;
+                            scope.showDetail = false;
+                            scope.$apply();
+                        });
+                    };
+
+
+                }
+            }
+        });
+
+</script>
+</apex:page>

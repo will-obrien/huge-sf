@@ -1,0 +1,539 @@
+<apex:page sidebar="false" showHeader="true" standardStylesheets="false">
+<apex:composition template="Bootstrap_template_SOS"/>
+
+<script type='text/javascript'>
+    window.sosData = window.sosData || {};
+    sforce.connection.sessionId = '{!$Api.Session_ID}';
+    sosData.orgId = "{!$Organization.Id}".substr(0,15);
+    sosData.agentId = "{!$User.Id}";
+    autoPop = {
+        triggerEnabled: {!$Setup.SOS_Create_Case__c.enabled__c},
+        layoutEnabled: 'loading'
+    };
+
+    sosData.servicePresence = {
+        name: '{!JSENCODE($Setup.sos_auto_setup__c.service_presence__c)}' || 'SOS Online',
+        element: 'service-presence'
+    };
+
+    sosData.routingConfig = {
+        name: '{!JSENCODE($Setup.sos_auto_setup__c.routing_config__c)}' || 'SOS Route',
+        element:'routing-config'
+    };
+
+    sosData.queue = {
+        name: '{!JSENCODE($Setup.sos_auto_setup__c.queue__c)}' || 'SOS Queue',
+        element:'queue'
+    };
+
+    sosData.permissionSet = {
+        name: '{!JSENCODE($Setup.sos_auto_setup__c.permission_set__c)}' || 'SOS Permission',
+        element: 'permission-set'
+    };
+
+    sosData.sosDeployment = {
+        name: '{!JSENCODE($Setup.sos_auto_setup__c.deployment__c)}' || 'SOS Deploy',
+        element: 'sos-deployment'
+    };
+</script>
+
+<apex:includeScript value="/soap/ajax/33.0/connection.js"/>
+<apex:includeScript value="/support/console/33.0/integration.js"/>
+<apex:includeScript value="https://cdn.firebase.com/js/client/1.0.24/firebase.js"/>
+<apex:includeScript value="{!$Resource.sos_sha256}"/>
+<apex:includeScript value="{!$Resource.sos_underscore}"/>
+<apex:includeScript value="{!$Resource.sos_firebase}"/>
+<apex:includeScript value="{!$Resource.sos_auto_case_pop}"/>
+<apex:includeScript value="{!$Resource.sos_app_config}"/>
+
+<apex:stylesheet value="{!$Resource.sos_setup_style}"/>
+
+<h1>Set Up SOS</h1>
+
+<div class="accordion" id="accordion2">
+    <div class="accordion-group">
+        <div class="accordion-heading">
+            <a class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion2" href="#collapse_1">
+                <span>1</span>Check Org Requirements
+            </a>
+        </div>
+        <div id="collapse_1" class="accordion-body collapse">
+            <div class="accordion-inner">
+                <ul>
+                    <li>
+                        <span class='bold'>Omni-Channel Enabled</span> - <span id='service-presence-status' class='pass'>PASS</span>
+                    </li>
+                    <li class='other-checks'>
+                        <span class='bold'>SOS Service Channel Exists</span> - <span id='service-channel-status' class='pass'>PASS</span>
+                        <span id='service-channel-edit' class='p-like'>
+                            <a href='/0N9' target='_blank'>View Service Channels</a>
+                        </span>
+                    </li>
+
+                    <li class='other-checks'>
+                        <span class='bold'>SOS Enabled</span> - <span id='sos-session-status' class='pass'>PASS</span>
+                    </li>
+                    <li class='other-checks'>
+                        <span class='bold'>SOS License</span> - <span id='sos-license' class='pass'>PASS</span>                 
+                        <span id='license-msg' class='p-like hideit'>
+                            This org requires SOS Licenses before you can continue with the setup
+                        </span>
+                    </li>
+                </ul>
+                <div id='enable-omni' class='p-like hideit'>
+                    The Omni-Channel is not enabled in your org. Please go the the Omni-Channel settings page 
+                    (located <a href='/omnichannel/settings.apexp?setupid=OmniChannelSettings' target='_blank'>here</a>), 
+                    enable this service and save. Once Omni-Channel has been enabled click the button below.
+                    <br/><br/>
+                    <button id='check-org' class='mybutton littlebutton'>Check Org</button> &nbsp;<span id='check-org-notify' class='notify-info'></span>
+                </div>
+
+                <h4 id='bothPass' class='limegreen'></h4>
+
+                <div class='p-like hideit service-channel-created'>
+                    <br/>
+                    You are currently using a custom "Service Channel". Custom service channels can not open the SOS Widget when a request is accepted.
+                    It is suggested you enable the native service channel.
+                    <br/>
+                    To enable the native service channel:
+                    <ul>
+                        <li>Click the "View Service Channels" link above</li>
+                        <li>Click "Edit" for the service channel <strong><span id='sc-name'></span></strong></li>
+                        <li>Change the "Related Object Type" to something other than "SOS Session"</li>
+                        <li>Save</li>
+                        <li>Click the link below to email Nick to enable the native service channel</li>
+                    </ul>
+                </div>
+                
+                 <div class='p-like hideit' id='service-channel-needed' style='padding-bottom:0px'>
+                    <h5>Service Channel Needed</h5>
+                    <p>
+                        Contact ......
+                    </p>
+                </div>
+
+                <div id='email-nick' class='p-like hideit'>
+                    Please email <a href="mailto:nksiezopolski@salesforce.com?Subject=Please%20enable%20SOS%20for%20OrgId%20{!$Organization.Id}" target="_top">nksiezopolski@salesforce.com</a>
+                    with the OrgId <strong>{!$Organization.Id}</strong> and ask for SOS to be enabled.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-group">
+        <div class="accordion-heading">
+            <a class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion2" href="#collapse_auto">
+                <span>2</span>Create your SOS Objects
+            </a>
+        </div>
+        <div id="collapse_auto" class="accordion-body collapse">
+            <div class="accordion-inner">
+                <p>
+                    You need to create the following objects for SOS to work properly. You can use the default object names, or customize them to fit your organization’s needs.
+                </p>
+                <br/>
+                <div>
+                    <label class='auto-labels'>Service Presence:</label> <input type='text' id='service-presence-name' class='auto-names'/>
+                </div>
+                <div>
+                    <label class='auto-labels'>Routing Configuration:</label> <input type='text' id='routing-config-name' class='auto-names'/>
+                </div>
+                <div>
+                    <span class='auto-labels'>Queue:</span> <input type='text' id='queue-name' class='auto-names'/>
+                </div>
+                <div>
+                    <span class='auto-labels'>Permission Set:</span> <input type='text' id='permission-set-name' class='auto-names'/>
+                </div>
+                <div>
+                    <span class='auto-labels'>SOS Deployment:</span> <input type='text' id='sos-deployment-name' class='auto-names'/>
+                </div>
+
+                <p>
+                    Click <strong>Create</strong> to magically configure all the deployments and routing configurations that you’ll need to start using SOS.
+                </p>
+
+                <div>
+                    <button id='auto-setup' class='mybutton littlebutton'>
+                        Create
+                    </button>
+                </div>
+
+                <div class='p-like hideit' id='create-results'>
+                    <h2>
+                        Results
+                    </h2>
+                    <ul>
+                        <li>
+                            <span class='bold'>Service Presence:</span> <span id='service-presence-result'></span> - <span id='service-presence-msg'></span> <a id='service-presence-edit-link' target='_blank'>Edit</a>
+                        </li>
+                        <li>
+                            <span class='bold'>Routing Configuration:</span> <span id='routing-config-result'></span> - <span id='routing-config-msg'></span> <a id='routing-config-edit-link' target='_blank'>Edit</a>
+                        </li>
+                        <li>
+                            <span class='bold'>Queue:</span> <span id='queue-result'></span> - <span id='queue-msg'></span> <a id='queue-edit-link' target='_blank'>Edit</a>
+                        </li>
+                        <li>
+                            <span class='bold'>Permission Set:</span> <span id='permission-set-result'></span> - <span id='permission-set-msg'></span> <a id='permission-set-edit-link' target='_blank'>Edit</a>
+                        </li>
+                        <li>
+                            <span class='bold'>SOS Deployment:</span> <span id='sos-deployment-result'></span> - <span id='sos-deployment-msg'></span> <a id='sos-deployment-edit-link' target='_blank'>Edit</a>
+                        </li>
+                    </ul>
+                    <p class='tinytext'>
+                        If you are a Live Agent user, and would like a single "Service Presence Status" for 
+                        both SOS and Live Agent, click "Edit" for the Service Presence above and add 
+                        "Live Agent" to the selected channels. For more info on Live Agent and the 
+                        Omni-Channel you can click 
+                        <a target='_blank' href='https://docs.google.com/a/salesforce.com/document/d/1iKymSSFjXhulz2rBZa6AxvZeGpnLFUei2FI4GTEvJ3A/edit'>here</a>
+                    </p>
+                </div>
+
+                <div id='setup-users' class='p-like hideit'>
+                    <h2>
+                        Set Up Users
+                    </h2>
+                    <p>
+                        For users to be able to access SOS, they must be enabled to use Service Cloud and be assigned to the correct queue and permission set. Sounds like a lot of work, doesn’t it? Well, not to worry! We’ll do all the heavy lifting and get your users set up for you.
+                    </p>
+                    <ol>
+                        <li>Enter the name of the user you’re logged in as right now, and click <strong>Set Up User</strong>.  This will give you the necessary permissions to configure SOS in this org.</li>
+                        <li>Enter the name of the user that will handle SOS sessions during your demo, or select the user’s name from the drop-down list.  “Tim Service” is recommended.</li>
+                        <li>Click <strong>Set Up User</strong> again.</li>
+                    </ol>
+
+                    <input id='search-setup-users' type='text' />
+                    <button id='find-setup-users-button' class='mt mybutton littlebutton'>Find</button>
+                    <button id='clear-setup-search-button' class='mt mybutton littlebutton'>Clear</button>
+                    <br/><select id='setup-user-list'></select>
+                    <button id='setup-user-button' class='mt mybutton littlebutton'>Set Up User</button>
+
+                </div>
+                <ul id='setup-user-result' class='check-user hideit'>
+                    <li>
+                        Service Cloud Enabled:
+                        <span id='service-cloud' class='fail'>FAIL</span>
+                        <span class='info' id='service-cloud-info'></span>
+                    </li>
+
+                    <li>
+                        Permission Set Assigned:
+                        <span id='permission-set-assigned' class='fail'>FAIL</span>
+                        <span class='info' id='permission-set-assigned-info'></span>
+                    </li>
+                    <li>
+                        Queue Member:
+                        <span id='queue-member' class='fail'>FAIL</span>
+                        <span class='info' id='queue-member-info'></span>
+                    </li>
+
+                    <li>
+                        License Assigned:
+                        <span id='license-assigned' class='fail'>FAIL</span>
+                        <span class='info' id='license-assigned-info'></span>
+                    </li>
+                </ul>
+
+                <span id='user-setup-notify' class='notify-info'></span>
+            </div>
+        </div>
+    </div>
+
+        <div class="accordion-group">
+        <div class="accordion-heading">
+            <a class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion2" href="#collapse_2">
+                <span>3</span>Add the Omni-Channel Widget to your Console App
+            </a>
+        </div>
+        <div id="collapse_2" class="accordion-body collapse">
+            <div class="accordion-inner">
+                <div id='app-manual'>
+
+                    <a href="/02u" class="mybutton" target="_blank" style="margin:0px 0 10px 15px">Go to Apps</a>
+                    <p>
+                        Add the Omni-Channel and SOS widgets to your console app manually.
+                    </p>
+                    <ol class="p-like">
+                        <li>Click <strong>Go to Apps</strong></li>
+                        <li>Click <strong>Edit</strong> next to the console app that you want to add SOS to.</li>
+                        <li>(Optional) To get access to the SOS Dashboard, add <strong>SOS Reports*</strong> to selected items under Choose Navigation Tab Items.</li>
+                        <li>Add the following to the Whitelist Domains field: 
+                            <code class='source'>salesforceliveagent.com,salesforce.com,sos-api-stg.goinstant.org,goinstant.net</code>
+                        </li>
+                        <li>Add <strong>Omni-Channel</strong> and <strong>SOS</strong> to the list of selected items in the Choose Console Components field.</li>
+                        <li>Click <strong>Save</strong></li>
+                    </ol>
+
+                    <apex:image value="{!$Resource.sos_reports_image}"/>
+                    <br/>
+                    <br/>
+                    <apex:image value="{!$Resource.sos_update_app2}"/>
+                </div>
+                <div id='app-auto'  class='hideit'>
+                    <p>
+                        To use SOS, you need to enable Omni-Channel and SOS widgets in your console application.
+                    </p>
+                    <ol class='p-like'>
+                        <li>Select the console app that you want to include SOS.</li>
+                        <li>Click <strong>Update App.</strong></li>
+                    </ol>
+                    <p>
+                        Sit back and relax. This process might take up to a minute.
+                    </p>
+
+                    <select id='select-app'></select>
+                    <button id='enable-app' class='mybutton littlebutton mt'>
+                        Update App
+                    </button>
+                    <p class='tinytext'>
+                        Having issues? <span class='fake-link show-app-manual'>Add the Omni-Channel and SOS widgets to your console app manually</span>.                    </p>
+                    <span id='app-timeout' class='notify-info hideit'>
+                        <br/>Uh oh! It looks like there were some problems setting
+                        up Omni-Channel in your organization. Before we move on,
+                        let's <span class='fake-link show-app-manual'>set up the Omni-Channel widget manually in your
+                        console app</span>.
+                    </span>
+                    <div id='app-result' class='hideit'>
+                        <ul>
+                            <li>
+                                <span class='bold'>Report Dashboard:</span> <span id='reports-result'></span> - <span id='reports-msg'></span>
+                            </li>
+                            <li>
+                                <span class='bold'>Presence Widget:</span> <span id='widget-result'></span> - <span id='widget-msg'></span>
+                            </li>
+                            <li>
+                                <span class='bold'>Whitelist:</span> <span id='whitelist-result'></span> - <span id='whitelist-msg'></span>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-group">
+        <div class="accordion-heading">
+            <a id='accord6' class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion2" href="#collapse_6">
+                <span>3a</span>Customize your Console Settings (Optional)
+            </a>
+        </div>
+        <div id="collapse_6" class="accordion-body collapse">
+            <div class="accordion-inner">
+                <h3>
+                    Automatically Pop Cases in the Console
+                </h3>
+                <p id='auto-pop-pre-load'>
+                    Checking if Auto Case Pop is enabled. This can take up to a minute.
+                </p>
+                <div id='auto-pop-manual' class='hideit'>
+                    <p>
+                        Want to make your agents’ lives easier? With a simple
+                        trigger, Salesforce automatically creates a case, pops it
+                        into a new tab, and opens a contact record in a sidebar
+                        in the console when an agent accepts a SOS call.
+                    </p>
+                    <ol class='p-like'>
+                        <li>Go to <a href='/setup/ui/listCustomSettings.apexp' class='bold' target='_blank'>Custom Settings</a>.</li>
+                        <li>Click <strong>Manage</strong> next to "SOS Create Case".</li>
+                        <li>Click the <strong>New</strong> button at the top of the page.</li>
+                        <li>Check <strong>enabled</strong>.</li>
+                        <li>Click <strong>Save</strong>.</li>
+                        <li>Go to <a href='/_ui/common/config/layout2/LayoutMappingUI/e?type=SOSSession&e=1' class='bold' target='_blank'>Page Layout Assignment</a> for SOS Sessions.</li>
+                        <li>Change the Page Layout to <strong>SOS Auto Pop Case</strong></li>
+                        <li>Click <strong>Save</strong>.</li>
+                    </ol>
+
+                </div>
+                <div id='auto-pop'>
+                    <p id='auto-pop-text'>
+                    </p>
+                    <p>
+                        <strong>Note:</strong> Encountering problems? If your organization uses
+                        validation rules for new cases, you might need to change your trigger,
+                        update your validation rules, or disable the case pop functionality.
+                        Additionally, you must disable case pop if you uninstall this Set Up SOS
+                        package.
+                    </p>
+                    <button id='auto-pop-toggle' class='mybutton littlebutton hideit'></button> <span id='auto-pop-notify' class='notify-info'></span>
+                    <br/><span id='auto-pop-timeout' class='notify-info hideit'>There may be an issue with Enable/Disable auto case pop. You can reload the page and try again or complete the changes manually.</span>
+                    <p class='tinytext'>
+                        If you are having issues with the enable/disable button or would rather perform the changes manually, click <span id='show-case-pop-manual' class='fake-link'>here</span> to see the required steps.
+                    </p>
+                </div>
+
+                <div>
+                    <h3>
+                       Edit your Compact Layout
+                    </h3>
+                    <p>
+                        Compact layouts let you view a record's key fields at a
+                        glance. SOS uses compact layouts to determine the customer
+                        details that are visible in the SOS widget in the console.
+                        Want to customize the details that are visible to your
+                        agents in the widget?
+                    </p>
+                    <ol class='p-like'>
+                        <li>
+                            <a target='_blank' href='/0AH/e?setupid=SOSSessionCompactLayouts&retURL=%2F_ui%2Fcommon%2Fconfig%2Fcompactlayout%2FCompactLayoutListUi%2Fd%3FretURL%3D%252Fui%252Fsetup%252FSetup%253Fsetupid%253DSOSSessions%26type%3DSOSSession%26setupid%3DSOSSessionCompactLayouts&SobjectType=SOSSession'>
+                                Create a new compact layout
+                            </a> that includes the fields you want.
+                        </li>
+                        <li>
+                            <a target='_blank' href='/_ui/common/config/compactlayout/CompactLayoutAssignmentUi?setupid=SOSSessionCompactLayouts&type=SOSSession&e=1&'>
+                                Set the layout that you created to be your primary compact layout.
+                            </a>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="accordion-group">
+        <div class="accordion-heading">
+            <a id='accord4' class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion2" href="#collapse_4">
+                <span>4</span>Info for your SOS App
+            </a>
+        </div>
+        <div id="collapse_4" class="accordion-body collapse">
+            <div class="accordion-inner">
+                <h3>
+                    Connecting the App to this Org
+                </h3>
+
+                <p>
+                    Please enter your <span class='italic'>@salesforce</span> email. Your email address is used to sync the Deployment and
+                    Demo Details to the SOS Demo app. You will also be asked to enter this exact email address
+                    when you first configure the SOS Demo App. Once you have entered your <span class='italic'>@salesforce</span> email, please press 'Save' to continue.
+                </p>
+                <input type='text' id='sfdc-email' placeholder='Example: jsmith@salesforce.com' value="{!JSENCODE($Setup.sos_quick_setup__c.sfdc_email__c)}"/>
+                <button id='load-settings' class='mt mybutton littlebutton'>Save</button> <span id='email-info' class='notify-info'></span>
+                <div class='hideit stored-settings'>
+                    <h3>
+                        Configuration
+                    </h3>
+
+                    <p>
+                        Now you are ready to create a new Deployment and Demo Details. These settings will connect
+                        your demo Org to the SOS Demo App. Simply fill out the required fields and these
+                        settings will be saved and sync’d for easy demoing!
+                    </p>
+                    <h4>
+                        Deployment Details
+                    </h4>
+                    <p>
+                        Here is where you will need to choose the SOS Deployment. Simply choose the SOS Deployment that you named in Step 2. You can also give it a Nickname for easy reference.
+                      <br/>
+                        <br/><select id='deployment-list'></select>
+                        <br/><input type='text' id='org-nickname' placeholder='Example: USAA Demo Org'/>
+                        <button id='save-nickname' class='mt mybutton littlebutton'>Set Nickname</button> <span id='nickname-info' class='notify-info'></span>
+                    </p>
+                    <code class="source">
+                        Org ID: <span id='org-id'></span>
+                        <br/>SOS Deployment ID: <span id='deploy_id'>Select Deployment Above</span>
+                        <br/>Live Agent API Endpoint: <a href='/liveagent/settings.apexp' target='_blank' class='la-info'>Found here</a><span id='la-hostname'></span>
+                        <span class='la-info'>(*Note: Only hostname is required)</span>
+                    </code>
+                    <p class='la-info'>
+                        <br/>
+                        <span class='italic'>*If</span> LA API endpoint https://d.la.gus.salesforce.com/chat/rest/ then only <span class="bold">d.la.gus.salesforce.com</span> would be required.
+                    </p>
+                </div>
+                <br/>
+                <div class='hideit p-like stored-settings'>
+                    <h4>
+                        Demo Details
+                    </h4>
+                    <br/>
+                    <select id='stored-demos'></select><br/>
+
+                    <p>
+                        Enter your the details of your demo. Later you will be able to select this Demo Nickname in the SOS Demo App.
+                    </p>
+                    <label>Nickname: </label><input type='text' id='demo-nickname' class='demo-input' placeholder='Example: USAA' title='abc'/>
+                    <br/>
+                    <label>Start URL:  </label><input type='text' id='demo-url' class='demo-input' placeholder='https://mobile.usaa.com' />
+                    <span class='instruct1'>Please enter the start URL of the mobile responsive website you want to demo.</span>
+                    <br/>
+                    <label>Contact Email: </label><input type='text' id='demo-email' class='demo-input' placeholder='lauren@example.com' />
+                    <span class='instruct2'>Please enter the contact email of the customer. This will be the Contact that is attached to the SOS session. <a href='/003' target='_blank'>View Contacts</a></span>
+                    <br/>
+                    <button id='save-demo' class='mybutton littlebutton'>Save</button> <button id='delete-demo' class='mybutton littlebutton'>Delete</button>
+                    <span id='demo-info' class='notify-info'></span>
+                    <br/>
+                </div>
+                <div class='hideit p-like stored-settings'>
+                    <h4>
+                        Delete Demo Orgs
+                    </h4>
+                    <br/>
+                    Here you can see all the Orgs and SOS Deployment details you have saved. You can delete old SOS Deployments and Demo Orgs here.
+                    <br/>
+                    <select id='stored-orgs'></select> <span id='org-notify' class='notify-info'></span>
+                    <br/>
+                    <code class="source hideit org-info">
+                        Org ID: <span id='selected-org-id'></span>
+                        <br/>SOS Deployment ID: <span id='selected-deploy-id'></span>
+                        <br/>Live Agent API Endpoint: <span id='selected-la-hostname'></span>
+                    </code>
+                    <div>
+                        <button id='delete-org' class='hideit org-info mybutton littlebutton'>
+                            Delete Org
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-group">
+        <div class="accordion-heading">
+            <a class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion2" onclick="return savedDataCheck()">
+                <span>5</span>Download SOS Demo App
+            </a>
+        </div>
+        <div id="collapse_5" class="accordion-body collapse">
+            <div class="accordion-inner">
+                <p>
+                    Download the SOS Demo App by visiting the URL on your mobile phone:
+                </p>
+
+                <table id='download-table' class='super-centered' >
+                    <tr>
+                    <th class='center'>iOS</th><th class='center'>Android</th>
+                    </tr>
+                    <tr>
+                        <td><code class='source'>https://salesforcesos.com/public.html#ios-demos</code></td>
+                        <td><code class='source'>https://salesforcesos.com/public.html#android-demos</code></td>
+                    </tr>
+                    <tr class='center'>
+                        <td>
+                            <div class="cta-qr">
+                                <p>Scan this code for a quick link to the iOS download page:</p>
+                                <apex:image value="{!$Resource.sos_qr_ios}"/>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="cta-qr">
+                                <p>Scan this code for a quick link to the android download page:</p>
+                                <apex:image value="{!$Resource.sos_qr_android}"/>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+    <apex:iframe src="/liveagent/settings.apexp" height="0px" width="0px" id="la-frame"/>
+    <apex:iframe src="/_ui/common/config/layout2/LayoutMappingUI/e?type=SOSSession&e=1&pageNum=0&" height="0px" width="0px" id="layout-frame" />
+    <apex:iframe src="/02u" height="0px" width="0px" id="app-frame"/>
+
+</div>
+
+<script type='text/javascript' src="{!$Resource.sos_quick_setup}"></script>
+<script type='text/javascript' src="{!$Resource.sos_auto_setup}"></script>
+</apex:page>

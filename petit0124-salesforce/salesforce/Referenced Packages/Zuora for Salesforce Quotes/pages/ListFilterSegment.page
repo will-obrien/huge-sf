@@ -1,0 +1,374 @@
+<apex:page showHeader="true"
+            sidebar="false"
+            tabStyle="Z_Quote_Config__tab"
+            title="{!$Label.CONFIG_LIST_FILTER_EDIT_STEP_2}"
+            controller="zqu.ListFilterSegmentController">
+	
+  <!-- including jQuery -->
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <!-- including jQuery UI -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery-ui-1.10.3.custom-compressed.js')}" />
+  <!-- including jQuery UI specific CSS styles -->
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, 'jquery-ui-1103.css')}" />
+
+  <style type="text/css">
+  .filterTable {
+    padding: 15px 10px;
+  }
+  a.actionLink {
+    color: rgb(1, 91, 167);
+    text-decoration: none;
+  }
+  a.actionLink:hover {
+    text-decoration: underline;
+  }
+  .returnLink {
+    margin: 10px;
+  }
+  .inputFilterName {
+    width: 400px;
+  }
+  body .bPageBlock .pbBody .labelCol {
+    color: #4A4A56;
+    padding-top: 10px !important;
+  }
+  
+  body .bPageBlock .pbBody .dataCol {
+    padding-top: 10px !important;
+  }
+  
+  .tertiaryPalette {
+    background-color: #DADFEB !important;
+  }
+  .label {
+    border-collapse: separate;
+    color: #4A4A56;
+    cursor: default;
+    display: inline;
+    font-family: Arial, Helvitica, sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: bold;
+    height: auto;
+    line-height: 16px;
+    text-align: right;
+    width: auto;
+    padding-right: 20px;
+  }
+  /* Remove the border for each page block section */
+  .bPageBlock .detailList tr td {
+    border-bottom: 0px;
+  }
+  .apexp .bPageBlock .detailList .list {
+    width: 95%;
+  }
+  .action-table {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .action-table-add-col {
+    width: 40%;
+  }
+  .action-table tr, .action-table th, .action-table td {
+    border: 0px !important;
+  }
+  .row-protected {
+    background-color: #f8f8f8;
+  }
+  #filters-area {
+    width: 95%;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ccc;
+  }
+  #filter-area h2 {
+    font-size: 1.5em;
+    margin-top: 1em;
+    margin-bottom: 2em;
+    padding: 0;
+  }
+  .sortable-area {
+    border: 1px dashed #ccc;
+    background-color: #fff;
+    padding: 5px;
+    width: 90%;
+    margin: 10px 0 20px;
+  }
+  .sortable {
+    width: 100%;
+    border-collapse: collapse;
+    min-height: 20px;
+  }
+  .sortable tr {
+    cursor: move;
+    margin: 5px 5px 5px 5px;
+    padding: 6px 6px 6px 1.5em;
+    font-size: 1.2em;
+  }
+  .sortable td {
+    padding: 10px;
+    font-size: 1em;
+  }
+  .ui-state-default {
+    border: 1px solid #d3d3d3;
+    background: #e6e6e6 url(images/ui-bg_glass_75_e6e6e6_1x400.png) 50% 50% repeat-x;
+    font-weight: normal;
+    color: #555555;
+  }
+  .ui-state-highlight {
+    height: 1.5em;
+    line-height: 1.2em;
+    border: 1px solid #fcefa1;
+    background-color: #fbf9ee;
+  }
+  .and-operator-row {
+    width: 20px;
+  }
+  .arrow-row {
+    width: 30px;
+  }
+  .left-object-row {
+    width: 40%;
+  }
+  .operator-row {
+    width: 10%;
+  }
+  .muted {
+    color: #ccc;
+  }
+  </style>
+
+  <c:PageTitle title="{!$Label.CONFIG_LIST_FILTER_EDIT_STEP_2}"
+                subtitle="Use this page to modify the different segment(s) used in your list filter" />
+
+  <c:Notification id="notification" options="{!notificationOptions}" />
+
+  <c:StatusModal />
+
+  <apex:form >
+
+    <apex:pageBlock rendered="{!isInitSuccess}">
+
+      <apex:pageBlockButtons location="top">
+
+        <div id="buttons-segmentation">
+
+          <apex:actionStatus id="stsSegmentation">
+
+            <apex:facet name="start">
+              <apex:outputPanel styleClass="buttons-block">
+                <apex:commandButton value=" {!$Label.BUTTON_BACK} "
+                                    disabled="true"
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification" />
+                &nbsp;
+                <apex:commandButton value=" {!$Label.CONFIG_LIST_FILTER_SEGMENT_BUTTON_SAVE_CRITERIA} "
+                                    disabled="true"
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification" />
+                &nbsp;
+                <apex:commandButton value=" {!$Label.CONFIG_LIST_FILTER_SEGMENT_BUTTON_ADD_GROUPING} "
+                                    disabled="true"
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification" />
+                &nbsp;
+                <apex:commandButton value=" {!$Label.BUTTON_BACK_SETTINGS} "
+                                    disabled="true"
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification" />
+              </apex:outputPanel>
+            </apex:facet>
+
+            <apex:facet name="stop">
+              <apex:outputPanel styleClass="buttons-block">
+                <apex:commandButton value=" {!$Label.BUTTON_BACK} "
+                                    status="stsSegmentation"
+                                    action="{!goToEditItems}"
+                                    reRender="buttons-segmentation, notification" />
+
+                <apex:commandButton value=" {!$Label.CONFIG_LIST_FILTER_SEGMENT_BUTTON_SAVE_CRITERIA} "
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification"
+                                    onclick="saveSegments();" />
+
+                <apex:commandButton value=" {!$Label.CONFIG_LIST_FILTER_SEGMENT_BUTTON_ADD_GROUPING} "
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification"
+                                    onclick="addSegment();" />
+
+                <apex:commandButton value=" {!$Label.BUTTON_BACK_SETTINGS} "
+                                    status="stsSegmentation"
+                                    reRender="buttons-segmentation, notification"
+                                    action="{!goBack}" />
+              </apex:outputPanel>
+            </apex:facet>
+
+          </apex:actionStatus>
+
+        </div>
+
+      </apex:pageBlockButtons>
+
+      <apex:pageBlockSection title="Filter Logic" columns="1" collapsible="false">
+
+        <!-- <p class="infos-help">
+          <a href="{!$Label.LINK_TO_KC_SEGMENTATION}" target="_blank">What is this?</a>
+        </p> -->
+        <c:HelpComponent cid="COM-0022" />
+
+        <div id="filters-area">Loading Filters...</div>
+
+      </apex:pageBlockSection>
+
+    </apex:pageBlock>
+
+  </apex:form>
+
+  <script type="text/javascript">
+    var j$ = jQuery.noConflict();
+    // once the DOM is ready, retrieve the segments associated with this list filter
+    j$(function () {
+      refreshSegments();
+    });
+
+    // MODEL List_Filter_Item__c
+    function List_Filter_Item__c() {
+      this.Id = null
+      this.{!quoteNamespace}Segment_Id__c = null;
+    }
+
+    // Refreshing the filters-area
+    function refreshSegments() {
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ListFilterSegmentController.retrieveSegments}',
+        '{!listFilter.Id}',
+        function (results, event) {
+          if (event.status) {
+            var htmlString = '';
+            var segmentIds = [];
+            var first = true;
+            j$.each(results, function (i, result) {
+              // save the segment ID for later use (sortable)
+              segmentIds.push(result.segmentId);
+              // prepare the generated html string
+              if (first) {
+                first = false;
+              } else {
+                htmlString += '<h2>&mdash; OR &mdash;</h2>';
+              }
+              htmlString += '<div class="sortable-area"><table class="sortable" id="sortable-' + result.segmentId + '"><tbody>';
+              // loop through each item under this segment
+              j$.each(result.items, function (j, item) {
+                htmlString += '<tr class="ui-state-default" id="' + item.Id + '"><td class="arrow-row"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span></td>'
+                    + formatListItem(item)
+                    + '</tr>';
+              });
+              htmlString += '</tbody></table></div>';
+            });
+            // append the html to the div area
+            j$('#filters-area').html(htmlString);
+            // make them sortable
+            j$('.sortable tbody').sortable({
+              connectWith: '.sortable tbody',
+              placeholder: 'ui-state-highlight',
+              helper: function(e, ui) {
+                ui.children().each(function () {
+                  j$(this).width(j$(this).width());
+                });
+                return ui;
+              }
+            });
+            // close the status modal (if any)
+            closeStatusModal();
+            // clean up the and keyword if any
+            cleanAndKeyword();
+          }
+        },
+        { escape: false }
+      );
+    }
+
+    // Properly format the list filter item string
+    function formatListItem(item) {
+      var htmlString = '';
+      // the AND operator
+      htmlString += '<td class="and-operator-row"><span class="muted">AND</span></td>'
+      // The left object and field
+      htmlString += '<td class="left-object-row"><strong>' + item.{!quoteNamespace}Left_Object_Type__c + ' > ' + item.{!quoteNamespace}Field_Name__c.replace(/\./g, ' > ') + '</strong></td>';
+      // The operator
+      htmlString += '<td class="operator-row">' + item.{!quoteNamespace}Operator__c + '</td>';
+      // The right object and field
+      if (item.{!quoteNamespace}Right_Object_Name__c) {
+        htmlString += '<td><strong>' + item.{!quoteNamespace}Right_Object_Name__c + ' > ' + item.{!quoteNamespace}Value__c.replace(/\./g, ' > ') + '</strong></td>'; 
+      } else {
+        htmlString += '<td>"<strong>' + item.{!quoteNamespace}Fixed_Value__c + '</strong>"</td>'
+      }
+      return htmlString;
+    }
+
+    // When adding a new segment for grouping
+    function addSegment() {
+      j$('<h2>&mdash; OR &mdash;</h2><div class="sortable-area"><table class="sortable"><tbody class="ui-sortable"><tr class="tmp_tr"><td></td></tr></tbody></table>').appendTo('#filters-area');
+      j$('.sortable tbody').sortable({
+        connectWith: '.sortable tbody',
+        placeholder: 'ui-state-highlight',
+        items: ">*:not(.tmp_tr)",
+        remove: function (event, ui) {
+          if (j$(this).html().replace(/^\s+/, "") == '') {
+            j$(this).html('<tr class="tmp_tr nobr"><td colspan="7">&nbsp;</td></tr>');
+          }
+        },
+        update: function (event, ui) {
+          j$(this).find('.tmp_tr').remove();
+          cleanAndKeyword();
+        }
+      });
+    }
+
+    // When saving the new order to the db
+    function saveSegments() {
+      // open the status modal
+      displayStatusModal();
+      // Need to find all the groups
+      var newSegmentId = 0;
+      var listFilterItemsToUpdate = [];
+      j$('.sortable tbody').each(function () {
+        // retrieve the element's id (list in sortable-*)
+        var ids = j$(this).sortable("toArray");
+        if(window.console && console.log) console.log(ids);
+        // prepare a new list filter item for each id
+        j$.each(ids, function (index, value) {
+          var item = new List_Filter_Item__c();
+          item.Id = value;
+          item.{!quoteNamespace}Segment_Id__c = 'segment-' + newSegmentId;
+          // add it to the array
+          listFilterItemsToUpdate.push(item);
+        });
+        newSegmentId++;
+      });
+      // save this new order in the db
+      Visualforce.remoting.Manager.invokeAction(
+        '{!$RemoteAction.ListFilterSegmentController.saveSegments}',
+        listFilterItemsToUpdate,
+        function (results, event) {
+          // refresh the table with the newly saved segments
+          refreshSegments();
+        },
+        { escape: false}
+      );
+    }
+
+    // clean up the first "AND" keyword from each table
+    function cleanAndKeyword() {
+      // loop through all the sortable table
+      j$('.sortable tbody').each(function () {
+        // find in it the span element of type "muted" (= the keyword AND)
+        j$(this).find('.muted').slice(0, 1).hide();
+        j$(this).find('.muted').slice(1).show();
+      });
+    }
+  </script>
+
+</apex:page>

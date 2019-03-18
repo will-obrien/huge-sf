@@ -1,0 +1,95 @@
+<apex:page standardcontroller="Survey__c" extensions="ViewSurveyController" cache="false" sidebar="false" showheader="false">
+<title>Take Survey</title>
+
+<style>
+    <apex:outputText value="{!surveyContainerCss}" />
+</style>
+
+
+<div id="survey_container">   
+    <apex:form id="theForm"   >
+    <apex:outputPanel id="seeSurvey" rendered="{!thankYouRendered == false}" >
+        <apex:outputField value="{!Survey__c.Survey_Header__c}"/>
+        <h1><apex:outputField value="{!Survey__c.Name}" rendered="{!Survey__c.Hide_Survey_Name__c == false}" /></h1>
+        
+    </apex:outputPanel>
+
+    <apex:pageMessages />
+    <apex:pageBlock rendered="{!thankYouRendered == false}" > 
+        <div id="qList">
+            
+            <apex:repeat value="{!allQuestions}" var="qPreview" id="aQPreview">
+    
+            <div id="{!qPreview.id}" >
+        
+                    <apex:pageBlock id="pblock"> 
+                        <h1 class="question">
+                            <span class="questionNumber">{!qPreview.orderNumber}</span>
+                            {!qPreview.question}
+                            <apex:outputPanel rendered="{!qPreview.required}" styleClass="requiredText">
+                                ({!$Label.LABS_SF_Required})
+                            </apex:outputPanel>
+                        </h1>
+                     <div id="radio"> 
+                      <apex:selectRadio layout="pageDirection" rendered="{!qPreview.renderSelectRadio}" value="{!qPreview.selectedOption}" >
+                        <apex:selectOptions value="{!qPreview.singleOptions}"/>
+                      </apex:selectRadio>
+                    </div>
+                    <div id="checkbox">           
+                      <apex:selectCheckboxes layout="pageDirection" rendered="{!qPreview.renderSelectCheckboxes}" value="{!qPreview.selectedOptions}" >
+                        <apex:selectOptions value="{!qPreview.multiOptions}"/>
+                      </apex:selectCheckboxes> 
+                    </div>
+                    <div id="text"> 
+                       <apex:inputTextArea cols="50" rows="10" rendered="{!qPreview.renderFreeText}" value="{!qPreview.choices}"/>  
+                    </div>
+                    <div id="row">
+                      <apex:selectRadio rendered="{!qPreview.renderSelectRow}" value="{!qPreview.selectedOption}">
+                        <apex:selectOptions value="{!qPreview.rowOptions}"/>
+                      </apex:selectRadio>
+                    </div>            
+                    <!-- IN ORDER TO ADD A QUESTION TYPE YOU MUST CHANG THE JAVASCRIPT BELOW AS WELL -->
+                    </apex:pageBlock>   
+              
+            </div>  <!-- qPreview.id -->
+            
+            </apex:repeat>
+                         
+        </div> <!-- qList -->
+        
+            
+    </apex:pageBlock>
+        <apex:outputPanel rendered="{!thankYouRendered == false}">
+        <apex:outputPanel rendered="{!isInternal}" >
+            {!$Label.LABS_SF_Answer_as}: 
+            <apex:selectRadio value="{!anonymousAnswer}">
+                <apex:selectOptions value="{!anonymousOrUser}" />
+                <apex:actionSupport event="onchange" rerender="hiddenAnonymousAnswer"/>
+            </apex:selectRadio>
+            <apex:inputHidden value="{!anonymousAnswer}" id="hiddenAnonymousAnswer"/>
+            <BR />
+        </apex:outputPanel>
+        <apex:commandButton action="{!submitResults}" value="{!$Label.LABS_SF_SubmitSurvey}" rerender="theForm,seeSurvey" />
+    </apex:outputPanel>
+        <apex:outputPanel rendered="{!thankYouRendered == true}">
+   
+       <apex:outputText value="{!surveyThankYouText}"  escape="false"  />
+
+        </apex:outputPanel>  
+    </apex:form>
+
+
+    
+
+</div>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

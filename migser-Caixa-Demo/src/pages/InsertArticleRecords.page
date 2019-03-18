@@ -1,0 +1,117 @@
+<apex:page controller="InsertArticleRecords" sidebar="false">
+<script src="//code.jquery.com/jquery-1.9.1.js" />
+<script src="{!$Resource.handsontableJs}" />
+<link rel="stylesheet" href="{!$Resource.handsontableCss}" />
+<script>
+var myData;
+var fieldProperties;
+$(function() {
+    init();
+});
+function init(){
+    getGridData();
+    getFieldProperties();
+}
+function getGridData(){
+    Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.InsertArticleRecords.getGridData}',
+        $("[id$=articleObjectName]").val(),
+        function(result){
+            myData = result;
+            $("#articleGrid").handsontable({
+                data: myData,
+                startRows: 5,
+                startCols: 1,
+                minSpareCols: 0,
+                minSpareRows: 1,
+                rowHeaders: true,
+                colHeaders: false,
+                contextMenu: true,
+                cells: function(r,c, prop) {
+                    var cellProperties = {};
+                    if (r===0) cellProperties.readOnly = true;
+                    return cellProperties;        
+                }
+            });
+        }
+    );
+}
+
+function getFieldProperties(){
+    Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.InsertArticleRecords.getFieldProperties}',
+        $("[id$=articleObjectName]").val(), 
+        function(result){
+            fieldProperties = result;
+        }
+    );
+}
+
+function insertArticlesJS(){
+    $('#result').text('Inserting...');
+    Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.InsertArticleRecords.insertArticles}',
+        $("[id$=articleObjectName]").val(), myData, fieldProperties, 
+        function(result){
+            $('#result').text(result);
+        }
+    );
+}
+
+</script>
+<style>
+.title{
+    color: #888;
+    font-size: 24px;
+    margin-top: 4px;
+    margin-bottom: 10px;
+}
+.selectDiv{
+    margin-bottom: 10px;
+}
+.selectDiv select{
+   min-width: 180px;
+   font-size: 14px;
+   height: 32px;
+   overflow: hidden;
+   border: 1px solid #ccc;
+}
+#knowledgeCreator .button{
+   font-size: 14px;
+   width: 180px;
+   height: 32px;
+   overflow: hidden;
+   border: 1px solid #ccc;
+}
+.dataTable{
+    margin-bottom: 10px;
+}
+.dataTable table tbody tr:first-child td{
+    background-color: #EEE;
+    color: #222;
+}
+#result{
+    margin-top: 10px;
+    font-size: 20px;
+    color: #bb1111; 
+}
+#knowledgeCreator .handsontable table {
+    -webkit-box-shadow: 0px 0px 0px rgba(0, 0, 0, 0.4);
+    box-shadow: 0px 0px 0px rgba(0, 0, 0, 0.4);
+}
+</style>
+
+<div id="knowledgeCreator">
+        <div class="title">Easy Create Knowledge Articles</div>
+        
+        <apex:form >
+        <div class="selectDiv">
+            <apex:selectList id="articleObjectName" value="{!articleObjectName}" size="1" onchange="init();">
+                <apex:selectOptions value="{!articleObjectNames}"/>
+            </apex:selectList>
+        </div>
+        <div id="articleGrid" class="dataTable"></div>
+        <apex:commandButton value="Create Articles!" onclick="insertArticlesJS();return false;" styleClass="button"/>
+        </apex:form>
+    <div/>
+    
+    <div id='result'></div>
+</div>
+</apex:page>

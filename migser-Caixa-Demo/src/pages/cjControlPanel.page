@@ -1,0 +1,82 @@
+<apex:page controller="cjControlPanel" action="{!makeSetting}" tabStyle="Control_Panel__tab">
+    <title>cj Control Panel</title>
+<apex:form >
+	<apex:pageBlock title="PERMISSIONS ERROR" rendered="{!NOT(MADUser)}">
+		<h1>Your profile does not have the "Modify All Data" permissions, required to run the Janitor. This will result in you being unable to run any janitor functions on the page.</h1>
+	</apex:pageBlock>
+	<apex:pageBlock title="Chatter Janitor">
+		<apex:pageBlockSection title="Configured Objects" collapsible="false" columns="1"/>
+		
+		<apex:commandButton value="Clean All Objects" action="{!cleanAll}" disabled="{!NOT(MADUser)}"/><apex:commandButton value="Add New Object" action="{!addSetting}" rendered="{!NOT(AddMode)}"/>
+		<apex:commandButton value="Scrub Org (THIS WIPES ALL CHATTER DATA.)" action="{!scrubOrg}" disabled="{!NOT(MADUser)}" onclick="return confirm('Seriously, this will kill ALL of your chatter posts. You sure, cowboy?');"/> 
+		
+		
+		<apex:outputPanel id="addPanel" rendered="{!addMode}">
+			<apex:pageBlockSection title="Add new object to cleaning list" columns="2">
+				<apex:selectList value="{!cjsNew.Object_Name__c}" size="1">
+					<apex:selectOptions value="{!SObjectList}"/>
+				</apex:selectList>
+				 <apex:inputField value="{!cjsNew.Active__c}"/>
+				<apex:inputField value="{!cjsNew.Date_Limit_No_of_Type__c}"/>
+				 <apex:inputField value="{!cjsnew.Email_Archival__c}"/>
+				<apex:inputField value="{!cjsNew.Date_Limit_Type__c}"/>
+				 <apex:inputField value="{!cjsNew.Skip_Tracked_Changes__c}"/>
+				<apex:outputText value=""/>
+				 <apex:inputField value="{!cjsNew.Skip_Written_Posts__c}"/> 
+			</apex:pageBlockSection> 
+			<apex:commandButton value="Save New Record" action="{!finishAdd}">
+				<apex:actionSupport event="onClick" rerender="settingList"/>
+			</apex:commandButton>
+		</apex:outputPanel>
+		
+		
+		<apex:pageBlockTable value="{!settingList}" var="cjs" id="settingList">
+			<apex:column >
+				<apex:outputPanel rendered="{!NOT(cjs.editMode)}"><apex:commandButton value="Edit" action="{!cjs.editSetting}"/>:<apex:commandButton value="Run" action="{!cjs.runSetting}" disabled="{!NOT(MADUser)}"/>:<apex:commandButton value="Del" action="{!cjs.remSetting}"></apex:commandButton></apex:outputPanel>
+				<apex:commandButton value="Save" rendered="{!cjs.editMode}" action="{!cjs.saveSetting}"/><apex:commandButton value="Cancel" action="{!cjs.editSetting}" rendered="{!cjs.editMode}"/>
+			</apex:column>
+			<apex:column value="{!cjs.cjs.name}"/>
+			<apex:column value="{!cjs.cjs.Object_Name__c}"/>
+			<apex:column headerValue="Delete posts"> 
+				<apex:outputField value="{!cjs.cjs.Date_Limit_No_of_Type__c}" rendered="{!NOT(cjs.editMode)}"/>
+				<apex:inputField value="{!cjs.cjs.Date_Limit_No_of_Type__c}" rendered="{!cjs.EditMode}"/>
+			</apex:column>
+			<apex:column headerValue="older than">	
+				<apex:outputField value="{!cjs.cjs.Date_Limit_Type__c}" rendered="{!NOT(cjs.editMode)}"/>
+				<apex:inputField value="{!cjs.cjs.Date_Limit_Type__c}" rendered="{!cjs.EditMode}"/>
+			</apex:column>
+			<apex:column headerValue="Active">
+				<apex:outputField value="{!cjs.cjs.Active__c}" rendered="{!NOT(cjs.editMode)}"/>
+				<apex:inputField value="{!cjs.cjs.Active__c}" rendered="{!cjs.editMode}"/>
+			</apex:column>
+			<apex:column headerValue="Email Archival">
+				<apex:outputField value="{!cjs.cjs.Email_Archival__c}" rendered="{!NOT(cjs.editMode)}"/>
+				<apex:inputField value="{!cjs.cjs.Email_Archival__c}" rendered="{!cjs.EditMode}"/>
+			</apex:column> 
+			<apex:column headerValue="Skip Tracked Changes">
+				<apex:outputField value="{!cjs.cjs.Skip_Tracked_Changes__c}" rendered="{!NOT(cjs.editMode)}"/>
+				<apex:inputField value="{!cjs.cjs.Skip_Tracked_Changes__c}" rendered="{!cjs.editMode}"/>
+			</apex:column> 
+			<apex:column headerValue="Skip Written Posts">
+				<apex:outputField value="{!cjs.cjs.Skip_Written_Posts__c}" rendered="{!NOT(cjs.editMode)}"/>
+				<apex:inputField value="{!cjs.cjs.Skip_Written_Posts__c}" rendered="{!cjs.editMode}"/>
+			</apex:column>
+		</apex:pageBlockTable>
+		
+		<apex:pageBlockSection title="Admin Settings" collapsible="true" >
+			<apex:pageBlockSectionItem ><apex:outputText value="Email to send archives to: "/>
+			<apex:inputText value="{!emailAddy}"/></apex:pageBlockSectionItem><apex:commandButton value="Update Email" action="{!updateEmail}"/>
+		</apex:pageBlockSection>
+	</apex:pageBlock> 
+</apex:form>
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

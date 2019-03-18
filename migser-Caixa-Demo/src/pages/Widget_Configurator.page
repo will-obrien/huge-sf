@@ -1,0 +1,233 @@
+<apex:page showHeader="true" sidebar="true" controller="Widget_CSS_Configurator">
+<title>Widget Configurator</title>
+    <script type="text/javascript">
+
+        var template;
+        
+        var headlerLabelMap = {
+            "widget_body" : "Body",
+            "widget_header" : "Header",
+            "widget_outer" : "Widget Border",
+            "widget_body_link" : "Body Links",
+            "widget_body_link_hover" : "Body Links Mouse Over State"
+        };
+        function getTemplate(templateID) {
+            Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.Widget_CSS_Configurator.getTemplate}', templateID, function(result, event) {
+                if (event.status) {
+                    template = result;
+                    console.log(template);
+                    loader();
+                } else if (event.type === 'exception') {
+                    console.log("getTemplate - " + event.message);
+                }
+            }, {escape: true});
+        }
+
+        function saveTemplate() {
+            //save name
+            template.t.Name = $("#widgetname").val();
+            
+            //hide save
+            $("#savebut").css("display", "none");
+            $("#saving").css("display", "block");
+            saveWidgetConfig();
+            Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.Widget_CSS_Configurator.saveTemplate}', template, function(result, event) {
+                if (event.status) {
+                    console.log(result);
+                    //alert("saved!");
+                    $("#saving").css("display", "none");
+                    $("#saved").css("display", "block");
+                    setTimeout(function(){
+                        $("#saved").css("display", "none");
+                        $("#savebut").css("display", "block");
+                    }, 1000);
+                } else if (event.type === 'exception') {
+                    console.log("saveTemplate - " + event.message);
+                }
+            }, {escape: true}); 
+        }
+
+        function cloneTemplate() {
+            saveWidgetConfig();
+            Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.Widget_CSS_Configurator.cloneTemplate}', template, function(result, event) {
+                if (event.status) {
+                    console.log(result);
+                    if(result.indexOf("Error") == -1){
+                        window.location.href="/" + result;
+                    }
+                } else if (event.type === 'exception') {
+                    console.log("saveTemplate - " + event.message);
+                }
+            }, {escape: true}); 
+        }
+        
+        function ObjectLength( object ) {
+            var length = 0;
+            for( var key in object ) {
+                if( object.hasOwnProperty(key) ) {
+                    ++length;
+                }
+            }
+            return length;
+        };
+
+        function updater(){
+            //console.log(template);
+            for(var widget in template){
+                //console.log(widget);
+                if(widget.indexOf("widget") != -1){
+                    for(widgetinner in template[widget]){
+                        template[widget][widgetinner].value = $("#"+widgetinner).val();
+                        //update that crap
+                        $("."+widget).css(template[widget][widgetinner].css, template[widget][widgetinner].value);
+                        //console.log(widgetinner + ": " + template["t"][widgetinner]);
+                        
+                        template["t"][widgetinner] = $("#"+widgetinner).val();
+                        /*if(widgetinner.indexOf("Hover") != -1){
+                            console.log(template[widget][widgetinner].css);
+                            var ss = document.styleSheets;
+                            if(template[widget][widgetinner].css == "text-decoration"){
+                                ss[ss.length-1].cssRules[ss[ss.length-1].cssRules.length-1].style.textDecoration = template[widget][widgetinner].value;
+                            }
+                            else {
+                                ss[ss.length-1].cssRules[ss[ss.length-1].cssRules.length-1].style.color = template[widget][widgetinner].value + " !important";
+                            }
+                                
+                        }*/
+                    }
+                }/*
+                if(widget == "widget_body_link_hover"){
+                    //console.log(widget);
+                    
+                    $(".widget_body_link").hover(
+                        function(){
+                            for(widginner in template[widget]){
+                                //console.log(widginner + ": " + template[widget][widginner]);
+                                $(".widget_body_link").css(template[widget][widginner].css, template[widget][widginner].value);
+                            }
+                        },
+                        function(){
+                            //yolo
+                        }
+                    );
+                }*/
+            }
+        }
+
+        function loader(){
+            var widgetBody = template.widget_body;
+            var widgetFooter = template.widget_footer;
+            var widgetHeader = template.widget_header;
+            var widgetInner = template.widget_inner;
+            var widgetOuter = template.widget_outer;
+            var widgetBodyLink = template.widget_body_link;
+            //set header
+            $("#widgetname").val(template.t.Name);
+            
+            var stupidvarshouldntexist = 1;
+            for(var widget in template){
+                if(widget.indexOf("widget") != -1){
+                    if(ObjectLength(template[widget]) != 0) {
+                        var slidget;
+                        slidget= headlerLabelMap[widget];
+                        console.log(slidget);
+                        /*if( == "widget_body"){
+                            slidget = "Body";
+                        }
+                        else if(widget == "widget_header"){
+                            slidget = "Header";
+                        }
+                        else if(widget == "widget_inner"){
+                            slidget = "Body";
+                        }
+                        else if(widget == "widget_outer"){
+                            slidget = "Outer";
+                        }
+                        */
+                        if(stupidvarshouldntexist%2 == 0){
+                            $(".configpanel").append('<div class="configcontainer wide" style="margin-right:10px" id="'+widget+'"><h1>'+slidget+'</h1></div>');
+                        }
+                        else {
+                            $(".configpanel").append('<div class="configcontainer wide" id="'+widget+'"><h1>'+slidget+'</h1></div>');
+                        }
+                        stupidvarshouldntexist++;
+                    }
+                    //deeper and deeper
+                    for(var widgetinner in template[widget]){
+                        $("#"+widget).append('<div class="configlabelBig">'+template[widget][widgetinner].label+'</div>');
+                        if(template[widget][widgetinner].color == "true"){
+                             $("#"+widget).append('<div class="configdataBig"><input class="minicolors" type="text" id="'+widgetinner+'"></div>');
+                        }
+                        else {
+                            $("#"+widget).append('<div class="configdataBig"><input type="text" id="'+widgetinner+'"></div>');
+                        }
+                        $("#"+widgetinner).val(template[widget][widgetinner].value);
+
+                        //shit the styles
+                        $("."+widget).css(template[widget][widgetinner].css, template[widget][widgetinner].value);
+
+                    }
+                    //stop the deeps
+
+                }
+            }
+            
+            //attach event 
+            $("input").on("focusout",function(){
+                updater();
+            });
+            //end
+
+            var consoleTimeout;
+            
+            //minicolor it up
+            $('.minicolors').each( function() {
+                //
+                // Dear reader, it's actually much easier than this to initialize 
+                // miniColors. For example:
+                //
+                //  $(selector).minicolors();
+                //
+                // The way I've done it below is just to make it easier for me 
+                // when developing the plugin. It keeps me sane, but it may not 
+                // have the same effect on you!
+                //
+                $(this).minicolors({
+                    control: $(this).attr('data-control') || 'hue',
+                    defaultValue: $(this).attr('data-default-value') || '',
+                    inline: $(this).hasClass('inline'),
+                    letterCase: $(this).hasClass('uppercase') ? 'uppercase' : 'lowercase',
+                    opacity: $(this).hasClass('opacity') || false,
+                    position: $(this).attr('data-position') || 'default',
+                    styles: $(this).attr('data-style') || '',
+                    swatchPosition: $(this).attr('data-swatch-position') || 'left',
+                    textfield: !$(this).hasClass('no-textfield'),
+                    theme: $(this).attr('data-theme') || 'none',
+                    change: function(hex, opacity) {
+
+                        // Generate text to show in console
+                        text = hex ? hex : 'transparent';
+                        if( opacity ) text += ', ' + opacity;
+                        text += ' / ' + $(this).minicolors('rgbaString');
+                        //console.log($(this));
+                        updater();
+                    }
+                });
+                
+            });
+            
+            updater();
+
+        }
+    </script>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-46606102-1', 'salesforce.com');
+  ga('send', 'pageview');
+
+</script>
+</apex:page>

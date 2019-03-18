@@ -1,0 +1,315 @@
+<!--
+    MTL_My_Task_List.page - Main Visualforce page for My Task List package
+        Provides a list of open tasks owned by the logged in user and methods to modify them
+    Author: Mike Hineline
+
+    Copyright (c) 2013, salesforce.com, Inc.
+    All rights reserved.
+    
+    Redistribution and use in source and binary forms, with or without modification, 
+    are permitted provided that the following conditions are met:
+    
+        * Redistributions of source code must retain the above copyright notice, 
+        this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright notice, 
+        this list of conditions and the following disclaimer in the documentation 
+        and/or other materials provided with the distribution.
+        * Neither the name of the salesforce.com, Inc. nor the names of its contributors 
+        may be used to endorse or promote products derived from this software 
+        without specific prior written permission.
+    
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+    IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+    BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+    LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+    OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
+    OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<apex:page controller="MTL_myTaskListController" sidebar="false" showHeader="{!pageFormat=='aloha'}" standardStylesheets="false" docType="html-5.0">
+
+    <!-- Bootstrap core CSS -->
+    <apex:stylesheet value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/css/bootstrap.min.css')}" />
+    <!-- Custom styles for this page -->
+    <apex:stylesheet value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/css/myTaskList.css')}" />
+    <!-- jQuery JavaScript -->
+    <apex:includeScript value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/js/jquery-1.11.1.min.js')}"/> 
+    <!-- Custom JavaScript to load before page loads -->
+    <apex:includeScript value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/js/myTaskList-preLoad.js')}"/> 
+	<script type="text/javascript">
+		/*
+			Store field names and types in arrays so that field values can be refreshed
+				by the JavaScript functions of the My Task List package
+			NOTE: this JavaScript is included in the VF page file due to
+				the inline Visualforce merge fields
+			NOTE: this JavaScript is included at the top of the page since it is required
+				as the page builds; post-build JavaScript logic is at the end of the page
+		*/
+		// Define arrays to hold required field names and types
+		var MTL_taskCardRequiredFieldNames = [];
+		var MTL_taskCardRequiredFieldTypes = [];
+		// Fill the required field Arrays from the constructor
+		<apex:repeat value="{!taskCardRequiredFields}" var="thisRequiredField">       
+		MTL_taskCardRequiredFieldNames.push("{!IF(thisRequiredField.needsEncoding, JSENCODE(thisRequiredField.fieldName), thisRequiredField.fieldName)}");
+		MTL_taskCardRequiredFieldTypes.push("{!thisRequiredField.fieldType}");
+		</apex:repeat>
+		// Define arrays to hold admin defined field names and types
+		var MTL_taskCardOtherFieldNames = [];
+		var MTL_taskCardOtherFieldTypes = [];
+		// Fill the required field Arrays from the constructor
+		<apex:repeat value="{!taskCardHeaderFields}" var="thisHeaderField">       
+		MTL_taskCardOtherFieldNames.push("{!IF(thisHeaderField.needsEncoding, JSENCODE(thisHeaderField.fieldName), thisHeaderField.fieldName)}");
+		MTL_taskCardOtherFieldTypes.push("{!thisHeaderField.fieldType}");
+		</apex:repeat>
+		<apex:repeat value="{!taskCardDetailsFields}" var="thisDetailsField">       
+		MTL_taskCardOtherFieldNames.push("{!IF(thisDetailsField.needsEncoding, JSENCODE(thisDetailsField.fieldName), thisDetailsField.fieldName)}");
+		MTL_taskCardOtherFieldTypes.push("{!thisDetailsField.fieldType}");
+		</apex:repeat>
+	</script>
+    
+    <div class="container" id="taskListContainer">
+    	<!-- Header Buttons -->
+        <div class="row" style="padding:8px 0;">
+            <div class="col-xs-6">
+            	<div class="btn-group hideContentSmallScreen">
+                	<button type="button" class="btn btn-default btn-sm dropdown-toggle" id="sortTaskButton" data-toggle="dropdown">
+                    	<img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/sort_button.png')}" title="Sort the task list"/>
+                    </button>
+                    <ul class="dropdown-menu text-left" role="menu">
+                    	<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskSortDateASCScript)}');return false;">Soonest due date first</a></li>
+                        <li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskSortDateDESCScript)}');return false;">Farthest due date first</a></li>
+                        <li class="divider"></li>
+                        <li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskSortPriorityScript)}');return false;">High priority first</a></li>
+                    </ul>
+                </div>
+            	<div class="btn-group">
+                	<button type="button" class="btn btn-default btn-sm dropdown-toggle" id="filterTaskButton" data-toggle="dropdown">
+                		<img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/filter_button.png')}" title="Filter the task list" />
+                	</button>
+                	<ul class="dropdown-menu text-left" role="menu">
+                		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterAllOpenScript)}');return false;">All Open</a></li>
+                    	<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterOverdueScript)}');return false;">Overdue</a></li>
+                 		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterTodayScript)}');return false;">Today</a></li>
+                 		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterTodayPlusOverdueScript)}');return false;">Today + Overdue</a></li>
+                 		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterTomorrowScript)}');return false;">Tomorrow</a></li>
+                 		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterNext7DaysScript)}');return false;">Next 7 Days</a></li>
+                 		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterNext7DaysPlusOverdueScript)}');return false;">Next 7 Days + Overdue</a></li>
+                 		<li><a href="javascript:void(0);" onClick="javascript:location.assign('{!JSENCODE(taskFilterThisMonthScript)}');return false;">This Month</a></li>
+                 	</ul>
+            	</div>
+            </div>
+            <div class="col-xs-3">
+                <a title="New Task" href="javascript:void(0);" onclick="javascript:MTL_openRecord(null,'primary','New Task','new','Task')" id="newTaskLink">
+                	<span class="taskAction"><button type="button" class="btn btn-sm btn-default">New</button></span>
+                </a>
+            </div>
+            <div class="col-xs-3">
+            	<a title="Refresh all tasks" href="javascript:void(0);" onClick="javascript:location.reload();return false;" id="refreshPage">
+                	<span class="taskAction"><button type="button" class="btn btn-default btn-sm" id="pageRefreshButton"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/refresh_button.png')}" /></button></span><br />
+                </a>
+            </div>
+        </div>
+    	<!-- /Header Buttons -->
+    
+    	<!-- List of Tasks -->
+        <div class="panel-group" id="taskList">
+            <apex:repeat value="{!myTaskList}" var="myTask" id="taskTable">
+            <div class="panel panel-default taskPanel{!myTask.priorityPanelClass}" id="taskCard{!myTask.taskSObject.Id}">
+                <div class="panel-heading" id="taskHeading{!myTask.taskSObject.Id}">
+                    <div class="panel-title">
+                        <div class="row">
+                            <!-- Task Header -->
+                            <div class="col-xs-10">
+                                <p>
+                                    <span class="priorityIcon {!myTask.priorityIconClass}" id="taskPriorityHeader{!myTask.taskSObject.Id}">
+                                        <!-- <img src="/img/high_priority.gif" style="margin:0 0 0 -7px;" alt="High Priority" /> -->
+                                        <img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/priority_icon.png')}" alt="High Priority"/>
+                                    </span>
+                                    <a href="javascript:void(0);" onclick="javascript:MTL_openRecord('{!JSENCODE(myTask.taskSObject.Id)}','primary','{!JSENCODE(myTask.taskSObject.Subject)}','view','Task')" id="taskSubjectURL{!myTask.taskSObject.Id}">
+                                        <span id="taskSubject{!myTask.taskSObject.Id}">{!myTask.taskSObject.Subject}</span>
+                                    </a>
+                                </p>
+                                <p>
+                                    <b>Due: </b>
+                                    <span class="{!myTask.dueDateStyle}" id="taskActivityDate{!myTask.taskSObject.Id}">
+                                        <apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+                                            <apex:param value="{!myTask.taskSObject.ActivityDate}" />
+                                        </apex:outputText>
+                                    </span>
+                                </p>
+                                <p>
+                                    <b>RE: </b>
+                                    <a href="javascript:void(0);" onclick="javascript:MTL_openRecord('{!JSENCODE(myTask.taskSObject.WhatId)}','primary','{!JSENCODE(myTask.taskSObject.What.Name)}','view','Task')" id="taskWhatURL{!myTask.taskSObject.Id}">
+                                        <span id="taskWhat{!myTask.taskSObject.Id}">{!myTask.taskSObject.What.Name}</span>
+                                    </a>
+                                </p>
+								<!-- Additional, optional task card header fields from the field set -->
+					            <apex:repeat value="{!taskCardHeaderFields}" var="taskHeaderField">
+					            <p>
+                                    <script type="text/javascript">document.write(MTL_formatFieldLabelHTML('{!JSINHTMLENCODE(taskHeaderField.fieldLabel)}'));</script>
+									<span id="{!taskHeaderField.fieldName}-{!myTask.taskSObject.Id}">
+                                        <script type="text/javascript">document.write(MTL_formatFieldValueHTML('{!IF(taskHeaderField.needsEncoding, JSINHTMLENCODE(myTask.taskSObject[taskHeaderField.fieldName]), myTask.taskSObject[taskHeaderField.fieldName])}','{!taskHeaderField.fieldType}'));</script>
+									</span>
+					            </p>
+					            </apex:repeat>
+								<!-- /Additional, optional task card header fields from the field set -->
+                            </div>
+                            <div class="col-xs-2">
+                                <a data-toggle="collapse" href="#Task{!myTask.taskSObject.Id}">
+                                    <span class="taskAction"><button type="button" class="btn btn-default btn-sm"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/details_button.png')}" /></button></span>
+                                </a>
+                                <span class="taskAction"><button type="button" class="btn btn-default btn-sm hidden" disabled="disabled" id="refreshIndicator{!myTask.taskSObject.Id}"><img style="width:18px;height:18px;" src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/loading-gray.gif')}" /></button></span>
+                            </div>
+                            <!-- /Task Header -->
+                        </div>
+                    </div>
+                </div>
+                <div id="Task{!myTask.taskSObject.Id}" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="row">
+                            <div class="col-xs-10">
+                                <!-- Task Details -->
+                                <p>
+                                    <b>Status: </b>
+                                    <span id="taskStatus{!myTask.taskSObject.Id}">{!myTask.taskSObject.Status}</span>
+                                    <input type="hidden" id="statusPriorValue{!myTask.taskSObject.Id}" value="{!myTask.taskSObject.Status}" />
+                                </p>
+                                <p>
+                                    <b>Priority: </b>
+                                    <input type="hidden" id="priorityOriginalValue{!myTask.taskSObject.Id}" value="{!myTask.taskSObject.Priority}" />
+                                    <span id="taskPriority{!myTask.taskSObject.Id}">{!myTask.taskSObject.Priority}</span>
+                                    <span class="priorityIcon {!myTask.priorityIconClass}" id="taskPriorityDetails{!myTask.taskSObject.Id}">
+                                        <img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/priority_icon.png')}" alt="High Priority"/>
+                                    </span>
+                                </p>
+                                <p>
+                                    <b>Who: </b>
+                                    <a href="javascript:void(0);" onclick="javascript:MTL_openRecord('{!JSENCODE(myTask.taskSObject.Who.Id)}','primary','{!JSENCODE(myTask.taskSObject.Who.Name)}','view','Task')" id="taskWhoURL{!myTask.taskSObject.Id}">
+                                        <span id="taskWho{!myTask.taskSObject.Id}">{!myTask.taskSObject.Who.Name}</span>
+                                    </a>
+                                </p>
+								<!-- Additional, optional task card details fields from the field set -->
+					            <apex:repeat value="{!taskCardDetailsFields}" var="taskDetailsField">
+					            <p>
+                                    <script type="text/javascript">document.write(MTL_formatFieldLabelHTML('{!JSINHTMLENCODE(taskDetailsField.fieldLabel)}'));</script>
+									<span id="{!taskDetailsField.fieldName}-{!myTask.taskSObject.Id}">
+                                        <script type="text/javascript">document.write(MTL_formatFieldValueHTML('{!IF(taskDetailsField.needsEncoding, JSINHTMLENCODE(myTask.taskSObject[taskDetailsField.fieldName]), myTask.taskSObject[taskDetailsField.fieldName])}','{!taskDetailsField.fieldType}'));</script>
+									</span>
+					            </p>
+					            </apex:repeat>
+					            <!-- /Additional, optional task card details fields from the field set -->
+                                <!-- /Task Details -->
+                            </div>
+                            <div class="col-xs-2" id="taskActionButtons{!myTask.taskSObject.Id}">
+                                <!-- Task Actions -->
+                                <a title="Refresh task details" href="javascript:void(0);" onClick="javascript:MTL_updateTask('{!myTask.taskSObject.Id}',null,null);" id="taskRefreshLink{!myTask.taskSObject.Id}">
+                                    <span class="taskAction"><button type="button" class="btn btn-default btn-sm" id="taskRefreshButton{!myTask.taskSObject.Id}"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/refresh_button.png')}" /></button></span><br />
+                                </a>
+                                <a title="One click completion toggle of this task" href="javascript:void(0);" onClick="javascript:MTL_updateTask('{!myTask.taskSObject.Id}','Status','Completed');" id="taskQuickCloseLink{!myTask.taskSObject.Id}">
+                                    <span class="taskAction"><button type="button" class="btn btn-danger btn-sm" id="taskQuickCloseButton{!myTask.taskSObject.Id}"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/close_quick_button.png')}" /></button></span><br />
+                                </a>
+                                <apex:outputLink title="Mark task complete and add notes" value="javascript:void(0);" onclick="javascript:MTL_openRecord('{!JSENCODE(myTask.taskSObject.Id)}','primary','{!JSENCODE(myTask.taskSObject.Subject)}','close','Task')" rendered="{!pageFormat != 'mobile'}" >
+                                    <span class="taskAction"><button type="button" class="btn btn-default btn-sm" id="taskCloseButton{!myTask.taskSObject.Id}"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/close_button.png')}" /></button></span><br />
+                                </apex:outputLink>
+                                    <a title="Edit this task" href="javascript:void(0);" onclick="javascript:MTL_openRecord('{!JSENCODE(myTask.taskSObject.Id)}','primary','{!JSENCODE(myTask.taskSObject.Subject)}','edit','Task')">
+                                    <span class="taskAction"><button type="button" class="btn btn-default btn-sm" id="taskEditButton{!myTask.taskSObject.Id}"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/edit_button.png')}" /></button></span><br />
+                                </a>
+                                <a title="One click priority toggle for this task" href="javascript:void(0);" onClick="javascript:MTL_togglePriority('{!myTask.taskSObject.Id}');return false;" id="taskTogglePriorityLink{!myTask.taskSObject.Id}">
+                                    <span class="taskAction"><button type="button" class="btn btn-default btn-sm" id="taskTogglePriorityButton{!myTask.taskSObject.Id}"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/priority_button.png')}" /></button></span><br />
+                                </a>
+                                <a title="Email this task to myself" href="javascript:void(0);" onClick="javascript:MTL_emailTask('{!myTask.taskSObject.Id}');return false;" id="taskEmailLink{!myTask.taskSObject.Id}">
+                                    <span class="taskAction"><button type="button" class="btn btn-default btn-sm" id="taskEmailButton{!myTask.taskSObject.Id}"><img src="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/images/mail_button.png')}" /></button></span><br />
+                                </a>
+                                <!-- /Task Actions -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </apex:repeat>
+        </div>
+    </div>
+    <!-- /List of Tasks -->
+    
+    <!-- ========================================================================================
+        JavaScript Includes - placed at the end of the document so the pages load faster -->
+
+    <!--  Bootstrap core JavaScript -->
+    <apex:includeScript value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/js/bootstrap.min.js')}"/> 
+    
+    <!--  cometD Javascript for subscribing to the salesforce.com Streaming API -->
+    <apex:includeScript value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/js/cometd-2.2.0.js')}"/> 
+    <apex:includeScript value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/js/jquery.cometd-2.2.0.js')}"/> 
+
+    <!-- Salesforce Console integration JavaScript -->
+    <apex:includeScript value="/support/console/30.0/integration.js"/> 
+
+    <!-- Custom JavaScript for My Task List -->
+    <apex:includeScript value="{!URLFOR($Resource.MTL_My_Task_List_Resources,'/js/myTaskList-postLoad.js')}"/> 
+    <script type="text/javascript">
+        /* 
+            MTL_getPageFormat - get the pageFormat string based on the user's UI
+                NOTE: this JavaScript function is included in the VF page file due to
+                the inline Visualforce merge field
+            Inputs: none
+            Output: String pageFormat = console, mobile, or aloha
+        */
+        function MTL_getPageFormat() {
+            // Detect the page format
+            var pageisdtp = "{!JSENCODE($CurrentPage.parameters.isdtp)}";
+            var pageFormat = "aloha";
+            if (pageisdtp == 'nv' || pageisdtp == 'vw') {
+                // Detect the console
+                pageFormat = "console";
+            } else if ( pageisdtp == 'p1' ) {
+                // Detect Salesforce1
+                pageFormat = "mobile";
+            } else {
+                // Default to aloha
+                pageFormat = "aloha";
+            }
+        
+            // Return the page format
+            return pageFormat;
+        }
+
+        /*
+            Listen for and handle changes to tasks
+                NOTE: this JavaScript function is included in the VF page file due to
+                the inline Visualforce merge field
+        */
+        (function($){
+            $(document).ready(function() {
+                // Connect to the CometD endpoint
+                $.cometd.init({
+                    url: window.location.protocol+'//'+window.location.hostname+'/cometd/30.0/',
+                    requestHeaders: { Authorization: 'OAuth {!$Api.Session_ID}'},
+                    appendMessageTypeToURL: false
+                });
+    
+                // Subscribe to the MTL_myTaskListUpdates topic and refresh the task list
+                //  when a task assigned to this user is created or updated
+                $.cometd.subscribe('/topic/MTL_myTaskListUpdates', function(message) {
+                    // Determine the event type (create, update, delete)
+                    var thisEventType = message.data.event.type;
+                    // Get the Task Id and Task OwnerId from the updated Task
+                    var thisTaskId = message.data.sobject.Id;
+                    var thisTaskOwnerId = message.data.sobject.OwnerId;
+
+                    // If a task for the updated Id exists in the page, update it
+                    if ($("#taskCard"+thisTaskId).length >= 1) {
+                        MTL_updateTask(thisTaskId,null,null);
+                    }
+                    // If a new or deleted task is detected and owned by (Assigned To) user,
+                    //  refresh the entire task list
+                    if ((thisEventType == "created" || thisEventType == "deleted") && thisTaskOwnerId == "{!$User.Id}") {
+                        location.reload();
+                    }
+                });
+            });
+        })(jQuery)      
+    </script>
+</apex:page>

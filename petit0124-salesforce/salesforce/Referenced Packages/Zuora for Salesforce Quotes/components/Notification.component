@@ -1,0 +1,62 @@
+<apex:component access="global" controller="zqu.NotificationController">
+  <apex:attribute name="successTitle" access="global" type="String" assignTo="{!successMessage}"
+	description="The message title upon success"/>
+  <apex:attribute name="failureTitle" access="global" type="String" assignTo="{!failureMessage}"
+    description="The message title upon failure"/>
+  <apex:attribute name="successBody" access="global" type="String" assignTo="{!successMessageBody}" 
+    description="The message body upon success" required="false"/>
+  <apex:attribute name="failureBody" access="global" type="String" assignTo="{!failureMessageBody}" 
+    description="The message body upon failure" required="false"/>
+  
+  <!-- Configuration options for the component -->
+  <apex:attribute name="options" access="global" type="zqu.NotificationOptions" assignTo="{!theOptions}"
+    description="The configuration options for the component" required="false" />
+  <apex:attribute name="isPopup" access="global" type="Boolean" 
+    description="If true, the component will render as a popup" required="false"/>
+  <apex:attribute name="continueAction" access="global" type="String"
+  	description="Javascript executed if user clicks continue" required="false"/>
+  <apex:attribute name="backAction" access="global" type="String"
+  	description="Javascript executed if user clicks go back" required="false"/>
+  <apex:attribute name="continueButtonLabel" access="global" type="String" 
+    description="Text value to appear on the continue button" required="false" />
+  <apex:attribute name="backButtonLabel" access="global" type="String" 
+    description="Text value to appear on the back button" required="false" />
+    
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/Notification-min.css')}" />  
+
+	<script>
+		var $jqn = jQuery.noConflict();
+		
+		//This function may be called to temporarily hide the popup notification (for example, before displaying the status modal)
+		function hidePopupNotification() {
+	  		$jqn(".config-box").css("display", "none");
+	  		$jqn(".popup-overlay").css("display", "none");
+	  	}
+	</script>
+
+	<apex:styleSheet value="{!$Resource.zqu__zforcecss}" />
+	
+	<apex:outputPanel rendered="{!hasMessages}" >
+		<apex:outputPanel styleClass="popup-overlay" rendered="{!popupMode}" />
+		<div class="{!styleClass}">
+			<div class="msg-container">
+				<div class="msg-content">
+					<div class="header">{!IF(type='Info', successMessage, IF(type='Warning', warningMessage, failureMessage))}</div>
+					<div class="messageBody" rendered="{!hasMessageBody}">{!messageBody}</div>
+					<div class="message" rendered="{!NOT(hasMessageBody)}"><apex:messages /></div>
+				</div>
+				<div class="msg-actions" style="display: {!IF(popupMode, 'none', 'block')}">
+					<apex:outputPanel onclick="{!continueJS}" rendered="{!NOT(BLANKVALUE(continueJS, '') == '')}" styleClass="btn">{!theOptions.continueLabel}</apex:outputPanel>
+					<apex:outputPanel onclick="{!backJS}" rendered="{!NOT(BLANKVALUE(backJS, '') == '')}" styleClass="btn">{!theOptions.backLabel}</apex:outputPanel>
+				</div>
+			</div>
+			<apex:outputPanel styleClass="bar" rendered="{!popupMode}" layout="block" />
+			<apex:outputPanel styleClass="msg-actions" rendered="{!popupMode}" style="text-align: center; width: 10%;" >
+				<apex:outputPanel onclick="{!continueJS}" rendered="{!NOT(BLANKVALUE(continueJS, '') == '')}" styleClass="btn" style="padding: 6px 3px; position: relative; top: 10px;" >{!continueLabel}</apex:outputPanel>
+				<apex:outputPanel onclick="{!backJS}" rendered="{!NOT(BLANKVALUE(backJS, '') == '')}" styleClass="btn" style="padding: 6px 3px; position: relative; top: 10px;" >{!backLabel}</apex:outputPanel>
+			</apex:outputPanel>
+		</div>
+	</apex:outputPanel>
+	  
+</apex:component>

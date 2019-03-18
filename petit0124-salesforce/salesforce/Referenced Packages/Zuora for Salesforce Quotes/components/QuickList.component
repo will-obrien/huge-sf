@@ -1,0 +1,183 @@
+<apex:component controller="zqu.QuickListController" extensions="zqu.JsRemoteController" selfClosing="true" access="global">
+
+  <!-- Attributes -->
+  <apex:attribute name="listName" required="true" access="global" type="String"
+                  assignTo="{!instanceListName}"
+                  description="The unique list name registered in Zuora Config." />
+
+  <apex:attribute name="contextIds" required="true" access="global" type="map"
+                  description="The context Ids associated with this particular list." />
+                  
+  <apex:attribute name="resetOnLoad" required="false" type="Boolean" description="When this value is true, the List will be reset otherwise it will contain your last filtered records." default="true" />
+
+  <apex:attribute name="displayInnerList" required="false" access="global" type="Boolean" default="true"
+                  description="Flag to determine whether the inner list is displayed." />
+                  
+  <!-- JavaScript resources -->
+  <apex:includeScript value="{!$Page.zqu__ResourceJS}" />
+
+  <!-- include jQuery, UI and plugins -->
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/jquery-ui-1.10.3.custom-compressed.js')}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_JSON}" />
+  <apex:includeScript value="{!$Resource.zqu__JQuery_DataTables}" />
+ 
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, 'jquery-ui-1103.css')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/selectbillaccount-min.css')}" />
+  <apex:styleSheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/ProductSelector-min.css')}" />
+
+  <!-- used for formatting -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/FormatObject-compressed.js')}" />
+
+  <script type="text/javascript">
+    // FormatObject.date = $jq("span[data-id='format_date']").children()[0].innerHTML.replace('1960', 'year').replace('12', 'month').replace('10', 'day');
+    // FormatObject.currency = $jq('<div/>').html($jq("span[data-id='format_currency']").children()[0].innerHTML).text();
+    // FormatObject.number = $jq('<div/>').html($jq("span[data-id='format_number']").children()[0].innerHTML).text();
+  </script>
+
+  <!-- include the zset implementation -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/ZSet-compressed.js')}" />
+
+  <!-- include ZDataList -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/DataList-compressed.js')}" />
+
+  <!-- include QuickList dedicated JavaScript -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/QuickList-compressed.js')}" />
+
+  <!-- include LocalStorageUtils for retrieving SOQL fragment if any -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/LocalStorageUtils-compressed.js')}" />
+
+  <!-- global variable used to store the different callbacks upon input field change (single-select or multi-select) -->
+  <script type="text/javascript">
+
+    // jQuery no conflict instanciation
+    if (typeof j$ == 'undefined')  j$ = jQuery.noConflict();
+    if(window.console && console.log) console.log('in quicklist component');
+    // Prepare the global variable callbacks if undefined (because other list component might already have set it up)
+    if (typeof zListCallbacks === 'undefined')  var zListCallbacks = {};
+    
+    // Add this list callbacks to the global variable
+    zListCallbacks['{!listName}'] = j$.Callbacks();
+
+    // Same for the counter of selected element
+    if (typeof zSelectedElements === 'undefined') var zSelectedElements = {};
+
+    // Add this list to the global variable
+    zSelectedElements['{!listName}'] = new ZSet();
+
+    // Map of context Ids passed from the attribute
+    var {!listName}cIds = {};
+
+    <apex:repeat value="{!contextIds}" var="cKey">
+      {!listName}cIds['{!cKey}'] = '{!IF(contextIds == "", "", contextIds[cKey])}';
+    </apex:repeat>
+
+    // console.log('>>> begin context Ids map');
+    // console.dir(cIds);
+    // console.log('>>> end context Ids map'
+
+    function clearAll(listName) {
+      zSelectedElements[listName].clear();
+      // reset the display
+      j$('#' + listName + '-items-selected-counter').html(zSelectedElements[listName].list().length);
+      // reset the checkboxes
+      j$('input[name="' + listName + '-select"]').prop('checked', false);
+    }
+
+    function {!listName}Redraw() {
+      // Query LocalStorage for any related elements to the list
+      var soqlFragments = LocalStorageUtils.retrieveAllFragment('{!listName}');
+      // Draw the quicklist
+      QuickList.generateDataList( 'table-for-{!listName}', '{!listName}', {!listName}cIds,
+          '{!AND(hasInnerList, displayInnerList)}', '{!instanceAssociatedListName}',
+          '{!isMultiSelect}', '{!relationshipFieldName}', {!pageSize},
+          {!useServerSideProcessing}, soqlFragments);
+    }
+
+    function {!listName}GetSelected() {
+      if (!{!isMultiSelect})
+        return j$('input[name={!listName}-select]:checked').val();
+      else if (zSelectedElements['{!listName}'] != null)
+        return zSelectedElements['{!listName}'].list();
+      else
+        return null;
+    }
+
+    // After the document is loaded
+    j$(function () {
+      // Make sure we flushed the LocalStorage for this particular list
+      if({!resetOnLoad} === true)
+        LocalStorageUtils.resetLocalStorage('{!listName}');
+      // Draw the QuickList component
+      {!listName}Redraw();
+    });
+
+  </script>
+
+  <!-- small CSS overrid for the next / previous button -->
+  <style type="text/css">
+    .dataTables_info {
+      float: left;
+    }
+    .dataTables_paginate {
+      text-align: right;
+      margin-bottom: .5em;
+    }
+    .paginate_disabled_previous,
+    .paginate_disabled_next,
+    .paginate_enabled_previous,
+    .paginate_enabled_next {
+      display: inline-block;
+      padding: 0 .5em;
+    }
+    .paginate_disabled_previous,
+    .paginate_disabled_previous:hover,
+    .paginate_disabled_next,
+    .paginate_disabled_next:hover {
+      color: #ccc;
+      text-decoration: none;
+    }
+    .paginate_enabled_previous,
+    .paginate_enabled_next {
+      cursor: pointer;
+    }
+    .msg {
+      border: 1px solid #F4C756;
+      background-color: #FFF6D2;
+      border-bottom: 2px solid #F4A756;
+    }
+    .msg td {
+      padding: .2em;
+    }
+    .underline-green {
+      color: #639B1B;
+      text-decoration: underline;
+    }
+    .price-detail {
+      font-weight: bold;
+      color: #F7931E;
+    }
+  </style>
+
+  <!-- Used for formatting displayed field -->
+  <apex:outputPanel html-data-id="format_date" style="display:none;"><apex:outputField value="{!formatObject.zqu__Format_Date__c}"/></apex:outputPanel>
+  <apex:outputPanel html-data-id="format_currency" style="display:none;"><apex:outputField value="{!formatObject.zqu__Format_Currency__c}"/></apex:outputPanel>
+  <apex:outputPanel html-data-id="format_number" style="display:none;"><apex:outputField value="{!formatObject.zqu__Format_Number__c}"/></apex:outputPanel>
+
+  <!-- include the status modal component -->
+  <c:StatusModal />
+
+  <!-- counter for the # of selected elements in multi-select mode -->
+  <apex:outputPanel rendered="{!isMultiSelect}">
+    <table class="msg" width="100%">
+        <tr>
+            <td align="center"><strong>{!$Label.QUICK_LIST_SELECTED_RECORDS}&nbsp;</strong><strong id="{!listname}-items-selected-counter">0</strong>&nbsp;&nbsp;
+            <a href="javascript:clearAll('{!listName}');" class="underline-green">{!$Label.QUICK_LIST_CLEAR_SELECTIONS}</a></td>
+        </tr>
+    </table>
+  </apex:outputPanel>
+
+  <!-- main table placeholder for the datalist -->
+  <table id="table-for-{!listName}" />
+
+</apex:component>
