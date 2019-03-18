@@ -1,0 +1,93 @@
+<apex:page showHeader="false" standardController="Lead" extensions="GLOC.HitListCtl" recordSetVar="Leads" title="GoLocal Mini Hit-List" tabStyle="Hit_List__tab">
+    
+	<link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.GoLocalRes, 'CSS/Listview.css')}"/>
+	
+	<script src="{!URLFOR($Resource.GoLocalRes, 'Lib/jquery/jquery-1.6.1.min.js')}"></script>
+	<script src="{!URLFOR($Resource.GoLocalRes, 'JS/Listview.js')}"></script>
+	
+	<div class="GoLocal">    
+    <apex:form >
+    
+    <apex:pageBlock tabStyle="Hit_List__tab">
+		<apex:facet name="header" ></apex:facet>
+		<div style="padding-bottom:7px">
+            <table class="filterBar action" cellpadding="0" cellspacing="0" border="0">
+	            <tr>
+	            	<td class="title" style="font-size: 1.3em; font-weight: bold;">Leads</td>
+	            	<td><apex:commandButton value="New Lead" style="padding: 2px 3px; margin-left:8px" action="{!newLead}" 
+	            			rendered="{!NOT(selectMode)}" onclick="top.location.href='/00Q/e';return false;"/></td>
+	            	<td class="fliters">
+	            		<apex:outputPanel rendered="{!recLimit<viewSize}" style="font-size: 91%">
+	            			Only the first {!recLimit} records are displayed
+	            		</apex:outputPanel>
+		            	<apex:selectList title="View" size="1" value="{!altFilterId}" rendered="{!NOT(selectMode)}" style="width:auto;font-size: 91%;">
+		                	<apex:actionSupport event="onchange" action="{!filter}" />
+							<apex:selectOptions value="{!listviewoptions}"/>
+		            	</apex:selectList>
+	            	</td>
+	            </tr>
+	        </table>
+		</div>
+		<apex:outputPanel id="tblPane">
+			
+			<div id="tableDiv" style="min-height:265px">
+				<apex:pageBlockTable value="{!items}" var="i" id="pbt" styleClass="tbl" rendered="{!NOT(Pages=0)}">
+		            <apex:column headerValue="Action" styleClass="action">
+		            	<apex:outputLink value="/{!i.lead.id}/e" target="_top" rendered="{!NOT(selectMode)}">Edit</apex:outputLink>
+		            </apex:column>
+		
+		            <apex:column headerValue="Name">
+		            	<apex:outputLink value="/{!i.lead.id}" rendered="{!NOT(selectMode)}" target="_top">{!i.lead.name}</apex:outputLink>
+		            </apex:column>
+		            <apex:column headerValue="Company">
+		            	<apex:outputLink value="/{!i.lead.id}" rendered="{!NOT(selectMode)}" target="_top">{!i.lead.company}</apex:outputLink>
+		            </apex:column>
+					<apex:column value="{!i.lead.phone}"/>
+
+					<apex:column value="{!i.lead.email}"/>
+					
+		            <apex:column headerValue="Time Zone" value="{!i.timezone}" rendered="false"/>
+		            <apex:column headerValue="Location" >
+		            	<apex:outputPanel rendered="{!NOT(ISNULL(i.country))}">
+		            		<img src="{!URLFOR($Resource.GoLocalRes, 'Flags/' & LOWER(i.country) & '.png')}"/>
+		            		&nbsp;
+		            		<apex:outputText rendered="{!NOT(ISNULL(i.state))}">{!i.state},&nbsp;</apex:outputText>{!i.country}
+		            	</apex:outputPanel>
+		            </apex:column>
+		            <apex:column headerValue="Local Time" value="{!i.localTime}" id="localTimeCol"/>            
+					
+					<apex:column value="{!i.lead.status}"/>
+		        </apex:pageBlockTable>
+					
+				<apex:outputPanel id="blnk" rendered="{!Pages=0}"> 
+					<script>$j('#loadiv').hide();</script>
+					<apex:pageBlockTable value="{!BlankList}" var="s" >
+						<apex:column headerValue="" headerClass="trans" style="text-align: center; padding-top:25px; padding-bottom:20px">
+							No leads to display for the selected view.
+						</apex:column>
+					</apex:pageBlockTable>
+				</apex:outputPanel>
+			</div>
+			
+			<apex:outputPanel id="pagePanel">        
+	        	<script>$j('#loadiv').hide();</script>
+	        	<table border="0" class="glPaginator" cellspacing="0" cellpadding="0" style="width:100%; padding-top: 10px;"><tr>
+	        		<td class="left">
+						<apex:outputLink value="{!pageURL}" target="_top">Go to my full Hit-List</apex:outputLink>
+	        		</td>
+	        		<td class="center">&nbsp;</td>	
+	        		<td class="right">
+	        			<apex:commandLink onclick="toggleLoad();" value="< Previous Page" action="{!Prev}" rendered="{!Page>1}" rerender="pbt, pagePanel" />
+	        			<apex:outputText rendered="{!AND(Page>1,Page<Pages)}"> | </apex:outputText>
+	        			<apex:commandLink onclick="toggleLoad();" value=" Next Page >" action="{!Next}" rendered="{!Page<Pages}" rerender="pbt, pagePanel" />
+	        		</td>
+	        	</tr></table>
+	        </apex:outputPanel>
+		</apex:outputPanel>
+    </apex:pageBlock>
+    
+    <div id="loadiv" class="loadiv" style="display:none;"><img src="/img/loading.gif" />Loading...</div>
+    
+    </apex:form>
+    </div>
+</apex:page>

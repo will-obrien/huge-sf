@@ -1,0 +1,430 @@
+<apex:page controller="SDOC.SDCreateController" 
+tabStyle="SDOC__SDTemplate__c"
+action="{!initStep3}"> 
+<head>
+<apex:styleSheet value="{!URLFOR($Resource.SDOC__SDoc,'skin.css')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'yahoo-dom-event.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'container-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__SDoc,'animation-min.js')}" />
+<apex:includeScript value="{!URLFOR($Resource.SDOC__ckEditor,'/ckeditor/ckeditor.js')}"/>
+<style>
+.buttonStyle { width:75px; height:30px; }
+</style>
+    
+<script>
+    function getQuerystring(key, default_)
+        {
+          if (default_==null) default_="";
+          key = key.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+          var regex = new RegExp("[\\?&]"+key+"=([^&#]*)");
+          var qs = regex.exec(window.location.href);
+          if(qs == null)
+            return default_;
+          else
+            return qs[1];
+    }
+    // Create a namespace for our custom functions
+    YAHOO.namespace("force.com");
+    YAHOO.force.com.showMe = function() {
+        document.getElementById("myPanel").style.display = "block";
+        YAHOO.force.com.myDialog.show();
+    }
+    YAHOO.force.com.hideMe = function() {
+        YAHOO.force.com.myDialog.hide();
+    }
+    YAHOO.force.com.showEmail = function() {
+        document.getElementById("emailPanel").style.display = "block";
+        YAHOO.force.com.eDialog.show();
+    }
+    YAHOO.force.com.hideEmail = function() {
+        YAHOO.force.com.eDialog.hide();
+    }
+    // Function called when the DOM is ready to create the dialog,
+    // render the dialog into the document body, add our dialog skin
+    // css to the body tag, and wire up the buttons on our dialog    
+    YAHOO.force.com.init = function() {
+        document.body.className = document.body.className + " yui-skin-sam";
+        
+        YAHOO.force.com.myDialog = new YAHOO.widget.Panel(
+            "myPanel",  // The id of our dialog container
+            { 
+                    width           :   "700px",    // You can play with this until it's right
+                    visible         :   false,  // Should be invisible when rendered
+                    draggable       :   true,   // Make the dialog draggable
+                    close           :   false,  // Don't include a close title button
+                    modal           :   true,   // Make it modal
+                    fixedCenter     :   true,   // Keep centered if window is scrolled
+                    zindex          :   100,     // Make sure it's on top of everything
+                    
+                    // This line adds the appear/vanish fade effect
+                    effect          :   {
+                                          effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.40
+                                        } 
+            }
+       );
+       YAHOO.force.com.eDialog = new YAHOO.widget.Panel(
+            "emailPanel",  // The id of our dialog container
+            { 
+                    xy              :   [75,75]
+                    ,width           :   "850px"    // You can play with this until it's right
+                    ,visible         :   false  // Should be invisible when rendered
+                    ,draggable       :   true   // Make the dialog draggable
+                    ,close           :   false  // Don't include a close title button
+                    ,modal           :   true   // Make it modal
+                    ,zindex          :   100     // Make sure it's on top of everything
+                    
+                    // This line adds the appear/vanish fade effect
+                    ,effect          :   {
+                                          effect:YAHOO.widget.ContainerEffect.FADE,
+                                          duration:0.40
+                                        } 
+            }
+            
+         );
+        
+        // Render the dialog to the document.body level of the DOM
+        YAHOO.force.com.myDialog.render(document.body);
+        YAHOO.force.com.eDialog.render(document.body);
+    }
+
+    var newwindow;
+    function popURL(url)
+        {
+          newwindow=window.open(url,"SDocs","width=1100,height=700,top=0,resizable,scrollbars,screenX=60,top=100,screenY=100");
+            try{
+                newwindow.document.location.href = url;
+            }catch (exc){
+                newwindow.close();
+                newwindow=window.open(url,"SDocs","width=1100,height=700,top=0,resizable,scrollbars,screenX=60,top=100,screenY=100");
+                newwindow.document.location.href = url;
+            }
+            if (window.focus){newwindow.focus()}
+        }
+</script>
+
+</head>
+<!-- This is the content of the modal dialog -->
+<div id="myPanel" style="display: none" >
+  <div class="hd">
+    <apex:outputText value="Add Comment to Document" />
+  </div> 
+  <div class="bd">
+      <apex:form >
+        <apex:pageBlock >
+          <apex:pageBlockSection columns="1">
+           <apex:inputText size="75" maxlength="255" id="comment" value="{!CommentToAdd}" />
+          </apex:pageBlockSection>
+        </apex:pageBlock>
+        <div style="text-align: right;" >
+            <apex:actionStatus id="saveStatus">
+                        <apex:facet name="start">
+                            <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />
+                        </apex:facet>
+            </apex:actionStatus>
+            <apex:commandButton value="Save" action="{!addComment}"
+                    oncomplete="YAHOO.force.com.hideMe();" reRender="dg" status="saveStatus">
+            </apex:commandButton>
+            <apex:commandButton value="Cancel" immediate="true" 
+              oncomplete="YAHOO.force.com.hideMe();"/>
+        </div>
+      </apex:form>
+  </div>
+  <div class="ft" style="font-size: 10px;">
+    <apex:outputPanel layout="block">
+      You can add a note/comment that will be associated with the document you have just generated.<br></br> 
+      The comment will be visible to all users when viewing this document within a list,<br></br>
+      but does not affect the document content.
+    </apex:outputPanel>
+  </div>
+</div>
+
+<div id="emailPanel" style="display: none" >
+  <div class="hd">
+    <apex:outputText value="Email Document(s)" />
+  </div> 
+  <div class="bd">
+  <div class="ft" style="font-size: 10px;">
+    <apex:outputPanel layout="block">
+      You can use this page to email the documents you have just created. Use commas or semi-colons to separate email addresses.
+    </apex:outputPanel>
+  </div>
+      <apex:form >
+        <apex:pageBlock title="Email Details">
+        <apex:outputPanel id="BtnsTopPanel">
+            <div style="text-align: right;" >
+                <apex:actionStatus id="statTop">
+                    <apex:facet name="start">
+                        Creating attachments, please wait...
+                        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+                    </apex:facet>
+                 </apex:actionStatus>
+                 <apex:commandButton id="SendBtn" value="Send" action="{!email}" 
+                 disabled="{!emailTo==''}" status="statTop" styleClass="buttonStyle" />
+                 <apex:commandButton id="Cancel" value="Cancel" action="{!returnToObj}" styleClass="buttonStyle" />
+            </div>
+        </apex:outputPanel>
+         <apex:outputPanel id="emailSubPanel" >
+          <apex:outputpanel id="loading" rendered="{!EmailTo=='Loading...'}">
+           <center><img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;please wait...</center>
+          </apex:outputpanel>
+           <apex:pageBlockSection columns="2">
+           <apex:outputLabel value="" for="eContact" style="white-space:nowrap;" rendered="{!NOT(EmailLockSendTo)}" />
+                <apex:outputLabel value="" for="eContact" style="white-space:nowrap;" rendered="{!EmailLockSendTo}"/>
+                <apex:outputpanel id="col2">
+                    
+                    <apex:outputPanel id="emailLookup">
+                       <apex:outputText id="emailr" value="{!emailr}" escape="false">
+                              <apex:actionStatus id="emailstat">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;please wait...
+                                </apex:facet>
+                            </apex:actionStatus>
+                       </apex:outputText>
+                    </apex:outputPanel>
+                    <br/>
+                    <apex:outputpanel id="pl" rendered="{!NOT(EmailLockSendTo)}">
+                        <apex:selectList value="{!targetObjectId}" size="1" id="eContact" style="font-family:'Courier'">
+                            <apex:selectOptions value="{!contactItems}"/>
+                            <apex:actionSupport event="onchange" action="{!showEmail}" 
+                            reRender="emailTo,emailr,BtnsTopPanel,BtnsBotPanel" status="emailstat"/>
+                        </apex:selectList>
+                    <apex:commandButton title="Refresh Emails" action="{!getContacts}" rerender="eContact"
+                            style="background:url(/img/alohaSkin/sync.png) top left no-repeat;width:22px;   height:20px;background-position:2px 2px;vertical-align:bottom"
+                            id="refButton" status="refreshStat"/>
+                            <apex:actionStatus id="refreshStat">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;Loading...
+                                </apex:facet>
+                            </apex:actionStatus>
+                    <br/></apex:outputpanel>
+            </apex:outputpanel>
+            
+            <apex:outputLabel value="Contact Quick Pick" for="emailTo2f" rendered="{!EmailLockSendTo}"/>
+            <apex:outputPanel id="emailTo2" rendered="{!EmailLockSendTo}">
+                <apex:outputText id="emailTo2f" value="{!emailToRO}"  escape="false"/>
+            </apex:outputPanel>
+            
+            <apex:outputLabel value="To:" for="emailTo2g" rendered="{!EmailLockSendTo}"/>
+            <apex:outputPanel id="emailTo2b" rendered="{!EmailLockSendTo}">
+                <apex:commandButton title="Refresh Emails" action="{!getContacts}" 
+                            rendered="{!reloadable}"
+                            reRender="emailTo2g,emailTo2f,BtnsTopPanel,BtnsBotPanel"
+                            style="background:url(/img/alohaSkin/sync.png) top left no-repeat;width:22px;   height:20px;background-position:2px 2px;vertical-align:bottom"
+                            id="refButton2" status="refreshStat2"/>
+                            <apex:actionStatus id="refreshStat2">
+                                <apex:facet name="start">
+                                    <img src="{!URLFOR($Resource.SDoc,'spinner.gif')}" />&nbsp;Loading...
+                                </apex:facet>
+                            </apex:actionStatus>
+                <apex:outputText id="emailTo2g" value="{!emailTo}" rendered="{!EmailLockSendTo}"/>
+            </apex:outputPanel>
+           <apex:outputLabel value="To:" for="emailTo" rendered="{!NOT(EmailLockSendTo)}" />
+           <apex:inputText size="100" maxlength="1000" id="emailTo" value="{!emailTo}" 
+           rendered="{!NOT(EmailLockSendTo)}">
+                <apex:actionSupport event="onchange" action="{!synchToRO}" reRender="BtnsTopPanel,BtnsBotPanel,emailTo2"/>
+            </apex:inputText>
+
+           <apex:outputLabel value="CC:" for="emailcc" rendered="{!NOT(EmailLockcc)}"/>
+           <apex:inputText size="100" maxlength="1000" id="emailcc" value="{!emailcc}" rendered="{!NOT(EmailLockcc)}" />
+           <apex:outputLabel value="CC:" for="emailcc2" rendered="{!EmailLockcc && emailcc!=null}"/>
+           <apex:outputText id="emailcc2" value="{!emailcc}" rendered="{!EmailLockcc && emailcc!=null}"/>
+           <apex:outputLabel value="BCC:" for="emailbcc" rendered="{!NOT(EmailLockbcc)}"/>
+           <apex:inputText size="100" maxlength="1000" id="emailbcc" value="{!emailbcc}" rendered="{!NOT(EmailLockbcc)}"/>
+           <apex:outputLabel value="BCC:" for="emailbcc2" rendered="{!EmailLockbcc && emailbcc!=null}"/>
+           <apex:outputText id="emailbcc2" value="{!emailbcc}" rendered="{!EmailLockbcc && emailbcc!=null}"/>
+           <apex:outputLabel value="Subject:" for="emailSubj"/>
+           <apex:inputText size="100" maxlength="1000" id="emailSubj" value="{!emailSubj}" rendered="{!NOT(EmailLockSubj)}"/>
+           <apex:outputText id="emailSubjRO" value="{!emailSubj}" rendered="{!EmailLockSubj}"/>
+           <apex:outputLabel value="Attachments:" for="emailAtt"/>
+           <apex:outputText id="emailAtt" value="{!emailAtt}" escape="false"/>
+           <apex:image id="i1" url="/s.gif" width="1" height="1"/>
+           <apex:image id="i2" url="/s.gif" width="650" height="1"/>
+           </apex:pageBlockSection>
+           <apex:pageBlockSection columns="1" rendered="{!emailPreview!='' && EmailLockBody}">
+                <apex:outputLabel value="Preview inline HTML:" />
+                <iframe src="{!emailPreview}" style="background-color:#ffffff" scrolling="true" width="100%" height="300"/>
+           </apex:pageBlockSection>
+            
+            <apex:outputPanel id="editor" rendered="{!NOT(EmailLockBody)}">
+                <apex:pageBlockSection columns="1" rendered="{!NOT(EmailLockBody)}">
+                    <apex:pageBlockSectionItem >
+                       <apex:inputTextarea id="editor1" value="{!emailPreviewEdit}" styleClass="ckeditor1" rendered="{!NOT(EmailLockBody)}"/>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+            </apex:outputPanel>
+            </apex:outputPanel>
+
+        <apex:outputPanel id="BtnsBotPanel">
+            <div style="text-align: right;" >
+                <apex:actionStatus id="statBot">
+                    <apex:facet name="start">
+                        Creating attachments, please wait...
+                        <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />
+                    </apex:facet>
+                 </apex:actionStatus>
+                 <apex:commandButton id="SendBtn2" value="Send" action="{!email}" 
+                 disabled="{!emailTo==''}" status="statBot" styleClass="buttonStyle"/>
+                 <apex:commandButton id="Cancel2" value="Cancel" action="{!returnToObj}" styleClass="buttonStyle" />
+            </div>
+        </apex:outputPanel>
+        </apex:pageBlock>
+
+      </apex:form>
+  </div>
+
+</div>
+
+
+<apex:sectionHeader title="Create S-Docs" subtitle="View Document(s)"/>
+<apex:form >
+<apex:pageMessages />
+        <span class="style6">&lt;&lt;</span>
+        <apex:commandLink action="{!returnToObj}" value="Back"/> 
+<br></br>
+<br></br>
+<apex:pageBlock title="View Document(s)">
+    <apex:outputPanel id="out">
+      <apex:actionStatus id="stat1">
+        <apex:facet name="start">
+          <img src="{!URLFOR($Resource.SDoc,'spinner_large.gif')}" />&nbsp;Generating documents, please wait...
+        </apex:facet>
+    </apex:actionStatus>
+    <apex:pageBlockSection title="The following S-Docs have been created" columns="1" id="dg" collapsible="false">
+                            <apex:outputText >&nbsp;&nbsp;&nbsp;&nbsp;
+                                <img src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                <apex:commandLink styleClass="btn" value="Email Selected Docs" 
+                                    action="{!advEmail}" style="padding:2px 5px 2px 5px; text-decoration:none; color:black;"/> 
+                            </apex:outputText>
+                            <apex:outputText rendered="{!showGD}">&nbsp;&nbsp;&nbsp;&nbsp;
+                                <img src="{!URLFOR($Resource.SDoc,'checkbox_arrow.png')}" />
+                                <apex:commandLink styleClass="btn" value="Upload Selected to Google Docs" 
+                                    action="{!upload}" style="padding:2px 5px 2px 5px; text-decoration:none; color:black;"/> 
+                            </apex:outputText>                            
+         <apex:pageBlockSectionItem >
+                    <apex:pageBlockTable value="{!SDDocsGenerated}" var="ag">
+                        <apex:column width="20px">
+                            <apex:inputCheckbox value="{!ag.checked}"/>
+                            <apex:actionsupport event="onclick" action="{!addDoc}" rerender="emailSubPanel" />
+                        </apex:column>
+<!--                        <apex:column width="40px" headerValue="View" onmouseover="this.style.cursor='pointer'"
+                        onclick="popURL('{!ag.d.GD_Link__c}')">
+-->                         <apex:column width="40px" headerValue="View">
+                            <a href="{!ag.d.SDOC__GD_Link__c}" target="_blank">
+                            <apex:outputText value="{!ag.d.SDTemplate__r.SDOC__Format_Icon__c}" escape="false"/>
+                            </a>
+                        </apex:column>
+                        <apex:column headerValue="Document Number">
+<!--                            <apex:commandLink value="{!ag.d.Name}"
+                            onclick="popURL('{!ag.d.GD_Link__c}')"/>
+-->                     <a href="{!ag.d.SDOC__GD_Link__c}" target="_blank">{!ag.d.Name}</a>
+                        </apex:column>
+                        <apex:column value="{!ag.d.SDOC__Document_Name__c}" headerValue="Document Name"/>                     
+                        <apex:column headerValue="Comments" rendered="{!ISNULL(ag.d.SDOC__Comment__c)}">
+                            <apex:commandLink value="Add" oncomplete="YAHOO.force.com.showMe();"
+                                style="padding:2px 5px 2px 5px; text-decoration:none; color:black;"
+                                action="{!setCID}" styleClass="btn"> 
+                                    <apex:param name="agID" value="{!ag.d.ID}"/>
+                            </apex:commandLink>
+                        </apex:column>
+                        <apex:column headerValue="Comments" rendered="{!NOT(ISNULL(ag.d.SDOC__Comment__c))}">
+                            <apex:commandLink value="{!ag.d.SDOC__Comment__c}" oncomplete="YAHOO.force.com.showMe();"
+                                action="{!setCID}"> 
+                                    <apex:param name="agID" value="{!ag.d.ID}"/>
+                            </apex:commandLink>
+                        </apex:column>
+                        <apex:column value="{!ag.d.SDOC__Status__c}" headerValue="Status"/> 
+                        <apex:column value="{!ag.d.CreatedBy.Name}" headerValue="Created By"/> 
+                        <apex:column value="{!ag.d.CreatedDate}" headerValue="Created On"/> 
+                    </apex:pageBlockTable>
+            </apex:pageBlockSectionItem>
+    </apex:pageBlockSection>
+
+    </apex:outputPanel>
+</apex:pageBlock>
+</apex:form>
+<script type="text/javascript">
+rebind = function() {
+    var CKEDITOR   = window.CKEDITOR;
+        for ( var i in CKEDITOR.instances ){
+            var currentInstance = i;
+             break;
+        }
+        delete CKEDITOR.instances[currentInstance];
+        bind();
+    };
+    
+bind = function(){
+        var CKEDITOR_BASEPATH = '{!URLFOR($Resource.SDOC__ckEditor,'ckeditor/')}';
+        CKEDITOR.editorConfig = function( config )
+            {
+            config.height = '300';
+            config.disableNativeSpellChecker = false;
+            // Define changes to default configuration here. For example:
+            config.language = 'en';
+            config.filebrowserBrowseUrl = '{!$Page.SDOC__SDFileList}';
+            config.filebrowserUploadUrl = '{!$Page.SDOC__SDFileUpload}';
+            config.filebrowserImageBrowseUrl = '{!$Page.SDOC__SDFileList}';
+            config.filebrowserImageUploadUrl = '{!$Page.SDOC__SDFileUpload}'; 
+            config.enterMode = CKEDITOR.ENTER_BR;
+            config.shiftEnterMode = CKEDITOR.ENTER_P;
+            config.allowedContent = true;
+//            config.fullPage = true;
+            config.removePlugins = 'liststyle,tabletools,scayt,menubutton,contextmenu';
+            config.toolbar =
+            [
+            ['Maximize','Undo','Redo'],
+            ['Styles','Format','Font','FontSize'],
+            ['TextColor','BGColor'],        
+            ['Bold','Italic','Underline','Strike','-',],
+            ['JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock']
+            ];
+            };
+        
+        if (!document.getElementsByClassName) {
+            document.getElementsByClassName = function (cn) { 
+                var rx = new RegExp("(?:^|\\s)" + cn+ "(?:$|\\s)");
+                var allT = document.getElementsByTagName("*"), allCN = [], ac="", i = 0, a;
+                    while (a = allT[i=i+1]) {
+                      ac=a.className;
+                      if ( ac && ac.indexOf(cn) !==-1) {
+                        if(ac===cn){ allCN[allCN.length] = a; continue;   }
+                        rx.test(ac) ? (allCN[allCN.length] = a) : 0;
+                      }
+                    }
+                return allCN;
+            }
+        }
+        
+        if (document.getElementsByClassName){
+            var e = document.getElementsByClassName( 'ckeditor1' );
+            for(var i=0;i<e.length;i++)
+                {
+                var editor1 = CKEDITOR.replace( e[i]);
+                }
+           }
+        };
+    
+windowonload = function() { 
+            attach();
+            YAHOO.force.com.init();
+            if (getQuerystring('autoEmail')!=''||getQuerystring('autoemail')!=''){
+                YAHOO.force.com.showEmail();
+            }
+        }
+        
+addEvent(window, 'load', function(){ windowonload() });
+function addEvent(element, event, fn) {
+    if (element.addEventListener)
+        element.addEventListener(event, fn, false);
+    else if (element.attachEvent)
+        element.attachEvent('on' + event, fn);
+}
+
+</script>
+<apex:form >
+<apex:actionFunction name="attach" action="{!createAttachments}"  oncomplete="bind();" 
+                    rerender="out,emailSubPanel,BtnsTopPanel,BtnsBotPanel" status="stat1"/>
+
+</apex:form>
+</apex:page>

@@ -1,0 +1,290 @@
+<apex:page showHeader="true" sidebar="false" standardStylesheets="true" controller="ProcessorController" id="processorPreview" action="{!startPreProcess}">
+<head>
+    <apex:stylesheet value="{!$Resource.processor_main}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.modal_style, 'modal_style.css')}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.jquery_ui, '/jquery_ui/css/ui-lightness/jquery-ui-1.10.4.custom.min.css')}"/>
+    <apex:includeScript value="{!$Resource.jquery_V_1_11_0}"/>
+    <apex:includeScript value="{!URLFOR($Resource.jquery_ui, '/jquery_ui/js/jquery-ui-1.10.4.custom.min.js')}"/>
+    <apex:includeScript value="{!$Resource.tablesorter}"/>
+    <script>
+        $j = jQuery.noConflict();
+        
+        $j( document ).ready(function() {
+           console.log( "page ready" );
+           modal.open({content: $j("<p>Waiting to be processed...</p>"),width: "200px", height: "100px"});
+           setTimeout(checkStatus(),10000);          
+        });
+        
+    </script>
+</head>
+<body>
+<apex:pageMessages />
+<apex:form id="processorPreviewForm">
+
+    <apex:pageBlock title="{!selectedProcessorName} Preview" id="processorPreviewBlock">
+    
+        <apex:pageBlockSection title="Results Preview" id="resultspreview" columns="2">
+        
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Tasks Found:" for="numberoftasksfound"/>
+                <apex:outputText value="{!processor.log.Number_of_Tasks_Found__c}" id="numberoftasksfound"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Tasks Created" for="numberoftaskscreated"/>
+                <apex:outputText value="{!processor.log.Number_of_Tasks_Created__c}" id="numberoftaskscreated"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Webinar Attendance Found:" for="numberofwrfound"/>
+                <apex:outputText value="{!processor.log.Number_of_Webinar_Attendance_Found__c}" id="numberofwrfound"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Webinar Attendance Created" for="numberofwrcreated"/>
+                <apex:outputText value="{!processor.log.Number_of_Webinar_Attendance_Created__c}" id="numberofwrcreated"/>
+            </apex:pageBlockSectionItem>
+        
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Employees Registered:" for="numberofemployeesregistered"/>
+                <apex:outputText value="{!processor.log.Number_of_Employees_Registered__c}" id="numberofemployeesregistered"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Non-Employees Registered:" for="numberofregistered"/>
+                <apex:outputText value="{!processor.log.Number_of_Registered__c}" id="numberofregistered"/>
+            </apex:pageBlockSectionItem>
+        
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Did Attend" for="numberOfAttended"/>
+                <apex:outputText value="{!processor.log.Did_attend__c}" id="numberOfAttended"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Did not attend:" for="numberOfUnattended"/>
+                <apex:outputText value="{!processor.log.Did_not_attend__c}" id="numberOfUnattended"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Converted Leads:" for="numberofconvertedleads"/>
+                <apex:outputText value="{!processor.log.Number_of_Converted_Leads__c}" id="numberofconvertedleads"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Failed Conversions:" for="numberoffailedcoversions"/>
+                <apex:outputText value="{!processor.log.Number_of_Failed_Converted_Leads__c}" id="numberoffailedcoversions"/>
+            </apex:pageBlockSectionItem>
+        
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of New Opportunities:" for="numberofnewopps"/>
+                <apex:outputText value="{!processor.log.Number_of_New_Opps__c}" id="numberofnewopps"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of Updated Opportunities:" for="numberofupdatedopps"/>
+                <apex:outputText value="{!processor.log.Number_of_Updated_Opps__c}" id="numberofupdatedopps"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of New Deals" for="numberofnewdeals"/>
+                <apex:outputText value="{!processor.log.Number_of_New_Deals__c}" id="numberofnewdeals"/>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Number of untouched Opportunities" for="numberofuntouchedopps"/>
+                <apex:outputText value="{!processor.log.Number_of_Untouched_Opps__c}" id="numberofuntouchedopps"/>
+            </apex:pageBlockSectionItem>
+        
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="View" for="view"/>
+                <apex:selectList value="{!preview}" multiselect="false" size="1" id="view">
+                    <apex:selectOptions value="{!previewOptions}"/>
+                    <apex:actionSupport action="{!setProcessorRecordSetController}" event="onchange" rerender="processorPreviewBlock"/>
+                </apex:selectList>
+            </apex:pageBlockSectionItem>
+            
+            <apex:pageBlockSectionItem >
+                <apex:outputLabel value="Records per Page" for="recordsPerPage"/>
+                <apex:selectList value="{!recordsPerPage}" multiselect="false" size="1" id="recordsPerPage">
+                    <apex:selectOptions value="{!tableSizeOptions}"/>
+                    <apex:actionSupport action="{!setProcessorRecordSetController}" event="onchange" rerender="processorPreviewBlock"/>
+                </apex:selectList>
+            </apex:pageBlockSectionItem>
+        
+        </apex:pageBlockSection>
+        
+        <br/>
+        
+        <apex:outputPanel rendered="{!preview == '1'}"> 
+             <apex:dynamicComponent componentValue="{!processor.opportunities}"/>
+             <script>
+                 $j("#{!$Component.opportunitiesTable}").tablesorter();
+             </script>
+        </apex:outputPanel>
+        
+        <apex:outputPanel rendered="{!preview == '2'}"> 
+             <apex:dynamicComponent componentValue="{!processor.webinarAttendanceComponent}"/>
+             <script>
+                $j("#{!$Component.webinarAttendanceTable}").tablesorter();
+             </script>
+        </apex:outputPanel>
+        
+        <apex:pageBlockButtons id="collegeProcessorButtons">
+            <apex:commandButton value="Cancel" action="{!loadProcessorHomePage}" id="cancel"/>
+            <apex:commandButton value="Finish" action="{!loadProcessorResults}" id="finish"/>
+        </apex:pageBlockButtons>
+
+    </apex:pageBlock>
+    
+    <apex:actionFunction name="refreshLog" action="{!processor.refreshLog}" rerender="processorPreviewBlock"/>
+    <apex:actionFunction name="startPreprocess" action="{!startPreProcess}" rerender=""/>
+    
+</apex:form>
+
+<!-- Modal -->
+<div id='overlay' style="display:none;"></div>
+<div id='modal' style="display:none;">
+    <div id='content'></div>
+</div>
+
+<script>
+
+    var status;
+    var toBeProcessedCount;
+    var processedCount;
+
+    function checkStatus(){
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.ProcessorController.getPreProcessStatus}',
+            "{!processor.processId}",
+            function(result,event){
+                if(result === '0' || result === '-1'){
+                    alert('There was an apex exception please contact your administrator');
+                }else{
+                    if(event.status){
+                        var asyncApexJob = JSON.parse(result.replace(/&quot;/g,'"')); 
+                        if(asyncApexJob.State){
+                            console.log(asyncApexJob.State);
+                            status = asyncApexJob.State;                         
+                            if(event.type === 'exception'){
+                                alert('There was an error please contact your administrator');
+                            }else if(asyncApexJob.State === 'ERROR'){
+                                alert('The processor failed please contact your administrator');
+                            }else if(asyncApexJob.State === 'DELETED'){
+                                alert('The processor was aborted please contact your administrator');
+                            }else if(asyncApexJob.State === 'BLOCKED'){
+                                alert('The processor was aborted please contact your administrator');
+                            }else if(asyncApexJob.State === 'COMPLETE'){
+                                modal.close();
+                                refreshLog();
+                            }else{
+                                laterloadModal();
+                                setTimeout(checkStatus(),10000);
+                            }                     
+                        }else{ 
+                            if(asyncApexJob.Status){                      
+                                console.log(asyncApexJob.Status );
+                                status = asyncApexJob.Status;
+                                console.log(asyncApexJob.JobItemsProcessed);
+                                processedCount = asyncApexJob.JobItemsProcessed;
+                                console.log(asyncApexJob.TotalJobItems);
+                                toBeProcessedCount = asyncApexJob.TotalJobItems;
+                                if(event.type === 'exception'){
+                                    alert('There was an error please contact your administrator');
+                                }else if(asyncApexJob.Status === 'Failed'){
+                                    alert('The processor failed please contact your administrator');
+                                }else if(asyncApexJob.Status === 'Aborted'){
+                                    alert('The processor was aborted please contact your administrator');
+                                }else if(asyncApexJob.Status === 'Completed'){
+                                    modal.close();
+                                    refreshLog();
+                                }else{
+                                    refreshModal();
+                                    setTimeout(checkStatus(),10000);
+                                }
+                            }else{
+                                modal.close();
+                                refreshLog();
+                            }
+                        }
+                    }
+                }
+            },{escape: false}
+        );
+    }
+    
+    function refreshModal(){
+        modal.open({content: $j('<div style="height:100px;"> <span>Status: ' + status + '</span> <br/> <span> # Processing: ' + toBeProcessedCount + '</span> <br/> <span> # Processed: ' + processedCount + '</span> <br/><br/> <img src="{!$Resource.loader2}" alt="loading" style="vertical-align:bottom;max-height:50px;width:100%;"> </div>'),width:"200px", height: "100px"});
+    }
+    function laterloadModal(){
+       modal.open({content: $j('<div style="height:100px;"> <span>Processor scheduled to run. <br/> Processor is running when status is ACQUIRED or EXECUTING.<br/>Status: ' + status + '</span> <br/> <br/><br/> <img src="{!$Resource.loader2}" alt="loading" style="vertical-align:bottom;max-height:50px;width:100%;"> </div>'),width:"200px", height: "150px"});
+    }
+    var modal = (function(){
+        
+        var method = {},$joverlay,$jmodal,$jcontent,$jclose;
+
+        // Center the modal in the viewport
+        method.center = function () {
+            var top, left;
+
+            top = Math.max($j(window).height() - $jmodal.outerHeight(), 0) / 2;
+            left = Math.max($j(window).width() - $jmodal.outerWidth(), 0) / 2;
+
+            $jmodal.css({
+                top:top + $j(window).scrollTop(), 
+                left:left + $j(window).scrollLeft()
+            });
+        };
+
+        // Open the modal
+        method.open = function (settings) {
+            $jcontent.empty().append(settings.content);
+
+
+            $jmodal.css({
+                background: 'white',
+                width: settings.width || 'auto', 
+                height: settings.height || 'auto'
+            });
+
+            method.center();
+            $j(window).bind('resize.modal', method.center);
+            $jmodal.show();
+            $joverlay.show();
+        };
+
+        // Close the modal
+        method.close = function () {
+            $jmodal.hide();
+            $joverlay.hide();
+            $jcontent.empty();
+            $j(window).unbind('resize.modal');
+        };
+
+        // Generate the HTML and add it to the document
+        $joverlay = $j('<div id="overlay"></div>');
+        $jmodal = $j('<div id="modal"></div>');
+        $jcontent = $j('<div id="content"></div>');
+        $jclose = $j('<a id="close" href="#">close</a>');
+
+        $jmodal.hide();
+        $joverlay.hide();
+        $jmodal.append($jcontent, $jclose);
+
+        $j(document).ready(function(){
+            $j('body').append($joverlay, $jmodal);                      
+        });
+
+        $jclose.click(function(e){
+            e.preventDefault();
+            method.close();
+        });
+
+        return method;
+    }());
+
+</script>
+
+</body>
+
+</apex:page>

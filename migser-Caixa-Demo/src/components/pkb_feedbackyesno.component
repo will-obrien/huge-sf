@@ -1,0 +1,73 @@
+<apex:component allowDML="true">
+<apex:attribute name="pkbCon" type="pkb_Controller" required="true" description="handle to the pkb controller" />
+
+<apex:variable var="typeName" value="{!SUBSTITUTE(pkbCon.theKad.articleTypeName, pkbCon.kavExtension, '')}" />
+<apex:variable var="articleURL" value="{!$Site.CurrentSiteUrl}articles{!pkbCon.selectedLanguageURL}{!typeName}/{!pkbCon.theKad.urlName}" />
+
+<!--  FEEDBACK YES NO BUTTONS -->
+<apex:form id="feedbackYesNoForm">
+<apex:outputPanel layout="block" id="feedbackYesNoContainer">
+
+  <apex:actionFunction name="refreshYesNo" rerender="feedbackYesNoContainer" status="feedbackYesNoStatus" />
+
+  <h2 class="section">{!$Label.PKB2_Feedback}</h2>
+  <div style="height: 5px;">&nbsp;</div>
+
+  <div id="feedback">
+      <apex:outputText rendered="{!NOT(pkbCon.feedbackRecorded)}">
+        <h3>{!$Label.PKB2_Was_Helpful}</h3><br/>
+        <apex:commandButton id="feedbackYesButton" value="Yes" onclick="toggleFeedbackYesNoButtons();" action="{!pkbCon.deferred}" rerender="feedbackYesNoContainer" status="feedbackYesNoStatus" />
+        &nbsp;
+        <apex:commandButton id="feedbackNoButton" value="No" onclick="showFeedbackDialog(); return false;" />
+        &nbsp;
+      </apex:outputText>
+    
+      <apex:outputPanel layout="block" rendered="{!pkbCon.feedbackRecorded}">
+        {!$Label.PKB2_Thanks_For_Feedback}<br/>
+      </apex:outputPanel>
+
+    <apex:actionStatus id="feedbackYesNoStatus">
+      <apex:facet name="start"><apex:image value="{!$Resource.pkb_loadingdots}" /></apex:facet>
+      <apex:facet name="stop"></apex:facet>
+    </apex:actionStatus>          
+  </div>
+
+</apex:outputPanel>
+</apex:form>
+
+
+
+<!-- FEEDBACK (this starts as hidden, then is placed in the overlay when "No" is clicked in the article feedback) -->
+<apex:form id="feedbackForm">
+<apex:inputHidden value="{!pkbCon.feedbackComments}" id="feedbackComments" />
+<div id="feedbackDialog">
+  <apex:outputPanel layout="block" id="feedbackResponse" style="width: 85%; margin-left: auto; margin-right: auto;">
+
+    <apex:outputPanel layout="block" style="margin-top: 10px;" rendered="{!NOT(pkbCon.feedbackRecorded)}">
+        <p style="text-align: center;">{!$Label.PKB2_Feedback_Appreciated}</p>
+        <p>{!$Label.PKB2_More_Useful}</p>
+        <textarea id="feedbackTextArea" onkeydown="return countChars(event, this);" onblur="copyComments();"></textarea>
+
+      {!$Label.PKB2_Feedback_Characters_Remaining}: <span id="charsRemaining">255</span><br/><br/>
+
+      <apex:commandButton action="{!pkbCon.recordArticleFeedback}" value="{!$Label.PKB2_Submit}" onclick="copyComments();" rerender="feedbackResponse" status="feedbackStatus" />&nbsp;
+      <apex:commandButton onclick="closeModal(); return false;" value="{!$Label.PKB2_Cancel}" /><br/>
+      <br/>        
+      <apex:actionStatus id="feedbackStatus">
+        <apex:facet name="start"><apex:image value="{!$Resource.pkb_loadingdots}" /></apex:facet>
+        <apex:facet name="stop"></apex:facet>
+      </apex:actionStatus>
+    </apex:outputPanel>
+
+    <apex:outputText rendered="{!pkbCon.feedbackRecorded}" escape="false">
+      <div style="text-align: center; margin-top: 100px;">
+        <p>{!$Label.PKB2_Thanks_For_Feedback}</p>
+        <p><a href="#" onclick="toggleFeedbackYesNoButtons(false); refreshYesNo(); closeModal(); return false;">{!$Label.PKB2_Close_Window}</a></p>
+      </div>
+    </apex:outputText>
+  </apex:outputPanel>
+
+</div>
+</apex:form>
+
+</apex:component>

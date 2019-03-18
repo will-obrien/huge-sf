@@ -1,0 +1,108 @@
+<apex:page standardController="Quote" extensions="PgiQuoteLineItemController" sidebar="false"  tabstyle="opportunity">
+<apex:form >
+<apex:pageBlock id="hiddenBlock" rendered="false"></apex:pageBlock>
+     <apex:pageBlock title="Q/C Line Items" id="QuoteLineItems">
+     <apex:includeScript value="/soap/ajax/23.0/connection.js"/>
+    <apex:includeScript value="/soap/ajax/23.0/apex.js"/>
+       <script type="text/javascript">
+            var newServiceWindow;      
+            var configureWindow;             
+            var newServInteralId = 0; 
+            var configureServInteralId = 0; 
+            function openConfigureWindow(quoteLineItems) {      
+                var size =quoteLineItems.length;
+                if(size > 2){
+                    configureWindow =  window.open('/apex/PgiQuoteDetails?quoteId={!quoteId}&quoteLineIds='+quoteLineItems+'','mydialog','width=1200,height=950,scrollbars=yes','resizable=false'); 
+                    checkConfigureWindowStatus(); 
+                    
+                }else{      
+                    alert('Please select a Q/C Line Item to configure.'); 
+                }
+            }
+
+            function checkConfigureWindowStatus() 
+            { 
+                configureServInteralId = setInterval(closeConfigureWindow, 1*1000); 
+            }
+              
+            function closeConfigureWindow() 
+            { 
+                if(configureWindow.closed) 
+                { 
+                    clearInterval(configureServInteralId);          
+                    window.parent.location.href ='/{!quoteId}';
+                }               
+            }           
+            function openAddServiceWindow(){
+                newServiceWindow =  window.open('/apex/ProductSelection?quoteId={!quoteId}','mydialog','width=1200,height=950,scrollbars=yes','resizable=false'); 
+                checkNewServiceWindowStatus(); 
+            }
+            
+            function checkNewServiceWindowStatus() 
+            { 
+                newServInteralId = setInterval(closeNewServiceWindow, 1*1000); 
+            }
+              
+            function closeNewServiceWindow() 
+            { 
+                if(newServiceWindow.closed) 
+                { 
+                    clearInterval(newServInteralId);            
+                    window.parent.location.href ='/{!quoteId}';
+                }               
+            }
+        </script>
+     
+        <apex:pageBlockButtons >
+    
+         <apex:commandButton value="{!$Label.pgiConfigureServiceButton}"  action="{!editQuoteLineItems}" rendered="{!Not(isRecordLocked)}" onComplete="openConfigureWindow('{!allQuoteLineItems}');return false;" />
+         <apex:commandButton value="{!$Label.pgiAddServiceButton}"   onClick="openAddServiceWindow();return false;"  rendered="{!Not(isRecordLocked)}"/>
+         </apex:pageBlockButtons>
+          <apex:pageBlockTable value="{!allProductDetailsList}" var="allProduct">
+          
+          <apex:column >
+          <apex:commandButton value="Delete" action="{!deletelineItem}" rerender="QuoteLineItems" rendered="{!not(allProduct.isDefaultProduct) && Not(isRecordLocked)}">
+          <apex:param assignTo="{!lineItemId}" value="{!allProduct.quoteLineItemId}"  name="lineItemId"  /> 
+          </apex:commandButton> 
+
+          <apex:inputCheckbox value="{!allProduct.isEditChecked}" rendered="{!allProduct.isServiceProduct && Not(isRecordLocked)}"/>
+          </apex:column>
+          <apex:column headerValue=" {!$Label.PgiQuantity1}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}" >
+         <apex:outputText value="{0, number}" > <apex:param value="{!allProduct.quantity}"/>  
+         </apex:outputText>         
+         </apex:column>      
+        <apex:column headerValue="{!$Label.pgiService}" value="{!allProduct.productName}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}" title="{!allProduct.Description}"/>   
+       <!--  <apex:column headerValue="{!$Label.pgiService}" value="{!allProduct.serviceName}" style="{!If(allProduct.isServiceProduct,'background-color: #EEFF99','')}"/>  -->
+          <apex:column headerValue="{!$Label.pgiUnitType}" value="{!allProduct.unit}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>
+          <apex:column headerValue="{!$Label.PgiTerm1}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}">
+          <apex:outputtext value="{0, number}"> <apex:param value="{!allProduct.termLength}" /> </apex:outputtext>
+          </apex:column>
+          <apex:column headerValue="{!$Label.pgiBillingFrequency1}" value="{!allProduct.billingFrequency}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"/>
+          <apex:column headerValue="{!$Label.pgiListPrice}"  style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}">
+           <apex:outputtext value="{0, number, #0.000}"> <apex:param value="{!allProduct.listPrice}"/> </apex:outputtext>
+          </apex:column>
+          <apex:column headerValue="{!$Label.Pgi_Sell_Price1}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}" >
+          <apex:outputText value="{0, number, #0.000}" ><apex:param value="{!allProduct.bidprice}"/></apex:outputText>           
+         </apex:column>
+          
+                
+         <!--  <apex:column headerValue="{!$Label.pgiListPrice}" value="{!allProduct.listPrice}" style="{!If(allProduct.isServiceProduct,'background-color: #EEFF99','')}"/> -->
+          
+         <apex:column headerValue="{!$Label.pgicontractvalue1}"  style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}">
+         <apex:outputText value="{0, Number, #0.000}" ><apex:param value="{!allProduct.contractValue}"/></apex:outputtext>
+         </apex:column>
+        <!-- <apex:column headerValue="Margin Over Term" value="{!allProduct.lineMarginOverTerm}" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;'))}"/>-->
+         <!-- <apex:column headerValue="Meet Authority Level" value="{!allProduct.meetAuthority}" style="{!If(allProduct.isServiceProduct,'background-color: #EEFF99','')}"/> -->
+        <!-- <apex:column headerValue="Status" value="{!allProduct.approvalStatus}" style="{!If(allProduct.isServiceProduct,'background-color: #EEFF99','padding-left: 15px;')}"/>-->
+        <apex:column headerValue="{!$Label.MRR}"  style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}"  >
+      <apex:outputText value="{0, Number, #0.000}" ><apex:param value="{!allProduct.MRR }"/></apex:outputtext>
+      </apex:column>
+      <!--  <apex:column headerValue="{!$Label.annualValue}" value="{!allProduct.annualValue }" style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;'))}"/ >-->
+        <apex:column headerValue="Status"  style="{!If(And(allProduct.meetAuthority=='No',!allProduct.isServiceProduct),'background-color: #f8cfdd;padding-left: 15px;',If(And(allProduct.meetAuthority=='No',allProduct.isServiceProduct),'background-color: #f8cfdd;',If(allProduct.isServiceProduct,'background-color: #ff9f3b','padding-left: 15px;')))}">
+        <apex:outputText value="{!allProduct.approvalLevel}" rendered="{!allProduct.approvalLevel!='None'}"/>&nbsp;<br/>
+        <apex:outputText value="{!allProduct.approvalStatus}"/>
+        </apex:column>
+      </apex:pageBlockTable>
+  </apex:pageBlock>
+</apex:form>      
+</apex:page>

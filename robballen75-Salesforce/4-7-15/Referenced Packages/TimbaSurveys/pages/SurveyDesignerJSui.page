@@ -1,0 +1,2197 @@
+<apex:page standardController="TIMBASURVEYS__Survey__c" extensions="TIMBASURVEYS.SurveyDesignController" showheader="false" sidebar="false" standardstylesheets="false">
+    <script type="text/javascript">
+        dojo.require("dijit.ColorPalette");
+
+        var eventClickSourceIE = '';
+        var eventClickSourceIEPrevious = '';
+        var idEditIEPrevious = '';
+
+        var Survey = {};
+        var SurveyMatrixes = {};
+        var SurveyData = {};
+        var SurveyQuestionsToDelete = [];
+        var SurveyOptionsToDelete = [];
+        var SurveyModified = false;
+        var currentQuestionId = '';
+        var busy = false;
+        var dndDropHandler;
+        var currentDroppedNodePosition;
+        var fixedFooter = dojo.byId('designerFooter');
+
+        if(!dojo.isIE){
+            window.onbeforeunload = function(){
+                if(SurveyModified){
+                    return '{!$Label.timbasurvey_surveyDesigner_Your_changes_will_be_lost}';
+                }
+            };
+        } else {
+            window.onbeforeunload = function(){
+                if(SurveyModified){
+                    return '{!$Label.timbasurvey_surveyDesigner_Your_changes_will_be_lost}';
+                }
+            };
+        }
+
+        if(NumberOfQuestions == 0){
+            SurveyModified = true;
+        }
+
+        var SurveyDescriptionInlineEditor;
+        var SurveyTitleInlineEditor;
+
+        String.prototype.trim = function() {
+           return this.replace(/^\s+|\s+$/g,"");
+        };
+
+        String.prototype.htmlEntities = function(){
+            return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\'/g,'&apos;').replace(/\"/g,'&quot;').replace(/&amp;amp;/g,'&amp;');
+        };
+
+        String.prototype.convertHTMLEntity = function () {
+            var str = this;
+
+            if(!dojo.isIE){
+                var ta = document.createElement("textarea");
+                ta.innerHTML = str;
+                return ta.value;
+            }else{
+                var d = document.createElement("div");
+                d.innerHTML = str.replace(/&apos;/g,"'");
+                if(typeof(d.innerText) != "undefined"){
+                    return d.innerText;
+                }
+            }
+        }
+
+        var init = function(){
+            dojo.query('body').addClass('timbaSurveys');
+            SurveyData.Id = SURVEY_ID;
+            generateSurveyObjects();
+            dndDropHandler = dojo.connect(surveyForm, "onDndDrop", placeQuestions);
+            var node = dojo.query('.bPageFooter')[0];
+            dojo.query(node).style.display = 'none';
+            setPaginationRender();
+        };
+
+        function ValidateInput(Arrayinvalidchar, inputValue){
+            for(var i = 0; i < Arrayinvalidchar.length; i++){
+                if(inputValue.match(Arrayinvalidchar[i]) != null){
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function removeDroppedNode(node){
+            dojo._destroyElement(node);
+        }
+
+
+
+        function cloneQ(qtype, qid){
+            cloning = true;
+
+            switch(qtype){
+                case SurveyEnviroment.SingleTextbox:
+                        cloneType = 'st_control';
+                        break;
+                case SurveyEnviroment.CommentEssayBox:
+                        cloneType = 'ta_control';
+                        break;
+                case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                        cloneType = 'mcsa_control';
+                        break;
+                case SurveyEnviroment.Picklist:
+                        cloneType = 'picklist_control';
+                        break;
+                case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                        cloneType = 'mcma_control';
+                        break;
+                case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                        cloneType = 'mxcsa_control';
+                        break;
+                case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                        cloneType = 'mxcma_control';
+                        break;
+                case SurveyEnviroment.RatingScale:
+                        cloneType = 'rating_control';
+                        break;
+                case SurveyEnviroment.DateAndOrTime:
+                        cloneType = 'date_control';
+                        break;
+                case SurveyEnviroment.DescriptiveText:
+                        cloneType = 'desc_control';
+                        break;
+            }
+
+            clonId = 'dojoUnique0' + dojoUniqueCount;
+            dojoUniqueCount++;
+
+            var source, nodes, copy, target;
+            placeQuestions(source, nodes, copy, target);
+
+            cloning = false;
+        }
+
+
+
+        var cloning = false;
+        var cloneType = '';
+        var dojoUniqueCount = 1;
+        var clonId = '';
+        var originalId = '';
+
+        function placeQuestions (source, nodes, copy, target){
+
+            var typeClone;
+
+            if(cloning){
+                target = surveyForm;
+                source = formToolbox;
+                copy = true;
+                nodes = new Array(dojo.byId(cloneType));
+
+                originalId = target.anchor.id;
+                target.anchor = dojo.clone(target.anchor);
+                target.anchor.id = clonId;
+
+                dojo.place(target.anchor, dojo.byId(originalId), "after");
+            }
+
+            var questionAdded = false;
+                if(source != target){
+                    if(NumberOfQuestions < MaxQuestionCount){
+                        // The type of field to add are stored at the link id.
+                        var links = dojo.query('#' + nodes[0].id + ' a');
+                        if(links.length > 0){
+                            var typeOfControl = links[0].id;
+                            typeClone = typeOfControl;
+                            if (typeOfControl == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow
+                                || typeOfControl == SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow
+                                || typeOfControl == SurveyEnviroment.RatingScale){
+                                if ((GridQuestions < MaxGridCount) && (GridQuestionsTotal < MaxGridCountTotal)){
+                                    //The item once dropped is replaced by the selected tag
+                                    addQuestion(target.anchor, typeOfControl);
+                                    questionAdded = true;
+                                    // Rebuild the placement index on drop
+                                    var targetNodes = target.getAllNodes();
+                                    currentDroppedNodePosition = 0;
+                                    SurveyModified = true;
+                                    NumberOfQuestions++;
+                                    GridQuestions++;
+                                    GridQuestionsTotal++;
+                                } else {
+                                    SurveyModified = false;
+                                    removeDroppedNode(target.anchor);
+                                    if(GridQuestions < MaxGridCount){
+                                        alert('{!$Label.timbasurvey_surveyDesigner_The_maximum_number_per_survey}: ' + MaxGridCountTotal);
+                                    }else{
+                                        alert('{!$Label.timbasurvey_surveyDesigner_The_maximum_number_per_page}: ' + MaxGridCount);
+                                    }
+                                }
+                            } else {
+                                //The item once dropped is replaced by the selected tag
+                                addQuestion(target.anchor, typeOfControl);
+                                questionAdded = true;
+                                // Rebuild the placement index on drop
+                                var targetNodes = target.getAllNodes();
+                                currentDroppedNodePosition = 0;
+
+                                SurveyModified = true;
+                                NumberOfQuestions++;
+                            }
+                        }
+                    } else {
+                        SurveyModified = true;
+                        removeDroppedNode(target.anchor);
+                        alert('{!$Label.timbasurvey_surveyDesigner_The_maximum_number_questions_page}: ' + MaxQuestionCount);
+                    }
+                } else {
+                    var has_AllowActiveBranching = Survey[target.anchor.id].AllowActiveBranching;
+                    var actual_RowPlacement = Survey[target.anchor.id].RowPlacement;
+                    var parentBeforeId = getBranchingParentBefore(target.anchor.id);
+
+                    refreshCount();
+                    editQuestionProperties(target.anchor.id);
+
+                    var new_RowPlacement = Survey[target.anchor.id].RowPlacement;
+                    var change_state = false;
+
+                    if( actual_RowPlacement != new_RowPlacement ){
+                        SurveyModified = true;
+                    }
+
+                    if( Survey[target.anchor.id].QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                        // If the Survey is a branching-parent, check if
+                        // it is moved under a child and delete the branching-child
+                        if(new_RowPlacement != actual_RowPlacement){
+                            var branchingChilds = getChildrenSurveysInBranch(target.anchor.id);
+                            for(var i = 0; i < branchingChilds.length; i++){
+                                var childSurvey = Survey[branchingChilds[i]];
+                                if(childSurvey != null){
+                                    if(new_RowPlacement > childSurvey.RowPlacement){
+                                        surveyChangeBranchingState(branchingChilds[i], false);
+                                    }
+                                }
+                            }
+                        }
+                    }else{
+                        if(new_RowPlacement != actual_RowPlacement){
+                            if(parentBeforeId != -1){
+                                if(new_RowPlacement < Survey[parentBeforeId].RowPlacement){
+                                    change_state = true;
+                                }
+                            }
+                            if(change_state == true){
+                                surveyChangeBranchingState(target.anchor.id, false);
+                            }
+                        }
+                    }
+                }
+
+            if(cloning && questionAdded){
+                var cloned = dojo.byId(clonId);
+                var original = dojo.byId(originalId);
+
+                // Modifies the original code with all new ids so that the liveUpdate function works well
+                var finalCodeClone = original.innerHTML;
+
+                //remove cloned image
+                var const_text = '<div id="div_img_'+originalId+'" style="margin: 5px 0pt 5px 5px;"></div>';
+                var all_nodes = original.getElementsByTagName('*');
+                var i = 0;
+                var nodeFound = '';
+
+                while ( i < all_nodes.length &&  nodeFound=='' ){
+                    var obj = all_nodes[i];
+                    if (obj.id.indexOf('div_img_') != -1){
+                        nodeFound = all_nodes[i].innerHTML;
+                    }
+                    i++;
+                }
+
+                finalCodeClone = finalCodeClone.replace(nodeFound, '');
+                finalCodeClone = finalCodeClone.replace(const_text, '');
+
+                while(finalCodeClone.indexOf(originalId) != -1){
+                    finalCodeClone = finalCodeClone.replace(originalId, clonId);
+                }
+
+                if(originalId.indexOf('Unique') == -1){
+                    var countOptions = 1;
+
+                    if(typeClone == SurveyEnviroment.MultipleChoiceSingleAnswer){
+                        if(finalCodeClone.indexOf('li id="option-') == -1){
+
+                            finalCodeClone = finalCodeClone.replace(/li id="/g, 'li id="option-' + clonId);
+
+                            finalCodeClone = finalCodeClone.replace(/" id="/g, '" id="option-' + clonId);
+
+                            countOptions = 1;
+                            finalCodeClone = finalCodeClone.replace(/" value="/g, '--" value="');
+                            while(finalCodeClone.indexOf('--" value="') != -1){
+                                finalCodeClone = finalCodeClone.replace('--" value="', '-' + countOptions + '" value="');
+                                countOptions++;
+                            }
+
+                            finalCodeClone = finalCodeClone.replace(/-container/g, '--container');
+                            countOptions = 1;
+                            while(finalCodeClone.indexOf('--container') != -1){
+                                finalCodeClone = finalCodeClone.replace('--container', '-' + countOptions + '-container');
+                                countOptions++;
+                            }
+
+                            countOptions = 1;
+                            while(finalCodeClone.indexOf('name="' + clonId) != -1){
+                                finalCodeClone = finalCodeClone.replace('name="' + clonId, 'name="option-' + clonId);
+                                countOptions++;
+                            }
+
+                            countOptions = 1;
+                            while(finalCodeClone.indexOf('for="' + clonId + '"') != -1){
+                                finalCodeClone = finalCodeClone.replace('for="' + clonId + '"', 'for="option-' + clonId + '-' + countOptions + '"');
+                                countOptions++;
+                            }
+
+                            finalCodeClone = finalCodeClone.replace('class="question" id="option-' + clonId + clonId + '-label"', 'class="question" ');
+
+                            finalCodeClone = finalCodeClone.replace(/-label/g, '--label');
+                            countOptions = 1;
+                            while(finalCodeClone.indexOf('--label') != -1){
+                                finalCodeClone = finalCodeClone.replace('--label', '-' + countOptions + '-label');
+                                countOptions++;
+                            }
+
+                            finalCodeClone = finalCodeClone.replace(/" type="radio/g, '--" type="radio');
+                            countOptions = 1;
+                            while(finalCodeClone.indexOf('--" type="radio') != -1){
+                                finalCodeClone = finalCodeClone.replace('--" type="radio', '-' + countOptions + '" type="radio');
+                                countOptions++;
+                            }
+
+                        }
+                    }
+
+                    if(typeClone == SurveyEnviroment.Picklist){
+                        if(finalCodeClone.indexOf('id="option-') == -1){
+
+                            for(var h = 1; h < finalCodeClone.split('option id="').length; h++){
+                                var idOption = finalCodeClone.split('option id="')[h].split('-container')[0];
+                                while(finalCodeClone.indexOf('value="' + idOption) != -1){
+                                    finalCodeClone = finalCodeClone.replace('value="' + idOption, 'value="Option');
+                                }
+                                while(finalCodeClone.indexOf('id="' + idOption) != -1){
+                                    finalCodeClone = finalCodeClone.replace('id="' + idOption, 'id="Option-' + clonId + idOption);
+                                }
+                            }
+
+                            countOptions = 1;
+                            finalCodeClone = finalCodeClone.replace(/-container/g, '--container');
+                            while(finalCodeClone.indexOf('--container') != -1){
+                                finalCodeClone = finalCodeClone.replace('--container', '-' + countOptions + '-container');
+                                countOptions++;
+                            }
+                            finalCodeClone = finalCodeClone.replace(/id="Option-/g, 'id="option-');
+
+                        }
+                    }
+
+                    if(typeClone == SurveyEnviroment.MultipleChoiceMultipleAnswers){
+                        if(finalCodeClone.indexOf('id="option-') == -1){
+
+                            countOptions = 1;
+                            for(var h = 1; h < finalCodeClone.split('li id="').length; h++){
+                                var idOption = finalCodeClone.split('li id="')[h].split('-container')[0];
+
+                                while(finalCodeClone.indexOf('="' + idOption) != -1){
+                                    finalCodeClone = finalCodeClone.replace('="' + idOption, '="option-' + clonId + idOption + '-' + countOptions);
+                                    finalCodeClone = finalCodeClone.replace('for="' + clonId + '" id="' + idOption, 'for="option-' + clonId + idOption + '-' + countOptions + '" id="' + idOption);
+                                }
+                                countOptions++;
+
+                            }
+                        }
+                    }
+
+
+                    if((typeClone == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow) || (typeClone == SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow) || (typeClone == SurveyEnviroment.RatingScale)){
+                        if(finalCodeClone.indexOf('id="option-') == -1){
+
+                            var totalOptions = 0;
+
+                            countOptions = 0;
+                            for(var h = 1; h < finalCodeClone.split('class="cell-').length; h++){
+                                var idOption = finalCodeClone.split('class="cell-')[h].split('"')[0];
+
+                                if(idOption.length == 18){
+                                    while(finalCodeClone.indexOf('td id="' + idOption + '-label') != -1){
+                                        finalCodeClone = finalCodeClone.replace('td id="' + idOption + '-label', 'td id="option-' + clonId + '-' + countOptions + '-label');
+                                        totalOptions++;
+                                    }
+                                    while(finalCodeClone.indexOf('"' + idOption) != -1){
+                                        finalCodeClone = finalCodeClone.replace('"' + idOption, '"XXX' + clonId);
+                                    }
+                                    while(finalCodeClone.indexOf('-' + idOption) != -1){
+                                        finalCodeClone = finalCodeClone.replace('-' + idOption, '-' + clonId);
+                                    }
+                                }
+                                countOptions++;
+                            }
+
+                            while(finalCodeClone.indexOf('cell-' + clonId) != -1){
+                                for(var k = 0; k < totalOptions; k++){
+                                    finalCodeClone = finalCodeClone.replace('cell-' + clonId, 'cell-option-' + clonId + '-' + k);
+                                }
+                            }
+
+                            for(var h = 1; h < finalCodeClone.split('tr id="').length; h++){
+                                var idOption = finalCodeClone.split('tr id="')[h].split('-row')[0];
+
+                                if(idOption.length == 18){
+
+                                    var radioFields = ' name="' + idOption + '" parentquestion="' + clonId + '" value="XXX' + clonId + '" id="XXX' + clonId + '"';
+                                    while(finalCodeClone.indexOf(radioFields) != -1){
+                                        finalCodeClone = finalCodeClone.replace(radioFields, '');
+                                    }
+
+                                    while(finalCodeClone.indexOf('tr id="' + idOption + '-row') != -1){
+                                        finalCodeClone = finalCodeClone.replace('tr id="' + idOption + '-row', 'tr id="' + clonId + '-Unique-' + clonId + idOption + '-row');
+                                    }
+
+                                    while(finalCodeClone.indexOf('"' + idOption) != -1){
+                                        finalCodeClone = finalCodeClone.replace('"' + idOption, '"' + clonId + idOption);
+                                    }
+
+                                    while(finalCodeClone.indexOf('-' + idOption) != -1){
+                                        finalCodeClone = finalCodeClone.replace('-' + idOption, '-' + clonId + '-Unique-' + clonId + idOption);
+                                    }
+                                }
+                            }
+
+                            finalCodeClone = finalCodeClone.replace('class="question" id="' + clonId + '-label"', 'class="question"');
+
+                            cloned.className = 'dojoDndItem matrixsinglebutton dojoDndItemAnchor';
+
+                            finalCodeClone = finalCodeClone.replace(/ class="rowHeader"/g, ' ');
+
+                        }
+                    }
+                }
+
+                while(finalCodeClone.indexOf(clonId + clonId) != -1){
+                    finalCodeClone = finalCodeClone.replace(clonId + clonId, clonId);
+                }
+
+                var hasClonedImage = false;
+                if(finalCodeClone.indexOf('img' + clonId) != -1){
+                    hasClonedImage = true;
+                }
+
+                cloned.innerHTML = finalCodeClone;
+
+
+
+
+
+                dojo.query('#' + clonId + ' > h2')[0].innerHTML = '{!$Label.timbasurvey_SurveyList_Clone_of} ' + dojo.query('#' + originalId + ' > h2')[0].innerHTML;
+
+                var CloneSurveyQuestionData = dojo.clone(Survey[originalId]);
+                CloneSurveyQuestionData.Id = clonId;
+                CloneSurveyQuestionData.RowPlacement = Survey[originalId].RowPlacement + 1;
+                CloneSurveyQuestionData.Text = '{!$Label.timbasurvey_SurveyList_Clone_of} ' + Survey[originalId].Text;
+                CloneSurveyQuestionData.ClonedImage = originalId;
+
+                CloneSurveyQuestionData.ParentId = '';
+                CloneSurveyQuestionData.PageNumber = '';
+                CloneSurveyQuestionData.Columns = '';
+                CloneSurveyQuestionData.y = 'undefined';
+                CloneSurveyQuestionData.EditorLength = 'undefined';
+                CloneSurveyQuestionData.Page = CurrentPageId;
+
+                var countRowsQuestionMatrix = 0;
+
+                for(var pos in Survey[originalId].ChildQuestions){
+                    CloneSurveyQuestionData.ChildQuestions[pos].PageNumber = '';
+                    CloneSurveyQuestionData.ChildQuestions[pos].Columns = '';
+                    CloneSurveyQuestionData.ChildQuestions[pos].MatrixId = '';
+                    CloneSurveyQuestionData.ChildQuestions[pos].y = countRowsQuestionMatrix;
+                    countRowsQuestionMatrix++;
+                }
+
+                switch(Survey[originalId].QuestionType){
+                    case SurveyEnviroment.CommentEssayBox:
+                    case SurveyEnviroment.SingleTextbox:
+                    case SurveyEnviroment.DateAndOrTime:
+                                                        for(var pos in Survey[originalId].AnswerOptions){
+                                                            CloneSurveyQuestionData.AnswerOptions[pos].QuestionId = clonId;
+                                                            CloneSurveyQuestionData.AnswerOptions[pos].Id = 'option-' + clonId;
+                                                        }
+                                                        break;
+                    case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                    case SurveyEnviroment.Picklist:
+                    case SurveyEnviroment.MultipleChoiceSingleAnswer:
+                                                        for(var pos in Survey[originalId].AnswerOptions){
+                                                            CloneSurveyQuestionData.AnswerOptions[pos].QuestionId = clonId;
+                                                            var CloneSurveyQuestionDataUnique = CloneSurveyQuestionData.AnswerOptions[pos].Id.indexOf('Unique');
+                                                            if(CloneSurveyQuestionDataUnique != -1){
+                                                                while(CloneSurveyQuestionData.AnswerOptions[pos].Id.indexOf(originalId) != -1){
+                                                                    CloneSurveyQuestionData.AnswerOptions[pos].Id = CloneSurveyQuestionData.AnswerOptions[pos].Id.replace(originalId, clonId);
+                                                                }
+                                                            }else{
+                                                                CloneSurveyQuestionData.AnswerOptions[pos].Id = 'option-' + clonId + CloneSurveyQuestionData.AnswerOptions[pos].Id + '-' + CloneSurveyQuestionData.AnswerOptions[pos].Position;
+                                                            }
+                                                        }
+                                                        break;
+                    case SurveyEnviroment.RatingScale:
+                    case SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow:
+                    case SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow:
+                    case SurveyEnviroment.MultipleChoiceMultipleAnswers:
+                                                        for(var pos in Survey[originalId].AnswerOptions){
+                                                            CloneSurveyQuestionData.AnswerOptions[pos].QuestionId = clonId;
+                                                            var CloneSurveyQuestionDataUnique = CloneSurveyQuestionData.AnswerOptions[pos].Id.indexOf('Unique');
+                                                            if(CloneSurveyQuestionDataUnique != -1){
+                                                                while(CloneSurveyQuestionData.AnswerOptions[pos].Id.indexOf(originalId) != -1){
+                                                                    CloneSurveyQuestionData.AnswerOptions[pos].Id = CloneSurveyQuestionData.AnswerOptions[pos].Id.replace(originalId, clonId);
+                                                                }
+                                                            }else{
+                                                                CloneSurveyQuestionData.AnswerOptions[pos].Id = 'option-' + clonId + '-' + (CloneSurveyQuestionData.AnswerOptions[pos].Position - 1);
+                                                            }
+                                                        }
+                                                        for(var pos in Survey[originalId].ChildQuestions){
+                                                            var CloneSurveyQuestionDataUnique = CloneSurveyQuestionData.AnswerOptions[pos].Id.indexOf('Unique');
+                                                            if(CloneSurveyQuestionDataUnique != -1){
+                                                                while(CloneSurveyQuestionData.ChildQuestions[pos].Id.indexOf(originalId) != -1){
+                                                                    CloneSurveyQuestionData.ChildQuestions[pos].Id = CloneSurveyQuestionData.ChildQuestions[pos].Id.replace(originalId, clonId);
+                                                                }
+                                                            }else{
+                                                                CloneSurveyQuestionData.ChildQuestions[pos].Id = clonId + '-Unique-' + clonId + CloneSurveyQuestionData.ChildQuestions[pos].Id;
+                                                            }
+                                                            CloneSurveyQuestionData.ChildQuestions[pos].ParentId = clonId;
+                                                        }
+                                                        break;
+                }
+                Survey[clonId] = CloneSurveyQuestionData;
+            }
+            fixContainerHeight();
+        }
+
+        function surveyDeleteBranchingState(surveyId){
+            for(var sb in survey_branching){
+                for(var vq in survey_branching[sb].visible_questions){
+                    if(vq != "null"){
+                        if(vq == surveyId){
+                            survey_branching[sb].visible_questions[vq] = false;
+                            vq = "-";
+                        }
+                    }
+                }
+            }
+        }
+
+        function surveyChangeBranchingState(surveyId, newState){
+            // Search 'surveyId' in 'survey_branching => visible_questions'
+            // and change its state to 'newState'
+
+            if(newState == true){
+                if(Survey[surveyId] != null){
+                    Survey[surveyId]['AllowActiveBranching'] = newState;
+                }
+            }
+
+            for(var sb in survey_branching){
+                for(var vq in survey_branching[sb].visible_questions){
+                    if(vq != "null"){
+                        if(vq == surveyId){
+                            if(survey_branching[sb].visible_questions[vq] != newState){
+                                survey_branching[sb].visible_questions[vq] = newState;
+                            }
+                        }
+                    }
+                }
+            }
+            if(Survey[surveyId] != null){
+                Survey[surveyId]['AllowActiveBranching'] = newState;
+            }
+            if(newState == false){
+                surveyDeleteBranchingState(surveyId);
+            }
+            // -------
+        }
+
+        function isBranchingParent(surveyId){
+            var has_option_branched = false;
+            for(var property in Survey){
+                if(Survey[property].QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer){
+                    if(Survey[property] == Survey[surveyId]){
+                        for(var i = 0; i < Survey[property].AnswerOptions.length; i++){
+                            if(Survey[property].AnswerOptions[i] != null){
+                                if(survey_branching[Survey[property].AnswerOptions[i].Id] != null){
+                                    has_option_branched = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return has_option_branched;
+        }
+
+        function getBranchingParentBefore(childSurveyId){
+            var parentSurveyId = -1;
+
+            for(var p in Survey){
+                for(var ao in Survey[p].AnswerOptions){
+                    var aoIds = Survey[p].AnswerOptions[ao];
+                    var unAOid = aoIds.Id;//->AnswerOption id
+                    for(var sb in survey_branching){
+                        if(sb == unAOid){
+                            for(var vq in survey_branching[sb].visible_questions){
+                                if(vq == childSurveyId){
+                                    if(survey_branching[sb].visible_questions[vq] == true){
+                                        parentSurveyId = p;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return parentSurveyId;
+        }
+
+        function getChildrenSurveysInBranch(parentSurveyId){
+            var childSurveys = new Array();
+            var unSurvey = Survey[parentSurveyId];
+            for(var ao in unSurvey.AnswerOptions){
+                var aoId = unSurvey.AnswerOptions[ao].Id;
+                for(var sb in survey_branching){
+                    if(sb == aoId){
+                        for(var vq in survey_branching[sb].visible_questions){
+                            if(survey_branching[sb].visible_questions[vq] == true){
+                                childSurveys.push(vq);
+                            }
+                        }
+                    }
+                }
+            }
+            return childSurveys;
+        }
+
+        function html_entity_decode(str) {
+           return str.convertHTMLEntity();
+        }
+
+        /**
+         * This method parses the received json objects from the apex controller , then convert they to Javascript Objects.
+         * @author Bruno Fagundez - TimbaSoftware - 2009
+         */
+        function generateSurveyObjects(isRefresh){
+            overlay.show();
+            if(isRefresh && (dojo.isIE == null)){
+                var rawJsonObjects = dojo.query('#questionsInfo .sqj');
+                var storedIds = dojo.query('#questionsInfo .sqId');
+                    var currentQuestionJson;
+                    for(var i = 0, l = rawJsonObjects.length; i < l; i++ ){
+                        rawJsonString = rawJsonObjects[i].value;
+                        currentQuestionJson = dojo.fromJson(rawJsonString);
+                        currentQuestionJson.Id = storedIds[i].innerHTML;
+                        Survey[currentQuestionJson.Id] = currentQuestionJson;
+                    }
+            } else {
+                var rawJsonObjects = dojo.query('#questionsInfo .sqj');
+                var storedIds = dojo.query('#questionsInfo .sqId');
+
+                for(var i = 0, l = rawJsonObjects.length; i < l; i++ ){
+                    if(dojo.isIE != null && isRefresh){
+                        var currentQuestionJson = dojo.fromJson(rawJsonObjects[i].value);
+                    } else{
+                        rawJsonString = rawJsonObjects[i].innerHTML;
+                        currentQuestionJson = dojo.fromJson(rawJsonString);
+                    }
+
+                    currentQuestionJson.Text = currentQuestionJson.Text;
+                    currentQuestionJson.Comment = currentQuestionJson.Comment;
+                    currentQuestionJson.ToolTip = currentQuestionJson.ToolTip;
+                    currentQuestionJson.AllowActiveBranching = currentQuestionJson.AllowActiveBranching;
+                    currentQuestionJson.Id = storedIds[i].innerHTML;
+                    if(currentQuestionJson.HasChild){
+                        for(var x = 0, lk = currentQuestionJson.ChildQuestions.length; x < lk; x++ ){
+                            var currentChild = currentQuestionJson.ChildQuestions[x];
+                            currentChild.Text = currentChild.Text;
+                            currentChild.Comment = currentChild.Comment;
+                        }
+                    }
+
+                    if(currentQuestionJson.QuestionType != SurveyEnviroment.DescriptiveText){
+                        if(currentQuestionJson.AnswerOptions.length > 0){
+                            for(var r = 0, ik = currentQuestionJson.AnswerOptions.length; r < ik; r++ ){
+                                if(currentQuestionJson.AnswerOptions[r].OptionValue != null && currentQuestionJson.AnswerOptions[r].OptionValue != 'null'){
+                                    var currentOption = currentQuestionJson.AnswerOptions[r];
+                                        currentOption.OptionValue = currentOption.OptionValue;
+                                }
+                            }
+                        }
+                    }
+                    Survey[currentQuestionJson.Id] = currentQuestionJson;
+                }
+            }
+
+            // load branching
+            load_branching(isRefresh);
+
+            overlay.hide();
+
+            fixContainerHeight();
+        }
+
+        dojo.addOnLoad(init);
+
+        function repairscreen(){
+            var items = dojo.query('#middleRail .dojoDndItem');
+            var rail = document.getElementById('middleRail');
+            var height = 0;
+            var height_Temp = 0;
+
+            for(var i = 0; i < items.length; i++){
+                height_Temp = items[i].offsetHeight;
+                height_Temp += 16;
+                height += height_Temp;
+            }
+        }
+
+
+        // @TODO : on single click on a toolbox button insert a new field.
+        function addItem(ItemType){}
+
+
+        /**
+        * A trick to make IE7 believe in magic
+        */
+        function editQuestionPropsIe( param1 ){
+            return function(e){
+
+                /**
+                 *  Clones maintain a reference to the events of the originals, so this fix is needed so
+                 *  that the correct edit box is displayed for items already saved, new items dragged,
+                 *  clones of each of them, clones of clones of each of them, etc...
+                 **/
+
+                if(idEditIEPrevious != param1){
+
+                    if((param1.indexOf('Unique0') != -1)){
+                        if (idEditIEPrevious.indexOf('Unique0') != -1){
+                            // case currentId = dojoUnique0X and previousId = dojoUnique0Y
+                            if((parseInt(param1.split('Unique')[1])) < (parseInt(idEditIEPrevious.split('Unique')[1]))){
+                                return;
+                            }
+                        }else{
+                            // case currentId = dojoUnique0X and previousId = dojoUniqueY
+                            if((parseInt(param1.split('Unique')[1])) > (parseInt(idEditIEPrevious.split('Unique')[1]))){
+                                return;
+                            }else{
+                                if((idEditIEPrevious.indexOf('Unique0') == -1)){
+                                    return;
+                                }
+                            }
+                        }
+                    }else{
+                        if(param1.indexOf('Unique') != -1){
+                            if (idEditIEPrevious.indexOf('Unique0') == -1){
+                                // case currentId = dojoUniqueX and previousId = dojoUniqueY
+                                if((parseInt(param1.split('Unique')[1])) < (parseInt(idEditIEPrevious.split('Unique')[1]))){
+                                    return;
+                                }
+                            }else{
+                                // case currentId = dojoUniqueX and previousId = dojoUnique0Y
+                                if((parseInt(param1.split('Unique')[1])) > (parseInt(idEditIEPrevious.split('Unique')[1]))){
+                                    return;
+                                }else{
+                                    if((idEditIEPrevious.indexOf('Unique0') != -1)){
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                eventClickSourceIEPrevious = eventClickSourceIE;
+                eventClickSourceIE = e.srcElement.id;
+
+                if((eventClickSourceIEPrevious == '') && (eventClickSourceIE.indexOf('Unique') != -1)){
+                    eventClickSourceIE = '';
+                }
+
+                var conditionValidClickIE = ((eventClickSourceIE == '') || (eventClickSourceIE.indexOf(param1) != -1)) ||
+                ((param1.indexOf('Unique') == -1) && (eventClickSourceIE.indexOf('Unique') == -1));
+
+                if(!conditionValidClickIE){
+                    return;
+                }
+
+                editQuestionProperties( param1 );
+            };
+        }
+
+        function addQuestion(target, typeOfQuestion){
+
+            if(target != null){
+                if(!dojo.isIE){
+                    dojo.attr(target, "onclick", "editQuestionProperties(this.id);");
+                } else {
+                    //target.detachEvent("onclick" , editQuestionProperties);   // detach does not work
+                    target.attachEvent("onclick" , editQuestionPropsIe(target.id));
+                }
+
+                addQuestionToSurveyObject(typeOfQuestion, target.id);
+
+                dojo.html.set(target, getMarkup(typeOfQuestion, target.id));
+                refreshCount();
+                repairscreen();
+                editQuestionProperties(target.id);
+            }
+        }
+
+        function resizeWorkspace (){
+            var nodes = dojo.query('#formRails .middleRail .dojoDndItem');
+            var main_column_size = dojo.query('#formRails .middleRail')[0];
+        }
+
+        function refreshCount(){
+            var nodes = dojo.query('#formRails .middleRail .dojoDndItem');
+            valid_counter = 1;
+            for(var i = 0, lk = nodes.length; i < lk; i++ ){
+                if(Survey[nodes[i].id]){
+                    // Set new position at obj
+                    Survey[nodes[i].id].RowPlacement = valid_counter;
+
+                    // Set new position at html
+                    var rowplacediv = dojo.query('#' + nodes[i].id + ' .rowPlacement');
+                    rowplacediv[0].innerHTML = Survey[nodes[i].id].RowPlacement;
+
+                    if(Survey[nodes[i].id].QuestionType != SurveyEnviroment.DescriptiveText){
+                        for(var x = 0, l = Survey[nodes[i].id].AnswerOptions.length; x < l; x++){
+                            if(Survey[nodes[i].id].AnswerOptions[x] != null){
+                                Survey[nodes[i].id].AnswerOptions[x].Position = x + 1;
+                            }
+                        }
+                    }
+                    valid_counter++;
+                } else {
+                    delete Survey[nodes[i]];
+                }
+            }
+        }
+
+
+        /**
+         * Utility to generate a random number of 4 digits
+         */
+        function rnd(){
+            return Math.floor(Math.random() * 11111);
+        }
+
+
+        String.prototype.count = function(s1) {
+            return (this.length - this.replace(new RegExp(s1,"g"), '').length) / s1.length;
+        };
+
+        function cutEscapedString(s, limit){
+            var escapedcount = 0;
+            var realCount = 0;
+            var entityCharLengthMap = {};
+            entityCharLengthMap['&'] = 5;
+            entityCharLengthMap['<'] = 4;
+            entityCharLengthMap['>'] = 4;
+            entityCharLengthMap['\''] = 10;
+            entityCharLengthMap['"'] = 10;
+
+            for(var i = 0, l = s.length; i < l; i++){
+                var currentItemCharlen = 0;
+                if(s[i] in entityCharLengthMap){
+                    currentItemCharlen = entityCharLengthMap[s[i]];
+                    realCount++;
+                }else {
+                    currentItemCharlen = 1;
+                    realCount++;
+                }
+
+                if((escapedcount + currentItemCharlen) < limit){
+                    escapedcount = escapedcount + currentItemCharlen;
+                } else {
+                    s = s.substr(0,realCount);
+                }
+            }
+            return s;
+        }
+
+        function createXml(Type, obj) {
+            var xmlNodes = '<' + Type + '>';
+            if(Type == "AnswerOption"){
+                xmlNodes += '<QuestionId>' + obj.QuestionId + '</QuestionId>\n';
+                xmlNodes += '<Id>' + obj.Id + '</Id> \n';
+                xmlNodes += '<ResponseType>' + obj.ResponseType + '</ResponseType>\n';
+                xmlNodes += '<Position>' + obj.Position + '</Position>\n';
+                xmlNodes += '<IsPicklist>' + obj.IsPicklist + '</IsPicklist>\n';
+                // Numerical Range
+                if(obj.ResponseType == 'Number'){
+                    xmlNodes += '<NumericRange>' + obj.range.min + ',' + obj.range.max + '</NumericRange>\n';
+                }
+                if(obj.OptionValue == '' && obj.OptionValue != '0'){
+                    obj.OptionValue= '{!$Label.timbasurveys_002surveyDesigner_newOptionTitle}'; //'Option';
+                }
+                if(isNaN(obj.OptionValue)){
+                    var optionValue = entity.decode(entity.encode(obj.OptionValue));
+                    var optionEncoded = entity.encode(optionValue);
+                    if(optionEncoded.length > 200){
+                        optionValue = cutEscapedString(optionValue,200);
+                    }
+                    optionEncoded = entity.encode(optionValue);
+
+                    // Sanitize spaces (IE8)
+                    if(optionEncoded != null){
+                        optionEncoded = optionEncoded.replace(/\&nbsp\;/gi,'');
+                    }
+
+                    //'<' and '>' fix
+                    if ( (optionEncoded.indexOf('&lt;') >= 0) || (optionEncoded.indexOf('&gt;') >= 0) ){
+                        optionEncoded = optionEncoded.replace(/&amp;lt;/g,'&lt;');
+                        optionEncoded = optionEncoded.replace(/&amp;gt;/g,'&gt;');
+                        optionEncoded = optionEncoded.replace(/&lt;/g,'&amp;lt;');
+                        optionEncoded = optionEncoded.replace(/&gt;/g,'&amp;gt;');
+                    }
+                    //////////
+
+                    xmlNodes += '<OptionValue>' + optionEncoded + '</OptionValue>\n';
+
+                }else {
+                    xmlNodes += '<OptionValue>' + obj.OptionValue + '</OptionValue>\n';
+                }
+                xmlNodes += '<x>' + obj.x + '</x>\n';
+                xmlNodes += '<y>' + obj.y + '</y>\n';
+                ///////////////////////////////////////////////////
+                // Add Another tree of nodes to store branching
+                /////////////////////////////////////////////////
+
+                var nodesToBranch = '';
+
+                 for(var x = 0; x < locBran_questionsForBranchingBackup.length; x++){
+                    if(locBran_questionsForBranchingBackup[x]['optionId'] == obj.Id){
+                        nodesToBranch += locBran_questionsForBranchingBackup[x]['id'] + '|';
+                    }
+                 }
+
+                if(nodesToBranch != ''){
+
+                    xmlNodes += '<branching>';
+                    xmlNodes += '<visible_question_list>' + nodesToBranch + '</visible_question_list>';
+                    xmlNodes += '<required_question_list></required_question_list>';
+                    xmlNodes += '<answered></answered>';
+                    xmlNodes += '<answer></answer>';
+                    xmlNodes += '</branching>';
+
+                }
+
+                xmlNodes += '<Weight>' + obj.Weight + '</Weight>\n';
+
+            } else {
+                xmlNodes += '<Id>' + obj.Id + '</Id>\n';
+
+                // Check question length and fix if null
+                //We Don't Need To Decode The String Because Comes Decoded Already
+                //var qText = entity.decode(obj.Text);
+                var qText = obj.Text;
+                var textEncoded;
+                if (entity.encode(qText) != 'undefined'){
+                    if(entity.encode(qText) != null && entity.encode(qText) != '' ){
+                        //It Was Repeating The Encode
+                        qText = entity.decode(entity.encode(qText));
+                        textEncoded = entity.encode(qText);
+                        if(textEncoded.length > 30000){
+                            qText = cutEscapedString(qText,30000);
+                        }
+                        textEncoded = entity.encode(qText);
+                    } else {
+                        textEncoded = '-';
+                    }
+                }else{
+                    textEncoded = '-';
+                }
+
+                // Sanitize spaces (IE8)
+                textEncoded = textEncoded.replace(/\&nbsp\;/gi,'');
+                xmlNodes += '<Text>' + textEncoded.trim() + '</Text>\n';
+
+                // Check comment length and fix if null
+                var comment = entity.decode(entity.encode(obj.Comment));
+                var commentEncoded = '';
+
+                if (entity.encode(comment) != 'undefined'){
+                    if(entity.encode(comment) != null && entity.encode(comment) != '' ){
+                        commentEncoded = entity.encode(comment);
+                        if(commentEncoded.length > 150){
+                            comment = cutEscapedString(comment,150);
+                        }
+                        commentEncoded = entity.encode(comment);
+
+                    } else {
+                        commentEncoded = '-';
+                    }
+                }
+                else{
+                    commentEncoded = '-';
+                }
+
+                // save the tooltip in xml
+                var tooltip = entity.decode(entity.encode(obj.ToolTip));
+                var tooltipEncoded = '';
+
+                if (entity.encode(tooltip) != 'undefined'){
+                    if(entity.encode(tooltip) != null && entity.encode(tooltip) != '' ){
+                        tooltipEncoded = entity.encode(tooltip);
+                        if(tooltipEncoded.length > 255){
+                            tooltip = cutEscapedString(tooltip,255);
+                        }
+                        tooltipEncoded = entity.encode(tooltip);
+                    }
+                }
+
+                // Sanitize spaces
+                commentEncoded = commentEncoded.replace(/\&nbsp\;/gi,'');
+                tooltipEncoded = tooltipEncoded.replace(/\&nbsp\;/gi,'');
+                xmlNodes += '<Comment>' + commentEncoded.trim() + '</Comment>\n';
+                xmlNodes += '<Tooltip>' + tooltipEncoded.trim() + '</Tooltip>\n';
+                xmlNodes += '<QuestionType>' + obj.QuestionType + '</QuestionType>\n';
+                xmlNodes += '<RowPlacement>' + obj.RowPlacement + '</RowPlacement>\n';
+                xmlNodes += '<ParentId>' + obj.ParentId + '</ParentId>\n';
+                xmlNodes += '<PageNumber>' + obj.PageNumber + '</PageNumber>\n';
+                xmlNodes += '<Columns>' + obj.Columns + '</Columns>\n';
+                xmlNodes += '<IsRequired>' + obj.IsRequired + '</IsRequired>\n';
+                xmlNodes += '<HasChild>' + obj.HasChild + '</HasChild>\n';
+                xmlNodes += '<MatrixId>' + obj.MatrixId + '</MatrixId>\n';
+                xmlNodes += '<y>' + obj.y + '</y>\n';
+                xmlNodes += '<Page>' + obj.Page + '</Page>\n';
+                // add image
+                //new image attributes
+                if (obj.img_alignment !== undefined && obj.img_alignment !=''){
+                    xmlNodes += '<imgAlignment>' + obj.img_alignment + '</imgAlignment>\n';
+                }
+                if (obj.img_alt_text !== undefined && obj.img_alt_text !=''){
+                    xmlNodes += '<imgAltText>' + obj.img_alt_text + '</imgAltText>\n';
+                }
+                if (obj.img_width !== undefined && obj.img_width !=''){
+                    xmlNodes += '<imgWidth>' + obj.img_width + '</imgWidth>\n';
+                }
+                if (obj.img_height !== undefined && obj.img_height !=''){
+                    xmlNodes += '<imgHeight>' + obj.img_height + '</imgHeight>\n';
+                }
+                if (obj.img_above_question !== undefined && obj.img_above_question !=''){
+                    xmlNodes += '<imgAboveQuestion>' + obj.img_above_question + '</imgAboveQuestion>\n';
+                }
+                if(obj.QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer) {
+
+                    var hasWeights = false;
+                    if(obj.AnswerOptions != null){
+                        var opts = obj.AnswerOptions;
+                        for(var i = 0, l = opts.length; i < l; i++ ){
+                            if(opts[i] != undefined && opts[i].Weight != "" && opts[i].Weight != undefined ){
+                                hasWeights = true;
+                            }
+                        }
+                    }
+                    xmlNodes += '<IsWeightManaged>' + hasWeights + '</IsWeightManaged>\n';
+
+                }
+                else {
+                    xmlNodes += '<IsWeightManaged>false</IsWeightManaged>\n';
+                }
+
+
+                // Rich text area editor
+                if(obj.QuestionType == SurveyEnviroment.CommentEssayBox){
+                    xmlNodes += '<RichTextEditorEnabled>' + obj.RichTextEditorEnabled + '</RichTextEditorEnabled>\n';
+                    xmlNodes += '<EditorLength>' + obj.EditorLength + '</EditorLength>\n';
+                } else {
+                    xmlNodes += '<RichTextEditorEnabled>false</RichTextEditorEnabled>\n';
+                    xmlNodes += '<EditorLength>' + obj.EditorLength + '</EditorLength>\n';
+                }
+
+                // Allow Branching?
+                if(obj.AllowActiveBranching != null){
+                    xmlNodes += '<AllowActiveBranching>' + obj.AllowActiveBranching + '</AllowActiveBranching>\n';
+                } else {
+                    xmlNodes += '<AllowActiveBranching>false</AllowActiveBranching>\n';
+                }
+
+                // Add Another tree of nodes to store branching
+                if(survey_branching[obj.Id] != null){
+
+                    xmlNodes += '<branching>';
+                    xmlNodes += '<visible_question_list>';
+
+                    for(var property in survey_branching[obj.Id].visible_questions){
+                        if(survey_branching[obj.Id].visible_questions[property]){
+                            xmlNodes += property + '|';
+                        }
+                    }
+
+                    xmlNodes += '</visible_question_list>';
+                    xmlNodes += '<required_question_list>';
+
+                    for(var property in survey_branching[obj.Id].required_questions){
+                        if(survey_branching[obj.Id].required_questions[property]){
+                            xmlNodes += property + '|';
+                        }
+                    }
+
+                    xmlNodes += '</required_question_list>';
+                    xmlNodes += '<answered>' + survey_branching[obj.Id].answered + '</answered>';
+                    xmlNodes += '<answer>' + survey_branching[obj.Id].answer_equals_to + '</answer>';
+
+                    xmlNodes += '</branching>';
+                }
+            }
+
+            xmlNodes += '</' + Type + '>';
+
+            return xmlNodes;
+
+         }
+
+        var redire = null;
+        var deleteQIdsAfterApply;
+
+        function saveSurvey(addNewPage, where, redirect){
+            redire = redirect;
+            undoActions = new Array();
+
+            if(NumberOfQuestions == 0){
+                if(CurrentPageNumber != 1 || TotalSurveyPages != 1){
+                    var deletePageConfirm = confirm("{!$Label.timbasurvey_surveyDesigner_This_Page_Empty} \n{!$Label.timbasurvey_Designer_In_order_to_add}\n{!$Label.timbasurvey_Designer_Do_you_want_delete}");
+                    overlay.hide();
+                    if(deletePageConfirm){
+                        deleteCurrentPage();
+                    }
+                }else{
+                    alert('{!$Label.timbasurvey_surveyDesigner_This_Page_Empty}. \n{!$Label.timbasurvey_surveyDesigner_Please_add_some_questions}.');
+                    overlay.hide();
+                }
+            } else {
+                overlay.show();
+
+                // Remove Survey branching if Survey is 'AllowActiveBranching = false'
+                for(var p in Survey){
+                    if( Survey[p].QuestionType != SurveyEnviroment.MultipleChoiceSingleAnswer ){
+                        if(Survey[p].AllowActiveBranching == false){
+                            surveyChangeBranchingState(Survey[p].Id, false);
+                        }
+                    }
+                }
+
+                //Reset the last question
+                currentQuestionId = '';
+
+                // Refresh the question Count
+                refreshCount();
+
+                // send deleted question list to form
+                var deletedQuestionsInput = dojo.byId('surveyQuestionsDeleted');
+                var deletedQuestionIds = '';
+
+                for(var i = 0, l = SurveyQuestionsToDelete.length; i < l; i++ ){
+                    deletedQuestionIds += '|' + SurveyQuestionsToDelete[i];
+                }
+
+                deletedQuestionIds = deletedQuestionIds.substr(1, deletedQuestionIds.length);
+                deletedQuestionsInput.value = deletedQuestionIds;
+
+                // send deleted answer options
+                var deletedAnswerOptions = dojo.byId('surveyAnswerOptionsDeleted');
+
+                var deletedAnswerOptionIds = '';
+
+                for(var i = 0, l = SurveyOptionsToDelete.length; i < l; i++ ){
+                    deletedAnswerOptionIds += '|' + SurveyOptionsToDelete[i];
+
+                    // Delete survey_branching if exists:
+                    for(var sb in survey_branching){
+                        if( sb == SurveyOptionsToDelete[i]){
+                            //remove local branching in parent:
+                            for(var vq in survey_branching[sb].visible_questions){
+                                surveyChangeBranchingState(vq, false);
+                            }
+                        }
+                    }
+                }
+
+                deletedAnswerOptionIds = deletedAnswerOptionIds.substr(1, deletedAnswerOptionIds.length);
+                deletedAnswerOptions.value = deletedAnswerOptionIds;
+
+                // Send the branches to delete
+
+                var option_branches_to_delete_string = '';
+
+                for(var i = 0, l = option_branches_to_delete.length; i < l; i++){
+                    option_branches_to_delete_string += '|' + option_branches_to_delete[i];
+                }
+
+                dojo.byId('option_branches_to_delete').value = option_branches_to_delete_string;
+
+                /**
+                * Build a list of valid survey questions and answers (all mixed, no child arrays)
+                */
+
+                var MixedQuestions = [];
+
+                // Send Question info to form
+                surveyQuestionsJson = '';
+                var surveyQuestionXML = '<?xml version="1.0" encoding="UTF-8" ?>\n<Questions>';
+                for(var property in Survey){
+                    // Pass the child questions as single question
+                    if(Survey[property].HasChild != null){
+                        var ChildQs = Survey[property].ChildQuestions;
+                        for(var child in ChildQs){
+                            MixedQuestions.push(ChildQs[child]);
+                            surveyQuestionXML += createXml('Question', ChildQs[child]);
+                        }
+                    }
+                    if(Survey[property] != null){
+                        Survey[property].ChildQuestions = null;
+                        MixedQuestions.push(Survey[property]);
+                        surveyQuestionXML += createXml('Question', Survey[property]);
+                    }
+                }
+
+                surveyQuestionXML += '</Questions>';
+                dojo.byId('surveyQuestionsXML').value = surveyQuestionXML;
+
+                // Send answerOptions objs to form from the mixed list
+                var answers = dojo.byId('surveyAnswersXML');
+                var answersXML = '<?xml version="1.0" encoding="UTF-8"?>\n<AnswerOptions>';
+
+                for(var property in MixedQuestions){
+                    var q = MixedQuestions[property];
+                    if(q.AnswerOptions != null){
+                        opts = q.AnswerOptions;
+                        for(var i = 0, l = opts.length; i < l; i++ ){
+                            if(opts[i] != undefined){
+                                //increment
+                                answersXML += createXml('AnswerOption', opts[i]);
+                            }
+                        }
+                    }
+                }
+
+                answersXML += '</AnswerOptions>';
+
+                //alert(answersXML);
+
+                answers.value = answersXML;
+                SurveyData.Title = entity.decode(SurveyData.Title);
+                SurveyData.Title = cutEscapedString(SurveyData.Title, 80);
+                SurveyData.Title = entity.encode(SurveyData.Title);
+                SurveyData.Title = entity.decode(SurveyData.Title);
+
+                dojo.byId('surveyJson').value = dojo.toJson(SurveyData);
+                var paginationJsonControl = '';
+                paginationJsonControl = '{ "CurrentPageId" : "' + CurrentPageId + '" , "addNewPage" : ' + addNewPage + ', "where" : "' + where + '"}';
+                dojo.byId('surveyPageInfo').value = paginationJsonControl;
+                saveSurveyOperation(dojo.byId('surveyJson').value,dojo.byId('surveyQuestionsDeleted').value,dojo.byId('surveyAnswerOptionsDeleted').value,dojo.byId('surveyPageInfo').value,dojo.byId('surveyQuestionsXML').value,dojo.byId('surveyAnswersXML').value,addNewPage,where, option_branches_to_delete_string);
+            }
+        }
+
+        function saveSurveyCompleted(addNewPage, where){
+            refresh_done = true;
+            SurveyModified = false;     
+            if(addNewPage=='false' && where != null){
+                switch (where){
+                    case 'next':
+                        loadPage(CurrentPageNumber + 1);
+                        break;
+                    case 'prev':
+                        loadPage(CurrentPageNumber - 1);
+                        break;
+                    case 'self':
+                        if (redire != null){
+                            window.location = redire;
+                        }else{
+                            loadPage(CurrentPageNumber);
+                        }
+                        break;
+                }
+            } else {
+                if(where == 'after'){
+                    loadPage(CurrentPageNumber + 1);
+                } else {
+                    loadPage(CurrentPageNumber);
+                }
+            }
+        
+            fixContainerHeight();
+        }
+
+        function refreshEnviroment(){
+            // Disconnect event listener to prevent double activation
+            dojo.disconnect(dndDropHandler);
+            // Refresh Question info
+            var refreshedQs = dojo.byId('refreshedQuestionInfo');
+            var oldQs = dojo.byId('questionsInfo');
+            oldQs.innerHTML = refreshedQs.innerHTML;
+            // Refresh Representations
+            var newRailsContent = dojo.byId('refreshedRails').innerHTML;
+            dojo.byId('formRails').innerHTML = '<h1>{!JSINHTMLENCODE(Survey__c.Name)}</h1> ' + newRailsContent;
+            dojo.parser.parse('formRails');
+            newRailsContent.innerHTML = '';
+            // Reset Survey Model and enviroment variables
+            currentDroppedNodePosition = 0;
+
+            delete Survey;
+            var NewSurveyStructure = {};
+            Survey = NewSurveyStructure;
+            currentQuestionId = '';
+            NumberOfQuestions = dojo.byId('refreshedNumberOfQuestions').innerHTML;
+            GridQuestions = dojo.byId('refreshedGridCount').innerHTML;
+            GridQuestionsTotal = dojo.byId('refreshedGridCountTotal').innerHTML;
+            // Refresh Survey data
+            SurveyData.Title = dojo.byId('surveyTitleRefreshed').innerHTML;
+            // generate objs and sync dnd sources
+            generateSurveyObjects(true);
+            formToolbox.sync();
+            surveyForm.sync();
+            // Connect event listener again
+            dndDropHandler = dojo.connect(surveyForm, "onDndDrop", placeQuestions);
+
+            // Refresh Page Info
+            CurrentPageNumber = parseInt(dojo.byId('refreshedPageNumber').innerHTML);
+            CurrentPageId = dojo.byId('refreshedPageId').innerHTML;
+            TotalSurveyPages = dojo.byId('refreshedPageTotalPages').innerHTML;
+
+            overlay.hide();
+
+            fixContainerHeight();
+
+            centerRails();
+        }
+
+        function load_branching(isRefresh){
+            var target = 'branching_info';
+            if(isRefresh){
+                target = 'refreshedBranchingStructure';
+                tempbranching = {};
+                survey_branching = tempbranching;
+            }
+
+            // Get survey Branching Structure
+            if(dojo.byId(target).innerHTML != ''){
+                rawsurveybranching = dojo.fromJson(dojo.byId(target).innerHTML);
+                for(property in rawsurveybranching){
+                    var q_branching = {};
+                    q_branching.visible_questions = rawsurveybranching[property].visible_questions;
+                    q_branching.required_questions = rawsurveybranching[property].required_questions;
+                    q_branching.answered = rawsurveybranching[property].answered;
+                    q_branching.answer_equals_to = '';
+                    survey_branching[property] = q_branching;
+                }
+            }
+        }
+
+
+        function putMarkupInForm(qid){
+            var textareaNode = dojo.doc.createElement('textarea');
+            dojo.attr(textareaNode, 'id', 'markup-' + qid);
+            dojo.attr(textareaNode, 'name', 'markup-' + qid);
+            var actualmarkup = (dojo.byId(qid)).innerHTML;
+            textareaNode.innerHTML = actualmarkup;
+            dojo.place(textareaNode, 'surveyQuestionMarkups');
+        }
+
+        function deleteCurrentQuestion(undo){
+            if(undo == null) {
+                undo = false;
+            }
+
+            // Remove 'AllowActiveBranching' from all
+            //  associated questions
+
+            if(currentQuestionId == ''){
+                // fix for IE8 because this function is called twice in IE8
+                return;
+            }
+
+            var backUpSurveyBranching = survey_branching;
+            var backUpSurveyModified = SurveyModified;
+            var backUpChildrenSurveysInBranch = getChildrenSurveysInBranch(currentQuestionId);
+
+            if(Survey[currentQuestionId].QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer){
+                var a = getChildrenSurveysInBranch( currentQuestionId );
+                for(var i = 0, l = a.length; i < l; i++){
+                    surveyChangeBranchingState( a[i] ,false);
+                }
+            }
+
+            surveyDeleteBranchingState(currentQuestionId);
+
+            // currentQuestionId
+            // Remove question height from middle rail
+                var formrails = dojo.byId('formRails');
+                var cords_rails = dojo.position(formrails);
+                    if(cords_rails.h > 1000){
+                        var middle_rail_q = dojo.query('#surveyFormContainer .dojoDndItem');
+                        var total_height = 0;
+                        middle_rail_q.forEach(function(e,u,i){
+                            var el = dojo.position(e);
+                            total_height = total_height + el.h;
+                        });
+                    }
+
+
+            //Hide editor
+            hideEditor();
+
+            // remove from survey obj
+            if ((Survey[currentQuestionId].QuestionType == SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow)
+                || (Survey[currentQuestionId].QuestionType == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow)
+                || (Survey[currentQuestionId].QuestionType == SurveyEnviroment.RatingScale)){
+                GridQuestions--;
+                GridQuestionsTotal--;
+            }
+            var backUpQuestion = Survey[currentQuestionId];
+            delete Survey[currentQuestionId];
+            // if the question are stored at the platform, add to removing qeue
+            if(currentQuestionId.indexOf('Unique') == -1){
+                SurveyQuestionsToDelete.push(currentQuestionId);
+            }
+
+            var qMarkup = dojo.byId(currentQuestionId);
+            var backUpMarkupHTML = qMarkup.innerHTML;
+            var backUpMarkup = qMarkup;
+            // remove markup
+            dojo._destroyElement(qMarkup);
+            // remove item reference from dojo dnd source
+            surveyForm.delItem(currentQuestionId);
+            // Decrease quesion count then reset currentquestionid
+            NumberOfQuestions--;
+            currentQuestionId = '';
+            // refresh the row placements
+            refreshCount();
+            SurveyModified = true;
+            dijit.focus(dojo.byId('focusremoveinput'));
+            dijit.byId("confirmQuestionDelete").hide();
+            fixContainerHeight();
+
+            if(!undo){
+                var undoAction = {};
+                undoAction.method = 'addQuestion';
+                undoAction.question = backUpQuestion;
+                undoAction.markup = backUpMarkup;
+                undoAction.markupHTML = backUpMarkupHTML
+                undoAction.survey_branching = backUpSurveyBranching;
+                undoAction.survey_modified = backUpSurveyModified;
+                undoAction.children_surveys_in_branch = backUpChildrenSurveysInBranch;
+                undoActions.push(undoAction);
+            }
+        }
+
+        function deleteQuestion(qid){
+
+            dijit.byId("confirmQuestionDelete").show();
+
+            currentQuestionId = qid;
+
+            dojo.connect(cancelDelete, 'onClick', function(){
+                dijit.byId("confirmQuestionDelete").hide();
+            });
+
+        }
+
+        // this is for undo after apply, not in use for now
+        function deleteQuestionAfterApply(qId){
+
+            // Remove 'AllowActiveBranching' from all
+            //  associated questions
+
+            if(qId == ''){
+                // fix for IE8 because this function is called twice in IE8
+                return;
+            }
+            /*
+            var backUpSurveyBranching = survey_branching;
+            var backUpSurveyModified = SurveyModified;
+            var backUpChildrenSurveysInBranch = getChildrenSurveysInBranch(qId);
+
+            if(Survey[qId].QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer){
+                var a = getChildrenSurveysInBranch( qId );
+                for(var i = 0, l = a.length; i < l; i++){
+                    surveyChangeBranchingState( a[i] ,false);
+                }
+            }
+
+            surveyDeleteBranchingState(qId);
+
+            // qId
+            // Remove question height from middle rail
+                var formrails = dojo.byId('formRails');
+                var cords_rails = dojo.position(formrails);
+                    if(cords_rails.h > 1000){
+                        var middle_rail_q = dojo.query('#surveyFormContainer .dojoDndItem');
+                        var total_height = 0;
+                        middle_rail_q.forEach(function(e,u,i){
+                            var el = dojo.position(e);
+                            total_height = total_height + el.h;
+                        });
+                    }
+
+
+            //Hide editor
+            hideEditor();
+
+            // remove from survey obj
+            if ((Survey[qId].QuestionType == SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow)
+                || (Survey[qId].QuestionType == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow)
+                || (Survey[qId].QuestionType == SurveyEnviroment.RatingScale)){
+                GridQuestions--;
+                GridQuestionsTotal--;
+            }
+            var backUpQuestion = Survey[qId];
+            delete Survey[qId];
+            // if the question are stored at the platform, add to removing qeue
+            if(qId.indexOf('Unique') == -1){
+                SurveyQuestionsToDelete.push(qId);
+            }*/
+
+            var qMarkup = dojo.byId(qId);
+            var backUpMarkupHTML = qMarkup.innerHTML;
+            var backUpMarkup = qMarkup;
+            // remove markup
+            dojo._destroyElement(qMarkup);
+            // remove item reference from dojo dnd source
+            surveyForm.delItem(qId);
+            // Decrease quesion count then reset qId
+            NumberOfQuestions--;
+            currentQuestionId = '';
+            // refresh the row placements
+            refreshCount();
+            //SurveyModified = true;
+            dijit.focus(dojo.byId('focusremoveinput'));
+            dijit.byId("confirmQuestionDelete").hide();
+            fixContainerHeight();
+        }
+
+        // Cancel changes
+        function cancelChanges(){
+            overlay.show();
+            rebuildSurvey();
+        }
+
+        /**
+        * Browser is IE8?
+        */
+        function IsIE8(){
+            var rv = -1;
+            var ua = navigator.userAgent;
+            var re = new RegExp("Trident\/([0-9]{1,}[\.0-9]{0,})");
+            if (re.exec(ua) != null) {
+                rv = parseFloat(RegExp.$1);
+            }
+            return (rv == 4);
+        }
+
+        /**
+        * Question To Field
+        */
+        var one_time_disable_q2f_dialog = false;
+
+        function question2field__show_dialog(){
+          if(SurveyModified){
+                alert('{!$Label.timbasurveys_branchingJS_please_save}.');
+          }else{    
+            if (one_time_disable_q2f_dialog == true){
+                one_time_disable_q2f_dialog = false;
+                return;
+            }
+            one_time_disable_q2f_dialog = false;
+
+            dijit.byId('question_to_field_dialog').show();
+            question2field__overlay.show();
+            getObjectListOperation('get_object_list');
+            resetQ2FieldDialog();
+
+            //Fix For IE8 Wizard Bugs
+            if(IsIE8){
+                var Btns = dojo.query("button:dijitButtonNode");
+                Btns.forEach(function(node, index, nodeList){
+                    //The focus command is inside a try catch to ignore js errors when trying to focus on a hidden object
+                    try{
+                        node.focus();
+                    }catch(e){}
+                });
+             }
+          } 
+
+        }
+
+        /**
+         * Remove botton action
+         */
+        function confirm_remove_mapping(){
+            one_time_disable_q2f_dialog = true; // -> disable the QuestionToField dialog for this time only
+            if(Survey[currentQuestionId].mappedFieldId != null){
+                question2field__confirm_remove_mapping(Survey[currentQuestionId].mappedFieldId);
+            }
+        }
+
+        function getObjectListCompleted(success, list_of_objects){
+            if (success == true){
+                var ulObjects_li_content = '';
+                // Build the select box.
+                str_list = list_of_objects.replace(/"/g,'');
+                list_modified = str_list.replace(/\[/g,'');
+                var real_list = list_modified.split('], ');
+                var object_values = null;
+                for(var i = 0, l = real_list.length; i < l; i++){
+                    object_values= real_list[i].split(' ,')
+                    ulObjects_li_content += '<li value="' + object_values[0].replace(/^\s+|\s+$/g, '') + '"><span>' + object_values[1].replace(']','') + '</span></li>';
+                }
+                dojo.byId('objectsList').innerHTML = ulObjects_li_content;
+                set_objectsList_Events();
+                question2field__overlay.hide();
+           }else{
+                question2field__overlay.hide();
+                dojo.byId('objectsList').innerHTML = '<li class="errorLQ2F" value=""><span>{!$Label.timbasurveys_002surveyDesigner_lbErrorFoundContactSupport}</span></li>';
+           }
+        }
+
+        /**
+        * Get Fields of a given object with a describe call
+        */
+        function question2field__get_object_fields(obj_name){
+            getFieldListOperation('get_field_list', obj_name);
+        }
+
+        function getFieldListCompleted(success, data){
+            if(success == 'true'){
+                var response = dojo.fromJson(data);
+                // Build the select box.
+                var FieldsClone = [];
+                FieldsClone = dojo.clone(response.list_of_fields);
+                var auxIndex = 0;
+                dojo.forEach(FieldsClone,function(obj,index,array){
+                    for(var prop in Survey){
+                        Sobj = Survey[prop];
+                        if(Sobj.mappedFieldLabel == obj[0] && Sobj.mappedObjectName == obj[2] ){
+                            response.list_of_fields.splice(auxIndex,1);
+                            auxIndex--;
+                        }
+                    }
+                    auxIndex++;
+                });
+                var fieldsList_content = '';
+                var q2f_required_fields = dojo.query('#q2f_temporary_list li');
+                if(response.list_of_fields.length != 0){
+                    combo_box_content = '<select id="field_selector">';
+                    for(var i = 0, l = response.list_of_fields.length; i < l;i++){
+                        var q2f_insert_field = true;
+                        if(q2f_required_fields.length > 0){
+                            for(var q2f_index = 0, we = q2f_required_fields.length; q2f_index < we; q2f_index++){
+                                if( response.list_of_fields[i][0] == dojo.query(q2f_required_fields[q2f_index]).attr('Value') ){
+                                    dojo.place(q2f_required_fields[q2f_index], dojo.byId('fieldsList'));
+                                    q2f_insert_field = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if(q2f_insert_field == true){
+                            fieldsList_content += '<li value="' + response.list_of_fields[i][0] + '"><span>' + response.list_of_fields[i][1] + '</span></li>';
+                        }
+                    }
+                }else{
+                    fieldsList_content += '<li class="errorLQ2F" value=""><span>{!$Label.timbasurveys_002surveyDesigner_lbAllFieldsHaveBeenTaken}</span></li>';
+                }
+                if(fieldsList_content != ''){
+                    dojo.place(fieldsList_content, dojo.byId('fieldsList'));
+                }
+                q2f_finished_loading_fields--;
+                if(q2f_finished_loading_fields < 1 ){
+                    set_fieldsList_Events();
+                    question2field__overlay.hide();
+                }
+            }else{
+                question2field__overlay.hide();
+                dojo.byId('fieldsList').innerHTML = '<li class="errorLQ2F" value=""><span>{!$Label.timbasurveys_002surveyDesigner_lbErrorFoundChooseAnotherObject}</span></li>';
+            }
+        }
+
+
+        function getRequiredFieldListCompleted(success, data){
+            var response = dojo.fromJson(data);
+            //if(data.success){
+                var fieldsList_content = '';
+                dojo.query('#q2f_temporary_list')[0].innerHTML = '';
+
+                if(response.list_required_fields.length > 0){
+                    // Build the list of required fields.
+                    for(var i = 0, l = response.list_required_fields.length; i < l; i++){
+                        fieldsList_content += '<li value="' + response.list_required_fields[i][0] + '">';
+                        fieldsList_content += '<span class="floatleft colorrequiredfield">' + response.list_required_fields[i][1] + '</span>';
+                        fieldsList_content += '<span class="fontrequiredfield colorrequiredfield" ><img class="exclamationimage" alt="" src="' + "{!URLFOR($Resource.SurveyResources2,'img/icons/exclamationicon.png')}" + '"/>Required field not linked</span>';
+                        fieldsList_content += '</li>';
+                    }
+                }
+                dojo.byId('fieldsList').innerHTML = '';
+                if(fieldsList_content != ''){
+                    dojo.byId('q2f_temporary_list').innerHTML = '';
+                    dojo.place(fieldsList_content, dojo.byId('q2f_temporary_list'));
+                }
+                q2f_finished_loading_fields--;
+                if(q2f_finished_loading_fields < 1 ){
+                    set_fieldsList_Events();
+                    question2field__overlay.hide();
+                }
+                  // Load required fields after bringing all fields:
+                  var value = dojo.query(selectedObjectLi).attr("Value");
+                  question2field__get_object_fields(value);
+/*      }else{
+                        question2field__overlay.hide();
+                        dojo.byId('fieldsList').innerHTML = '<li class="errorLQ2F" value=""><span>{!$Label.timbasurveys_002surveyDesigner_lbErrorFoundChooseAnotherObject}</span></li>';
+                     }*/
+        }
+
+
+        /**
+        * Create the question to field mapping
+        */
+        function question2field__create_question_mapping(obj_name,field_label,field_type,question_id){
+            if(Survey[question_id].mappedFieldId != null){
+                questionToFieldMappingOperation('create_question_mapping', obj_name, field_label, field_type, question_id, SurveyData.Id, true);
+            }else{
+                questionToFieldMappingOperation('create_question_mapping', obj_name, field_label, field_type, question_id, SurveyData.Id, false);
+            }
+        }
+        function questionToFieldMappingCompleted(success, mappedFieldId, mappedFieldLabel, mappedObjectName){
+            if(success == 'true'){
+                Survey[question_id].mappedFieldId = mappedFieldId;
+                Survey[question_id].mappedFieldLabel = mappedFieldLabel;
+                Survey[question_id].mappedObjectName = mappedObjectName;
+                editQuestionProperties(currentQuestionId);
+                resetQ2FieldDialog(true);
+                question2field__overlay.show();
+                clearSelectedLiField();
+                alert('{!$Label.timbasurvey_surveyDesigner_Question_Mapped}.');
+                question2field__validate_step3();
+                question2field__overlay.hide();
+                overlay.show();
+                window.location.reload();
+               }else{
+                    question2field__overlay.hide();
+                    dojo.byId('fieldsList').innerHTML = '<li class="errorLQ2F" value=""><span>{!$Label.timbasurveys_002surveyDesigner_lbErrorFoundChooseAnotherObject}</span></li>';
+               }
+        }
+
+        function question2field__confirm_remove_mapping(mappingId){
+            var answer = confirm('{!$Label.timbasurvey_overview_Are_u_delete_relation}');
+            if(answer != false){
+                overlay.show();
+                questionToFieldRemoveMappingOperation('delete_mapping', mappingId);
+            }
+        }
+
+        /**
+        * Remove question mapping
+        */
+        function questionToFieldRemoveMappingCompleted(success){
+            if(success == 'true'){
+                Survey[currentQuestionId].mappedFieldId = null;
+                Survey[currentQuestionId].mappedFieldLabel = null;
+                Survey[currentQuestionId].mappedObjectName = null;
+                editQuestionProperties(currentQuestionId);
+                overlay.hide();
+                dijit.byId('question_to_field_dialog').hide();
+                alert('{!$Label.timbasurvey_surveyDesigner_Question_field_map_removed}.');
+             }else{
+                overlay.hide();
+                alert("Error in question2field__remove_mapping with RelatedObjectOperations");
+             }
+        }
+
+        /**
+        * Question to field wizard manager.
+        */
+        // Additional methods due to the lack of params from wizard pane.
+
+        function question2field__validate_step1(){
+            question2field__validate_wizard_step(1);
+        }
+
+        function question2field__validate_step2(){
+            question2field__validate_wizard_step(2);
+        }
+
+        function question2field__validate_step3(){
+            question2field__validate_wizard_step(3);
+        }
+
+        function question2field__validate_wizard_step(step_number){
+            switch(step_number){
+                case 1:
+                    // Get object fields!
+                    if(selectedObjectLi != null){
+                        var value = dojo.query(selectedObjectLi).attr("Value");
+                        getRequiredFieldListOperation(value);
+                    }
+                    break;
+                case 2:
+                    // Persist the data!
+                    if(selectedObjectLi == null){
+                        alert('{!$Label.timbasurveys_002surveyDesigner_lbYouMustSelectObject}');
+                    }else if(selectedFieldLi == null){
+                        alert('{!$Label.timbasurveys_002surveyDesigner_lbYouMustSelectField}');
+                    }else{
+                        question2field__overlay.show();
+                        var objectValue = dojo.query(selectedObjectLi).attr("Value");
+                        var fieldValue = dojo.query(selectedFieldLi).attr("Value");
+                        question2field__create_question_mapping(objectValue, fieldValue,'STRING',currentQuestionId);
+                    }
+                    break;
+                case 3:
+                    // Close the window
+                    dijit.byId('question_to_field_dialog').hide();
+                default:
+                    break;
+            }
+        }
+
+         /**
+         * Pagination Methods
+         */
+
+         function addNewPage(where){
+            if(maxPageNum > TotalSurveyPages){
+                saveSurvey(true,where);
+                setPaginationRender();
+            }
+         }
+
+         function showPage(direction){
+            if(direction == 'next'){
+                if (nextPageButton){
+                    saveSurvey(false,direction);
+                }
+            } else {
+                if (previousPageButton){
+                    saveSurvey(false,direction);
+                }
+            }
+         }
+
+         function loadPage(number){
+            dojo.xhrGet({
+                url: "{!$Page.SurveyQuestionList}?id=" + SURVEY_ID + '&p=' + number,
+                handleAs: "text",
+                load: function(data){
+
+                    var refreshedData = dojo.byId('refreshedDataContainer');
+                    refreshedData.innerHTML = data;
+                    refreshEnviroment();
+                    setPaginationRender();
+
+                    overlay.hide();
+                    window.location = "#phHeaderLogoImage";
+
+                    fixContainerHeight();
+
+                    /* not in use for now
+                    for(var i = 0; i < SurveyQuestionsToDelete.length; i++ ){
+                        deleteQuestionAfterApply(SurveyQuestionsToDelete[i]);
+                    }
+                    */
+
+                },
+                error:function(){
+              //      console.info("Error in loadPage with SurveyQuestionList");
+                    overlay.hide();
+                }
+            });
+
+         }
+
+         var previousPageButton = true;
+         var nextPageButton = true;
+         var maxAchived = false;
+
+         function setPaginationRender(){
+            dojo.byId('deletePageButton').style.display = '';
+
+            if (maxPageNum <= TotalSurveyPages){
+                dojo.byId('addNewAfter').style.backgroundPosition = "0px -48px";
+                dojo.byId('addNewBefore').style.backgroundPosition = "0px -48px";
+                maxAchived = true;
+            }
+
+            if(CurrentPageNumber == 1){
+                dojo.byId('previousPageButton').style.backgroundPosition = "0px -48px";
+                previousPageButton = false;
+            }
+
+            if(CurrentPageNumber == TotalSurveyPages){
+                dojo.byId('nextPageButton').style.backgroundPosition = "0px -48px";
+                nextPageButton = false;
+                dojo.byId('previousPageButton').style.backgroundPosition = "0px -48px";
+                previousPageButton = false;
+                dojo.byId('add_page_branching_btn_container').style.display = 'none';
+            }
+
+            if(TotalSurveyPages > CurrentPageNumber){
+                dojo.byId('nextPageButton').style.backgroundPosition = "0px 0px";
+                nextPageButton = true;
+                dojo.byId('add_page_branching_btn_container').style.display = '';
+            }
+
+            if(CurrentPageNumber > 1){
+                dojo.byId('previousPageButton').style.backgroundPosition = "0px 0px";
+                previousPageButton = true;
+            }
+
+            if(TotalSurveyPages == 1){
+                dojo.byId('deletePageButton').style.display = 'none';
+                previousPageButton = false;
+                nextPageButton = false;
+            }
+
+            // Set indications
+            dojo.byId('currentPageNumberInput').innerHTML = CurrentPageNumber;
+            dojo.byId('totalPageNumber').innerHTML = TotalSurveyPages;
+         }
+
+         function deletePage(){
+            dijit.byId('confirmPageDelete').show();
+         }
+
+         function deleteCurrentPage(){
+            overlay.show();
+            deletePageOperation('deletePage',CurrentPageId);
+         }
+
+         function deletePageCompleted(success){
+             if(success == 'true'){
+                 dijit.byId('confirmPageDelete').hide();
+                 if(CurrentPageNumber == TotalSurveyPages){
+                     loadPage(CurrentPageNumber - 1);
+                 }else{
+                     loadPage(CurrentPageNumber);
+                 }
+                 dojo.byId('addNewAfter').style.backgroundPosition = "0px 0px";
+                 dojo.byId('addNewBefore').style.backgroundPosition = "0px 0px";
+                 maxAchived = false;
+             }else{
+                alert("{!$Label.timbasurvey_DesignerJS_Error_delete}");
+             }
+         }
+
+         /**
+          * Method to check the visibility of the
+          */
+         function set_char_limit(length_of_field){
+
+            Survey[currentQuestionId].EditorLength = length_of_field;
+
+            if(length_of_field == 'length_32000') {
+                dojo.byId('rich_text_editor_enabled_container').style.display = '';
+            } else {
+                Survey[currentQuestionId].RichTextEditorEnabled = false;
+                dojo.byId('rich_text_editor_enabled').checked = '';
+                dojo.byId('rich_text_editor_enabled_container').style.display = 'none';
+            }
+         }
+
+         function enable_rich_text(is_checked){
+            Survey[currentQuestionId].RichTextEditorEnabled = is_checked;
+         }
+
+         // This function refresh the question list after the undo_addQuestion is complete.
+         function refreshQuestionList() {
+            // currentQuestionId MUST be defined
+            for( question_id in Survey) {
+                if(question_id != currentQuestionId) {
+                    var question = dojo.byId(question_id);
+                    var className = question.className;
+                    className = className.replace("dojoDndItemAnchor","");
+                    question.className = className;
+                }
+            }
+         }
+
+         // Function called with the button Undo. It reverts the last action made by the user.
+         function undoLastAction(){
+         	// User confirms if he/she wants to undo
+         	var conf =  confirm( '{!$Label.timbasurveys_undo_confirmation}' );
+            // Check if there are actions in the list.
+            if (conf){
+	            if(undoActions.length > 0) {
+	                var lastAction = undoActions.pop();
+	                SurveyModified = lastAction.survey_modified;
+	                // Select the inverse action that was just done.
+	                switch (lastAction.method) {
+	                    case 'removeQuestion':
+	                        undo_removeQuestion(lastAction.params.Id);
+	                        break;
+	                    case 'addQuestion':
+	                        undo_addQuestion(lastAction);
+	                        break;
+	                    //not in use for now
+	                    case 'removeOption':
+	                        //removeOption(lastAction.params.QuestionId, lastAction.params.Id, true);
+	                        break;
+	                    //not in use for now
+	                    case 'addOption':
+	                        //addOption(lastAction.params, true, lastAction.Position, lastAction.Value);
+	                        break;
+	                    case 'pageBranching':
+	                        pageBranchingOperation('save', undoData, undoConditions);
+	                        break;
+	                    default: break;
+	                }
+	            }else {
+	                alert('{!$Label.timbasurveys_no_actions_to_undo}');
+	            }
+	            return true;
+            }else{
+            	return false;
+			}
+        }
+
+        function pageBranchingCompleted(success){
+            if(success == 'true'){
+                alert('{!$Label.timbasurveys_page_branching_restored}');
+            }else {
+                alert(response.exception);
+            }
+        }
+
+        // This function removes the last question added.
+        function undo_removeQuestion(QuestionId){
+            currentQuestionId = QuestionId;
+            // Add true to specify that this function is called from an undo process.
+            deleteCurrentQuestion(true);
+        }
+
+        // This function adds a removed question.
+        function undo_addQuestion(lastAction){
+
+            var Question = lastAction.question;
+            var markup = lastAction.markup;
+            var markupHTML = lastAction.markupHTML;
+            survey_branching = lastAction.survey_branching;
+
+            //if the question has branching, set the branching to the question
+            for(var sb in survey_branching){
+                for(var vq in survey_branching[sb].visible_questions){
+                    if(vq != "null"){
+                        if(vq == Question.Id){
+                            survey_branching[sb].visible_questions[vq] = 'true';
+                        }
+                    }
+                }
+            }
+
+            //target = surveyForm;
+            //source = formToolbox;
+
+            //target.anchor = dojo.clone(target.anchor);
+            //target.anchor.id = Question.Id;
+            currentQuestionId = Question.Id;
+
+            // Check in which position of the list the question is going to be.
+            var nodes = dojo.query('#formRails .middleRail .dojoDndItem');
+            var iFound = -1;
+            for(var i = 0, lk = nodes.length; i < lk; i++ ){
+                if(Survey[nodes[i].id]){
+                    // Set new position at html
+                    var rowplacediv = dojo.query('#' + nodes[i].id + ' .rowPlacement');
+                    if(Question.RowPlacement == rowplacediv[0].innerHTML) {
+                        iFound = i;
+                        break;
+                    }
+                }
+            }
+
+            // Add the question to the survey.
+            Survey[Question.Id] = Question;
+
+            if(Survey[currentQuestionId].QuestionType == SurveyEnviroment.MultipleChoiceSingleAnswer){
+                var a = lastAction.children_surveys_in_branch;
+                for(var i = 0; i < a.length; i++){
+                    surveyChangeBranchingState(a[i] , true);
+                }
+            }
+
+            // Remove the question from the list of question to delete.
+            var auxSQTD = new Array();
+            for(i = 0; i < SurveyQuestionsToDelete.length; i++){
+                if(SurveyQuestionsToDelete[i] != Question.Id){
+                    auxSQTD.push(SurveyQuestionsToDelete[i]);
+                }
+            }
+            SurveyQuestionsToDelete = auxSQTD;
+
+            questionAdded = true;
+            // Rebuild the placement index on drop
+            //var targetNodes = target.getAllNodes();
+            currentDroppedNodePosition = 0;
+            NumberOfQuestions++;
+            if ((Survey[currentQuestionId].QuestionType == SurveyEnviroment.MatrixOfChoicesMultipleAnswersPerRow)
+                || (Survey[currentQuestionId].QuestionType == SurveyEnviroment.MatrixOfChoicesOnlyOneAnswerPerRow)
+                || (Survey[currentQuestionId].QuestionType == SurveyEnviroment.RatingScale)){
+                GridQuestions++;
+                GridQuestionsTotal++;
+            }
+
+            // Creation of the html element.
+            //var div = dojo.create("div");
+            //dojo.attr(div, 'id', currentQuestionId);
+            //dojo.attr(div, 'className', markup.className);
+            //dojo.attr(div, 'onclick', 'editQuestionProperties(this.id);');
+            //dojo.attr(div, 'innerHTML', markupHTML);
+
+            var div = document.createElement('div');
+            div.id = currentQuestionId;
+            div.className = markup.className;
+            //set the onclick event in other place, this dont work in ie7
+            //div.onclick = 'editQuestionProperties(this.id);';
+            div.innerHTML = markupHTML;
+
+            // We place the new question in its right position.
+            if(iFound < 0 && nodes.length == 0) {
+                dojo.place(div, dojo.byId('surveyFormContainer'), 'first');
+            }
+            else if(iFound < 0) {
+                dojo.place(div, dojo.byId('surveyFormContainer'), 'last');
+            }
+            else {
+                dojo.place(div, dojo.byId(nodes[iFound].id), 'before');
+            }
+
+            refreshCount();
+            repairscreen();
+            editQuestionProperties(currentQuestionId);
+
+            //add the onclick event to the div, this work fine in ie7, ie8, ff, chrome and opera
+            dojo.query('#' + currentQuestionId).onclick( function(){
+                editQuestionProperties(this.id);
+            });
+
+            refreshQuestionList();
+        }
+    </script>
+    <apex:form id="surveyDesignerJsUiActions">
+        <apex:actionFunction name="questionToFieldRemoveMappingOperation" action="{!doOperation}" oncomplete="questionToFieldRemoveMappingCompleted('{!success}')" rerender="myStateSurveyDesignerJSui">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSmapId" value="" assignTo="{!TSmapId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="questionToFieldMappingOperation" action="{!doOperation}" rerender="myStateSurveyDesignerJSui" oncomplete="questionToFieldMappingCompleted('{!success}','{!TSmappedFieldId}','{!TSmappedFieldLabel}','{!TSmappedObjectName}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSobjName" value="" assignTo="{!TSobjName}" />
+            <apex:param name="TSfieldLabel" value="" assignTo="{!TSfieldLabel}" />
+            <apex:param name="TSfieldType" value="" assignTo="{!TSfieldType}" />
+            <apex:param name="TSquestionId" value="" assignTo="{!TSquestionId}" />
+            <apex:param name="TSsurveyId" value="" assignTo="{!TSsurveyId}" />
+            <apex:param name="TSmappingExist" value="" assignTo="{!TSmappingExist}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="pageBranchingOperation" action="{!doOperation}" rerender="myStateSurveyDesignerJSui" oncomplete="pageBranchingCompleted('{!success}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSoperationData" value="" assignTo="{!TSoperationData}" />
+            <apex:param name="TSpageBranchingOptions" value="" assignTo="{!TSpageBranchingOptions}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="deletePageOperation" action="{!doOperation}" rerender="myStateSurveyDesignerJSui" oncomplete="deletePageCompleted('{!success}')">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSPageId" value="" assignTo="{!TSPageId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="getObjectListOperation" oncomplete="getObjectListCompleted({!success},'{!outputMessage}')" action="{!doOperation}" rerender="myStateSurveyDesignerJSui">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="getRequiredFieldListOperation" oncomplete="getRequiredFieldListCompleted('{!success}','{!outputMessage}')" action="{!getRequiredFieldList}" rerender="myStateSurveyDesignerJSui">
+            <apex:param name="TSobjName" value="" assignTo="{!TSobjName}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="getFieldListOperation" oncomplete="getFieldListCompleted('{!success}','{!JSENCODE(outputMessage)}')" action="{!doOperation}" rerender="myStateSurveyDesignerJSui">
+            <apex:param name="TSOperation" value="" assignTo="{!TSOperation}" />
+            <apex:param name="TSobjName" value="" assignTo="{!TSobjName}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="saveSurveyOperation" oncomplete="saveSurveyCompleted('{!addNewPage}','{!whereStr}')" action="{!saveSurvey}" rerender="tabSetDesigner">
+            <apex:param name="surveyDataString" value="" assignTo="{!surveyDataString}" />
+            <apex:param name="surveyDeletedQuestions" value="" assignTo="{!surveyDeletedQuestions}" />
+            <apex:param name="surveyAnswerOptionsDeleted" value="" assignTo="{!surveyAnswerOptionsDeleted}" />
+            <apex:param name="surveyPageInfo" value="" assignTo="{!surveyPageInfo}" />
+            <apex:param name="surveyQuestionsXML" value="" assignTo="{!surveyQuestionsXML}" />
+            <apex:param name="surveyAnswersXML" value="" assignTo="{!surveyAnswersXML}" />
+            <apex:param name="addNewPage" value="" assignTo="{!addNewPage}" />
+            <apex:param name="whereStr" value="" assignTo="{!whereStr}" /> 
+            <apex:param name="deleted_obrs_string" value="" assignTo="{!deleted_obrs_string}" />                           
+        </apex:actionFunction>      
+    </apex:form>
+    <apex:outputPanel id="myStateSurveyDesignerJSui" rendered="false">
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__NumberOfPages__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__SurveyTheme__c}" />
+        <apex:outputText value="{!TIMBASURVEYS__Survey__c.Name}" />
+    </apex:outputPanel>
+</apex:page>

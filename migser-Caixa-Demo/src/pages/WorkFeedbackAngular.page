@@ -1,0 +1,371 @@
+<apex:page showHeader="false" standardStylesheets="false">
+<script type="text/javascript">
+/*
+Copyright (c) 2011, salesforce.com, Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice, 
+    this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice, 
+    this list of conditions and the following disclaimer in the documentation 
+    and/or other materials provided with the distribution.
+    * Neither the name of the salesforce.com, Inc. nor the names of its contributors 
+    may be used to endorse or promote products derived from this software 
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
+OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+    //angular.module('personaccount',['ngRoute']).config(function($routeProvider){});
+    var myWorkFeedbackApp = angular.module('workfeedback',['ngAnimate'])
+        .controller('workfeedbackctrl', ['$scope','$window', function($scope, $window){
+            $scope.me = {};
+            $scope.feedback = { 
+                                name: '',
+                                subjectid: '',
+                                giverid: '',
+                                feedbacktype: 'UnsolicitedToUser',
+                                feedbacktext: '',
+                                relatedObjectId: recordId,
+                                managerid: ''
+                            };
+            $scope.feedbackType = [ {
+                                        label:'Subject Only',
+                                        value:'UnsolicitedToUser',
+                                        disabled: false 
+                                    },
+                                    {   
+                                        label:'Subject\'s Manager Only',
+                                        value:'UnsolicitedToManager',
+                                        disabled: true 
+                                    },
+                                    {
+                                        label:'Subject and Subject\'s Manager',
+                                        value:'UnsolicitedToUserandManager',
+                                        disabled: true
+                                    }];
+            $scope.allUsers = [];   //list of all user objects
+            $scope.showLoadingScreen = false;
+            $scope.showSuccessPopup = false;
+            $scope.onMobile = false;
+            if( (typeof sforce != 'undefined') && (sforce != null) )
+                $scope.onMobile = true;
+            
+            
+            $scope.getFilteredUsers = function(filterText){
+                $scope.showLoadingScreen = true;
+                $window.getFilteredUsers(filterText,function(result){
+                    $scope.allUsers = result;
+                    $scope.showLoadingScreen = false;
+                    $scope.showUserList = true;
+                    $scope.$apply();
+                });
+            };
+            
+            $scope.saveFeedback = function(){
+                $scope.showLoadingScreen = true;
+                $scope.$apply();
+                $window.insertFeedback($scope.feedback, function(result){
+                    console.log('Feedback Complete!');
+                    if($scope.onMobile){
+                        //awesome none documented way of notification
+                        try{
+                            $window.parent.$A.get("e.force:showToast") .setParams( { message : "feedback successfully given" }).fire();
+                        }
+                        catch(e){
+                            console.log(e);
+                        }
+                        setTimeout(closePublisher,1900);
+                    }
+                    $scope.showLoadingScreen = false;
+                    $scope.showSuccessPopup = true;
+                    $scope.$apply();
+                });
+            };
+
+            $scope.togglePublisherSubmit = function(){
+                if($scope.feedback.subjectid != '' && $scope.feedback.feedbacktext != '')
+                    enablePublisherSubmit();
+                else
+                    disablePublisherSubmit();
+            }
+            $scope.checkSelectableOption = function(){
+                if($scope.feedback.subjectid != undefined)
+                {
+                    if($scope.feedback.managerid == null)
+                    {
+                        $scope.feedbackType[1].disabled = true;
+                        $scope.feedbackType[2].disabled = true;
+                        $scope.feedback.feedbacktype = $scope.feedbackType[0].value;
+                    }
+                    else
+                    {
+                        $scope.feedbackType[1].disabled = false;
+                        $scope.feedbackType[2].disabled = false;
+                    }
+                }
+            }
+
+            getUserInfo(function(result){
+                $scope.me = result;
+                $scope.feedback.giverid = $scope.me.Id;
+                $scope.$apply();
+            });
+        }])
+        .directive('toWho', function(){
+            return {
+                restrict:   'E',
+                template:   '<h3 class="dib mbm man f6 text-color-1"><strong>To Who?</strong></h3>'+
+                            '<div class="mbm pos-rel">'+
+                                '<label class="lookupUserIcon size-full icon-utility-people pos-abs label--lookup" ng-click="toggleShowUserList()">'+
+                                    '<span class="dn">Lookup</span>'+
+                                '</label>'+
+                                '<input id="toWho" type="text" name="toWho" ng-keyup="checkShowList()" ng-model="searchText" placeholder="Name" class="size-full plm prx pvm input input--default input--ph-1 input--focus-1" autocorrect="off" spellcheck="false"/>'+ // ng-enter="doSomething()"
+                            '</div>'+
+                            '<div class="lookupUserPickList" ng-show="showUserList">'+
+                                '<ul class="man pan bg-1 border border--3 ds-2">'+
+                                    '<div ng-repeat="user in allUsers | filter:searchText" class="animate">'+
+                                        '<li class="brtopm db active--list-3 pam border-bottom border--8" ng-click="setSubjectId(user)">'+
+                                            '<div class="flag">'+
+                                                '<div class="flag--image prm">'+
+                                                    '<img src="{{user.SmallPhotoUrl}}" class="brm userPicklistImg sq-30" alt="User Img"/>'+
+                                                '</div>'+
+                                                '<div class="flag--body">'+
+                                                    '<span class="f4 text-color-1">{{user.Name}}</span>'+
+                                                '</div>'+
+                                            '</div>'+
+                                        '</li>'+
+                                    '</div>'+
+                                '</ul>'+
+                            '</div>',
+                link: function(scope, iElm, iAttrs){
+                    scope.showUserList = false; //hide picklist
+                    scope.searchText = '';
+                    scope.lastSearchedText = '';
+                    
+                    scope.setSubjectToRecordOwner = function(){
+                        if(recordId != '') //only if there is a record Id
+                        {
+                            getRecordInfo(recordId,function(selectedUser){ //recordId is set at the beginning of WorkFeedbackAction.page
+                                //console.log(selectedUser);
+                                if(selectedUser != null)
+                                {
+                                    //redoing what's in setSubjectId because need $apply() to be seperated
+                                    scope.feedback.subjectid = selectedUser.Id;
+                                    scope.feedback.name = selectedUser.FirstName;
+                                    scope.searchText = selectedUser.Name;
+                                    scope.feedback.managerid = selectedUser.ManagerId;
+                                    scope.setFeedbackType(); //update label of who should see
+                                    scope.$apply();
+                                }
+                            });
+                        }
+                    }
+                    scope.setSubjectId = function(selectedUser){
+                        scope.feedback.subjectid = selectedUser.Id;
+                        scope.feedback.name = selectedUser.FirstName;
+                        scope.feedback.managerid = selectedUser.ManagerId;
+                        scope.searchText = selectedUser.Name;
+                        console.log(scope.feedback.feedbacktype);
+                        scope.setFeedbackType(); //update label of who should see
+                        console.log(scope.feedback.feedbacktype);
+                        scope.showUserList = !scope.showUserList;
+                        scope.togglePublisherSubmit();
+                    };
+                    scope.toggleShowUserList = function()
+                    {
+                        scope.showUserList = !scope.showUserList; //show/hide   
+                    };
+
+                    scope.checkShowList = function(){
+                        if(scope.searchText.length == 3) //if use enter 3 characters, then search
+                        {
+                            scope.getFilteredUsers(scope.searchText); //search what user entered, then show the list
+                            scope.lastSearchedText = scope.searchText; //update last searched text
+                        }
+                        else if(scope.searchText.length < 3) //if user start to type and length < 3
+                        {
+                            scope.showUserList = false;
+                        }
+                        else if(scope.searchText.length > 3 && scope.showUserList == false)
+                            scope.showUserList = true;
+                    };
+
+                    scope.setSubjectToRecordOwner(); //get record owner
+                    //when user clears searchText, reset the subject id
+                    scope.$watch('searchText',function(){
+                        if(scope.searchText == '')
+                            scope.feedback.subjectid = '';
+                    });
+                } 
+            };
+         })
+        
+        .directive('whoShouldSee', function(){
+            return { 
+                restrict:   'E',
+                template:   '<h3 class="sectionTitle dib mbm man f6 text-color-1"><strong>Who should see it?</strong></h3>'+
+                            '<div class="mbm pos-rel">'+
+                                //'<span class="label--icon-r icon-utility-right size-full"></span>'+
+                                '<select ng-model="feedback.feedbacktype" class="size-full input--picklist">'+
+                                    '<option ng-repeat="myType in feedbackType" value="{{myType.value}}" ng-disabled="myType.disabled">'+
+                                        '{{myType.label}}'+
+                                    '</option>'+
+                                '</select>'+
+                            '</div>',
+                link: function(scope, iElm, iAttrs){
+                    scope.selectedIndex = 0;
+                    //myType.label for myType in feedbackType
+                    scope.setFeedbackType = function(){
+                        scope.feedbackType[0].label = scope.feedback.name + ' Only';
+                        scope.feedbackType[1].label = scope.feedback.name + '\'s Manager Only';
+                        scope.feedbackType[2].label = scope.feedback.name + ' And ' + scope.feedback.name + '\'s Manager';
+                        scope.checkSelectableOption();// check if manager option should be selectable
+                    }
+                } 
+            }
+        })
+        .directive('feedbackText', function(){
+            return {
+                restrict:   'E',
+                template:   '<h3 class="sectionTitle dib mbm man f6 text-color-1"><strong>What feedback do you want to offer?</strong></h3>'+
+                            '<textarea id="feedbackTextArea" name="feedbackTextArea" ng-model="feedback.feedbacktext" placeholder="Your feedback" class="size-full phm pvm textarea textarea--default textarea--ph-1 textarea--focus-1"/>',
+                link: function(scope, iElm, iAttrs){
+                    //this $watch is automatically run at the start
+                    scope.$watch('feedback.feedbacktext',function(newValue,oldValue){
+                        if(newValue != oldValue) //don't toggle if no new value is entered, basically preventing initial call
+                            scope.togglePublisherSubmit();
+                    });
+                } 
+            }
+        })
+        .directive('ngEnter', function() { //so you can use <div ngEnter="myFunc()"../>
+            return function(scope, element, attrs) {
+                element.bind("keydown keypress", function(event) {
+                    if(event.which === 13) {
+                        scope.$apply(function(){
+                            scope.$eval(attrs.ngEnter, {'event': event});
+                        });
+                        event.preventDefault();
+                    }
+                });
+            };
+        })
+        .directive('desktopAnimate', function(){ //for desktop animate
+            return {
+                restrict: 'E',
+                template:   '<style>'+
+                                '.ng-enter, .ng-leave{ '+
+                                    '-webkit-transition: 200ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;'+
+                                    '-moz-transition: 200ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;'+
+                                    '-ms-transition: 200ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;'+
+                                    '-o-transition: 200ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;'+
+                                    'transition: 200ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all;'+
+                                    'position: relative;'+
+                                    'display: block;'+
+                                '}'+
+                                '.ng-enter.ng-enter-active, .ng-leave {'+
+                                    'opacity: 1;'+
+                                    'left: 0;'+
+                                    'height: 30px;'+
+                                '}'+
+                                '.ng-leave.ng-leave-active, .ng-enter {'+
+                                    'opacity: 0;'+
+                                    'left: -50px;'+
+                                    'height: 0px;'+
+                                '}'+
+                            '</style>'
+                            //'<style>'+
+                            //     '/************ Angular Animation ***********/'+
+                            //     '.ng-enter {'+
+                            //         //'-webkit-transform:translateZ(0px 30px 0px);'+
+                            //         '-webkit-animation: enter 600ms cubic-bezier(0.445, 0.050, 0.550, 0.950);'+
+                            //         'animation: enter 600ms cubic-bezier(0.445, 0.050, 0.550, 0.950);'+
+                            //         'display: block;'+
+                            //         'position: relative;'+
+                            //     '} '+
+                            //     '@-webkit-keyframes enter {'+
+                            //         'from {'+
+                            //             'opacity: 0;'+
+                            //             'height: 0px;'+
+                            //             'top: -70px;'+
+                            //         '}'+
+                            //         '75% {'+
+                            //             'left: 15px;'+
+                            //         '}'+
+                            //         'to {'+
+                            //             'opacity: 1;'+
+                            //             'height: 30px;'+
+                            //             'left: 0px;'+
+                            //         '}'+
+                            //     '}'+
+                            //     '@keyframes enter {'+
+                            //         'from {'+
+                            //             'opacity: 0;'+
+                            //             'height: 0px;'+
+                            //             'left: -70px;'+
+                            //         '}'+
+                            //         '75% {'+
+                            //             'left: 15px;'+
+                            //         '}'+
+                            //         'to {'+
+                            //             'opacity: 1;'+
+                            //             'height: 30px;'+
+                            //             'left: 0px;'+
+                            //         '}'+
+                            //     '}'+
+                            //     '.ng-leave { '+
+                            //         //'-webkit-transform:translateZ(0px 30px 0px);'+
+                            //         '-webkit-animation: leave 600ms cubic-bezier(0.445, 0.050, 0.550, 0.950);'+
+                            //         'animation: leave 600ms cubic-bezier(0.445, 0.050, 0.550, 0.950);'+
+                            //         'display: block;'+
+                            //         'position: relative;'+
+                            //     '} '+
+                            //     '@-webkit-keyframes leave {'+
+                            //         'to {'+
+                            //             'opacity: 0;'+
+                            //             'height: 0px;'+
+                            //             'left: -70px;'+
+                            //         '}'+
+                            //         '25% {'+
+                            //             'left: 15px;'+
+                            //         '}'+
+                            //         'from {'+
+                            //             'opacity: 1;'+
+                            //             'height: 30px;'+
+                            //             'left: 0px;'+
+                            //         '}'+
+                            //     '}'+
+                            //     '@keyframes leave {'+
+                            //         'to {'+
+                            //             'opacity: 0;'+
+                            //             'height: 0px;'+
+                            //             'left: -70px;'+
+                            //         '}'+
+                            //         '25% {'+
+                            //             'left: 15px;'+
+                            //         '}'+
+                            //         'from {'+
+                            //             'opacity: 1;'+
+                            //             'height: 30px;'+
+                            //             'left: 0px;'+
+                            //         '}'+
+                            //     '}'+
+                            // '</style>'
+            };
+        });
+
+</script>
+</apex:page>

@@ -1,0 +1,239 @@
+<apex:page sidebar="false" controller="TIMBASURVEYS.SurveyCollectController" tabstyle="Timba_Surveys__tab" showheader="false" standardstylesheets="false">
+
+	<!-- Common Style Sheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/common.css')}" />     
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/collectoremails_.css')}" />
+     
+    <!-- DOJO Style Sheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />    
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+    
+    <!-- DOJO Framework -->
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad:true, isDebug:false"></script>
+    <script type="text/javascript">
+    	dojo.require("dojo.parser");
+    </script>
+    <script type="text/javascript">
+   // onLoad methods of dojo 
+    function clickLeads(){
+        var btn = dojo.query(".btn");
+        btn[4].click();
+    }
+    
+    function A() {
+        window.top.window.loadingEmial(this.window);
+    }
+   
+    //-------------------------
+    var emailsArray;
+    var emailError;
+    var current_email_list_input = '';
+    var init = function() { 
+        
+        // Add the class to load the css styling
+        dojo.query('body').addClass('soria');  
+        A();
+        var recipient_email_field = dojo.byId('recipientEmail');
+        var recipient_email_csv = dojo.byId('emailsfromcsv');
+        ShowAlert();
+                                  
+    }  
+    function validateCsvUpload(){
+        var csvinput= dojo.query('.inputfile')[0];
+        var retvar = false;
+        if (csvinput.value!=''){
+            var fileArray = csvinput.value.split('.');
+            var ext=fileArray[fileArray.length-1].toLowerCase();
+            if(ext=='csv'||ext=='txt'){
+                addMailsTexAreaANDcsv();
+                retvar=true;
+            }else{
+                alert('{!$Label.timbasurveys_surveycollect_Please_select_CSV_file}');
+            }
+        }else{
+            alert('{!$Label.timbasurveys_surveycollect_Please_select_CSV_file}');
+        }       
+        return retvar;   
+    }
+     
+      
+   
+        
+   // --------------------------------------    
+   //    salved the emails textarea 
+   // ---------------------------------------
+    function addMailsTexAreaANDcsv(){
+        var email_current = '';
+        if (dojo.byId(current_email_list_input).value != null)
+             email_current = dojo.byId(current_email_list_input).value;
+        if(dojo.byId('emailText').value!= null)
+            email_current = dojo.byId('emailText').value+',';
+        dojo.byId(current_email_list_input).value = email_current;
+    }
+   
+   //----------------------------------------
+   //   loading mails textarea
+   //----------------------------------------
+   
+    function loadingMailContendor(){
+        dojo.byId('emailText').value == '';
+        var email_current = dojo.byId(current_email_list_input).value;
+        var emails_csv = dojo.byId('inputfilefromcsv').value;
+        var emails = emails_csv;    
+        dojo.byId('emailText').value = emails;
+    }
+   
+   //----------------------------------------
+   //    validate emails
+   //----------------------------------------
+   
+    function validateTextAreaEmails(){
+        
+        emailsArray = '';   
+        emailError ='';
+        
+        var expreg =/^(("[\w-\s]+")|([\w-]+(?:\.[\w-]+)*)|("[\w-\s]+")([\w-]+(?:\.[\w-]+)*))(@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$)|(@\[?((25[0-5]\.|2[0-4][0-9]\.|1[0-9]{2}\.|[0-9]{1,2}\.))((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\.){2}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\]?$)/i;
+        var tempEamils = new Array();
+        var stringEmail;
+        var error=false;
+        if(dojo.byId('emailText').value != ''){
+            stringEmail=dojo.byId('emailText').value;
+            tempEamils = stringEmail.split(',');
+            var emailsTrime;
+            for (var i = 0 ; i < tempEamils.length ; i++){
+                emailsTrime=tempEamils[i].trim();
+                if(emailsTrime!='' && emailsTrime.match(expreg) && emailsArray.indexOf(emailsTrime)==-1){
+                    emailsArray+=tempEamils[i].trim()+',';      
+                } else {
+                    if(emailsTrime!=''){
+                        error=true;
+                        emailError+=tempEamils[i].trim()+' ,';
+                    }
+                }
+            }
+        } else { return true; }
+        
+        dojo.byId('emailText').value='';
+        dojo.byId('emailText').value=tempEamils;
+        
+        if(!error)
+            return true
+        else 
+            return false;   
+    }
+   
+   //-------------------------------------------
+   //           Return Emails  
+   //-------------------------------------------
+    
+    function confirmMails(){
+        if(!validateTextAreaEmails())
+             return confirm('{!$Label.timbasurveys_surveycollect_Wrong_email}');
+        return true;
+    }
+    function returnEmails(){
+        return emailsArray.split(',');
+    }   
+   
+    function returnEmailError(){
+        return emailError.split(',');
+    }
+   
+   //---------------------------------------------
+    
+    dojo.addOnLoad(init);        
+    dojo.addOnLoad(loadingMailContendor);
+
+    // Trim 
+    String.prototype.trim = function() {
+        return this.replace(/^\s+|\s+$/g, "");
+    }
+    //------------------------------------------
+    //              show alert
+    //------------------------------------------
+    
+    function ShowAlert(){
+        var alert_ = '{!JSENCODE(alert)}';
+        if(alert_ != null && alert_ != 'null' && alert_ != '' )
+            alert(alert_);
+    }
+    
+    </script>       
+     <apex:repeat value="{!EmailRecipients}" var="emailRecipient"> 
+                <script type="text/javascript">
+                    {!IF(!emailRecipient.Collected,'EmailsWaiting.push("emailRecipient.Email");','')}
+                </script>
+     </apex:repeat>     
+    <apex:include pageName="TIMBASURVEYS__TimbaSurveyStyles" />
+    <style type="text/css">
+    #emailCollectorContainer, #success{
+        padding: 0px;
+    }
+    
+    .EmailError{
+        color: red;
+    }
+    
+    </style>
+    
+   
+    <!-- Emails styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/SurveyEmail.css')}" /> 
+    <!-- Section Specific styles-->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/surveyCollection.css')}" />    
+    
+    <script type="text/javascript" src="{!URLFOR($Resource.SurveyResources2, 'js/collectoremails_js.js')}"></script>
+    
+    <!-- Inline Style -->
+    <style type="text/css">
+        .invitation_sent{
+            background:none repeat scroll 0 0 #93C56E !important;
+        }
+    </style>
+   
+    <div id="emailCollectorContainer" style="overflow:hidden;position:relative;">
+        <div class="container">
+			<div class="tab">
+				<a href="javascript:;" class="tabtitle">{!$Label.timbasurvey_surveyCollect_Specify_Emails_Manually}</a>
+			</div>
+			<div class="mainfield hide">
+			<div class="data">
+            	<span class="titlesimple">{!$Label.timbasurvey_surveyCollect_Separate_Emails} ( , )</span>
+			</div>
+            <div class="data">
+            	<div class="shadow">
+                	<textarea class="datab" id='emailText' rows="16"> </textarea>
+				</div>
+			</div>
+			<div class="clear"></div>
+		</div>
+	</div>
+
+	<div class="container">
+    	<div class="tab">
+        	<a href="javascript:;" class="tabtitle">{!$Label.timbasurvey_surveyCollect_Import_CSV}</a>
+		</div>
+        <div class="mainfield hide">
+			<div class="data">
+            	<apex:form id="theForm" onSubmit="return validateCsvUpload()">
+					<apex:inputFile value="{!doc_content}" id="inputfiles" contentType="{!extension}" styleclass="inputfile"/>
+					<apex:inputHidden value="{!emails_to_remove}" id="emails_to_remove_input" />
+					<apex:inputHidden value="{!current_email_list}" id="current_email_list_input" />
+					<script type="text/javascript">
+	                	current_email_list_input = '{!JSENCODE($Component.current_email_list_input)}';
+	                    emails_to_remove_input = '{!JSENCODE($Component.emails_to_remove_input)}';
+					</script>
+	                <br/><apex:commandButton value="Upload CSV file" action="{!save_doc}"  styleclass="surveyButton" />
+                    <input type="hidden" value="{!JSENCODE(SurveyId)}" />
+				</apex:form>
+            </div>
+			<div class="data">
+				<!--<textarea class="datab" rows="18"></textarea>  dijitReset dijitInline dijitButtonNode customDijitLinks texto -->
+			</div>
+            <div class="clear"></div>
+			</div>
+		</div>
+	</div>
+	<input type="Hidden" value="{!email_string}" id="inputfilefromcsv" name="inputfilefromcsv" /> 
+</apex:page>

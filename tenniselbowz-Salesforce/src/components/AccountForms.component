@@ -1,0 +1,136 @@
+<apex:component controller="AccountFormsCont" allowDML="true">
+	<apex:attribute name="account" assignTo="{!mainAccount}" description="The account to be edited" type="Account" required="true" />
+	<apex:attribute name="redirect" assignTo="{!redirectPage}" description="Set true if the page should redirect to the contact after saving" type="Boolean" />
+	<apex:attribute name="onSave" description="Javascript to be executed when record successfully saves" type="String" />
+    <apex:attribute name="rerenderable" description="Hides fields that can't be rerendered, i.e.: rich text fields" type="Boolean" />
+    <apex:Form >
+        <apex:pageMessages id="messages"/>
+        <apex:pageBlock title="Account Edit">
+    
+            <apex:pageBlockSection title="Account Information" collapsible="FALSE">
+               <!-- <apex:variable value="{! if(Account.OwnerId == Null, $User.FirstName, Account.Owner.Name)}" var="ss" /> -->
+               <apex:pageBlockSectionItem >
+               <apex:outputlabel value="Account Owner"/>
+               <apex:outputText value="{!$User.FirstName &' '& $User.LastName}"/>
+               <!--<apex:outputLabel value=""> </apex:outputLabel>-->
+              </apex:pageBlockSectionItem>
+                <apex:repeat value="{!$ObjectType.Account.FieldSets.Account_Information}" var="AccountInformation">
+                    <apex:inputField value="{!Account[AccountInformation]}" required="{!AccountInformation.required}"/>
+                </apex:repeat>
+            </apex:pageBlockSection>
+        
+           <!-- <apex:pageBlockSection title="Strategic Account Management">
+                <apex:repeat value="{!$ObjectType.Account.FieldSets.Strategic_Account_Management}" var="StrategicAccountManagement">
+                    <apex:inputfield value="{!Account[StrategicAccountManagement]}" />
+                </apex:repeat>
+            </apex:pageBlockSection> -->
+
+            
+              <apex:PageBlockSection Id="detailSection" Title="Address Information">
+                <apex:pageBlockSectionItem rendered="{!accountAddress.Id=null}">
+                    <apex:OutputLabel value="Address"/>
+                    
+                    <apex:actionRegion >
+                        <apex:InputField value="{!accountAddress.Address__c}" required="false" >
+                            <apex:actionSupport event="onchange" immediate="false" action="{!selectAddress}" rerender="detailSection"/>
+                        </apex:InputField>
+                        
+                    </apex:actionRegion>    
+                    
+                </apex:pageBlockSectionItem>
+                
+                <apex:OutputField value="{!address.Name}" rendered="{!accountAddress.Id != null}"/>     <apex:outputField value="{!address.OwnerId}" />
+                
+                <apex:InputField value="{!address.Address_Name__c}" rendered="{!!addressSelected}"/>                
+                <apex:outputField value="{!address.Address_Name__c}" rendered="{!addressSelected}"/>    <apex:OutputField value="{!accountAddress.Account__c}"/>    
+                <apex:InputField value="{!address.Address_Line_1__c}" rendered="{!!addressSelected}" required="true"/>  
+                <apex:OutputField value="{!address.Address_Line_1__c}" rendered="{!addressSelected}"/>  <apex:outputField value="{!accountAddress.Active__c}" />
+                <apex:InputField value="{!address.Address_Line_2__c}" rendered="{!!addressSelected}"/>          
+                <apex:OutputField value="{!address.Address_Line_2__c}" rendered="{!addressSelected}"/>  <apex:outputField value="{!accountAddress.Physical__c}"/>
+                <apex:InputField value="{!address.Address_Line_3__c}" rendered="{!!addressSelected}"/>  
+                <apex:OutputField value="{!address.Address_Line_3__c}" rendered="{!addressSelected}"/>  <apex:InputField value="{!accountAddress.Bill_To__c}"/>
+                <apex:InputField value="{!address.Address_Line_4__c}" rendered="{!!addressSelected}"/>  
+                <apex:OutputField value="{!address.Address_Line_4__c}" rendered="{!addressSelected}"/>  <apex:InputField value="{!accountAddress.Primary_Bill_To__c}"/>
+                <apex:InputField value="{!address.City__c}" rendered="{!!addressSelected}" required="true"/>            
+                <apex:OutputField value="{!address.City__c}" rendered="{!addressSelected}"/>            <apex:InputField value="{!accountAddress.Ship_To__c}"/>
+                <apex:InputField value="{!address.Country__c}" rendered="{!!addressSelected}" required="true"/>         
+                <apex:OutputField value="{!address.Country__c}" rendered="{!addressSelected}"/>         <apex:InputField value="{!accountAddress.Primary_Ship_To__c}"/>
+                <apex:InputField value="{!address.State_Province__c}" rendered="{!!addressSelected}" required="true"/>  
+                <apex:OutputField value="{!address.State_Province__c}" rendered="{!addressSelected}" />  <apex:InputField value="{!accountAddress.Mail_To__c}"/>
+                <apex:InputField value="{!address.Postal_Code__c}" rendered="{!!addressSelected}"/>     
+                <apex:OutputField value="{!address.Postal_Code__c}" rendered="{!addressSelected}"/>     <apex:InputField value="{!accountAddress.Primary_Mail_To__c}"/>
+                
+                <apex:pageBlockSectionItem rendered="{!address.Id != null}">
+                    <apex:OutputLabel value="Address Last Modified Date"/>
+                    <apex:OutputField value="{!address.LastModifiedDate}" />
+                </apex:pageBlockSectionItem>
+                <apex:pageblockSectionItem rendered="{!address.Id != null}">
+                    <apex:OutputLabel value="Address Last Modified By"/>
+                    <apex:OutputField value="{!address.LastModifiedBy.Name}" />
+                </apex:pageblockSectionItem> 
+            </apex:PageBlockSection>
+            
+                        
+            <apex:pageBlockSection title="Strategic Account Management">
+                <apex:inputField value="{!account.LA_Strategic_Account__c}"/>
+                <apex:pageBlockSectionItem ></apex:pageBlockSectionItem>
+                <apex:inputField value="{!account.Client_Profile__c}" rendered="{!!rerenderable}"/>
+                <apex:inputField value="{!account.Client_Business_Objectives_Initiatives__c}" rendered="{!!rerenderable}"/>
+                <apex:inputField value="{!account.Position_Strategy__c}"/>
+                <apex:inputField value="{!account.Attack_Strategy__c}"/>
+            </apex:pageBlockSection>
+        
+            <apex:pageBlockSection title="Additional Information">
+                <apex:repeat value="{!$ObjectType.Account.FieldSets.Additional_Information}" var="AdditionalInformation">
+                    <apex:inputField value="{!Account[AdditionalInformation]}"/>
+                </apex:repeat>
+            </apex:pageBlockSection>
+                
+            <apex:pageBlockSection title="Rep Information (DCW)">
+                <apex:repeat value="{!$ObjectType.Account.FieldSets.Rep_Information_DCW}" var="RepInformationDCW">
+                    <apex:inputField value="{!Account[RepInformationDCW]}"/>
+                </apex:repeat>
+            </apex:pageBlockSection>
+        
+            <apex:pageBlockSection title="System Information">
+                <apex:repeat value="{!$ObjectType.Account.FieldSets.System_Information}" var="SystemInformation">
+                    <apex:inputField value="{!Account[SystemInformation]}"/>
+                </apex:repeat>
+            </apex:pageBlockSection>
+            
+          
+            
+                 
+           <!-- <apex:pageBlockSection title="Address Information">
+                <apex:repeat value="{!AddressFields}" var="AddressInformation">
+                    <apex:inputField value="{!address[AddressInformation]}"/>
+                </apex:repeat>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection title="Account Address Information">
+                <apex:repeat value="{!AccountAddressFields}" var="AccountAddressInformation">
+                    <apex:inputField value="{!accountAddress[AccountAddressInformation]}"/>
+                </apex:repeat>
+            </apex:pageBlockSection> -->
+            
+           <!-- <apex:pageBlockSection title="Address Information">
+                <apex:input </apex:pageBlockSection>-->
+            
+            <apex:pageBlockButtons >
+                <apex:commandButton value="Save" action="{!Save}" reRender="messages" status="actStatusId" oncomplete="if({!recordSaved}){{!onSave}}"/>
+                <apex:actionStatus id="actStatusId" >
+                <apex:facet name="start" >
+                  <img src="/img/loading.gif" />                    
+                </apex:facet>
+            </apex:actionStatus>
+                <apex:commandButton value="Save & New" action="{!SaveandNew}" reRender="messages" status="actStatusId2" rendered="{!redirectPage}"/>
+                <apex:actionStatus id="actStatusId2" >
+                <apex:facet name="start" >
+                  <img src="/img/loading.gif" />                    
+                </apex:facet>
+            </apex:actionStatus>
+                <apex:commandButton value="Cancel" action="{!sc.cancel}" immediate="true" rendered="{!redirectPage}"/>                
+            </apex:pageBlockButtons>
+        </apex:pageBlock>
+    </apex:Form>
+</apex:component>

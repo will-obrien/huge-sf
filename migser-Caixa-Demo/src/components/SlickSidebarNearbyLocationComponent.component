@@ -1,0 +1,111 @@
+<apex:component controller="SlickSidebarNearbyLocationComponent">
+    <apex:attribute required="true" type="String" name="customerAddress" assignTo="{!location}" description="The Location on which the Map Should center"/>
+    <apex:attribute required="false" type="String" name="height" assignTo="{!mapHeight}" description="Customize the Height of the Map" default="300px"/>
+    <apex:attribute required="false" type="String" name="border" assignTo="{!mapBorder}" description="CSS Border Definition"/>
+    <apex:attribute required="false" type="String" name="zoom" assignTo="{!mapZoom}" description="Zoom Level of the map 1 = world level -> 20 = street level" default="15"/>
+    <apex:attribute required="false" type="Boolean" name="scrollWheelEnabled" assignTo="{!mapScrollWheelEnabled}" description="Set True if you wish to allow the scroll wheel to control zoom" default="false" />
+    <apex:attribute required="false" type="String" name="infoWindowHTML" assignTo="{!customerInfoWindowHTML}" description="HTML of the Info Window Popup, Leave Blank for no Window"/>
+    <apex:attribute required="false" type="String" name="mapType" assignTo="{!whatMapType}" description="Map Type Options HYBRID, ROADMAP, SATELLITE, TERRAIN" default="ROADMAP" />
+    <apex:attribute required="false" type="String" name="iconURL" assignTo="{!mapIconURL}" description="Map Icon URL" default="http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|FE7569" />
+
+    <style>
+        #map_canvas {
+            width: 100%;
+            height: {!height};
+            border: {!border};
+        }
+    </style>
+    
+    <apex:includeScript value="https://maps.googleapis.com/maps/api/js?sensor=false" />
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"/>
+    
+    <script>
+        (function($j) {
+            var geocoder;
+            var map;
+            var infoWindow;
+
+            var allLocations = {!allLocations};
+
+            $j(document).ready(function(){
+                var location = '{!location}';
+                geocoder = new google.maps.Geocoder();
+                
+                // Geocode and map the customer address
+                geocoder.geocode( { 'address': location}, function(results, status) {
+                    if (status == google.maps.GeocoderStatus.OK) {
+                        var mapOptions = {
+                            zoom: {!mapZoom},
+                            scrollwheel: {!mapScrollWheelEnabled},
+                            center: results[0].geometry.location,
+                            disableDefaultUI: true,
+                            mapTypeId: google.maps.MapTypeId.{!whatMapType}
+                        }
+                        map = new google.maps.Map(document.getElementById('map_canvas'), mapOptions);
+        
+                        var marker = new google.maps.Marker({
+                            map: map,
+                            icon: '{!mapIconURL}',
+                            position: results[0].geometry.location
+                        });
+        
+                        var contentString = "<apex:outputText value="{!customerInfoWindowHTML}" escape="true"/>";
+                        if(contentString !== '') {
+                            google.maps.event.addListener(marker, 'click', function() {
+                                if (infoWindow) {
+                                    infoWindow.close();
+                                }                 
+                                infoWindow = new google.maps.InfoWindow({
+                                    content: contentString
+                                });                                               
+                                infoWindow.open(map,marker);
+                            });
+                        }
+
+                    } else {
+                        //alert('Geocode was not successful for the following reason: ' + status);
+                    }
+                }); // END geocoding person address  
+
+                
+                $j.each(allLocations, function(i, item) {            
+
+                    console.log(' LOCATION: ' + item.Name);
+                
+
+                
+                    geocoder.geocode( { 'address': item.Address__c}, function(results, status) {
+                        if (status == google.maps.GeocoderStatus.OK) {            
+                            var marker = new google.maps.Marker({
+                                map: map,
+                                icon: item.Map_Pin_Graphic_URL__c,
+                                position: results[0].geometry.location
+                            });
+            
+                            var contentString = '<b>' + item.Name + '</b><br/>' + item.Bubble_Text__c;
+                            if(contentString !== '') {                                
+                                google.maps.event.addListener(marker, 'click', function() {
+                                    if (infoWindow) {
+                                        infoWindow.close();
+                                    }                 
+                                    infoWindow = new google.maps.InfoWindow({
+                                        content: contentString
+                                    });                                                       
+                                    infoWindow.open(map,marker);
+                                });
+                            }
+
+                        } else {
+                            //alert('Geocode of nearest Store was not successful for the following reason: ' + status);
+                        }
+                    }); // END geocoding nearest store location
+                });// end j$.each(allLocations, function(i, item) { 
+                    
+            });
+        })(jQuery.noConflict());
+            
+    </script>
+    <div id="map_canvas">
+
+    </div>   
+</apex:component>

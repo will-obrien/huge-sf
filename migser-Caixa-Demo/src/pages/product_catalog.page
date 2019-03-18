@@ -1,0 +1,252 @@
+<apex:page controller="product_catalog_cls" showHeader="false" sidebar="false">
+    <Style>
+        .pageTitle {
+            text-align: center;
+            font-size: 30px;
+            height: 0;
+        }
+        .prodHeader {
+            text-align: right;
+            padding: 30px;
+        }
+        form{
+        	display: inline-block;
+        }
+        input[type="text"] {
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            margin-left: 10px;
+        }
+        .searchBox {
+            display: inline-block;
+        }
+        .logo {
+            width: 200px;
+            float: left;
+        	cursor: pointer;
+        }
+        .prodPageCont{
+        	margin: auto;
+	        width: 1000px;
+        }
+        .ParentName {
+            padding: 5px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .ProdImgCont .prodImg{
+        	width: 250px;
+        	height: 250px;
+        	border: 1px solid #ccc;
+        }
+        .prodCat {
+            display: inline-block;
+            margin: 0 10px 0 100px;
+        	padding: 5px;
+        	cursor: pointer;
+        }
+        .ProdName {
+            text-align: center;
+            padding: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .details {
+            display: inline-block;
+            width: 730px;
+        	vertical-align: top;
+        	overflow: scroll;
+        }
+        .detailsChatter {
+            display: inline-block;
+            width: 260px;
+        	vertical-align: top;
+        	float: right;
+        }
+        .title {
+            font-size: 24px;
+            padding: 10px 10px 40px 10px;
+            text-align: center;
+        }
+        .etabs { margin: 0; padding: 0; }
+        .tab { display: inline-block; zoom:1; *display:inline; background: #F1F1F1; border: solid 1px #CECECE; border-bottom: none;}
+        .tab a { font-size: 14px; line-height: 2em; display: block; padding: 0 10px; outline: none; }
+        .tab a:hover { text-decoration: underline; }
+        .tab.active { background: #fff; padding-top: 6px; position: relative; top: 1px; border-color: #CECECE; }
+        .tab a.active { font-weight: bold; }
+        .tab-container .panel-container { background: #fff; border: solid #CECECE 1px; padding: 10px;}
+        .panel-container { margin-bottom: 10px; }
+        .filesCont img{
+        	width: 20px;
+        }
+        .filesCont{
+        	float: right;
+        }
+        .filesCont a, .filesCont a:hover{
+        	text-decoration: none;
+        }
+        .filesCont .fileTitle{
+        	font-weight: bold;
+        	font-size: 14px;
+        	border-bottom: 1px solid #ccc;
+	        padding-bottom: 5px;
+        	margin-bottom: 10px;
+        }
+    </Style>
+    <apex:includeScript value="{!URLFOR($Resource.easytabs, 'jquery-1.7.1.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.easytabs, 'jquery.hashchange.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.easytabs, 'jquery.easytabs.min.js')}"/>
+    
+    <div class="prodHeader">
+        <img src="{!$Resource.bankinter_logo}" class="logo" onclick="gotoHome()"/>
+        <div class="pageTitle">
+            Manual de productos
+        </div>
+        <apex:form >
+            <apex:actionFunction name="gotoHome" action="{!showHome}" reRender="prodPageCont" />
+            <div class="searchBox">
+                <apex:inputText value="{!searchTxt}"/>
+                <apex:commandButton value="Search" action="{!searchProd}" reRender="prodPageCont"/>
+            </div>
+        </apex:form>
+    </div>
+    <apex:outputPanel id="prodPageCont" layout="block" styleClass="prodPageCont">
+        <apex:outputPanel rendered="{!!detailsPanel}">
+            <apex:outputPanel rendered="{!!searchRes}">
+                <apex:outputPanel styleClass="prodCatList" rendered="{!showParentPanel}">
+                    <apex:repeat value="{!prodFamilyList}" var="p">
+                        <div class="prodCat" onclick="showChildren('{!p.Id}')">
+                            <div class="ProdName">{!p.Name}</div>
+                            <div class="ProdImgCont">
+                                <img src="{!p.Imagen__c}" class="prodImg"/>
+                            </div>
+                        </div>
+                    </apex:repeat>
+                </apex:outputPanel>
+                <apex:outputPanel styleClass="prodCatChildren" rendered="{!!showParentPanel}">
+                    <div class="ParentName">{!selProd.Name}</div>
+                    <apex:repeat value="{!childFamilyProductsList}" var="p">
+                        <div class="prodCat" onclick="showChildren('{!p.Id}')">
+                            <div class="ProdName">{!p.Name}</div>
+                            <div class="ProdImgCont">
+                                <img src="{!p.Imagen__c}" class="prodImg"/> <!--  onclick="showProdDetails('{!p.Id}')" -->
+                            </div>
+                        </div>
+                    </apex:repeat>
+                    <apex:repeat value="{!childProductsList}" var="p">
+                        <div class="prodCat" onclick="showChildren('{!p.Id}')">
+                            <div class="ProdName">{!p.Name}</div>
+                            <div class="ProdImgCont">
+                                <img src="{!p.purl__c}" class="prodImg" onclick="showProdDetails('{!p.Id}')"/>
+                            </div>
+                        </div>
+                    </apex:repeat>
+                </apex:outputPanel>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!searchRes}">
+                <apex:repeat value="{!searchResultList}" var="p">
+                    <div class="prodCat" onclick="showChildren('{!p.pId}')">
+                        <div class="ProdName">{!p.pName}</div>
+                        <div class="ProdImgCont">
+                            <img src="{!p.pImg}" class="prodImg"/>
+                        </div>
+                    </div>
+                </apex:repeat>
+            </apex:outputPanel>
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!detailsPanel}">
+            <div class="title">
+                <apex:outputPanel rendered="{!prod2}">{!prod.Name}</apex:outputPanel> 
+                <apex:outputPanel rendered="{!!prod2}">{!FDprod.Name}</apex:outputPanel> 
+            </div>
+            <div id="tab-container" class='tab-container'>
+                <ul class='etabs'>
+                    <li class='tab'><a href="#tabs1">Descripción del producto</a></li>
+                    <li class='tab'><a href="#tabs2">Archivos relacionados</a></li>
+                </ul>
+                <div class='panel-container'>
+                    <div id="tabs1">
+                        <apex:outputField value="{!prod.Item_Long_Description__c}" rendered="{!prod2}"/>
+                        <apex:outputField value="{!FDprod.Item_Long_Description__c}" rendered="{!!prod2}"/> 
+                    </div>
+                    <div id="tabs2">
+                        <div class="filesCont">
+                            <div class="fileTitle">Group Files</div>
+                            <table>
+                                <apex:repeat value="{!gFilesList}" var="item">
+                                    <tr>
+                                        <td>
+                                            <apex:outputPanel rendered="{!item.ContentDocument.FileType != ''}">
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'POWER_POINT')||(item.ContentDocument.FileType == 'POWER_POINT_X')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/ppt.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'PNG')|| (item.ContentDocument.FileType == 'JPEG')|| (item.ContentDocument.FileType == 'JPG')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/image.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!item.ContentDocument.FileType == 'PDF'}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/pdf.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'WORD') ||(item.ContentDocument.FileType == 'WORD_X')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/word.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'EXCEL') ||(item.ContentDocument.FileType == 'EXCEL_X')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/excel.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'PACK')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/zip.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'EXE')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/exe.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                                <apex:outputPanel rendered="{!(item.ContentDocument.FileType == 'LINK')}">
+                                                    <span class="uiImage forceChatterFileIcon">
+                                                        <img  src="/img/icon/t4/doctype/snote.svg" class=" small cuf-fileIcon" />
+                                                    </span>
+                                                </apex:outputPanel>
+                                            </apex:outputPanel>
+                                        </td>
+                                        <td> 
+                                            <span class="cuf-contentAttachmentTitle uiOutputText">
+                                                <a href="{!$Site.Prefix + '/sfc/servlet.shepherd/document/download/' + item.ContentDocument.Id}">
+                                                    {!item.ContentDocument.Title}
+                                                </a>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </apex:repeat>
+                            </table>
+                        </div>
+                        <chatter:feed entityId="{!cGroup.Id}" />
+                    </div>
+                </div>
+            </div>
+            <script type="text/javascript">
+                $('#tab-container').easytabs();
+		    </script>
+        </apex:outputPanel>
+        <apex:form >
+            <apex:actionFunction action="{!childProducts}" name="showChildren" reRender="prodPageCont">
+                <apex:param assignTo="{!ParentProdId}" name="ParentProdId" value=""/>
+            </apex:actionFunction>
+            <apex:actionFunction action="{!prodDetails}" name="showProdDetails" reRender="prodPageCont">
+                <apex:param assignTo="{!selProdId}" name="ParentProdId" value=""/>
+            </apex:actionFunction>
+        </apex:form>
+    </apex:outputPanel>
+</apex:page>

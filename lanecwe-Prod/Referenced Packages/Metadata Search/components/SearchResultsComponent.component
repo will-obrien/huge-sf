@@ -1,0 +1,969 @@
+<apex:component controller="MetaDataSearch.SearchResultsController" id="componentID"> 
+    <apex:includeScript value="{!URLFOR($Resource.MetaDataSearch__jquery, 'js/jquery-1.7.1.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.MetaDataSearch__jquery, 'js/jquery-ui-1.8.18.custom.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.MetaDataSearch__jquery, 'js/jquery.cookie.js')}"/>
+    <!-- http://www.sitepoint.com/eat-those-cookies-with-jquery/ -->
+    <style>
+     .topcorner{
+            position:absolute;
+            top: 10px;
+            right: 50px;
+        }    
+        ul li, ol li {
+            margin-left: 0.5em;
+            position: relative;
+            margin-bottom: 10px;
+            color:grey;
+            padding-left:4px;
+            cursor:pointer;
+           
+        }
+        .selectedDiv {
+            background-color: #C4E7F2;
+            border-radius: 4px;
+            -moz-border-radius: 4px;
+            -webkit-border-radius: 4px; 
+            line-height: 23px;
+            color:grey !important;
+            font-weight:bold;
+            padding-left:4px;
+            border-bottom: 1px solid #D2D2D2;
+            border-top: 1px solid #D2D2D2;
+            border-left: 1px solid  #D2D2D2;                
+            border-right: 1px solid  #D2D2D2;
+            border-width: 1px 1px 1px 1px;
+            border-color:  #D2D2D2;
+        }       
+        
+        
+        .pgImg{
+              vertical-align:middle;
+              padding-right:6px;    
+        }
+        .MyPbHeader{
+              font-size:1.2em;
+              font-weight:bold;    
+        }
+        
+        .searchResultTitle{
+            margin-bottom:10px;
+            background-color:#2AAAFF!important;
+            color:white!important;
+        }
+          
+        .searchTextAV{
+            border: 1px solid #B6B6B6;
+            padding: 3px 5px 3px 5px;
+            width: 280px;
+            font-size: 100%;
+            -moz-border-radius: 5px;
+            -webkit-border-radius: 5px;
+            -moz-box-shadow: 0 1px 1px #969696 inset;
+            height: 16px;
+        }
+        
+        .sidebarLinkWrap{
+            display:none;
+        }
+        
+        .resultsPresent{
+            font-weight:bold;
+        }
+        
+        .resultBlock{
+            display:none;
+        }
+        
+        .oMsg {
+            padding: 11px 24px 10px 64px;
+            margin-bottom: 10px;
+            -webkit-border-radius: 10px;
+            -moz-border-radius: 10px;
+            -ms-border-radius: 10px;
+            -o-border-radius: 10px;
+            border-radius: 10px;
+            font-size: 15px;
+            line-height: 26px;
+            border: 3px solid #fff;
+            position: relative;
+        }
+        .oMsg:before {
+            content: " ";
+            position: absolute;
+            left: -3px;
+            top: -3px;
+            bottom: -3px;
+            width: 50px;
+            -webkit-border-radius: 10px 0 0 10px;
+            -moz-border-radius: 10px 0 0 10px;
+            -ms-border-radius: 10px 0 0 10px;
+            -o-border-radius: 10px 0 0 10px;
+            border-radius: 10px 0 0 10px;
+        }       
+        .oMsg:after {
+            content: " ";
+            position: absolute;
+            left: 18px;
+            top: 50%;
+        }       
+        article {
+            display: block;
+        }
+        .oMsgInfo {
+            border-color: #1cb8ee;
+        }       
+        .oMsgInfo:before {
+            background: #1cb8ee;
+        }
+        .oMsgInfo:after {
+            background-image: url(data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHdpZHRoPSI0cHgiIGhlaWdodD0iMTlweCIgdmlld0JveD0iMCAwIDQgMTkiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDQgMTkiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGc+DQoJCTxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBmaWxsPSIjMjY1RkJGIiBkPSJNMiwwLjAzMWMtMS4xMDQsMC0yLDAuODk2LTIsMnY4YzAsMS4xMDQsMC44OTYsMiwyLDINCgkJCXMyLTAuODk2LDItMnYtOEM0LDAuOTI3LDMuMTA0LDAuMDMxLDIsMC4wMzF6IE0yLDE1Yy0xLjEwNCwwLTIsMC44OTYtMiwyczAuODk2LDIsMiwyczItMC44OTYsMi0yUzMuMTA0LDE1LDIsMTV6Ii8+DQoJPC9nPg0KPC9nPg0KPC9zdmc+DQo=);
+            display: inline-block;
+            width: 4px;
+            height: 19px;
+            background: transparent;
+            background-position: 100%;
+            background-size: 4px 19px;
+            padding: 7px 0 0 2px;
+            background-repeat: no-repeat;
+            margin-top: -12px;          
+        }
+        .oMsg>.oBtnCloseSmall {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+        }   
+        .oBtnCloseSmall {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            font-size: 17px;
+            font-family: monospace;
+            font-weight: 700;
+            color: #949494;
+            background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTYuMC4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj48c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Igkgd2lkdGg9IjlweCIgaGVpZ2h0PSI5cHgiIHZpZXdCb3g9IjAgMCA5IDkiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDkgOSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PGc+CTxnPgkJPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGZpbGw9IiM4NjgyODIiIGQ9Ik02LjU5Niw0LjUwNGwxLjk3Ny0xLjk4N2MwLjU4Ni0wLjU4NiwwLjU4Ni0xLjUzNiwwLTIuMTIyCQkJYy0wLjU4Ni0wLjU4NS0xLjUzNS0wLjU4NS0yLjEyMSwwTDQuNDczLDIuMzg1TDIuNTQxLDAuNDU3Yy0wLjU4MS0wLjU4My0xLjUyMy0wLjU4My0yLjEwNSwwYy0wLjU4MSwwLjU4My0wLjU4MSwxLjUyOSwwLDIuMTEzCQkJTDIuMzY5LDQuNWwtMS45MywxLjk0Yy0wLjU4NiwwLjU4Ni0wLjU4NiwxLjUzNSwwLDIuMTIxczEuNTM2LDAuNTg2LDIuMTIyLDBsMS45MzEtMS45NDFsMS45NDcsMS45NDMJCQljMC41ODIsMC41ODQsMS41MjUsMC41ODQsMi4xMDUsMGMwLjU4Mi0wLjU4NCwwLjU4Mi0xLjUyOSwwLTIuMTEzTDYuNTk2LDQuNTA0eiIvPgk8L2c+PC9nPjwvc3ZnPg==) 50% center no-repeat;
+            margin-right: 7px;
+        }
+        a {
+            cursor: pointer;
+            color: #0093f0;
+        }
+        #messageheader {
+            box-sizing: border-box;
+            color: rgb(37, 37, 35);
+            display: block;
+            font-family: sans-serif;
+            font-size: 13px;
+            height: 105px;
+            line-height: 18px;
+            width: 1030px;  
+            margin: 0 auto; 
+        }           
+    </style>
+    <script type='text/javascript'>
+        var j$ = jQuery.noConflict();
+        
+       /*On ready Function*/
+        j$(document).ready(function() {
+            hideEmptySections();
+            if(j$.cookie("MetadataSearchNotification-{!$User.Id}")=="{!$User.Id}")
+                j$('#messageheader').hide();
+            else {
+                j$('#messageheader').show();
+                setTimeout(hideMessageHeader, 15000);
+                j$('#messageheaderClose').click(function(){
+                    j$.cookie("MetadataSearchNotification-{!$User.Id}", "{!$User.Id}", {expires: new Date(2099, 01, 01, 01, 00, 00)});          
+                    j$('#messageheader').hide();                
+                });
+            }        
+        });
+        
+        var hideMessageHeader = function() {
+            j$('#messageheader').hide();
+        } 
+        
+        function sideBarHover(){
+            j$('.sideBarLink').hover(
+                function(){
+                    j$(this).css({"text-decoration":"underline","color":"#2A7FFF"});
+                },
+                function(){
+                    j$(this).css({"text-decoration":"none","color":"grey"});
+                }
+            );
+        }
+        
+        /** Hide Empty Section **/
+        function hideEmptySections(){
+            currentSection = '';
+            j$('.sidebarLinkWrap').show();
+            j$.each(j$('.sidebarLinkWrap'),function(){
+                if(j$(this).attr('category-data-count')>0){
+                    var resultPanel = j$(this).attr('related-outputpanel');
+                    j$('[id$='+resultPanel+']').show();            
+                    j$(this).addClass("selectedDiv");
+                }
+            });
+            j$('[id$=searchOne]').hide();
+            j$('[id$=searchAll]').attr('Value','Search').button("refresh");
+        }
+
+        
+        var currentSection = ''; 
+        function showSection(secname){           
+            j$('.resultBlock').hide('');
+            j$('[id$='+secname+']').slideDown();
+            j$('[id$=searchOne]').show();
+            j$('.sidebarLinkWrap').removeClass("selectedDiv");
+            j$('#'+secname+'Anchor').addClass("selectedDiv");
+            str= j$('#'+secname+'Anchor').attr('search-category');
+            setSearchCategory(str);
+            j$('[id$=searchOne]').attr('Value','Search '+str).button("refresh");
+            j$('[id$=searchAll]').attr('Value','Search All').button("refresh");
+            currentSection=secname;
+        }
+        
+        function showOne(elem){
+            showSection(elem);
+            j$('.sidebarLinkWrap:not(#'+elem+'Anchor)').slideUp();
+            j$('#'+elem+'Anchor').slideDown();
+        }
+                    
+        /** This function will help to call search function on hit of enter **/
+        function onEnter(ev)  {
+            if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+                if(currentSection){
+                    doSearchAF();
+                }
+                else{
+                    doSearchAFAll();
+                }
+                return false;
+             } else {
+                  return true;
+             }
+         }
+         
+        function showNotificationBar(message, duration, bgColor, txtColor, height) {         
+            /*set default values*/
+            duration = typeof duration !== 'undefined' ? duration : 1500;
+            bgColor = typeof bgColor !== 'undefined' ? bgColor : "#F4E0E1";
+            txtColor = typeof txtColor !== 'undefined' ? txtColor : "#A42732";
+            height = typeof height !== 'undefined' ? height : 40;
+            /*create the notification bar div if it doesn't exist*/
+            if (j$('#notification-bar').size() == 0) {
+                var HTMLmessage = "<div class='notification-message' style='text-align:center; line-height: " + height + "px;'> " + message + " </div>";
+                j$('body').prepend("<div id='notification-bar' style='display:none; width:100%; height:" + height + "px; background-color: " + bgColor + "; position: fixed; z-index: 100; color: " + txtColor + ";border-bottom: 1px solid " + txtColor + ";'>" + HTMLmessage + "</div>");
+            }
+            /*animate the bar*/
+            j$('#notification-bar').slideDown(function() {
+                setTimeout(function() {
+                    j$('#notification-bar').slideUp(function() {});
+                }, duration);
+            });
+        }         
+    </script>
+    <div id="messageheader" style="display:none">
+        <article class="oMsg oMsgInfo">
+                <a href="#" id="messageheaderClose" title="Do not show this again" class="oBtnCloseSmall"></a>
+                <b>New In this Version! </b>Metadata Search App now supports <font style="color:red;font-weight:bold">searching inside</font> Apex Triggers, Apex Classes, Visualforce Pages or Visualforce Components. For e.g., Searching for "BillingCity__c" will find all metadata components along with all Apex Triggers, Apex Classes, Visualforce Pages or Visualforce Components <font style="color:red;font-weight:bold">containing</font> "BillingCity__c".<br/> 
+                <small>*Please note that a maximum of 200 matches will be returned per metadata type. Need help? No Problem! Contact Us at <a href="mailto:support@satrangtech.com">support@satrangtech.com</a></small>
+           </article>
+    </div>
+    <div class= "topcorner"><a href="mailto:support@satrangtech.com">Support</a></div>      
+    <apex:form id="form1">
+        <table width="100%">
+            <tr>
+                <td width="18%" style="vertical-align:top">
+                    
+                    <h1 class="pageType noSecondHeader" style="color: #000;font-size: 2em;font-weight: normal;">Metadata Search</h1><br/><br/>
+   
+                    <apex:outputPanel layout="block" styleClass="selectedDiv searchResultTitle"  >
+                         <apex:image value="/img/search/search_sidebarv2_recordtoggle.gif" styleClass="pgImg"/>
+                         <apex:outputText value="Search Results" ></apex:outputText> 
+                    </apex:outputPanel>
+                    
+                    
+                    <ul style="margin:0;list-style: none;padding: 0;">
+                        
+                        <li style="{!IF($ObjectType.ApexPage.accessible,'','display:none')}">
+                            <div id="pagesIDAnchor" class="sidebarLinkWrap" search-category="Pages" category-data-count="{!pages.size}" related-outputpanel="pagesID">
+                                <div onclick="javascript:showSection('pagesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/service_contracts16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Pages ({!pages.size})</apex:outputText> 
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li style="{!IF($ObjectType.ApexClass.accessible,'','display:none')}">
+                            <div id="classesIDAnchor" class="sidebarLinkWrap" search-category="Classes" category-data-count="{!classes.size}" related-outputpanel="classesID">
+                                <div onclick="javascript:showSection('classesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/custom51_100/gears16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Apex Classes ({!classes.size})</apex:outputText> 
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li style="{!IF($ObjectType.ApexComponent.accessible,'','display:none')}"> 
+                            <div id="componentsIDAnchor" class="sidebarLinkWrap" search-category="Components" category-data-count="{!components.size}" related-outputpanel="componentsID">
+                                <div onclick="javascript:showSection('componentsID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/custom51_100/buildingBlock16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Components ({!components.size})</apex:outputText> 
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li style="{!IF($ObjectType.ApexTrigger.accessible,'','display:none')}">
+                            <div id="triggersIDAnchor" class="sidebarLinkWrap" search-category="Triggers" category-data-count="{!triggers.size}" related-outputpanel="triggersID">
+                                <div onclick="javascript:showSection('triggersID');" class="sideBarLink">
+                                     <apex:image value="/img/icon/wrench16.png" styleClass="pgImg"/>
+                                     <apex:outputText >Apex Triggers ({!triggers.size})</apex:outputText>
+                                 </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li> 
+                        <li style="{!IF($ObjectType.AppMenuItem.accessible,'','display:none')}">
+                            <div id="appsIDAnchor" class="sidebarLinkWrap" search-category="Apps" category-data-count="{!apps.size}" related-outputpanel="appsID">
+                                <div onclick="javascript:showSection('appsID');" class="sideBarLink">
+                                     <apex:image value="/img/icon/custom51_100/books16.png" styleClass="pgImg"/>
+                                     <apex:outputText >Apps ({!apps.size})</apex:outputText>
+                                 </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>                         
+                        <li style="{!IF($ObjectType.AssignmentRule.accessible,'','display:none')}">
+                            <div id="assignmentRulesIDAnchor" class="sidebarLinkWrap" search-category="Assignment Rules" category-data-count="{!assignmentRules.size}" related-outputpanel="assignmentRulesID">
+                                <div onclick="javascript:showSection('assignmentRulesID');" class="sideBarLink">
+                                     <apex:image value="/img/icon/form16.png" styleClass="pgImg"/>
+                                     <apex:outputText >Assignment Rules ({!assignmentRules.size})</apex:outputText>
+                                 </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li>
+                            <div id="customSettingsIDAnchor" class="sidebarLinkWrap" search-category="Custom Settings" category-data-count="{!customSettings.size}" related-outputpanel="customSettingsID">
+                                <div onclick="javascript:showSection('customSettingsID');" class="sideBarLink">
+                                     <apex:image value="/img/icon/hammer16.png" styleClass="pgImg"/>
+                                     <apex:outputText >Custom Settings ({!customSettings.size})</apex:outputText>
+                                 </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>                            
+                        <li style="{!IF($ObjectType.WebLink.accessible,'','display:none')}">
+                            <div id="weblinksIDAnchor" class="sidebarLinkWrap" search-category="Buttons and Links" category-data-count="{!weblinks.size}" related-outputpanel="weblinksID">
+                                <div onclick="javascript:showSection('weblinksID');" class="sideBarLink">
+                                     <apex:image value="/img/icon/orderBell16.png" styleClass="pgImg"/>
+                                     <apex:outputText >Buttons and Links ({!weblinks.size})</apex:outputText>
+                                 </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>                                            
+                        <li style="{!IF($ObjectType.StaticResource.accessible,'','display:none')}">
+                            <div id="resourcesIDAnchor" class="sidebarLinkWrap" search-category="Static Resources" category-data-count="{!resources.size}" related-outputpanel="resourcesID">
+                                <div onclick="javascript:showSection('resourcesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/sack16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Static Resources ({!resources.size})</apex:outputText>
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>   
+                        <li style="{!IF($ObjectType.UserRole.accessible,'','display:none')}">
+                            <div id="rolesIDAnchor" class="sidebarLinkWrap" search-category="Roles" category-data-count="{!roles.size}" related-outputpanel="rolesID">
+                                <div onclick="javascript:showSection('rolesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/people16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Roles ({!roles.size})</apex:outputText>
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li style="{!IF($ObjectType.Profile.accessible,'','display:none')}">
+                            <div id="profilesIDAnchor" class="sidebarLinkWrap" search-category="Profiles" category-data-count="{!profiles.size}" related-outputpanel="profilesID">
+                                <div onclick="javascript:showSection('profilesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/profile16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Profiles ({!profiles.size})</apex:outputText>
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li style="{!IF($ObjectType.PermissionSet.accessible,'','display:none')}">
+                             <div id="permissionsetsIDAnchor" class="sidebarLinkWrap" search-category="Permission Sets" category-data-count="{!permissionsets.size}" related-outputpanel="permissionsetsID">
+                                 <div onclick="javascript:showSection('permissionsetsID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/custom51_100/keys16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Permission Sets ({!permissionsets.size})</apex:outputText>
+                                </div>
+                                 <div style="clear: both;"></div>
+                             </div>
+                        </li>                   
+                         <li style="{!IF($ObjectType.Report.accessible,'','display:none')}">
+                             <div id="reportsIDAnchor" class="sidebarLinkWrap" search-category="Reports" category-data-count="{!reports.size}" related-outputpanel="reportsID">
+                                <div onclick="javascript:showSection('reportsID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/reports16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Reports ({!reports.size})</apex:outputText>
+                                </div>
+                                 <div style="clear: both;"></div>
+                             </div>
+                         </li>                                                                                                                                                                                                                                     
+                         <li style="{!IF($ObjectType.Dashboard.accessible,'','display:none')}">
+                             <div id="dashboardsIDAnchor" class="sidebarLinkWrap" search-category="Dashboards" category-data-count="{!dashboards.size}" related-outputpanel="dashboardsID">
+                                <div onclick="javascript:showSection('dashboardsID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/dashboards16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Dashboards ({!dashboards.size})</apex:outputText>
+                                </div>
+                                 <div style="clear: both;"></div>
+                             </div>
+                         </li>                         
+                        <li style="{!IF($ObjectType.EmailTemplate.accessible,'','display:none')}">
+                            <div id="templatesIDAnchor" class="sidebarLinkWrap" search-category="Templates" category-data-count="{!templates.size}" related-outputpanel="templatesID">
+                                <div onclick="javascript:showSection('templatesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/mail16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Email Templates ({!templates.size})</apex:outputText>
+<!--                                     &nbsp;<span class="newFlag">New!</span> -->
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                        <li style="{!IF($ObjectType.Group.accessible,'','display:none')}">
+                            <div id="groupsIDAnchor" class="sidebarLinkWrap" search-category="Public Groups" category-data-count="{!groups.size}" related-outputpanel="groupsID">
+                                <div onclick="javascript:showSection('groupsID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/groups16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Public Groups ({!groups.size})</apex:outputText>
+                                </div>
+                                <div style="clear: both;"></div>
+                            </div>
+                        </li>
+                         <li style="{!IF($ObjectType.Group.accessible,'','display:none')}">
+                             <div id="queuesIDAnchor" class="sidebarLinkWrap" search-category="Queues" category-data-count="{!queues.size}" related-outputpanel="queuesID">
+                                 <div onclick="javascript:showSection('queuesID');" class="sideBarLink">
+                                     <apex:image value="/img/icon/groups16.png" styleClass="pgImg"/>
+                                     <apex:outputText >Queues ({!queues.size})</apex:outputText>
+                                </div>
+                                 <div style="clear: both;"></div>
+                             </div>
+                         </li> 
+                         <li style="{!IF($ObjectType.Site.accessible,'','display:none')}">
+                             <div id="sitesIDAnchor" class="sidebarLinkWrap" search-category="Sites" category-data-count="{!sites.size}" related-outputpanel="sitesID">
+                                 <div onclick="javascript:showSection('sitesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/console16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Sites ({!sites.size})</apex:outputText>
+                                </div>
+                                 <div style="clear: both;"></div>
+                             </div>
+                         </li>
+                         <li style="{!IF($ObjectType.RecordType.accessible,'','display:none')}">
+                             <div id="recordtypesIDAnchor" class="sidebarLinkWrap" search-category="Record Types" category-data-count="{!recordtypes.size}" related-outputpanel="recordtypesID">
+                                <div onclick="javascript:showSection('recordtypesID');" class="sideBarLink">
+                                    <apex:image value="/img/icon/hexagon16.png" styleClass="pgImg"/>
+                                    <apex:outputText >Record Types ({!recordtypes.size})</apex:outputText>
+                                </div>
+                                 <div style="clear: both;"></div>
+                             </div>
+                         </li>                                                                                                                                                                                                                                     
+                    </ul>
+                </td>
+                
+                <td width="82%" style="vertical-align:top">  
+                    <apex:actionFunction name="doSearchAF" action="{!search}" rerender="form1" status="status"  oncomplete="showOne(currentSection);"/>
+                    <apex:actionFunction name="doSearchAFAll" action="{!searchAll}" rerender="form1" status="status"  oncomplete="hideEmptySections()"/>
+                    <apex:actionFunction name="setSearchCategory" reRender="dummy" >
+                        <apex:param name="searchCategory"
+                                    value=""
+                                    assignTo="{!searchCategory}"/>
+                    </apex:actionFunction>
+                    
+                    <apex:outputPanel rendered="{!!ISNULL(searchString)}">
+                        <h1 class="pageType noSecondHeader" style="color: #000;font-size: 2em;font-weight: normal;">&nbsp;</h1>
+                        <!--Search Block-->
+                        <apex:pageBlock id="searchResultsPBId" mode="maindetail">
+                            <apex:outputPanel style="margin-top:14px" layout="block">
+                                <apex:inputText id="searchText"  value="{!searchString}" styleClass="searchStr searchTextAV" onkeypress="return onEnter(event);"/>
+                                <apex:commandButton id="searchOne" value="Search" action="{!search}" rerender="form1" status="status" style="display:none" oncomplete="showOne(currentSection);"/>
+                                <apex:commandButton id="searchAll" value="Search" action="{!searchAll}" rerender="form1" status="status" oncomplete="hideEmptySections()"/>
+                                
+                                <!--
+                                <apex:inputCheckbox id="isBodySearch" value="{!isExactSearch}"/>
+                                <apex:outputLabel value="Exact Phrase"/>   
+                                -->
+                                  
+                                <!--Info Message Besides The Search-->
+                                <apex:outputPanel styleClass="search2InfoIconContainer">
+                                    <apex:outputPanel layout="block" styleClass="mouseOverInfoOuter" id="secondSearchInfo"  onmouseover="addMouseOver(this)">
+                                        <img src="/s.gif" alt="" class="infoIcon" title=""/>
+                                        <apex:outputPanel layout="block" styleClass="mouseOverInfo" id="secondSearchInfo_inner" style="display: none; opacity: 0; ">Try a new search.</apex:outputPanel>
+                                    </apex:outputPanel>
+                                </apex:outputPanel>       
+                                
+                                <apex:actionStatus id="status">&nbsp;
+                                    <apex:facet name="start" >
+                                        <img class="waitingImage" src="/img/loading.gif" title="Loading..." style="margin-left:20px"/>
+                                    </apex:facet>
+                                </apex:actionStatus>                                
+                                
+                           </apex:outputPanel>
+                        </apex:pageBlock>
+                        
+                        <apex:pageMessages />
+                        
+                        <apex:outputPanel id="pagesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.ApexPage.accessible}">
+                            <apex:pageBlock title="Pages ({!pages.size})"  tabStyle="ApexPage">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/service_contracts24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Pages ({!pages.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!pages}" var="p" rendered="{!pages.size>0}">
+                                    <apex:column headerValue="Name" width="20%">
+                                        <a href="/{!p.Id}" target="_blank">{!p.Name}</a>
+                                    </apex:column>
+                                    <apex:column headerValue="Label" width="20%">
+                                        <a href="/{!p.Id}" target="_blank">{!p.MasterLabel}</a>
+                                    </apex:column>            
+                                    <apex:column value="{!p.CreatedDate}"/>
+                                    <apex:column value="{!p.CreatedById}"/>
+                                    <apex:column value="{!p.LastModifiedDate}"/>
+                                    <apex:column value="{!p.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(pages.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('pagesID');" />
+                               <apex:outputText value="No matches found" rendered="{!pages.size==0}"/>
+                            </apex:pageBlock>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="classesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.ApexClass.accessible}">
+                            <apex:pageBlock title="Apex Classes ({!classes.size})"  tabStyle="ApexClass">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/custom51_100/gears24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Apex Classes ({!classes.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!classes}" var="c" rendered="{!classes.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!c.Id}" target="_blank">{!c.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!c.CreatedDate}"/>
+                                    <apex:column value="{!c.CreatedById}"/>
+                                    <apex:column value="{!c.LastModifiedDate}"/>
+                                    <apex:column value="{!c.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(classes.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('classesID');" />
+                               <apex:outputText value="No matches found" rendered="{!classes.size==0}"/>
+                            </apex:pageBlock>  
+                        </apex:outputPanel>
+                        
+                        
+                        <apex:outputPanel id="componentsID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.ApexComponent.accessible}">
+                            <apex:pageBlock title="Components ({!components.size})" tabStyle="ApexComponent">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/custom51_100/buildingBlock24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Components ({!components.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!components}" var="c" rendered="{!components.size>0}">
+                                    <apex:column headerValue="Name" width="20%">
+                                        <a href="/{!c.Id}" target="_blank">{!c.Name}</a>
+                                    </apex:column>
+                                    <apex:column headerValue="Label" width="20%">
+                                        <a href="/{!c.Id}" target="_blank">{!c.MasterLabel}</a>
+                                    </apex:column>            
+                                    <apex:column value="{!c.CreatedDate}"/>
+                                    <apex:column value="{!c.CreatedById}"/>
+                                    <apex:column value="{!c.LastModifiedDate}"/>
+                                    <apex:column value="{!c.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(components.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('componentsID');" />
+                               <apex:outputText value="No matches found" rendered="{!components.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="triggersID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.ApexTrigger.accessible}">
+                            <apex:pageBlock title="Apex Triggers ({!triggers.size})"  tabStyle="ApexTrigger">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/wrench24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Apex Triggers ({!triggers.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!triggers}" var="t" rendered="{!triggers.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!t.Id}" target="_blank">{!t.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!t.CreatedDate}"/>
+                                    <apex:column value="{!t.CreatedById}"/>
+                                    <apex:column value="{!t.LastModifiedDate}"/>
+                                    <apex:column value="{!t.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(triggers.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('triggersID');" />
+                               <apex:outputText value="No matches found" rendered="{!triggers.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="appsID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.AppMenuItem.accessible}">
+                            <apex:pageBlock title="Apps ({!apps.size})"  tabStyle="ApexTrigger">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/custom51_100/books24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Apps ({!apps.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!apps}" var="t" rendered="{!apps.size>0}">
+                                    <apex:column headerValue="App Label" width="25%">
+                                        <a href="/{!t.Id}" target="_blank">{!t.Label}</a>
+                                    </apex:column>
+                                    <apex:column value="{!t.Description}"/>
+                                    <apex:column value="{!t.CreatedDate}"/>
+                                    <apex:column value="{!t.CreatedById}"/>
+                                    <apex:column value="{!t.LastModifiedDate}"/>
+                                    <apex:column value="{!t.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(apps.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('appsID');" />
+                               <apex:outputText value="No matches found" rendered="{!apps.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>                        
+                        
+                        <apex:outputPanel id="assignmentRulesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.AssignmentRule.accessible}">
+                            <apex:pageBlock title="Assignment Rules ({!assignmentRules.size})"  tabStyle="AssignmentRule">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/form24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Assignment Rules ({!assignmentRules.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!assignmentRules}" var="ar" rendered="{!assignmentRules.size>0}">
+                                    <apex:column value="{!ar.SObjectType}"/>
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/setup/own/entityruledetail.jsp?id={!ar.Id}" target="_blank">{!ar.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!ar.Active}"/>
+                                    <apex:column value="{!ar.CreatedDate}"/>
+                                    <apex:column value="{!ar.CreatedById}"/>
+                                    <apex:column value="{!ar.LastModifiedDate}"/>
+                                    <apex:column value="{!ar.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(assignmentRules.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('assignmentRulesID');" />
+                               <apex:outputText value="No matches found" rendered="{!assignmentRules.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>                        
+                        
+                        <apex:outputPanel id="customSettingsID" styleClass="resultBlock" layout="block">
+                            <apex:pageBlock title="Custom Settings ({!customSettings.size})">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/hammer24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Custom Settings ({!customSettings.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!customSettings}" var="wl" rendered="{!customSettings.size>0}">
+                                    <apex:column headerValue="Action" width="25%">
+                                        <a href="/setup/ui/listCustomSettingsData.apexp?id={!wl.KeyPrefix}" target="_blank">Manage</a>
+                                    </apex:column>
+                                    <apex:column headerValue="Label" width="25%">
+                                        <apex:outputText value="{!wl.label}"/>
+                                    </apex:column>                                    
+                                    <apex:column headerValue="API Name" width="25%">
+                                        <apex:outputText value="{!wl.apiName}"/>
+                                    </apex:column>
+                                    
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(customSettings.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('customSettingsID');" />
+                               <apex:outputText value="No matches found" rendered="{!customSettings.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>                          
+                        
+                        <apex:outputPanel id="weblinksID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.WebLink.accessible}">
+                            <apex:pageBlock title="Buttons and Links ({!weblinks.size})"  tabStyle="WebLink">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/orderBell24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Buttons and Links ({!weblinks.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!weblinks}" var="wl" rendered="{!weblinks.size>0}">
+                                    <apex:column value="{!wl.PageOrSobjectType}"/>
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!wl.Id}" target="_blank">{!wl.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!wl.LinkType}"/>
+                                    <apex:column value="{!wl.CreatedDate}"/>
+                                    <apex:column value="{!wl.CreatedById}"/>
+                                    <apex:column value="{!wl.LastModifiedDate}"/>
+                                    <apex:column value="{!wl.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(weblinks.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('weblinksID');" />
+                               <apex:outputText value="No matches found" rendered="{!weblinks.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>     
+                        
+                        <apex:outputPanel id="resourcesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.StaticResource.accessible}">
+                            <apex:pageBlock title="Static Resources ({!resources.size})"  tabStyle="StaticResource">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/sack24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Static Resources ({!resources.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!resources}" var="r" rendered="{!resources.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!r.Id}" target="_blank">{!r.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!r.CacheControl}"/>
+                                    <apex:column value="{!r.ContentType}"/>                     
+                                    <apex:column value="{!r.CreatedDate}"/>
+                                    <apex:column value="{!r.CreatedById}"/>
+                                    <apex:column value="{!r.LastModifiedDate}"/>
+                                    <apex:column value="{!r.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(resources.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('resourcesID');" />
+                               <apex:outputText value="No matches found" rendered="{!resources.size==0}"/>
+                            </apex:pageBlock>   
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="rolesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.UserRole.accessible}">
+                            <apex:pageBlock title="Roles ({!roles.size})"  tabStyle="UserRole">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/people24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Roles ({!roles.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!roles}" var="r" rendered="{!roles.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!r.Id}" target="_blank">{!r.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!r.LastModifiedDate}"/>
+                                    <apex:column value="{!r.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(roles.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('rolesID');" />
+                               <apex:outputText value="No matches found" rendered="{!roles.size==0}"/>
+                            </apex:pageBlock>  
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="profilesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.Profile.accessible}">
+                            <apex:pageBlock title="Profiles ({!profiles.size})"  tabStyle="Profile">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/profile24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Profiles ({!profiles.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!profiles}" var="p" rendered="{!profiles.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!p.Id}" target="_blank">{!p.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!p.UserLicense.Name}"/>
+                                    <apex:column value="{!p.LastModifiedDate}"/>
+                                    <apex:column value="{!p.LastModifiedById}"/>
+                                </apex:pageBlockTable>
+                                <apex:commandLink action="{!showAllRows}" rendered="{!AND(profiles.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('profilesID');" />
+                                <apex:outputText value="No matches found" rendered="{!profiles.size==0}"/>                 
+                            </apex:pageBlock> 
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="permissionsetsID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.PermissionSet.accessible}">
+                            <apex:pageBlock title="Permission Sets ({!permissionsets.size})"  tabStyle="PermissionSet">
+                                 <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/custom51_100/keys24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Permission Sets ({!permissionsets.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!permissionsets}" var="p" rendered="{!permissionsets.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!p.Id}" target="_blank">{!p.Name}</a>
+                                    </apex:column>
+                                    <apex:column headerValue="API Name" value="{!p.Label}"/>
+                                    <apex:column headerValue="User License" value="{!p.UserLicense.Name}"/>
+                                    <apex:column value="{!p.LastModifiedDate}"/>
+                                    <apex:column value="{!p.LastModifiedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(permissionsets.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('permissionsetsID');" />
+                               <apex:outputText value="No matches found" rendered="{!permissionsets.size==0}"/>
+                            </apex:pageBlock>   
+                        </apex:outputPanel>
+
+                    <apex:outputPanel id="reportsID" styleClass="resultBlock" layout="block">
+                        <apex:pageBlock title="Reports ({!reports.size})"  tabStyle="Report">
+                            <apex:facet name="header">
+                                <apex:outputPanel layout="block" style="padding:4px">
+                                    <apex:image value="/img/icon/reports24.png" styleClass="pgImg"/>
+                                    <apex:outputText value="Reports ({!reports.size})" styleClass="MyPbHeader"/>
+                                </apex:outputPanel>
+                            </apex:facet>
+                            <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!reports}" var="r" rendered="{!reports.size>0}">
+                                <apex:column headerValue="Name" width="25%">
+                                    <a href="/{!r.Id}" target="_blank">{!r.Name}</a>
+                                </apex:column>
+                                <apex:column headerValue="Folder">
+                                    <apex:outputText rendered="{!r.OwnerId==$User.Id}">
+                                        My Personal Custom Reports
+                                    </apex:outputText>
+                                    <apex:outputText rendered="{!r.OwnerId==$Organization.Id}">
+                                        Unfiled Public Reports
+                                    </apex:outputText>
+                                    <a href="/{!r.OwnerId}" target="_blank">                          
+                                        <apex:outputField rendered="{!AND(r.OwnerId!=$User.Id,r.OwnerId!=$Organization.Id)}" value="{!r.OwnerId}"/>
+                                    </a>
+                                </apex:column>   
+                                <apex:column value="{!r.Description}"/>
+                                <apex:column value="{!r.LastModifiedDate}"/>
+                                <apex:column value="{!r.LastModifiedById}"/>                                
+                           </apex:pageBlockTable>
+                           <apex:commandLink action="{!showAllRows}" rendered="{!AND(reports.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('reportsID');" />
+                           <apex:outputText value="No matches found" rendered="{!reports.size==0}"/>
+                        </apex:pageBlock> 
+                    </apex:outputPanel>                      
+
+                    <apex:outputPanel id="dashboardsID" styleClass="resultBlock" layout="block">
+                        <apex:pageBlock title="Dashboards ({!dashboards.size})"  tabStyle="Report">
+                            <apex:facet name="header">
+                                <apex:outputPanel layout="block" style="padding:4px">
+                                    <apex:image value="/img/icon/dashboards24.png" styleClass="pgImg"/>
+                                    <apex:outputText value="Dashboards ({!dashboards.size})" styleClass="MyPbHeader"/>
+                                </apex:outputPanel>
+                            </apex:facet>
+                            <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!dashboards}" var="d" rendered="{!dashboards.size>0}">
+                                <apex:column headerValue="Title" width="25%">
+                                    <a href="/{!d.Id}" target="_blank">{!d.Title}</a>
+                                </apex:column>
+                                <apex:column headerValue="Folder">
+                                    <apex:outputText rendered="{!d.FolderId==$User.Id}">
+                                        My Personal Dashboards
+                                    </apex:outputText>
+                                    <apex:outputText rendered="{!d.FolderId==$Organization.Id}">
+                                        Unfiled Dashboards
+                                    </apex:outputText>                          
+                                    <apex:outputPanel rendered="{!d.FolderId!=$User.Id}">                
+                                        {!d.Folder.Name}
+                                    </apex:outputPanel>
+                                </apex:column>
+                                <apex:column value="{!d.Description}"/>
+                                <apex:column value="{!d.LastModifiedDate}"/>
+                                <apex:column value="{!d.LastModifiedById}"/>                                
+                           </apex:pageBlockTable>
+                           <apex:commandLink action="{!showAllRows}" rendered="{!AND(dashboards.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('dashboardsID');" />
+                           <apex:outputText value="No matches found" rendered="{!dashboards.size==0}"/>
+                        </apex:pageBlock> 
+                    </apex:outputPanel>  
+
+                        <apex:outputPanel id="templatesID" styleClass="resultBlock" layout="block">
+                            <apex:pageBlock title="Email Templates ({!templates.size})"  tabStyle="EmailTemplate">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/mail24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Email Templates ({!templates.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!templates}" var="t" rendered="{!templates.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/{!t.Id}" target="_blank">{!t.Name}</a>
+                                    </apex:column>
+                                    <apex:column headerValue="Folder">
+                                        <apex:outputText rendered="{!t.FolderId==$User.Id}">
+                                            <a href="/00X?fcf={!$User.Id}" target="_blank">My Personal Email Templates</a>
+                                        </apex:outputText>
+                                        <apex:outputText rendered="{!t.FolderId==$Organization.Id}">
+                                            <a href="/00X?fcf={!$Organization.Id}" target="_blank">Unfiled Public Email Templates</a>
+                                        </apex:outputText>                          
+                                        <apex:outputPanel rendered="{!t.FolderId!=$User.Id}">                
+                                            <a href="/00X?fcf={!LEFT(t.FolderId,15)}" target="_blank">{!t.Folder.Name}</a>
+                                        </apex:outputPanel>
+                                    </apex:column>
+                                    <apex:column value="{!t.IsActive}"/>
+                                    <apex:column value="{!t.TemplateType}"/>
+                                    <apex:column value="{!t.LastModifiedDate}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(templates.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('templatesID');" />
+                               <apex:outputText value="No matches found" rendered="{!templates.size==0}"/>
+                            </apex:pageBlock> 
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="groupsID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.EmailTemplate.accessible}">
+                            <apex:pageBlock title="Public Groups ({!groups.size})"  tabStyle="Group">
+                                <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/groups24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Public Groups ({!groups.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                                <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!groups}" var="p" rendered="{!groups.size>0}">
+                                    <apex:column headerValue="Name" width="25%">
+                                        <a href="/setup/own/groupdetail.jsp?id={!p.Id}" target="_blank">{!p.Name}</a>
+                                    </apex:column>
+                                    <apex:column value="{!p.CreatedDate}"/>
+                                    <apex:column value="{!p.CreatedById}"/>
+                               </apex:pageBlockTable>
+                               <apex:commandLink action="{!showAllRows}" rendered="{!AND(groups.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('groupsID');" />
+                               <apex:outputText value="No matches found" rendered="{!groups.size==0}"/>
+                            </apex:pageBlock>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="queuesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.Group.accessible}">
+                            <apex:pageBlock title="Queues ({!queues.size})"  tabStyle="Group">
+                                 <apex:facet name="header">
+                                    <apex:outputPanel layout="block" style="padding:4px">
+                                        <apex:image value="/img/icon/groups24.png" styleClass="pgImg"/>
+                                        <apex:outputText value="Queues ({!queues.size})" styleClass="MyPbHeader"/>
+                                    </apex:outputPanel>
+                                </apex:facet>
+                              <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!queues}" var="p" rendered="{!queues.size>0}">
+                                  <apex:column headerValue="Name" width="25%">
+                                      <a href="/p/own/Queue/d?id={!p.Id}" target="_blank">{!p.Name}</a>
+                                  </apex:column>
+                                    <apex:column value="{!p.Email}"/>
+                                    <apex:column value="{!p.CreatedDate}"/>
+                                    <apex:column value="{!p.CreatedById}"/>
+                             </apex:pageBlockTable>
+                             <apex:commandLink action="{!showAllRows}" rendered="{!AND(queues.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('queuesID');" />
+                             <apex:outputText value="No matches found" rendered="{!queues.size==0}"/>
+                          </apex:pageBlock>  
+                        </apex:outputPanel>
+                      
+                      <apex:outputPanel id="sitesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.Site.accessible}">
+                          <apex:pageBlock title="Sites ({!sites.size})"  tabStyle="Site">
+                              <apex:facet name="header">
+                                <apex:outputPanel layout="block" style="padding:4px">
+                                    <apex:image value="/img/icon/console24.png" styleClass="pgImg"/>
+                                    <apex:outputText value="Sites ({!sites.size})" styleClass="MyPbHeader"/>
+                                </apex:outputPanel>
+                             </apex:facet>
+                              <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!sites}" var="p" rendered="{!sites.size>0}">
+                                  <apex:column headerValue="Name" width="25%">
+                                      <a href="/{!p.Id}" target="_blank">{!p.Name}</a>
+                                  </apex:column>
+                                  <apex:column value="{!p.Status}"/>
+                                  <apex:column value="{!p.SubDomain}"/>
+                                  <apex:column value="{!p.AdminId}"/>
+                                  <apex:column value="{!p.LastModifiedDate}"/>
+                                  <apex:column value="{!p.LastModifiedById}"/>
+                             </apex:pageBlockTable>
+                             <apex:commandLink action="{!showAllRows}" rendered="{!AND(sites.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('sitesID');" />                 
+                             <apex:outputText value="No matches found" rendered="{!sites.size==0}"/>
+                          </apex:pageBlock>
+                      </apex:outputPanel> 
+                       
+                      <apex:outputPanel id="recordtypesID" styleClass="resultBlock" layout="block" rendered="{!$ObjectType.RecordType.accessible}"> 
+                          <apex:pageBlock title="Record Types ({!recordtypes.size})"  tabStyle="RecordType">
+                              <apex:facet name="header">
+                                <apex:outputPanel layout="block" style="padding:4px">
+                                    <apex:image value="/img/icon/hexagon24.png" styleClass="pgImg"/>
+                                    <apex:outputText value="Record Types ({!recordtypes.size})" styleClass="MyPbHeader"/>
+                                </apex:outputPanel>
+                             </apex:facet>
+                              <apex:pageBlockTable rows="{!rowsToDisplay}" value="{!recordtypes}" var="p" rendered="{!recordtypes.size>0}">
+                                  <apex:column headerValue="Name" width="25%">
+                                      <a href="/setup/ui/recordtypefields.jsp?id={!p.Id}" target="_blank">{!p.Name}</a>
+                                  </apex:column>
+                                  <apex:column headerValue="Object" value="{!p.SObjectType}"/>
+                                  <apex:column value="{!p.IsActive}"/>
+                                  <apex:column value="{!p.LastModifiedDate}"/>
+                                  <apex:column value="{!p.LastModifiedById}"/>
+                             </apex:pageBlockTable>
+                             <apex:commandLink action="{!showAllRows}" rendered="{!AND(recordtypes.size>5,rowsToDisplay!=100)}" rerender="form1" style="margin-left: 7px;font-weight: bold;color: #015BA7;text-decoration: none;" value="Show More" oncomplete="javascript:showOne('recordtypesID');" />
+                             <apex:outputText value="No matches found" rendered="{!recordtypes.size==0}"/>
+                          </apex:pageBlock>
+                    </apex:outputPanel>                     
+                  </apex:outputPanel>                                                                               
+                </td>        
+            </tr>
+        </table>       
+    </apex:form>
+</apex:component>

@@ -1,0 +1,46 @@
+<apex:page standardController="Case">
+    <apex:includeScript value="/support/console/28.0/integration.js"/>
+
+    <apex:remoteObjects jsNamespace="RemoteObjectModel">
+    <apex:remoteObjectModel name="FeedItem" jsShorthand="Post" fields="Body, ParentId">
+  
+    </apex:remoteObjectModel>
+    <apex:remoteObjectModel name="Case" fields="Id,Status">
+            <apex:remoteObjectField name="Escalation_URL__c" jsShorthand="EscalationURL"/>
+        </apex:remoteObjectModel>
+
+    </apex:remoteObjects>
+
+    <button id="escalatebutton" type="button" style="order-color: #e0e5ee;    color: #fff;    background: #0070d2;position:fixed; bottom:0px;left:40%;  padding: 5px 10px; font-size:13px;" onclick="getEnclosingPrimaryTabId();return false;">Escalate with all Open Tabs</button>
+
+
+
+    <script type="text/javascript">
+        var getEnclosingPrimaryTabId = function getEnclosingPrimaryTabId() {
+            sforce.console.getFocusedPrimaryTabId(getTabLink);
+        }
+        var getTabLink = function getTabLink(result) {
+            sforce.console.getTabLink(sforce.console.TabLink.PARENT_AND_CHILDREN, result.id, showTabLink);
+        }
+        var showTabLink = function showTabLink(result) {
+            var link = result.tabLink;
+            
+            var ctDetails = { Body: link, ParentId: '{!Case.Id}' };
+            
+            //update case status and escalation URL
+
+ 
+            var objCase = new RemoteObjectModel.Case({
+                Id:'{!Case.Id}',
+                Status: 'Escalated',
+                EscalationURL: link
+            });
+             
+            objCase.update();
+            location.reload(true);
+            alert('The case has been escalated.');
+
+        }
+
+  </script>
+</apex:page>

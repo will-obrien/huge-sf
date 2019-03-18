@@ -1,0 +1,196 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.PipelineBehaviorsController" tabStyle="ContestBuilder__tab">
+  <apex:includeScript value="{!$Resource.ePrize_Zemzu__jquery}" />
+  <apex:includeScript value="{!$Resource.ePrize_Zemzu__app}" />
+  <apex:stylesheet value="{!$Resource.ePrize_Zemzu__zemzu_css}" />
+
+  <script type="text/javascript"> 
+      function confirmCancel() {
+        var isCancel = confirm("Are you sure you wish to cancel?");
+        if (isCancel) return true;
+        return false;
+      }  
+      jQuery(document).ready(function($) {
+          //
+          //Enable/disable sections associated with checkboxes
+          //
+          var checkboxSections = [
+              'notifyOnLaunch',
+              'notifyOnLaunchChatter',
+              'notifyOnLaunchPopup',
+              'notifyOnEnd',
+              'notifyOnEndChatter',
+              'leaderboardUpdates',
+              'leaderboardUpdatesChatter',
+              'earningEntries',
+              'earningEntriesChatter',
+              'contestBulletinBoard'
+          ];   
+          initEnableDisablePageSectionsByCheckboxState(checkboxSections);
+                 
+          applyLeaderboardUpdatesFrequencyHandling();
+                  
+          //Add required bar
+          $('.pbSubheader h3').each(function(){
+              //console.log( $(this).html() );
+              if($(this).html().search(/Contest Point of Contact/i) >= 0){
+                  $(this).css({ 'padding-left': '3px', 'border-left': '3px solid #c00' });
+              }
+          });
+      });   
+  </script> 
+  
+  <apex:form >
+    <apex:pageBlock >
+      <p>Maintaining awareness around your contest is key to its success. Below are some automated options to keep your contest top of mind, and inspire some competition!</p>
+  	</apex:pageBlock>
+    <apex:pageBlock title="Contest Notification Options" mode="edit">
+      <apex:pageMessages />
+      <!-- The pageBlockButtons tag defines the buttons that appear at the top
+           and bottom of the pageBlock. Like a facet, it can appear anywhere in
+           a pageBlock, but always defines the button areas.  
+           The Next button contained in this pageBlockButtons area
+           calls the step2 controller method, which returns a pageReference to
+           the next step of the wizard. -->
+      <apex:pageBlockButtons >
+        <apex:commandButton action="{!previousStep}" value="Back" />
+        <apex:commandButton action="{!cancel}" value="Cancel" onclick="return confirmCancel()" immediate="true" />
+        <apex:commandButton action="{!nextStep}" value="Next" />
+      </apex:pageBlockButtons>
+      
+      <apex:pageBlockSection title="Contest Point of Contact" columns="1">
+        <apex:pageBlockSection columns="1">
+          <apex:selectList id="contactPerson" value="{!contest.ePrize_Zemzu__ContactPerson__c}" multiselect="false" size="1" required="false">
+            <apex:selectOptions value="{!ContactPersonItems}" />
+          </apex:selectList>
+        </apex:pageBlockSection>
+      </apex:pageBlockSection>
+
+      <apex:pageBlockSection title="Contest Launch Notifications" columns="1">
+        <apex:inputField id="notifyOnLaunch" value="{!contest.ePrize_Zemzu__NotifyOnLaunch__c}" />
+      </apex:pageBlockSection>
+        
+      <apex:pageBlockSection id="notifyOnLaunch_sub" columns="1">
+        <apex:inputField id="notifyOnLaunchMessage" value="{!contest.ePrize_Zemzu__NotifyOnLaunchMessage__c}" />
+        <apex:inputField id="notifyOnLaunchTo" value="{!contest.ePrize_Zemzu__NotifyOnLaunchTo__c}" />
+      </apex:pageBlockSection>
+      
+      <apex:pageBlockSection >          
+          <apex:pageBlockSectionItem >
+		<apex:outputLabel for="notifyOnLaunchChatter" value="Chatter Notifications"/>
+		<apex:pageBlockSectionItem >
+		  <apex:inputCheckbox id="notifyOnLaunchChatter" value="{!contest.ePrize_Zemzu__NotifyOnLaunchChatter__c}" disabled="{!!isChatterEnabled || contest.ePrize_Zemzu__HideContest__c}"/>
+		  <apex:outputLabel styleClass="font-smaller font-gray font-italic" value="Feature unavailable. Chatter is disabled for your organization." rendered="{!!isChatterEnabled}"/>
+		</apex:pageBlockSectionItem>          
+          </apex:pageBlockSectionItem>          
+      </apex:pageBlockSection>
+      
+       <apex:pageBlockSection id="notifyOnLaunchChatter_sub" columns="1">
+         <apex:inputField id="notifyOnLaunchChatterMessage" styleClass="fullwidth" value="{!contest.ePrize_Zemzu__NotifyOnLaunchChatterMessage2__c}" />
+       </apex:pageBlockSection>
+
+      <apex:pageBlockSection columns="1" rendered="{!isPopupsEnabled}">
+        <apex:inputCheckbox id="notifyOnLaunchPopup" value="{!contest.ePrize_Zemzu__NotifyOnLaunchPopup__c}" disabled="{!contest.ePrize_Zemzu__HideContest__c}" />
+      </apex:pageBlockSection>
+      <apex:pageBlockSection id="notifyOnLaunchPopup_sub" columns="1" rendered="{!isPopupsEnabled}">
+         <apex:inputField id="notifyOnLaunchPopupMessage" styleClass="fullwidth" value="{!contest.ePrize_Zemzu__NotifyOnLaunchPopupMessage__c}" />
+       </apex:pageBlockSection>
+		
+        <apex:pageBlockSection title="Ongoing Leaderboard Updates" id="leaderboard_updates" columns="2">
+          <apex:inputField id="leaderboardUpdatesFrequency" value="{!contest.ePrize_Zemzu__LeaderboardUpdatesFrequency__c}" />
+	      <apex:pageBlockSection id="leaderboardUpdatesFrequency_Weekly" columns="1">
+	        <apex:inputField id="leaderboardUpdatesDay" value="{!contest.ePrize_Zemzu__LeaderboardUpdatesDay__c}" />
+	      </apex:pageBlockSection>
+	    </apex:pageBlockSection>
+        <apex:pageBlockSection id="leaderboardUpdatesFrequency_sub" columns="1">
+          <apex:pageBlockSection >
+            <apex:inputField id="leaderboardUpdates" value="{!contest.ePrize_Zemzu__LeaderboardUpdates__c}" />
+          </apex:pageBlockSection>
+          <apex:pageBlockSection id="leaderboardUpdates_sub" columns="1">
+            <apex:inputField id="leaderboardUpdatesMessage" value="{!contest.ePrize_Zemzu__LeaderboardUpdatesMessage__c}" />
+            <apex:inputField id="leaderboardUpdatesTo" value="{!contest.ePrize_Zemzu__LeaderboardUpdatesTo__c}" />
+          </apex:pageBlockSection>
+          <apex:pageBlockSection >
+            <apex:pageBlockSectionItem >
+	          <apex:outputLabel for="leaderboardUpdatesChatter" value="Chatter Notifications"/>
+	          <apex:pageBlockSectionItem >
+	            <apex:inputCheckbox id="leaderboardUpdatesChatter" value="{!contest.ePrize_Zemzu__LeaderboardUpdatesChatter__c}" disabled="{!!isChatterEnabled || contest.ePrize_Zemzu__HideContest__c}"/>
+	            <apex:outputLabel styleClass="font-smaller font-gray font-italic" value="Feature unavailable. Chatter is disabled for your organization." rendered="{!!isChatterEnabled}"/>
+	          </apex:pageBlockSectionItem>
+            </apex:pageBlockSectionItem>	                      
+          </apex:pageBlockSection>
+          <apex:pageBlockSection id="leaderboardUpdatesChatter_sub" columns="1">
+            <apex:inputField id="leaderboardUpdatesChatterMessage" styleClass="fullwidth" value="{!contest.ePrize_Zemzu__LeaderboardUpdatesChatterMessage2__c}" />
+          </apex:pageBlockSection>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockSection title="Contest Bulletin Board" columns="1">
+	        <apex:inputField id="contestBulletinBoard" value="{!contest.ePrize_Zemzu__ContestBulletinBoard__c}" />
+        </apex:pageBlockSection>
+	        
+	    <apex:pageBlockSection id="contestBulletinBoard_sub" columns="1">
+	       <apex:inputField id="contestBulletinBoardMessage" value="{!contest.ePrize_Zemzu__ContestBulletinBoardMessage__c}" />
+	    </apex:pageBlockSection>
+        
+        <apex:pageBlockSection id="EarningEntries" title="Earning Entries" columns="1">
+        <script>
+	        jQuery(document).ready(function($) {
+	          //
+	          //Enable/disable sections associated with checkboxes
+	          //
+	          var checkboxSections = [
+	            'notifyOnLaunch',
+              'notifyOnLaunchChatter',
+              'notifyOnLaunchPopup',
+              'notifyOnEnd',
+              'notifyOnEndChatter',
+              'leaderboardUpdates',
+              'leaderboardUpdatesChatter',
+              'earningEntries',
+              'earningEntriesChatter',
+              'contestBulletinBoard'
+	          ];   
+	          initEnableDisablePageSectionsByCheckboxState(checkboxSections);
+	                 
+	          applyLeaderboardUpdatesFrequencyHandling();
+	                  
+	          //Add required bar
+	          $('.pbSubheader h3').each(function(){
+	              //console.log( $(this).html() );
+	              if($(this).html().search(/Contest Point of Contact/i) >= 0){
+	                  $(this).css({ 'padding-left': '3px', 'border-left': '3px solid #c00' });
+	              }
+	          });
+	      });   
+	  </script> 
+        <apex:pageBlockSection columns="1" > 
+ 
+       <apex:pageBlockSectionItem >
+          <apex:outputLabel for="earningEntriesChatter" value="Chatter Notifications"/>
+            <apex:inputCheckbox id="earningEntriesChatter" value="{!contest.ePrize_Zemzu__EarningEntriesChatter__c}" disabled="{!!isChatterEnabled || contest.ePrize_Zemzu__HideContest__c}"/>
+       </apex:pageBlockSectionItem>
+       <apex:pageBlockSectionItem rendered="{!!isChatterEnabled}">
+        <apex:outputLabel styleClass="font-smaller font-gray font-italic" value="Feature unavailable. Chatter is disabled for your organization." rendered="{!!isChatterEnabled}"/>
+       </apex:pageBlockSectionItem>
+
+        </apex:pageBlockSection>
+        <apex:pageBlockSection id="earningEntriesChatter_sub" columns="1" rendered="{!!contest.ePrize_Zemzu__HideContest__c}">
+          <apex:inputField id="earningEntriesChatterTo" value="{!contest.ePrize_Zemzu__EarningEntriesChatterTo__c}"/>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection id="earningEntriesPopup" columns="1" rendered="{!isPopupsEnabled}">
+          <apex:inputCheckbox id="earningEntriesPopup" value="{!contest.ePrize_Zemzu__EarningEntriesPopup__c}"  disabled="{!contest.ePrize_Zemzu__HideContest__c}" />
+        </apex:pageBlockSection>
+        <apex:pageBlockSection id="hideContest" columns="1">
+		  <apex:inputField value="{!contest.ePrize_Zemzu__HideContest__c}">
+		  	<apex:actionSupport event="onclick" action="{!resetChatterCB}" rerender="EarningEntries, notifyOnLaunchChatter, notifyOnLaunchPopup, leaderboardUpdatesChatter, notifyOnLaunchTo, leaderboardUpdatesTo" />
+	  	  </apex:inputField>
+	  	  <script>if ({!editing || isChildContest}) {document.getElementById('{!$Component.hideContest}').style.visibility='collapse';} </script>
+		  </apex:pageBlockSection>
+		  <apex:pageBlockSection rendered="{!editing || isChildContest}" columns="1">
+		     <apex:outputField value="{!contest.ePrize_Zemzu__HideContest__c}"/>
+		  </apex:pageBlockSection>
+		</apex:pageBlockSection>   
+        
+    </apex:pageBlock>
+  </apex:form>
+
+</apex:page>

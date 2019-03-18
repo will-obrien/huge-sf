@@ -1,0 +1,643 @@
+<apex:page controller="TIMBASURVEYS.SurveyCollectController" showheader="false" sidebar="false" standardstylesheets="false">
+    <script type="text/javascript">
+        var pE = '';
+        var cIds = '';
+        var LIds = '';
+        var uIds = '';
+        var isAnonymous = false;
+        var send_to_all = '';
+		var displayInvitation = false;
+
+        //---------------------------------------------
+        //        overlay send emails
+        //---------------------------------------------
+        function ShowSendEmailsOverlay(){
+            dataContainerOverlay.show();
+            thereCPortalOperationSCEJS('thereCPortal', getURLParam('id'));
+        }
+
+        function thereCPortalCompletedSCEJS(success){
+            var div =   '<div id="CPortalContact">';
+                div +=  "<label> {!$Label.timbasurvey_surveyCollect_Some_selected_contacts}:</label><br/>";
+                div +=   '<input type="radio" class="radio" name="radioC" value="4" checked />{!$Label.timbasurvey_surveyCollect_Send_email_invitation_only}.<br/>';
+                div +=  '<input type="radio" class="radio" name="radioC" value="4"/>{!$Label.timbasurvey_surveyCollect_Send_email_invitation_AND_publish}.<br/>';
+                div +=  '<input type="radio" class="radio" name="radioC" value="5"/>{!$Label.timbasurvey_surveyCollect_Publish_only}.<br/></div>';
+            dataContainerOverlay.hide();
+            var r = dojo.query('.radio');
+            if(success == 'true'){
+                dojo.byId('CportalDiv').innerHTML = div;
+                sendEmailsOverlayDijit.show();
+            }else{
+                if(IdCPortal.length > 0){
+                    dojo.byId('CportalDiv').innerHTML = div;
+                }else
+                    dojo.byId('CportalDiv').innerHTML = '';
+                sendEmailsOverlayDijit.show();
+            }
+        }
+
+        //-------------------------------------------------------
+        //                 Config send emails
+        //-------------------------------------------------------
+        function configSendMail(){
+            var r = dojo.query('.radio');
+
+            var params = new Array();
+            params[0] = 'new';
+            params[1] = 'notContest';
+            params[2] = 'all';
+            params[3] = 'sendToSelected';
+
+            return (confInt(0) || confInt(1) || confInt(2) || confInt(3));
+
+            function confInt(num){
+                if(r[num].checked){
+                    sendEmailsOverlayDijit.hide();
+                    dojo.byId('send_to_all').value = params[num];
+                    return true;
+                }
+                return false;
+            }
+        }
+
+
+        //----------------------------------------------------
+        //              send emails controller
+        //----------------------------------------------------
+        function sendEmailController(){
+        	//block Anonymous Collection button
+        	jQuery('#anonymousSwitch').addClass('transparentSwitch');
+        	jQuery('#anonymousSwitch').attr('onClick', '');
+            notSended = 0;
+            checkBtnClear();
+            configSendMail();
+            dataContainerOverlay.hide();
+            setTimeout('progresSendEmailsDijit.show()',300);
+            idCompile();
+            moveNewExistentSend();
+            var radio = dojo.query('div#CPortalContact > input');
+            if(radio != ''){
+            	if(radio[0].checked){
+	            	displayInvitation = false;
+	            }else if(radio[1].checked){
+	            	displayInvitation = true;
+	            }else {
+	                displayInvitation = true;
+	            }
+	            salvedCollectorOperationSCEJS1(displayInvitation);
+	 		}else{
+	           	dojo.byId('pE').value = sendEmail;
+	            dojo.byId('cIds').value = sendContact;
+	            dojo.byId('LIds').value = sendLead;
+	            dojo.byId('uIds').value = sendUser;
+	            salvedCollectorOperationSCEJS('salvedCollector', getURLParam('id'), sendEmail, sendContact, sendLead, sendUser);
+        	}
+        }
+
+        function savedCollectorCompletedSCEJS(success, numberRecipient, error){
+            if(success == 'true') {
+                var url;
+                ajaxSendMails(1,'');
+                var more = dojo.query('#ul_collect > #more_');
+                var coll = dojo.byId('ul_collect');
+                if (more.length != 0)
+                    dojo.place(more[0],coll, 'last');
+            }else{
+                alert(error);
+            }
+        }
+
+        function savedCollectorCompletedSCEJS1(success, numberRecipient, error){
+            if(success == 'true') {
+                var url;
+                var radio = dojo.query('div#CPortalContact > input');
+                if(radio[0].checked){
+                     ajaxSendMails(1,'common');
+                }else if(radio[1].checked){
+                     sendCustamelPortal(true);
+                }else {
+                     sendCustamelPortal(false);
+                }
+                var more = dojo.query('#ul_collect > #more_');
+                var coll = dojo.byId('ul_collect');
+                if (more.length != 0)
+                    dojo.place(more[0],coll, 'last');
+            }else{
+                alert(error);
+            }
+        }
+
+        //------------------------------------------------------
+        //       ajax send mails not Custamel Portal
+        //------------------------------------------------------
+
+        function ajaxSendMails(index, CP){
+            dojo.byId('pE').value = '';
+            dojo.byId('cIds').value = '';
+            dojo.byId('uIds').value = '';
+            dojo.byId('LIds').value = '';
+
+            if(index == 1){
+                dojo.byId('pE').value = 'true';
+                dojo.byId('dataProgres').innerHTML = '{!$Label.timbasurveys_surveycollect_Sending}...';
+                dojo.byId('bar').style.width = '150px';
+            }
+            else if(index == 2){
+                dojo.byId('cIds').value = 'true';
+                dojo.byId('toc').value = 'contacts';
+                //dojo.byId('dataProgres').innerHTML = '{!$Label.timbasurveys_surveycollect_Sending_Contacts}';
+                dojo.byId('bar').style.width = '104px';
+            }
+            else if(index == 3){
+                dojo.byId('uIds').value = 'true';
+                dojo.byId('toc').value = 'users';
+                //dojo.byId('dataProgres').innerHTML = '{!$Label.timbasurveys_surveycollect_Sending_Users}';
+                dojo.byId('bar').style.width = '52px';
+            }
+            else if(index == 4){
+                dojo.byId('LIds').value = 'true';
+                dojo.byId('toc').value = 'leads';
+                //dojo.byId('dataProgres').innerHTML = '{!$Label.timbasurveys_surveycollect_Sending_Leads}';
+                dojo.byId('bar').style.width = '0px';
+            }
+            if(index <= 4 ){
+                if(CP == null || CP == ''){
+                    CP = 'false';
+                }
+                if(index != 1){
+                    backupTemplateOperationSCEJS1('backupTemplate', getURLParam('id'), false, CP, index);
+                }else{
+                    getFormVals();
+                    collectOperationSCEJS2('collect', getURLParam('id'), false, pE, cIds, LIds, uIds, isAnonymous, send_to_all, CP, index, false);
+                 }
+            } else {
+                resetProgresSend();
+            }
+        }
+
+        function collectCompletedSCEJS2(data, CP, index){
+            var operationStatus = dojo.fromJson(data);
+            if (operationStatus.success) {
+                if(operationStatus.warning == null || operationStatus.warning == '') {
+                    moveNewExistentSendType(index);
+                }else if(operationStatus.warning.indexOf("MASS_MAIL_LIMIT_EXCEEDED")>0) {
+                    alert('{!$Label.timbasurveys_surveycollect_Sorry_you_have_reached}');
+                }
+                ajaxSendMails(++index,CP);
+            }else{
+                if (operationStatus.exception != undefined) {
+                    if (operationStatus.exception.indexOf("MASS_MAIL_LIMIT_EXCEEDED") > 0) {
+                        alert('{!$Label.timbasurveys_surveycollect_Sorry_you_have_reached}');
+                    } else if(operationStatus.exception.indexOf("storage limit exceeded") > 0){
+                        alert("{!$Label.timbasurveys_surveycollect_Your_org_data_storage}.");
+                    }else {
+                        alert('{!$Label.timbasurveys_surveycollect_You_limit_to_send_mass_emails}');
+                    }
+                }
+                resetProgresSend();
+            }
+        }
+
+        function getFormVals(){
+            pE = dojo.byId('pE').value;
+            cIds = dojo.byId('cIds').value;
+            LIds = dojo.byId('LIds').value;
+            uIds = dojo.byId('uIds').value;
+            isAnonymous = dojo.byId('isAnonymous').value;
+            send_to_all = dojo.byId('send_to_all').value;
+        }
+
+        function backupTemplateCompletedSCEJS1(sucess, CP, index){
+            if (sucess == 'true'){
+                getFormVals();
+                updateTemplateOperationSCEJS('updateTemplate', getURLParam('id'), false, pE, cIds, LIds, uIds, isAnonymous, send_to_all, CP, index, dojo.byId('toc').value);
+            }else{
+                alert('Error while backup email template.');
+            }
+        }
+
+        function updateTemplateCompletedSCEJS(success, CP, index){
+            if (success){
+                getFormVals();
+                collectOperationSCEJS('collect', getURLParam('id'), false, pE, cIds, LIds, uIds, isAnonymous, send_to_all, CP, index);
+            }else{
+            	alert('Error while updating email template.');
+            }
+        }
+
+        function collectCompletedSCEJS(data, CP, index){
+            var operationStatus = dojo.fromJson(data);
+            if (operationStatus.success) {
+                    if(operationStatus.warning == null || operationStatus.warning == '') {
+                        moveNewExistentSendType(index);
+                    }else if(operationStatus.warning.indexOf("MASS_MAIL_LIMIT_EXCEEDED")>0) {
+                        alert('{!$Label.timbasurveys_surveycollect_Sorry_you_have_reached}');
+                    }
+                    resetEmailTemplateOperationSCEJS2('resetEmailTemplate', getURLParam('id'), false, index, CP);
+            }else{
+                if (operationStatus.exception != undefined) {
+                    if (operationStatus.exception.indexOf("MASS_MAIL_LIMIT_EXCEEDED") > 0) {
+                        alert('{!$Label.timbasurveys_surveycollect_Sorry_you_have_reached}');
+                    } else if(operationStatus.exception.indexOf("storage limit exceeded") > 0){
+                        alert("{!$Label.timbasurveys_surveycollect_Your_org_data_storage}.");
+                    } else if(operationStatus.exception.indexOf("INVALID_EMAIL_ADDRESS") > 0){
+                    	alert('{!$Label.timbasurveys_surveycollect_An_error_occurred_invalid_email_address}');
+                    }else{
+                        alert('{!$Label.timbasurveys_surveycollect_An_error_occurred_send}');
+                    }
+                }
+                resetEmailTemplateOperationSCEJS('resetEmailTemplate', getURLParam('id'), false);
+                resetProgresSend();
+            }
+        }
+
+        function resetEmailTemplateCompletedSCEJS2(success, index, CP){
+            ajaxSendMails(++index, CP);
+        }
+
+        function moveNewExistentSendType(index){
+            var parameters = new Array();
+            var imgs = new Array();
+            var i = 0;
+            var nodo;
+            var name;
+            var email;
+            if(index == 1) {
+                nodosUl=dojo.query("#ul_collect .addedContact[title='Email']");
+                for (i = 0 ; i < nodosUl.length ; i++){
+                    nodo = nodosUl[i];
+                    name = dojo.query('.nomP',nodo)[0].innerHTML;
+                    email = dojo.query('.nomE',nodo)[0].innerHTML;
+                    new_recipients.emails.push([nodo.id,name,email]);
+                }
+                parameters['newemails'] = new_recipients.emails;
+                imgs['emails'] = "{!URLFOR($Resource.SurveyResources2,'img/collector/mail-pending.png')}";
+                moveNewExistent('emails');
+                new_recipients.emails = [];
+            }else if(index==2) {
+                nodosUl=dojo.query("#ul_collect .addedContact[title='Contact']");
+                for (i = 0 ; i < nodosUl.length ; i++){
+                    nodo = nodosUl[i];
+                    name = dojo.query('.nomP',nodo)[0].innerHTML;
+                    email = dojo.query('.nomE',nodo)[0].innerHTML;
+                    new_recipients.contacts.push([nodo.id,name,email]);
+                }
+                parameters['newcontacts'] = new_recipients.contacts;
+                imgs['contacts'] = "{!URLFOR($Resource.SurveyResources2,'img/collector/contacticon_waiting_big.png')}";
+                moveNewExistent('contacts');
+                new_recipients.contacts = [];
+            }else if(index == 3){
+                nodosUl=dojo.query("#ul_collect .addedContact[title='User']");
+                for (i = 0 ; i < nodosUl.length ; i++){
+                    nodo = nodosUl[i];
+                    name = dojo.query('.nomP',nodo)[0].innerHTML;
+                    email = dojo.query('.nomE',nodo)[0].innerHTML;
+                    new_recipients.users.push([nodo.id,name,email]);
+                }
+                parameters['newusers'] = new_recipients.users;
+                imgs['users'] = "{!URLFOR($Resource.SurveyResources2,'img/collector/users-pending.png')}";
+                moveNewExistent('users');
+                new_recipients.users = [];
+            }else if(index == 4) {
+                var nodosUl=dojo.query("#ul_collect .addedContact[title='Lead']");
+                for (i = 0 ; i < nodosUl.length ; i++){
+                    nodo = nodosUl[i];
+                    name = dojo.query('.nomP',nodo)[0].innerHTML;
+                    email = dojo.query('.nomE',nodo)[0].innerHTML;
+                    new_recipients.leads.push([nodo.id,name,email]);
+                }
+                parameters['newleads'] = new_recipients.leads;
+                imgs['leads'] = "{!URLFOR($Resource.SurveyResources2,'img/collector/lead-pending.png')}";
+                moveNewExistent('leads');
+                new_recipients.leads = [];
+            }
+
+            function moveNewExistent(name){
+                for (var i = 0, l = parameters['new' + name].length; i < l; i++ ){
+                    var img = imgs[name];
+                    var adds = '<li class="waiting" id="' + (parameters['new' + name])[i][0] + '"><div class="imgS"><img src="' + img + '"/>';
+                    adds += '</div><div class="textS"><div class="nomP">' + (parameters['new' + name])[i][1] + '</div><div class="nomE">' + (parameters['new' + name])[i][2] + '</div></div><div class="waitingText">{!$Label.timbasurveys_surveycollect_not_completed}</div>';
+                    adds += '<div class="remuve_Recipcient" id="' + (parameters['new' + name])[i][0] +'" style="display:none;"></div>';
+                    var type;
+                    if(name == 'contacts'){
+                        type = 'Contact';
+                    }else if(name == 'leads'){
+                        type = 'Lead';
+                    }
+                    if(type=='Contact' || type=='Lead'){
+                        var id = (parameters['new' + name])[i][0];
+                        var id2 = 'A' + id;
+                        adds += '<a  class="viewReply2" href="javascript:;" onmouseover="sizeImg(\'' + id2 + '\');" onmouseout="sizeImge(\'' + id2 + '\');" onclick="fill_survey(\'' + id + '\',\'' + type + '\');" ><img border="0" id="' + id2 + '" width="10" height="25" src="{!URLFOR($Resource.SurveyResources2, 'img/collector/fill_survey.PNG')}" /></a>';
+                    }
+                    adds += '</li>';
+                    dojo.destroy(parameters['new' + name][i][0]);
+                    dojo.place(adds, dojo.query('.listCollect')[0], 'last');
+                }
+            }
+        }
+
+        /**
+        * Deprecated
+        **/
+        function convertType(name) {
+            switch(name) {
+                case 'contacts':
+                    return 'Contact';
+                    break;
+                case 'emails':
+                    return 'Email';
+                    break;
+                case 'users':
+                    return 'User';
+                    break;
+                case 'leads':
+                    return 'Lead';
+                    break;
+                default:
+                    return name;
+                    break;
+            }
+        }
+
+        function resetProgresSend(){
+            setTimeout('progresSendEmailsDijit.hide()',300);
+            dojo.byId('dataProgres').innerHTML = '{!$Label.timbasurveys_surveycollect_Loading}';
+            dojo.byId('bar').style.width = '208px';
+        }
+
+        //-----------------------------------------------
+        //          Send mesajes Customal portal
+        //-----------------------------------------------
+        function sendCustamelPortal(sendEmailNotification){
+            dojo.byId('dataProgres').innerHTML = '{!$Label.timbasurveys_surveycollect_Sending_Customer_Portal}';
+            dojo.byId('bar').style.width = '104px';
+            dojo.byId('toc').value = 'contacts';
+            dojo.byId('pE').value = '';
+            dojo.byId('cIds').value = '';
+            dojo.byId('LIds').value = '';
+            dojo.byId('uIds').value = '';
+            ajaxCustomalPortal(sendEmailNotification);
+        }
+
+        function ajaxCustomalPortal(sendEmailNotification){
+            dojo.byId('cIds').value = 'true';
+            backupTemplateOperationSCEJS2('backupTemplate', getURLParam('id'), true, sendEmailNotification);
+        }
+
+        function backupTemplateCompletedSCEJS2(success, sendEmailNotification){
+            if (success == 'true'){
+                getFormVals();
+                updateTemplateOperationSCEJS2('updateTemplate', getURLParam('id'), true, pE, cIds, LIds, uIds, isAnonymous, send_to_all, sendEmailNotification, dojo.byId('toc').value);
+            }else{
+                alert('Error while backup template');
+            }
+        }
+
+        function updateTemplateCompletedSCEJS2(success, sendEmailNotification){
+            if (success) {
+                getFormVals();
+                collectOperationSCEJS3('collect', getURLParam('id'), true, true, sendEmailNotification, pE, cIds, LIds, uIds, isAnonymous, send_to_all);
+            }else{
+                alert(error);
+                resetEmailTemplateOperationSCEJS('resetEmailTemplate', getURLParam('id'), true);
+            }
+        }
+
+        function collectCompletedSCEJS3(data){
+            var operationStatus = dojo.fromJson(data);
+            if (operationStatus.success) {
+                resetEmailTemplateOperationSCEJS3('resetEmailTemplate', getURLParam('id'), true);
+            }else{
+                if (operationStatus.exception != undefined) {
+                    if (operationStatus.exception.indexOf("MASS_MAIL_LIMIT_EXCEEDED") > 0){
+                        alert('{!$Label.timbasurveys_surveycollect_Sorry_you_have_reached}');
+                    }else if(operationStatus.exception.indexOf("storage limit exceeded") > 0){
+                            alert("{!$Label.timbasurveys_surveycollect_Your_org_data_storage}.");
+                    } else if(operationStatus.exception.indexOf("INVALID_EMAIL_ADDRESS") > 0){
+                    	alert('{!$Label.timbasurveys_surveycollect_An_error_occurred_invalid_email_address}');
+                    }else{
+                        alert('{!$Label.timbasurveys_surveycollect_An_error_occurred_send}');
+                    }
+                }
+                resetEmailTemplateOperationSCEJS('resetEmailTemplate', getURLParam('id'), true);
+            }
+            displayInvitation = false;
+        }
+
+        function resetEmailTemplateCompletedSCEJS3(success){
+            ajaxSendMails(1);
+        }
+
+        function mesageErrorTemplate(msgNumber){
+            var mesage1 = dojo.byId('email_template_missing_message');
+            var mesaje2 = dojo.byId('email_template_broken_message');
+            var mesaje3 = dojo.byId('portal_email_template_broken_message');
+            if(msgNumber == 1){
+                mesage1.style.display = 'none';
+                buildTemplateOperationSCEJS(getURLParam('id'));
+            }
+            if(msgNumber == 2){
+                mesaje2.style.display = 'none';
+                resetTemplateToDefaultOperationSCEJS('resetTemplateToDefault', getURLParam('id'), false);
+            }
+            if(msgNumber == 3){
+                mesaje3.style.display = 'none';
+                resetTemplateToDefaultOperationSCEJS('resetTemplateToDefault', getURLParam('id'), true);
+            }
+
+            if( (mesage1.style.display == 'none')&& (mesaje2.style.display == 'none') && (mesaje3.style.display == 'none')){
+                emailTemplateErrorDijit.hide();
+            }
+        }
+
+        function resetTemplateToDefaultCompletedSCEJS(success){
+            if(success == 'fasle'){
+                alert('{!$Label.timbasurveys_surveycollect_Error_found_please_try_again}.');
+            }
+        }
+
+        //Create A new Template for the Actual Survey
+        function buildTemplateCompletedSCEJS(success){
+            if(success == 'false'){
+                alert('{!$Label.timbasurveys_surveycollect_An_error_occurred_send_please_reset}');
+            }
+        }
+
+        function verifySelectedOption(){
+        	if(jQuery("#radioSendToSelected").attr("checked")){
+        			sendEmailsOverlayDijit.hide();
+        			jQuery('.verifySelectedRecip').hide();
+        			dataContainerOverlay.show();
+        			updateRecipientAction();
+        	}else{
+        		increaseNumberSent();
+        	}
+        }
+
+        function updateRecipientComplete(){
+        	dataContainerOverlay.hide();
+	        sendToSelectedRecipientDijit.show();
+        }
+
+        function verifySelectedRecipient(){
+        	var selectedRecip = false;
+        	jQuery.each(jQuery('.visibleRecipient ul li input'),
+						function(i, x){
+						    if(x.checked){
+						    	selectedRecip = true;
+							}
+						});
+			if(selectedRecip){
+				jQuery('.verifySelectedRecip').show();
+			}else{
+				jQuery('.verifySelectedRecip').hide();
+			}
+        }
+
+        function sendSelectedRecipient(){
+        	var idsSelectedRecipients = '';
+			jQuery.each(jQuery('.visibleRecipient ul li input'),
+						function(i, x){
+						    if(x.checked){
+							    idsSelectedRecipients += x.value + ',';
+							}
+						});
+			idsSelectedRecipients = idsSelectedRecipients.substr(0, idsSelectedRecipients.length - 1);
+			sendToSelectedRecipientDijit.hide();
+			dataContainerOverlay.show();
+			sendSelectedRecipientAction(idsSelectedRecipients);
+        }
+
+        function sendSelectedRecipientComplete(){
+        	increaseNumberSent();
+        }
+    </script>
+    <apex:outputPanel id="SurveyCollectEmailJsActionsPanel" rendered="false" />
+    <apex:form id="SurveyCollectEmailJsActions">
+        <apex:actionFunction name="increaseNumberSent" oncomplete="sendEmailController();" action="{!increaseSent}" rerender="SurveyCollectDataJsActionsPanel" />
+        <apex:actionFunction name="salvedCollectorOperationSCEJS" oncomplete="savedCollectorCompletedSCEJS('{!success}', {!TEXT(numberRecipeint)},'{!error}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="salvedEmails" value="" assignTo="{!salvedEmails}" />
+            <apex:param name="salvedContactIds" value="" assignTo="{!salvedContactIds}" />
+            <apex:param name="salvedLeadIds" value="" assignTo="{!salvedLeadIds}" />
+            <apex:param name="salvedUserIds" value="" assignTo="{!salvedUserIds}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="salvedCollectorOperationSCEJS1" oncomplete="savedCollectorCompletedSCEJS1('{!success}', {!TEXT(numberRecipeint)},'{!error}')" action="{!updatePortalRecipient}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="displayInvitation" value="" assignTo="{!displayInvitation}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="thereCPortalOperationSCEJS" oncomplete="thereCPortalCompletedSCEJS('{!success}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel, optionSendContainer">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="resetTemplateToDefaultOperationSCEJS" oncomplete="resetTemplateToDefaultCompletedSCEJS('{!success}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="resetEmailTemplateOperationSCEJS" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="resetEmailTemplateOperationSCEJS2" oncomplete="resetEmailTemplateCompletedSCEJS2('{!success}',{!index},'{!CP}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel, recipienListContainer">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="index" value="" assignTo="{!index}" />
+            <apex:param name="CP" value="" assignTo="{!CP}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="resetEmailTemplateOperationSCEJS3" oncomplete="resetEmailTemplateCompletedSCEJS3('{!success}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="backupTemplateOperationSCEJS1" oncomplete="backupTemplateCompletedSCEJS1('{!success}','{!CP}', {!index})" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="CP" value="" assignTo="{!CP}" />
+            <apex:param name="index" value="" assignTo="{!index}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="backupTemplateOperationSCEJS2" oncomplete="backupTemplateCompletedSCEJS2('{!success}','{!sendEmailNotification}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="sendEmailNotification" value="" assignTo="{!sendEmailNotification}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="updateTemplateOperationSCEJS" oncomplete="updateTemplateCompletedSCEJS({!success},'{!CP}', {!index})" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="pE" value="" assignTo="{!pE}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="uIds" value="" assignTo="{!uIds}" />
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+             <apex:param name="CP" value="" assignTo="{!CP}" />
+             <apex:param name="index" value="" assignTo="{!index}" />
+             <apex:param name="typeOfCollection" value="" assignTo="{!typeOfCollection}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="updateTemplateOperationSCEJS2" oncomplete="updateTemplateCompletedSCEJS2({!success},'{!sendEmailNotification}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="pE" value="" assignTo="{!pE}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="uIds" value="" assignTo="{!uIds}" />
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+            <apex:param name="sendEmailNotification" value="" assignTo="{!sendEmailNotification}" />
+            <apex:param name="typeOfCollection" value="" assignTo="{!typeOfCollection}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="collectOperationSCEJS" oncomplete="collectCompletedSCEJS('{!outputMessage}', '{!CP}', {!index})" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="pE" value="" assignTo="{!pE}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="uIds" value="" assignTo="{!uIds}" />
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+            <apex:param name="CP" value="" assignTo="{!CP}" />
+            <apex:param name="index" value="" assignTo="{!index}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="collectOperationSCEJS2" oncomplete="collectCompletedSCEJS2('{!outputMessage}','{!CP}',{!index})" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="pE" value="" assignTo="{!pE}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="uIds" value="" assignTo="{!uIds}" />
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+            <apex:param name="CP" value="" assignTo="{!CP}" />
+            <apex:param name="index" value="" assignTo="{!index}" />
+            <apex:param name="CPavailable" value="" assignTo="{!CPavailable}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="collectOperationSCEJS3" oncomplete="collectCompletedSCEJS3('{!outputMessage}')" action="{!doOperation}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="Operation" value="" assignTo="{!Operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="CPavailable" value="" assignTo="{!CPavailable}" />
+            <apex:param name="CP" value="" assignTo="{!CP}" />
+            <apex:param name="sendEmailNotification" value="" assignTo="{!sendEmailNotification}" />
+            <apex:param name="pE" value="" assignTo="{!pE}" />
+            <apex:param name="cIds" value="" assignTo="{!cIds}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="uIds" value="" assignTo="{!uIds}" />
+            <apex:param name="isAnonymous" value="" assignTo="{!isAnonymous}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="buildTemplateOperationSCEJS" oncomplete="buildTemplateCompletedSCEJS('{!success}')" action="{!buildTemplate}" rerender="SurveyCollectDataJsActionsPanel">
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="updateRecipientAction" action="{!updateRecipientList}" oncomplete="updateRecipientComplete();" rerender="selectRecipientListContainer"/>
+    	<apex:actionFunction name="sendSelectedRecipientAction" oncomplete="sendSelectedRecipientComplete();" action="{!sendEmailSelectedRecipients}">
+            <apex:param name="selectedRecipientsIds" value="" assignTo="{!selectedRecipientsIds}" />
+        </apex:actionFunction>
+    </apex:form>
+</apex:page>

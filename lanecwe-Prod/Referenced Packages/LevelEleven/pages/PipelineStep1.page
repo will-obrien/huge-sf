@@ -1,0 +1,107 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.PipelineBehaviorsController"
+           extensions="ePrize_Zemzu.PipelineBehaviorsStep1ControllerExt" 
+           tabStyle="ContestBuilder__tab">
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"/>
+<script>
+    var j$ = jQuery.noConflict();
+    var grandChildLoaded = false;
+    function confirmCancel() {
+        var isCancel = confirm("Are you sure you wish to cancel?");
+        if (isCancel) return true;
+    
+       return false;
+    }
+    function jq(myid) {
+      return '#' + myid.replace(/(:|\.)/g,'\\\\$1');
+    }
+    j$(document).ready(function(){
+      addTypePickerForCustom();
+      j$(jq(contestGoalId)).change(function(){
+        addTypePickerForCustom();
+      });
+    });
+    
+    function addTypePickerForCustom(){
+      j$('#point_type').val('static');
+      if(!grandChildLoaded){
+        j$('#grandchildSelector').parent().parent().prepend('<td class="labelCol" id="grandChildLabel"><label>Sum Leaderboard Values:</label></td>');
+        grandChildLoaded=true;
+      }
+      if(j$(jq(contestGoalId)).val() == 'Custom'){
+        j$('#grandchildSelector').show();
+        if({!contest.usingDynamicPoints__c}){
+          j$("#point_type option[value=" + 'dynamic' + "]").attr('selected', 'selected');
+        }
+        j$('#grandChildLabel').show();
+      }else{
+        j$('#grandchildSelector').hide();
+        j$('#grandChildLabel').hide();
+      }
+    }
+
+    function setupBinding(id){
+      var standardOptions = [
+              { value: 'Total number of points', text: 'Total number of points' },
+              { value: 'Total dollar value of entries', text: 'Total dollar value of entries' },
+              { value: 'Percent to goal', text: 'Percent to goal' }
+            ];
+      var pointsOnly = [
+        { value: 'Total number of points', text: 'Total number of points' }
+      ];
+      var customContest = [
+        { value: 'Total dollar value of entries', text: 'Total dollar value of entries' },
+        { value: 'Total number of points', text: 'Total number of points' },
+        { value: 'Percent to goal', text: 'Percent to goal' }
+      ];
+      var success = j$('.childValue').selectBind(id, {
+          'Pipeline Behaviors': standardOptions,
+          'Closing Sales': standardOptions,
+          'Parent Contest': standardOptions,
+          'Salesforce Adoption': pointsOnly,
+          'Case Contest': pointsOnly,
+          'Custom' : customContest
+      });
+    }  
+  </script>
+  
+  <apex:form id="beginWizardForm">
+<apex:pageBlock >
+  <apex:outputText value="Complete the information below to begin building your contest"/>
+  </apex:pageBlock>
+  <apex:pageBlock title="Build Your Contest" mode="edit">
+    <apex:pageMessages />
+    <apex:pageBlockButtons >
+      <apex:commandButton action="{!cancel}" value="Cancel" onclick="return confirmCancel()" immediate="true"/>
+      <apex:commandButton action="{!nextStep}" value="Next" />
+    </apex:pageBlockButtons>
+    <apex:pageBlockSection title="General Contest Information" columns="1">
+      <apex:inputField value="{!contest.ePrize_Zemzu__ContestName__c}" id="contest_name" required="true" />
+      <apex:inputField value="{!contest.ePrize_Zemzu__Goal__c}" id="contest__goal" required="true" rendered="{!!isChildContest}"/>
+      <apex:selectList value="{!contest.ePrize_Zemzu__Goal__c}" id="child_contest__goal" multiselect="false" size="1" rendered="{!isChildContest}">
+        <apex:selectOptions value="{!ChildContestTypes}" />
+      </apex:selectList>
+      <apex:outputField value="{!contest.ePrize_Zemzu__RankingStyle__c}" id="noRanking__style" />
+      <script>
+        if(!{!isChildContest}){
+           document.getElementById('{!$Component.contest__goal}').disabled = true; var contestGoalId =  '{!$Component.contest__goal}'; var rankingGoalId =  '{!$Component.noRanking__style}';
+        }else{
+          var contestGoalId =  '{!$Component.child_contest__goal}'; var rankingGoalId =  '{!$Component.noRanking__style}';
+        }
+      </script>
+      <div style="display:none;" id="grandchildSelector">
+          <select id="point_type" class="grandchildValue" name="point_type">
+            <option selected="selected" value="static">Statically</option>
+            <option value="dynamic">Dynamically</option>
+          </select>
+        </div>
+      <apex:inputField value="{!contest.ePrize_Zemzu__StartDate__c}" id="contest__startdate" />
+      <apex:outputText label="Parent Start Date:" value="{!parentContestStart}" rendered="{!contest.ePrize_Zemzu__ParentContest__c != null}"/>
+      <script>document.getElementById('{!$Component.contest__startdate}').disabled = {!editing}; </script>
+      <apex:inputField value="{!contest.ePrize_Zemzu__EndDate__c}" id="contest__enddate" />
+      <apex:outputText label="Parent End Date:" value="{!parentContestEnd}" rendered="{!contest.ePrize_Zemzu__ParentContest__c != null}"/>
+    </apex:pageBlockSection>
+    <script>setupBinding(jq('{!$Component.contest__goal}'));</script>
+  </apex:pageBlock>
+</apex:form>
+</apex:page>

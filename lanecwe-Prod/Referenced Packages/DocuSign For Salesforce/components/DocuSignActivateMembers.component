@@ -1,0 +1,200 @@
+<apex:component allowDML="true"
+	controller="dsfs.DocuSignActivateMembersController">
+	<style>
+.tableStyle {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.adminWelcomeDivStyle {
+	border: solid #444444 1px;
+	background-color: #000080;
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+	width: 100%;
+	height: 32px;
+}
+
+.adminWelcomePageDivStyle {
+	border: solid #444444 1px;
+	background-color: #FFFFFF;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+	width: 100%;
+	height: 300px;
+}
+
+.manageUsersHelpPageDivStyle {
+	border: solid #444444 1px;
+	background-color: #FFFFFF;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+	width: 100%;
+	height: 310px;
+}
+
+.userCountDivStyle {
+	padding: 0px 0px 10px 0px;
+	text-align: left;
+	border-top: solid #CCCCCC 1px;
+}
+
+.addRemoveButtonDivStyle {
+	margin-top: 20px;
+	padding: 0px;
+	border-top: solid #CCCCCC 1px;
+	border-bottom: solid #FFFFFF 1px;
+	text-align: center;
+}
+
+.addRemoveButtonInnerDivStyle {
+	border-top: solid 1px #FFFFFF;
+	border-bottom: solid 1px #CCCCCC;
+	padding: 8px 0px 8px 0px;
+}
+
+td.welcomeLabelStyle {
+	align: left;
+	vertical-align: middle;
+	font-size: large;
+	color: #FFFFFF;
+}
+
+td.minimizeStyle {
+	text-align: right;
+	vertical-align: middle;
+	font-size: large;
+	padding: 0px 0px 0px 5px;
+}
+
+.userListPageBlockStyle {
+	background-color: #F1F1F1;
+}
+
+.selectedFilterStyle {
+	background-color: #63D1F4;
+	font-weight: bold;
+}
+</style>
+
+	<apex:attribute name="userFilterAttribute"
+		description="This is the id of the View filter to load" type="String"
+		required="false" assignTo="{!InitialFilterId}" />
+
+	<apex:outputPanel layout="block"
+		styleClass="manageUsersHelpPageDivStyle"
+		title="Manage DocuSign Users help"
+		rendered="{!RenderManageUsersHelpPage && NoCRUDErrors}">
+		<iframe style="height: 100%; width: 100%;" frameborder="0"
+			id="theIframe" name="theIframe"
+			src="https://www.docusign.com/dfs/DFSManageUsersHelp.html">
+		</iframe>
+	</apex:outputPanel>
+
+	<apex:outputPanel layout="block" title="Users" id="theUserListPanel"
+		rendered="{!NoCrUDErrors}">
+
+        <!-- list view controls -->
+        <c:DocuSignListView pController="{!controller}" panel="theUserListPanel"/>
+
+		<apex:pageBlock id="theUserListPageBlock">
+
+            <!-- column filter controls -->
+            <c:DocuSignListFilter pController="{!controller}" panel="theUserListPanel"/>
+
+			<apex:pageBlockTable value="{!userList}" var="userWrapper"
+				id="theUserList" style="padding: 10px 0px 10px 0px">
+				<apex:column >
+					<apex:facet name="header">
+						<apex:inputCheckbox title="Select all users on this page to be activated or deactivated in DocuSign"
+							value="{!SelectAllUsers}">
+							<apex:actionSupport event="onclick" action="{!SelectAll}" />
+						</apex:inputCheckbox>
+					</apex:facet>
+					<apex:inputCheckbox title="Select user to be added or removed to the DocuSign package"
+						value="{!userWrapper.isSelected}"
+						disabled="{!DisableUserCheckbox && userWrapper.isSelected==false}">
+						<apex:actionsupport event="onchange" action="{!SelectUser}"
+							rerender="activateCommandButtons,displayedUserSummary,theUserList">
+							<apex:param name="selectedUserId"
+								value="{!userWrapper.theUser.Id}" />
+						</apex:actionsupport>
+					</apex:inputCheckbox>
+				</apex:column>
+				<apex:repeat value="{!fieldsToDisplay}" var="colItem">
+					<apex:column >
+						<apex:facet name="header">
+						   <apex:outputtext value="{!colItem.label}" />
+							<apex:commandLink value="{!colItem.label}{!IF(sortColumn!=colItem.value, '', IF (sortAsc == true, '  ▲', '  ▼'))}"
+								action="{!sort}"
+								title="{!colItem.label} - {!IF(sortColumn!=colItem.value, 'click to sort ascending', IF (sortAsc == true, 'sorted ascending, click to sort descending', 'sorted descending, click to sort ascending'))}"
+								rerender="theUserListPanel">
+								<apex:param name="sortColumn" value="{!colItem.value}"
+									assignTo="{!sortColumn}" />
+							</apex:commandLink>
+						</apex:facet>
+						<apex:outputField value="{!userWrapper.theUser[colItem.value]}" />
+					</apex:column>
+				</apex:repeat>
+			</apex:pageBlockTable>
+			<apex:outputPanel id="activateCommandButtons">
+
+				<div class="addRemoveButtonDivStyle">
+					<div class="addRemoveButtonInnerDivStyle">
+						<apex:commandbutton action="{!activateDSUsers}" value="Add Users"
+							title="{!activateButtonTitle}"
+							disabled="{!disableActivateButton}" style="margin-right:20px;" />
+						<apex:commandbutton action="{!activateAdminDSUsers}"
+							value="Add Admin Users" title="{!activateAdminButtonTitle}"
+							disabled="{!disableActivateAdminButton}"
+							style="margin-right:20px;" />
+						<apex:commandbutton action="{!deactivateUsers}"
+							value="Remove Users" title="{!deactivateButtonTitle}"
+							disabled="{!disableDeactivateButton}" style="margin-right:20px;" />
+						<apex:commandbutton action="{!deactivateAndCloseUsers}"
+							value="Remove and Close Users"
+							title="{!deactivateAndCloseButtonTitle}"
+							disabled="{!disableDeactivateAndCloseButton}" />
+					</div>
+				</div>
+				<div style="margin-left: 13px; margin-top: 7px; color: #999">
+					<apex:outputText value="ADD USERS = Add the DocuSign package for the selected users" />
+					<br />
+					<apex:outputText value="ADD ADMIN USERS = Add the DocuSign package for the selected users and make them administrators for the DocuSign account" />
+					<br />
+					<apex:outputText value="REMOVE USERS = Remove the DocuSign package for the selected users" />
+					<br />
+					<apex:outputText value="REMOVE AND CLOSE USERS = Remove the DocuSign package for the selected users and close their DocuSign accounts" />
+					<br />
+				</div>
+			</apex:outputPanel>
+		</apex:pageBlock>
+        <div class="userCountDivStyle" id="paginationDiv">
+            <!-- list pagination controls -->
+            <c:DocuSignListPagination pController="{!controller}" panel="theUserListPanel" />
+        </div>
+  	</apex:outputPanel>
+
+	<apex:outputPanel layout="block"
+		title="Error - Insufficient access to User object" id="theErrorPanel"
+		rendered="{!NoCRUDErrors==false}">
+		<apex:pageBlock >
+			<apex:pageBlockSection title="Insufficient Access Information"
+				columns="1">
+				<h1>You do not have the required permissions to update
+					Salesforce User records with DocuSign user information.</h1>
+				<br />
+				<br />
+				<H3>Please contact your Salesforce administrator to be granted
+					update access to the following User object fields:</H3>
+				<br />
+            DSProSFUsername__c
+            <br />
+            DSProSFPassword__c
+            <br />
+            DSProSFMembershipStatus__c
+         </apex:pageBlockSection>
+		</apex:pageBlock>
+	</apex:outputPanel>
+
+</apex:component>

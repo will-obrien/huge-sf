@@ -1,0 +1,119 @@
+<apex:page controller="PGIQuotesTabController">
+	<apex:form >
+		<apex:pageMessages />
+		<apex:sectionHeader title="{!$Label.PGI_QuotesTab_Name}" />
+		<h2><apex:outputLabel value="{!$Label.PGI_QuotesTab_ViewLabel}" for="viewOptions" /></h2>
+		<apex:selectList id="viewOptions" value="{!selectedView}"
+			multiselect="false" size="1">
+			<apex:selectOptions value="{!views}"></apex:selectOptions>
+		</apex:selectList>
+		<apex:commandButton value="Go" action="{!refreshQuoteList}" />
+		<apex:pageBlock title="{!$Label.PGI_QuotesTab_ListName}">
+			<div align="right" style="white-space: nowrap"><apex:panelGrid columns="10" id="paginationLinks_top">
+				<apex:outputLabel value="Page {!pageNumber}"
+					rendered="{!showPageCount}" for="paginationLinks_top" />
+				<apex:outputLabel value=" | "
+					rendered="{!showPageCount}" for="paginationLinks_top" />
+				<apex:outputLabel value="{!pageCount}" rendered="{!showPageCount}"
+					for="paginationLinks_top" />
+				<apex:outputLabel value=" | "
+					rendered="{!showPageCount}" for="paginationLinks_top" />
+				<apex:commandLink action="{!first}" rendered="{!hasPrevious}">First</apex:commandLink>
+				<apex:commandLink action="{!previous}" rendered="{!hasPrevious}">Previous</apex:commandLink>
+				<apex:commandLink action="{!next}" rendered="{!hasNext}">Next</apex:commandLink>
+				<apex:commandLink action="{!last}" rendered="{!hasNext}">Last</apex:commandLink>
+			</apex:panelGrid></div>
+			<apex:pageBlockTable value="{!quoteList}" var="quote">
+				<apex:column >
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="Q/C Number{!IF(sortExpression=='QuoteNumber',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="QuoteNumber" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+					<apex:commandLink action="{!openSelectedLink}"
+						value="{!quote.QuoteNumber}">
+						<apex:param name="objectId" value="{!quote.Id}" />
+					</apex:commandLink>
+				</apex:column>
+				<apex:column value="{!quote.Quote_Owner__c}" rendered="{!showQuoteOwner}">
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="Q/C Owner{!IF(sortExpression=='Quote_Owner__c',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="Quote_Owner__c" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+				</apex:column>
+				<apex:column >
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="Account Name{!IF(sortExpression=='Opportunity.Account.Name',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="Opportunity.Account.Name" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+					<apex:commandLink action="{!openSelectedLink}"
+						value="{!quote.Opportunity.Account.Name}">
+						<apex:param name="objectId" value="{!quote.Opportunity.AccountId}" />
+					</apex:commandLink>
+				</apex:column>
+				<apex:column >
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="Opportunity Name{!IF(sortExpression=='Opportunity.Name',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="Opportunity.Name" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+					<apex:commandLink action="{!openSelectedLink}"
+						value="{!quote.Opportunity.Name}">
+						<apex:param name="objectId" value="{!quote.OpportunityId}" />
+					</apex:commandLink>
+				</apex:column>
+				<apex:column value="{!quote.Status}">
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="Q/C Status{!IF(sortExpression=='Status',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="Status" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+				</apex:column>
+				<apex:column value="{!quote.Total_Contract_Value__c}">
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="TCV{!IF(sortExpression=='Total_Contract_Value__c',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="Total_Contract_Value__c" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+				</apex:column>
+				<apex:column value="{!quote.Total_MRR__c}">
+					<apex:facet name="header">
+						<apex:commandLink action="{!refreshQuoteList}"
+							value="Total MRR{!IF(sortExpression=='Total_MRR__c',IF(sortDirection='ASC','▲','▼'),'')}">
+							<apex:param value="Total_MRR__c" name="column"
+								assignTo="{!sortExpression}"></apex:param>
+						</apex:commandLink>
+					</apex:facet>
+				</apex:column>
+			</apex:pageBlockTable>
+			<div align="right" style="white-space: nowrap"><apex:panelGrid columns="10" id="paginationLinks">
+				<apex:outputLabel value="Page {!pageNumber}"
+					rendered="{!showPageCount}" for="paginationLinks" />
+				<apex:outputLabel value=" | "
+					rendered="{!showPageCount}" for="paginationLinks_top" />
+				<apex:outputLabel value="{!pageCount}" rendered="{!showPageCount}"
+					for="paginationLinks" />
+				<apex:outputLabel value=" | "
+					rendered="{!showPageCount}" for="paginationLinks_top" />
+				<apex:commandLink action="{!first}" rendered="{!hasPrevious}">First</apex:commandLink>
+				<apex:commandLink action="{!previous}" rendered="{!hasPrevious}">Previous</apex:commandLink>
+				<apex:commandLink action="{!next}" rendered="{!hasNext}">Next</apex:commandLink>
+				<apex:commandLink action="{!last}" rendered="{!hasNext}">Last</apex:commandLink>
+			</apex:panelGrid></div>
+		</apex:pageBlock>
+	</apex:form>
+</apex:page>

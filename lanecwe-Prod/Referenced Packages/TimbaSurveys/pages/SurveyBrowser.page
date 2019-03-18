@@ -1,0 +1,673 @@
+<apex:page controller="TIMBASURVEYS.SurveyBrowserController" sidebar="false" tabstyle="Timba_Surveys__tab">
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'required/jquery-1.4.2.min.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'jquery.datePicker.min-2.1.2.js')}" />
+    <script type="text/javascript" src="{!URLFOR($Resource.jqTransform, 'jqtransformplugin/jquery.jqtransform.js')}" ></script>
+    <script type="text/javascript" src="{!URLFOR($Resource.Datepicker, 'date.js')}" ></script>
+
+    <!-- Application Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/analyzer_recipients.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/list.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/surveyDialogs.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/navigation_survey_analyzer.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/tabsDisplay.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'datePicker.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jqtransformplugin/jqtransform.css')}" />
+
+    <!-- Common Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/common.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/common.css')}" />
+    <apex:include pageName="TIMBASURVEYS__TimbaSurveyStyles" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__tsSurveyStyles, 'css/tsSurveyBrowser.css')}" />
+    <style type="text/css">
+    	.banner .questions:hover{
+    		border-radius: 10px;
+    		background-color: #62C6E5;
+    		margin-top: 2px;
+    		padding: 4px;
+
+    	}
+    	.surveyDateRange {
+    		font-size: 19px;
+    		float: left;
+    		padding-left: 14px;
+    	}
+    	.clearDates {
+			height: 31px;
+			margin-bottom: 4px;
+			margin-left: 20px;
+    	}
+    	.dp-popup h2 {
+    		display: block !important;
+    	}
+    	.acceptContainer {
+    		float: left;
+    	}
+    	.accept{
+    		padding: 6px;
+    		height: 31px;
+    	}
+		.dateSelectorWrapper {
+		    width: 260px;
+		    float: left;
+		}
+    	.nextDateSelector {
+    		padding-right: 5px;
+    	}
+		.optionsContainer {
+		    overflow: hidden;
+		    position: relative;
+		}
+        .dateortime {
+            width: 150px;
+        }
+
+        .dateortime .jqTransformInputWrapper {
+            width:110px !important;
+        }
+        .dateortime a.dp-choose-date{
+            background: url('{!URLFOR($Resource.SurveyPublicResources, '/img/calendar.png')}') right no-repeat;
+            background-repeat:no-repeat;
+            position:absolute;
+            top:0px;
+            left:110px;
+            width:24px;
+            height:24px;
+            overflow:visible;
+            margin-left:3px;
+            text-indent:-9999px;
+            display:block;
+        }
+    </style>
+    <apex:composition template="TIMBASURVEYS__timbaSurveysTemplate">
+    <!-- customJs Imports & Script Tags -->
+        <apex:define name="customJs">
+            <script type="text/javascript">
+            	// add required dojo widgets
+            	dojo.require("dijit.form.Button");
+            	
+				var TSsummId = '';
+				var TSrowId = '';
+				var TStype = '';
+				var TSrecipientId = '';
+
+   		        /**
+		        * Improvment #22207
+		        * Ability to view responses by date range in Analyze tab
+		        **/
+				function updateBrowserDates(){
+					var startDate = $('#startDate').val();
+					var endDate = $('#endDate').val();
+					if ((startDate == '') || (endDate == '')){
+						StartDateEmptyDialog.show();
+					}else{
+						// check if dates are valid
+						var sDate = new Date(startDate);
+						var eDate = new Date(endDate);
+						// In IE date parsing is bugged, you should do it this way
+						if (dojo.isIE){
+							var splittedDate = startDate.split("-");
+							sDate = new Date(splittedDate[0],splittedDate[1]-1,splittedDate[2]); 
+							splittedDate = endDate.split("-");
+							eDate = new Date(splittedDate[0],splittedDate[1]-1,splittedDate[2]);
+						}
+						if (sDate > eDate){
+							StartDateGraterDialog.show();
+						}else{
+							listOverlay.show();
+							updateBrowserOperation(startDate, endDate);
+						}
+					}
+				}
+
+				function updateBrowserCompleted(){
+					if(jQuery('.selectContainer li').length == 1){
+                    	 jQuery('.listnavigator .begin').addClass('disabled');
+	                   	 jQuery('.listnavigator .prev').addClass('disabled');
+	                   	 jQuery('.listnavigator .next').addClass('disabled');
+	                   	 jQuery('.listnavigator .end').addClass('disabled');
+                    }else{
+                    	if({!surveySetController.Page} == {!surveySetController.TotalPages}){
+	                    	 jQuery('.listnavigator .begin').removeClass('disabled');
+	                    	 jQuery('.listnavigator .prev').removeClass('disabled');
+	                    	 jQuery('.listnavigator .begin').attr('onClick','listOverlay.show();paginationFirst()');
+	                    	 jQuery('.listnavigator .prev').attr('onClick','listOverlay.show();paginationPrevious()');
+                    	}else if({!surveySetController.Page} == 1){
+                    		 jQuery('.listnavigator .next').removeClass('disabled');
+	                    	 jQuery('.listnavigator .end').removeClass('disabled');
+	                    	 jQuery('.listnavigator .next').attr('onClick','listOverlay.show();paginationNext()');
+	                    	 jQuery('.listnavigator .end').attr('onClick','listOverlay.show();paginationLast()');
+                    	}
+                    }
+					attachPaginationEvents();
+					listOverlay.hide();
+				}
+
+                function overRow(row, isin){
+                    if (isin) {
+                        row.className = 'row_response_up';
+                    }else{
+                        row.className = 'row_response';
+                    }
+                }
+
+                function overSubRow(){
+                    this.className = 'sub_row_response_up';
+                }
+
+                function outSubRow(){
+                    this.className = 'sub_row_response';
+                }
+
+                function f_overSubRow(row){
+                    row.className = 'sub_row_response_up';
+                }
+
+                function f_outSubRow(row){
+                    row.className = 'sub_row_response';
+                }
+
+				var initialize = function() {
+					dojo.query('.bPageFooter.noTableFooter')[0].style.display = 'none';
+					attachPaginationEvents();
+				}
+
+				dojo.addOnLoad(initialize);
+
+				function attachPaginationEvents(){
+                    dojo.query('.selectList li').onclick(function(e){
+                        listOverlay.show();
+                        paginationSetPage(parseInt(this.innerHTML,10));
+                    });
+
+                    dojo.query('.listnavigator .selectContainer').onclick(function(e){
+                        dojo.toggleClass(dojo.query('.selectList',this)[0],'displayBlock');
+                    });
+
+                    dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+                    dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+
+                    jQuery('.disabled').attr('onClick','');
+
+                    listOverlay.hide();
+                }
+
+                function collapseChildren(summId, rowId,type,recipientId){
+                    listOverlay.show();
+                    if (!dojo.isIE){
+                        var child='child-'+rowId;
+                        dojo.byId(child).innerHTML='';
+                    }
+                    var expandHidden=dojo.byId('expandHidden-'+rowId);
+                    var expandButton=dojo.byId('expandButton-'+rowId);
+                    expandButton.style.backgroundPosition="top";
+                    expandButton.onclick=function(){expandChildren(summId, rowId,type,recipientId);};
+                    if (dojo.isIE){
+                        var i = expandButton.parentNode.parentNode.rowIndex;
+                        var j = dojo.byId(datosContentId).rows.length;
+                            var isChild = true;
+                            var i=expandButton.parentNode.parentNode.rowIndex+1;
+                            while (isChild && i < dojo.byId(datosContentId).rows.length){
+                                var row = dojo.byId(datosContentId).rows[i];
+                                if((row.id)=='hijo'){
+                                    dojo.byId(datosContentId).deleteRow(i);
+                                    isChild = true;
+                                }else{
+                                    isChild = false;
+                                    i++;
+                                }
+                            }
+                    }
+                    expandHidden.value='doExpand';
+                    listOverlay.hide();
+
+                }
+
+				function expandChildren(summId, rowId, type, recipientId){
+					listOverlay.show();
+					if (dojo.isIE){
+						var child = 'datosContentId';
+						var expandHidden = dojo.byId('expandHidden-'+rowId);
+						var expandButton = dojo.byId('expandButton-'+rowId);
+						var tind = expandButton.parentNode.parentNode.rowIndex;
+						expandButton.onclick = function(){
+							collapseChildren(summId, rowId, type, recipientId);
+						};
+						expandHidden.value = 'doCollapse';
+						expandChildrenOperationIE('expand', '{!JSENCODE(current_survey.Id)}', recipientId, child, type, tind, rowId);
+					}else{
+						//For Firefox and Chrome
+						var child = 'child-'+rowId;
+						var expandHidden = dojo.byId('expandHidden-'+rowId);
+						var expandButton = dojo.byId('expandButton-'+rowId);
+						expandButton.onclick = function(){
+							collapseChildren(summId, rowId, type, recipientId);
+						};
+						expandHidden.value = 'doCollapse';
+						expandChildrenOperation('expand', '{!JSENCODE(current_survey.Id)}', recipientId, child, type, rowId);
+					}
+				}
+
+				function expandChildrenCompletedIE(data, rowId, type, recipientId, child, tind){
+					if (tind == ''){
+						tind = 0;
+					}
+					var expandButton = dojo.byId('expandButton-'+rowId);
+					var hasWeightedQuestions = {!hasWeightedQuestions};
+					var response = dojo.fromJson(data);
+					var viewImg	= '{!URLFOR($Resource.SurveyResources2,'img/icons/view_report_gray.png')}';
+					var deleteImg = '{!URLFOR($Resource.SurveyResources2,'img/analyze_recipients/emailicon.png')}';
+					var html = '';
+					for(var s in response.result){
+						var row = dojo.byId(child).insertRow(parseInt(tind)+1);
+						row.onmouseover = overSubRow;
+						row.onmouseout = outSubRow;
+						row.id = 'hijo';
+
+						var tmp_cel = row.insertCell();
+						tmp_cel.innerHTML = '&nbsp;';
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+						tmp_cel = row.insertCell();
+						tmp_cel.innerHTML = '&nbsp;';
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+
+						tmp_cel = row.insertCell();
+						tmp_cel.innerText = response.result[s].name;
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+
+						tmp_cel = row.insertCell();
+						tmp_cel.innerHTML = '&nbsp;';
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+						
+						tmp_cel = row.insertCell();
+						tmp_cel.innerHTML = '&nbsp;';
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+						tmp_cel.style.width = '165px';
+						
+						tmp_cel = row.insertCell();
+						tmp_cel.innerHTML = '&nbsp;';
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+						tmp_cel.style.width = '11%';
+					
+						tmp_cel = row.insertCell();
+						tmp_cel.innerText = response.result[s].whoid;
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+						tmp_cel.style.width = '9.5%';
+						
+						tmp_cel = row.insertCell();
+						tmp_cel.innerText = response.result[s].casenumber;
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+
+						if(hasWeightedQuestions){
+							tmp_cel = row.insertCell();
+							tmp_cel.innerText = response.result[s].weight;
+							tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+							tmp_cel.style.align = 'right';
+						}
+						tmp_cel = row.insertCell();
+						tmp_cel.innerHTML = '<a class=\"delete\" href=\"javascript:;\" onclick=\"deleteSummary(\'' + response.result[s].id + '\',\''+ TSrowId +'\',\''+ type +'\',\''+ recipientId+'\');\"> '+' </a>';
+						tmp_cel.innerHTML += '<a class=\"view\" href=\"javascript:;\" onclick=\"redirectToSummary(\'' + response.result[s].id +'\');\">'+'</a>';
+						tmp_cel.style.borderBottom = 'solid 1px #eeeeee';
+					}
+					var collapseImg = '{!URLFOR($Resource.SurveyResources2,'img/analyze_recipients/anonymousicon.png')}';
+					expandButton.style.backgroundPosition = "bottom";
+					listOverlay.hide();
+                }
+
+				function expandChildrenCompleted(data, rowId, type, recipientId, child){
+					var expandButton = dojo.byId('expandButton-'+rowId);
+					var hasWeightedQuestions = {!hasWeightedQuestions};
+					var response = dojo.fromJson(data);
+					var viewImg	= '{!URLFOR($Resource.SurveyResources2,'img/icons/view_report_gray.png')}';
+					var deleteImg = '{!URLFOR($Resource.SurveyResources2,'img/analyze_recipients/emailicon.png')}';
+					var html = '';
+					for(var s in response.result){
+						// style="border-bottom: 1px solid #EEEEEE; background-color:#FFFFFF;"
+						html += '<tr onmouseover=\"f_overSubRow(this);\" onmouseout=\"f_outSubRow(this);\"><td style="border-bottom: 1px solid #EEEEEE;"></td><td style="border-bottom: 1px solid #EEEEEE;"></td><td style="border-bottom: 1px solid #EEEEEE;">'+ response.result[s].name +'</td><td style="border-bottom: 1px solid #EEEEEE;"></td>';
+						html += '<td style="border-bottom: 1px solid #EEEEEE; width: 165px;">' + response.result[s].campName + '</td>';
+						html += '<td style="border-bottom: 1px solid #EEEEEE; width: 11%;"></td>';
+						html += '<td style="border-bottom: 1px solid #EEEEEE; width: 9.5%;">' + response.result[s].whoid + '</td>';
+						html += '<td style="border-bottom: 1px solid #EEEEEE;">' + response.result[s].casenumber + '</td>';
+						if(hasWeightedQuestions){
+							html += '<td style="border-bottom: 1px solid #EEEEEE;">'+ response.result[s].weight +'</td>';
+						}
+						html += '<td style="border-bottom: 1px solid #EEEEEE;"> <a class=\"delete\" href=\"javascript:;\" onclick=\"deleteSummary(\''+response.result[s].id+'\',\''+ TSrowId+'\',\''+ type+'\',\''+ recipientId+'\');\"> '+' </a>';
+						html +=' <a class=\"view\" href=\"javascript:;\" onclick=\"redirectToSummary(\'' + response.result[s].id + '\');\">'+'</a> </td></tr>';
+					}
+					dojo.byId(child).innerHTML = html;
+					var collapseImg = '{!URLFOR($Resource.SurveyResources2,'img/analyze_recipients/anonymousicon.png')}';
+					expandButton.style.backgroundPosition = "bottom";
+					listOverlay.hide();
+                }
+
+                function bulkDelete(summId, type, recipientId){
+                	TSsummId = summId;
+                	TStype = type;
+                	TSrecipientId = recipientId;
+                	deleteBulkResponse.show();
+                }
+
+                function bulkDeleteOp(){
+                	deleteBulkResponse.hide();
+                	listOverlay.show();
+					bulkDeleteOperation('{!JSENCODE(current_survey.Id)}',TSsummId, TStype, TSrecipientId);
+                }
+
+
+                function bulkDeleteCompleted(success, redirectToCollect){
+                	if (success){
+                		if(redirectToCollect){
+                			window.location = '{!$Page.TIMBASURVEYS__SurveyCollect}?id={!URLENCODE(current_survey.Id)}';
+                		}else{
+							window.location = '{!$Page.SurveyBrowser}?id={!URLENCODE(current_survey.Id)}';
+						}
+					}
+					listOverlay.hide();
+                }
+
+				function deleteSummary(summId, rowId, type, recipientId){
+					TSsummId = summId;
+					TSrowId = rowId;
+					var TStype = type;
+					TSrecipientId = recipientId;
+					deleteIndividualResponse.show();
+				}
+
+				function deleteSummaryOp(){
+                    deleteIndividualResponse.hide()
+                    listOverlay.show();
+                    deleteOperation('delete', '{!JSENCODE(current_survey.Id)}', TSsummId, TStype, TSrecipientId, TSrowId);
+                }
+                function resetDates(){
+                	if($('#startDate').val() != '' || $('#endDate').val() != ''){
+	                	var d = new Date();
+	                	listOverlay.show();
+	                	$(".datepicker").datePicker({ defaultDate: new Date() });
+	                	$('#startDate').val('');
+						$('#endDate').val('');
+						updateBrowserOperation('', '');
+					}
+				}
+            </script>
+        </apex:define>
+        <apex:define name="breadCrumb">
+            <c:timbaSurveysBreadCrumb steps="{!$Label.timbasurveys__timbasurveys_Survey_List}:::{!$Page.TIMBASURVEYS__SurveyList},,,{!current_survey.Name}"/>
+        </apex:define>
+
+
+  <apex:define name="body">
+        <apex:outputPanel styleClass="tabSet" layout="block">
+        	<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyOverview}" styleClass="tabElem">
+				<apex:param name="id" value="{!current_survey.Id}" />
+				<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_overview}" />
+			</apex:outputLink>
+            <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.updateable}">
+                <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyPreview}" styleClass="tabElem">
+                	<apex:param name="id" value="{!current_survey.Id}" />
+                	<apex:param name="prev" value="true" />
+                	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyCollect_Design}" />
+                </apex:outputLink>
+                <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyCollect}" styleClass="tabElem">
+                	<apex:param name="id" value="{!current_survey.Id}" />
+                	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Collect}" />
+                </apex:outputLink>
+            </apex:outputpanel>
+            <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="tabElem imIn">
+            	<apex:param name="id" value="{!current_survey.Id}" />
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_analize}" />
+            </apex:outputLink>
+            <div class="marginInf"></div>
+        </apex:outputPanel>
+
+        <apex:outputPanel styleClass="banner" layout="block">
+            <apex:outputPanel styleClass="surveyStat" layout="block">
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_surveyStats}" />
+            </apex:outputPanel>
+            <apex:outputPanel styleClass="browseBy" layout="block">
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_browseBy}" />
+            </apex:outputPanel>
+            <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}?id={!current_survey.Id}" styleClass="questions">
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_questions}" />
+            </apex:outputLink>
+            <apex:outputLink value="javascript:;" styleClass="recipients selected">
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_recipients}" />
+            </apex:outputLink>
+        </apex:outputPanel>
+        <apex:outputPanel styleClass="banner" layout="block">
+        	<apex:outputPanel styleClass="surveyDateRange" layout="block">
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Date_Range}" />
+            </apex:outputPanel>
+			<apex:outputPanel styleClass="dateSelectorWrapper" layout="block">
+	            <apex:outputPanel styleClass="browseBy nextDateSelector" layout="block">
+	            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_From_this_date}" />
+	            </apex:outputPanel>
+	            <apex:outputPanel styleClass="optionsContainer dateortime" layout="block">
+	            	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+	            		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+	            			<input class="datepicker" id="startDate" type="text" maxlength="70" disabled="disabled" />
+	            		</apex:outputPanel>
+	            	</apex:outputPanel>
+	            </apex:outputPanel>
+			</apex:outputPanel>
+			<apex:outputPanel styleClass="dateSelectorWrapper" layout="block">
+	            <apex:outputPanel styleClass="browseBy nextDateSelector" layout="block">
+	            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_To_this_date}" />
+	            </apex:outputPanel>
+	            <apex:outputPanel styleClass="optionsContainer dateortime" layout="block">
+	            	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+	            		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+	            			<input class="datepicker" id="endDate" type="text" maxlength="70" disabled="disabled" />
+	            		</apex:outputPanel>
+	            	</apex:outputPanel>
+	            </apex:outputPanel>
+			</apex:outputPanel>
+			<apex:outputPanel styleClass="acceptContainer" layout="block">
+				<button class="surveyButton accept" onclick="updateBrowserDates();">
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_002surveyDesigner_Apply}" />
+				</button>
+			</apex:outputPanel>
+			<apex:outputPanel id="resetDatesPanel" styleClass="resetDatesPanel" layout="block">
+				<button class="surveyButton accept clearDates" onclick="return resetDates()">
+					<apex:image id="clearDates" value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/surveylist/delete.png')}" alt="{!$Label.timbasurveys__timbasurveys_surveycollect_Clear}" />
+					<apex:outputtext value="{!$Label.timbasurveys__timbasurveys_surveycollect_Clear}" />
+				</button>
+			</apex:outputPanel>
+        </apex:outputPanel>
+	    <div class="bordeado" id="recipients_list_rows" >
+	        <apex:outputText value="{!outputMessage}" escape="false" />
+	    <div id="testRow">
+    </div>
+    <script type="text/javascript">
+        $(function(){
+        	Date.format = 'yyyy-mm-dd';
+        	$('.datepicker').datePicker({
+        			clickInput:true,
+        			startDate:'2009-01-01'
+        		})
+        		.dpSetOffset(25, -5);
+        });
+    </script>
+    <apex:outputPanel id="listContainer">
+        <div class="cont2">
+            <div class="container" >
+                <div class="conteinerHeader" >
+                    <table class="headerContent" border="0" cellspacing="0" >
+                            <tr>
+                                <td class="type vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Expand}"/></td>
+                                <td class="type vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Type}" /></td>
+                                <td class="name vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveylist_Name}"/></td>
+                                <td class="email vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_RecipientList_Email}"/></td>
+                                <td class="campaign vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Campaign}"/></td>
+                                <td class="account vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_RecipientList_Account}"/></td>
+                                <td class="whoid vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_WhoID}"/></td>
+                                <td class="casenumber vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Case_Number}"/></td>
+                                <apex:outputpanel rendered="{!hasWeightedQuestions}" layout="none">
+                                	<td class="weight vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_DesignerJS_weight}"/></td>
+                                </apex:outputpanel>
+                                <td class="viewReport vAlignTop"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Report_Operations}"/></td>
+                            </tr>
+                    </table>
+                </div>
+
+                <apex:variable value="{!1}" var="rowNum"/>
+                <apex:outputPanel styleClass="datos" id="dataContainer" layout="block">
+	                <table id="datosContentId" class="datosContent" border="0" cellspacing="0" >
+	                    <apex:repeat value="{!Survey_list}" var="summ">
+	                    <apex:variable var="recipientType" value="{!IF(AND(OR(summ.Recipient__r.RelatedContact__c != null , summ.Recipient__r.RelatedContact__c != '') ,
+	                    	!summ.Recipient__r.isAnonymous__c), 'Contact',
+                            IF(AND(OR(summ.Recipient__r.RelatedLead__c != null , summ.Recipient__r.RelatedLead__c != ''),
+                            !summ.Recipient__r.isAnonymous__c),'Lead',
+                            IF(AND(OR(summ.Recipient__r.RelatedUser__c != null , summ.Recipient__r.RelatedUser__c != ''),
+                            !summ.Recipient__r.isAnonymous__c),'User' ,
+                            IF(AND(OR(summ.Recipient__r.EmailAddress__c != null , summ.Recipient__r.EmailAddress__c != ''),
+                            !summ.Recipient__r.isAnonymous__c),'Email', 
+                            IF(AND(OR(summ.Recipient__r.RelatedOpportunity__c != null , summ.Recipient__r.RelatedOpportunity__c != '') ,
+	                    	!summ.Recipient__r.isAnonymous__c), 'Opportunity','Anonymous'  )))))}"/>
+                            <apex:variable var="recipientId" value="{!IF(AND(recipientType =='Contact',!summ.Recipient__r.TIMBASURVEYS__isAnonymous__c), summ.Recipient__r.TIMBASURVEYS__RelatedContact__c,IF(AND(recipientType=='Lead',!summ.Recipient__r.TIMBASURVEYS__isAnonymous__c),summ.Recipient__r.TIMBASURVEYS__RelatedLead__c,IF(AND(recipientType=='User',!summ.Recipient__r.TIMBASURVEYS__isAnonymous__c),summ.Recipient__r.TIMBASURVEYS__RelatedUser__c,IF(recipientType=='Email',summ.Recipient__r.TIMBASURVEYS__EmailAddress__c,IF(recipientType=='Opportunity',summ.Recipient__r.TIMBASURVEYS__RelatedOpportunity__c,'0')))))}"/>
+                                <tr class="row_response" onmouseover="overRow(this, true);" onmouseout="overRow(this, false);" >
+                                    <td class="type">
+                                        <input id="expandHidden-{!rowNum}" type="hidden" value="doExpand" />
+                                        <a id="expandButton-{!rowNum}" onClick="expandChildren('{!JSENCODE(summ.id)}','{!rowNum}','{!recipientType}','{!recipientId}');"
+                                        href="javascript:;"  title="Expand" class="expand"></a>
+                                    </td>
+                                     <td class="type"><img alt="" src="{!IF(AND(OR(summ.Recipient__r.RelatedContact__c != null , summ.Recipient__r.RelatedContact__c != ''), !summ.Recipient__r.isAnonymous__c),
+                                        URLFOR($Resource.SurveyResources2,'img/analyze_recipients/contact_icon.png') ,
+                                            IF(AND(OR(summ.Recipient__r.RelatedLead__c != null , summ.Recipient__r.RelatedLead__c != ''), !summ.Recipient__r.isAnonymous__c),
+                                                    URLFOR($Resource.SurveyResources2,'img/analyze_recipients/blue_avatar_icon.png') ,
+                                                        IF(AND(OR(summ.Recipient__r.RelatedUser__c != null , summ.Recipient__r.RelatedUser__c != ''), !summ.Recipient__r.isAnonymous__c),
+                                                            URLFOR($Resource.SurveyResources2,'img/analyze_recipients/person_icon.png') ,
+                                                                IF(AND(OR(summ.Recipient__r.EmailAddress__c != null , summ.Recipient__r.EmailAddress__c != ''), !summ.Recipient__r.isAnonymous__c),
+                                                                    URLFOR($Resource.SurveyResources2,'img/analyze_recipients/emailicon.png'),
+                                                                    IF(AND(OR(summ.Recipient__r.RelatedOpportunity__c != null , summ.Recipient__r.RelatedOpportunity__c != ''), !summ.Recipient__r.isAnonymous__c),
+                                                                    URLFOR($Resource.SurveyResources2,'img/analyze_recipients/opportunityicon.png') , URLFOR($Resource.SurveyResources2,'img/analyze_recipients/anonymousicon.png') ) ) ) ) )}" /></td>
+                                    <td class="name">
+                                    	<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveySummary}" title="{!$Label.timbasurveys__timbasurvey_Analyze_View_Summary}">
+                                    		<apex:param name="id" value="{!summ.id}" />
+                                    		<apex:outputText value="{!IF('Anonymous  - Responses' = summ.name,$Label.timbasurveys__timbasurvey_Analyze_Anonymous,IF(OR(summ.Recipient__r.TIMBASURVEYS__RelatedContact__c != null , summ.Recipient__r.TIMBASURVEYS__RelatedContact__c != ''), IF(OR(summ.Recipient__r.RelatedContact__r.Name== null, summ.Recipient__r.RelatedContact__r.Name == ''),$Label.timbasurveys__timbasurvey_Analyze_Anonymous, summ.Recipient__r.RelatedContact__r.Name) , IF(OR(summ.Recipient__r.RelatedLead__r.Name != null , summ.Recipient__r.RelatedLead__r.Name != ''), IF(OR(summ.Recipient__r.RelatedLead__r.Name == null, summ.Recipient__r.RelatedLead__r.Name == ''), $Label.timbasurveys__timbasurvey_Analyze_Anonymous, summ.Recipient__r.RelatedLead__r.Name) , IF(OR(summ.Recipient__r.RelatedUser__r.Name != null , summ.Recipient__r.RelatedUser__r.Name != ''), IF(OR(summ.Recipient__r.RelatedUser__r.Name == null, summ.Recipient__r.RelatedUser__r.Name == ''), $Label.timbasurveys__timbasurvey_Analyze_Anonymous ,summ.Recipient__r.RelatedUser__r.Name) , IF(OR(summ.Recipient__r.TIMBASURVEYS__EmailAddress__c != null , summ.Recipient__r.TIMBASURVEYS__EmailAddress__c != ''), IF(OR(summ.Recipient__r.TIMBASURVEYS__EmailAddress__c == null, summ.Recipient__r.TIMBASURVEYS__EmailAddress__c == ''), $Label.timbasurveys__timbasurvey_Analyze_Anonymous, summ.Recipient__r.TIMBASURVEYS__EmailAddress__c) ,IF(OR(summ.Recipient__r.TIMBASURVEYS__RelatedOpportunity__c != null , summ.Recipient__r.TIMBASURVEYS__RelatedOpportunity__c != ''), IF(OR(summ.Recipient__r.RelatedOpportunity__r.Name == null, summ.Recipient__r.RelatedOpportunity__r.Name == ''), $Label.timbasurveys__timbasurvey_Analyze_Anonymous, summ.Recipient__r.RelatedOpportunity__r.Name), $Label.timbasurveys__timbasurvey_Analyze_Anonymous))))))}" />
+                                    	</apex:outputLink>
+                                    </td>
+                                    <!-- <td class="company">Company</td> -->
+                                    <td class="email">
+                                    	<apex:outputText value="{!if('Anonymous  - Responses' = summ.name,$Label.timbasurveys__timbasurvey_SurveySummary_Not_Available,IF(OR(summ.Recipient__r.TIMBASURVEYS__RelatedContact__c != null , summ.Recipient__r.TIMBASURVEYS__RelatedContact__c != ''), IF(OR(summ.Recipient__r.RelatedContact__r.Email == null, summ.Recipient__r.RelatedContact__r.Email == ''),$Label.timbasurveys__timbasurvey_SurveySummary_Not_Available, summ.Recipient__r.RelatedContact__r.Email) , IF(OR(summ.Recipient__r.RelatedLead__r.Email != null , summ.Recipient__r.RelatedLead__r.Email != ''), IF(OR(summ.Recipient__r.RelatedLead__r.Email == null, summ.Recipient__r.RelatedLead__r.Email == ''), $Label.timbasurveys__timbasurvey_SurveySummary_Not_Available, summ.Recipient__r.RelatedLead__r.Email) , IF(OR(summ.Recipient__r.RelatedUser__r.Email != null , summ.Recipient__r.RelatedUser__r.Email != ''), IF(OR(summ.Recipient__r.RelatedUser__r.Email == null, summ.Recipient__r.RelatedUser__r.Email == ''), $Label.timbasurveys__timbasurvey_SurveySummary_Not_Available ,summ.Recipient__r.RelatedUser__r.Email) , IF(OR(summ.Recipient__r.TIMBASURVEYS__EmailAddress__c != null , summ.Recipient__r.TIMBASURVEYS__EmailAddress__c != ''), IF(OR(summ.Recipient__r.TIMBASURVEYS__EmailAddress__c == null, summ.Recipient__r.TIMBASURVEYS__EmailAddress__c == ''), $Label.timbasurveys__timbasurvey_SurveySummary_Not_Available, summ.Recipient__r.TIMBASURVEYS__EmailAddress__c) , $Label.timbasurveys__timbasurvey_SurveySummary_Not_Available)))))}" />
+                                    </td>
+                                    <td>&nbsp;</td>
+                                    <td class="account">
+                                    	<apex:outputLink target="_blank" value="/{!IF(summ.Recipient__r.TIMBASURVEYS__RelatedAccount__c!=null,summ.Recipient__r.TIMBASURVEYS__RelatedAccount__c,'#')}" title="{!summ.Recipient__r.RelatedAccount__r.Name}">
+                                    		<apex:outputText value="{!IF(summ.Recipient__r.TIMBASURVEYS__RelatedAccount__c!=null, LEFT(summ.Recipient__r.RelatedAccount__r.Name,16)+'...', ' ')}" />
+                                    	</apex:outputLink>
+                                    </td>
+                                    <td class="whoid">&nbsp;</td>
+                                    <td class="casenumber">&nbsp;</td>
+                                    <apex:outputText rendered="{!hasWeightedQuestions}"><td class="weight">&nbsp;</td></apex:outputText>
+                                    <td class="viewReport">
+                                        <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__SurveyResponse__c.deletable}">
+                                            <a href="javascript:;" onclick="return bulkDelete('{!JSENCODE(summ.id)}','{!recipientType}','{!JSENCODE(recipientId)}');" class="delete"></a>
+                                        </apex:outputpanel>
+                                    </td>
+                                </tr>
+                                <tbody id="child-{!rowNum}">
+                                </tbody>
+                        	<apex:variable var="rowNum" value="{!rowNum + 1}"/>
+	                	</apex:repeat>
+	            	</table>
+                </apex:outputPanel>
+            </div>
+            <br/>
+            <div class="listnavigator">
+                <div class="begin {!IF(SurveySetController.renderPrevious,'','disabled')}" onclick="listOverlay.show();paginationFirst()"></div>
+                <div class="prev {!IF(SurveySetController.renderPrevious,'','disabled')}" onclick="listOverlay.show();paginationPrevious()"></div>
+                <!--<div id="pagination" class="selectContainer">-->
+                 <apex:outputPanel styleClass="selectContainer" id="pagination" layout="block">
+                    <ul class="selectList">
+                        <apex:repeat value="{!surveySetController.NumericPaginationSet}" var="Page">
+                            <li>
+                                <apex:outputText value="{!Page}" />
+                            </li>
+                        </apex:repeat>
+                    </ul>
+                    <div class="count">
+                        <apex:outputText value="{!surveySetController.Page}/{!surveySetController.TotalPages}" />
+                    </div>
+                </apex:outputPanel>
+                <!--</div>-->
+                <div class="next {!IF(SurveySetController.renderNext,'','disabled')}" onclick="listOverlay.show();paginationNext()"></div>
+                <div class="end {!IF(SurveySetController.renderNext,'','disabled')}" onclick="listOverlay.show();paginationLast()"></div>
+            </div>
+        </div>
+    </apex:outputPanel>
+    </div>
+    <!-- Pagination Functions -->
+    <div data-dojo-id="listOverlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'recipients_list_rows', color: 'white'"></div>
+    <div data-dojo-id="deleteIndividualResponse" style="width: 305px;" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_SurveyList_Delete_Survey}">
+    	<apex:outputText styleClass="msg" value="{!$Label.timbasurveys__timbasurvey_surveylist_msg_delete_response}" />
+        <div style="height: 10px;" class="clear"></div>
+        <button class="rightContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:deleteIndividualResponse.hide();"><img alt="Cancel" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurvey_surveylist_no}</button>
+        <button class="leftContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:deleteSummaryOp();"><img alt="Ok" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/okicon.png')}"/>{!$Label.timbasurvey_surveylist_yes}</button>
+    </div>
+    <div data-dojo-id="deleteBulkResponse" style="width: 305px;" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_SurveyList_Delete_Survey}">
+    	<apex:outputText styleClass="msg" value="{!$Label.timbasurveys__timbasurvey_surveylist_msg_delete_bulk_responses}" />
+        <div style="height: 10px;" class="clear"></div>
+        <button class="rightContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:deleteBulkResponse.hide();"><img alt="Cancel" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurvey_surveylist_no}</button>
+        <button class="leftContainer surveyButton" data-dojo-type="dijit.form.Button" onclick="javascript:bulkDeleteOp();"><img alt="Ok" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/okicon.png')}"/>{!$Label.timbasurvey_surveylist_yes}</button>
+    </div>
+    <div data-dojo-type="dijit.Dialog" id="StartDateGrater" data-dojo-id="StartDateGraterDialog" title="{!$Label.timbasurvey_surveyBrowser_Select_Dates}">
+    	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Start_Date_Grater}." />
+    </div>
+    <div data-dojo-type="dijit.Dialog" id="StartDateEmpy" data-dojo-id="StartDateEmptyDialog" title="{!$Label.timbasurvey_surveyBrowser_Select_Dates}">
+    	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Dates_Empty}." />
+    </div>
+  </apex:define>
+</apex:composition>
+	<apex:outputPanel id="myStateSurveyBrowser" rendered="false" />
+    <apex:form id="surveyBrowserActions">
+        <!-- Define the JavaScript functions update Surveys -->
+        <apex:actionFunction name="paginationNext" action="{!SurveySetController.GoNext}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationLast" action="{!SurveySetController.GoLast}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationPrevious" action="{!SurveySetController.GoPrevious}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationFirst" action="{!SurveySetController.GoFirst}" onComplete="attachPaginationEvents()" rerender="listContainer" />
+        <apex:actionFunction name="paginationSetPage" action="{!SurveySetController.setPage}" onComplete="attachPaginationEvents()" rerender="listContainer">
+            <apex:param name="Page" value="0" />
+        </apex:actionFunction>
+        <apex:actionFunction name="expandChildrenOperation" action="{!doOperation}" oncomplete="expandChildrenCompleted('{!outputMessage}','{!TSrowId}','{!TSrecipientType}','{!TSrecipientId}','{!TSchildId}')" rerender="myStateSurveyBrowser">
+            <apex:param name="TSoperation" value="" assignTo="{!TSoperation}" />
+            <apex:param name="TSsurveyId" value="" assignTo="{!TSsurveyId}" />
+            <apex:param name="TSrecipientId" value="" assignTo="{!TSrecipientId}" />
+            <apex:param name="TSchildId" value="" assignTo="{!TSchildId}" />
+            <apex:param name="TSrecipientType" value="" assignTo="{!TSrecipientType}" />
+            <apex:param name="TSrowId" value="" assignTo="{!TSrowId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="expandChildrenOperationIE" action="{!doOperation}" oncomplete="expandChildrenCompletedIE('{!outputMessage}','{!TSrowId}','{!TSrecipientType}', '{!TSrecipientId}','{!TSchildId}','{!tind}')" rerender="myStateSurveyBrowser">
+            <apex:param name="TSoperation" value="" assignTo="{!TSoperation}" />
+            <apex:param name="TSsurveyId" value="" assignTo="{!TSsurveyId}" />
+            <apex:param name="TSrecipientId" value="" assignTo="{!TSrecipientId}" />
+            <apex:param name="TSchildId" value="" assignTo="{!TSchildId}" />
+            <apex:param name="TSrecipientType" value="" assignTo="{!TSrecipientType}" />
+            <apex:param name="tind" value="" assignTo="{!tind}" />
+            <apex:param name="TSrowId" value="" assignTo="{!TSrowId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="deleteOperation" oncomplete="bulkDeleteCompleted({!success},{!redirectToCollect})" action="{!doOperation}" rerender="dataContainer" >
+            <apex:param name="TSoperation" value="" assignTo="{!TSoperation}" />
+            <apex:param name="TSsurveyId" value="" assignTo="{!TSsurveyId}" />
+            <apex:param name="TSsummaryId" value="" assignTo="{!TSsummaryId}" />
+            <apex:param name="TSrecipientType" value="" assignTo="{!TSrecipientType}" />
+            <apex:param name="TSrecipientId" value="" assignTo="{!TSrecipientId}" />
+            <apex:param name="TSrowId" value="" assignTo="{!TSrowId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="bulkDeleteOperation" action="{!bulkDelete}" rerender="myStateSurveyBrowser">
+            <apex:param name="TSsurveyId" value="" assignTo="{!TSsurveyId}" />
+            <apex:param name="TSsummaryId" value="" assignTo="{!TSsummaryId}" />
+            <apex:param name="TSrecipientType" value="" assignTo="{!TSrecipientType}" />
+            <apex:param name="TSrecipientId" value="" assignTo="{!TSrecipientId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="updateBrowserOperation" oncomplete="updateBrowserCompleted()" action="{!updateBrowserOperation}" rerender="dataContainer,pagination">
+        	<apex:param name="startDate" value="" assignTo="{!startDate}" />
+        	<apex:param name="endDate" value="" assignTo="{!endDate}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="redirectToSummary" action="{!redirectToSummary}" rerender="myStateSurveyBrowser">
+        	<apex:param name="TSId" value="" assignTo="{!TSId}"/>
+        </apex:actionFunction>
+    </apex:form>
+</apex:page>

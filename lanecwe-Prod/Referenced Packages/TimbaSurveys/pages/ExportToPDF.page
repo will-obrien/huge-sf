@@ -1,0 +1,70 @@
+<apex:page renderAs="pdf" controller="TIMBASURVEYS.ExportToPDFController" >
+    <apex:stylesheet value="{!$Resource.TIMBASURVEYS__pdf_styling}" />
+   
+    <style>
+    	.footer{ position:absolute;
+    				width: 100%;
+    				height: 40px;
+					bottom: 0px;
+					right: 0px; }
+    	.header{ position : running(header); margin-bottom:30px; margin-bottom:30px; height:50px; }
+    	.graphs{ margin-top:40px; margin-bottom:40px; }
+    	.easy{ float: right; }
+    	
+    	 div.foot {
+		    position : running(footer);
+		}
+    </style>
+    <apex:variable var="objectveCnt" value="{!1}" />
+    <apex:repeat value="{!QuestionPdfList}" var="question" id="theRepeat">
+    	<div style="{!if (totalQuestionsToShow != objectveCnt, 'page-break-after:always;', '' )} height: 100%;">
+    		<table width="100%">
+		    	<tr>
+			    	<!-- <div class="header">  -->
+			    		<td><img src="{!URLFOR($Resource.SurveyResources2, 'img/icons/timba_surveys_logo.png')}" style="float:left" /></td>
+			    	<!-- </div> -->
+		    	</tr>
+		    	<tr>
+		    		<td colspan="2" style="background-image: url('{!URLFOR($Resource.SurveyResources2, 'img/shared/pdf_top_triangle.png')}'); background-repeat: no-repeat; background-position: 60px 0; border-top: solid 1px; height: 14px; border-color:#999999;"></td>
+		    	</tr>
+	    	</table>
+	    	<br/>
+	    	<table width="100%">
+	    		<tr><td style="color: #3b94c4; font-size: 26px; font-weight: bold; word-wrap: break-word; font-family: Arial Unicode MS;"><apex:outputText value="{!CurrentSurvey.Name}" /></td></tr>
+	    		<tr><td Style="font-size: 26px; font-weight: bold; color: #666666; word-wrap: break-word; font-family: Arial Unicode MS;"><apex:outputText escape="false" value="{!question.questionName}" rendered="{!question.ParentId != null && question.ParentId != ''}" /></td></tr>
+	    		<tr><td style="font-size: 21px; font-weight: lighter; color: #999999; word-wrap: break-word; font-family: Arial Unicode MS;"><apex:outputText escape="false" value="{!question.Question2}" /></td></tr>
+	    	</table>
+	    	<div class="graphs" >
+		    	<table width="100%">
+			    	<tr>
+			    		<td align="center"><apex:image url="https://chart.googleapis.com/chart?chs={!question.paramChsHor}&cht={!question.paramChtHor}&chd=s:{!question.paramMappedValueHor}&chco={!question.paramChco}&chdlp={!question.paramChdlpHor}&chbh={!question.paramChbhHor}&chtt={!question.paramChttHor}&chxt=x&chxl=0" alt="Sample chart" rendered="{!displayChart}"/></td>
+			    	</tr>
+			    	<tr>
+			    		<td><apex:image url="https://chart.googleapis.com/chart?chs={!question.paramChsPie}&chxr={!question.paramChxrPie}&chxl={!question.paramChxlPie}&chl={!question.paramChlPie}&cht={!question.paramChtPie}&chd=s:{!question.paramMappedValuePie}&chco={!question.paramChco}&chdlp={!question.paramChdlpPie}" alt="Sample chart" rendered="{!question.QuestionTypeCode != 'QT_MCMAPP'}"/></td>
+			    	</tr>
+		    	</table>
+		    	<table width="100%">
+			    	<apex:variable var="color" value="{!0}" />
+			    	<apex:repeat value="{!question.responses}" var="response" id="theRepeat">
+				    	<tr>
+				    		<td style="background-color: #{!colors[ROUND(color,0)]};" width="15px" ></td>
+				    		<td Style="font-size: 20px;"><apex:outputText value="{!response}" /></td>
+				    	</tr>
+				    	<apex:variable var="color" value="{!color+1}" />
+				    </apex:repeat>
+		    	</table>
+		    	<br/>
+		    	<div layout="block">
+		    		<apex:outputText Style="font-size: 12px; font-weight: regular;" rendered="{!question.comment != null && question.comment != '' && question.comment != '-'}"
+		    			value="Comment: {!question.comment}" escape="false" /> 
+		    	</div>
+		    	<br/>
+		    	<div layout="block">
+		    		<apex:outputText Style="font-size: 12px; font-weight: regular;" rendered="{!question.totalWeight != null && question.totalWeight != '0'}" value="{!$Label.timbasurveys__timbasurvey_Total_weight}: {!question.totalWeight}" />
+		    	</div>
+ 	    	</div>
+		</div>
+		<apex:variable var="objectveCnt" value="{!objectveCnt+1}" />
+	</apex:repeat>
+	
+</apex:page>

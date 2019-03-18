@@ -1,0 +1,116 @@
+<apex:page cache="false"
+  standardStylesheets="false"
+  showHeader="false"
+  sidebar="false"
+  standardController="KnowledgeArticle"
+  extensions="pkb_Controller"
+  language="{!$CurrentPage.parameters.l}">
+<html>
+
+<head>
+  <c:pkb_fb_css />
+  <c:pkb_js pkbCon="{!pkbCon}" />
+  <title>{!pageTitle}</title>
+  <apex:includeScript value="{!$Resource.pkb_jquery_1_6_2}"/>
+  <apex:includeScript value="{!$Resource.pkb_jquery_simplemodal_1_4_1}"/>
+  <apex:outputText rendered="{!viewingArticle}">
+    <apex:variable var="typeName" value="{!SUBSTITUTE(pkbCon.theKad.articleTypeName, pkbCon.kavExtension, '')}" />
+    <apex:variable var="articleURL" value="{!pkbCon.currentSiteUrl}articles{!pkbCon.selectedLanguageURL}{!typeName}/{!pkbCon.theKad.urlName}" />
+    <meta property="og:title" content="{!pkbCon.theKad.title}"/> 
+    <meta property="og:type" content="article"/>
+    <meta property="og:url" content="{!articleURL}"/> 
+    <meta property="og:site_name" content="{!SUBSTITUTE(pkbCon.siteName,'_',' ')}" /> 
+  </apex:outputText>
+</head>
+
+<body>
+
+<!--
+HELPFUL DEBUG DATA
+
+SITE ADMIN: {!pkbCon.siteAdmin.Email}, {!pkbCon.siteAdmin.Name}<br/>
+ALL PARAMS: {!allSearchParams}<br/>
+SITE/PAGE URL: {!pkbCon.currentSiteUrl}<br/>
+FEEDBACK? : {!displayFeedback}<br/>
+SESSION: {!$Api.Session_ID}<br/>
+RSS URL: {!$Page.pkb_RSS}<br/>
+CATEGORIES: {!selectedCategory}<br/>
+KNOWLEDGE ARTICLE ID: {!theKad.Id}<br/>
+KNOWLEDGE ARTICLE ID (FROM CONTROLLER): {!KnowledgeArticle.Id}<br/>
+-->
+
+<!--  HOME PAGE LAYOUT -->
+  <div id="body">  
+    <div id="right_column">
+     <apex:form >
+        <apex:outputPanel layout="block" style="width: 100%; margin-top: 5px;" rendered="{!NOT(pkbCon.displayContactUs)}">
+          <div style="font-weight: bold; font-size: 125%; float: left;">
+           <apex:outputText >
+             Knowledge Base
+             &nbsp;&#124;&nbsp;
+              <apex:outputLink value="{!pkbCon.currentSiteUrl}">
+              {!$Label.PKB2_Contact_Us}
+              <apex:param name="{!pkbCon.contactUsParam}" value="{!pkbCon.contactUsValue}" />
+              <apex:param name="{!pkbCon.feedbackSourceParam}" value="{!pkbCon.feedbackContactUs}" />
+              <apex:param name="{!pkbCon.languageParam}" value="{!pkbCon.selectedLanguage}" />
+            </apex:outputLink>
+           </apex:outputText>
+          </div>
+        </apex:outputPanel>
+     </apex:form>
+              
+      <div id="rightHeader" style="height: 106px;">
+        <c:pkb_search pkbCon="{!pkbCon}" showBackLinks="{!AND(facebook, viewingArticle)}"/>
+      </div>
+      <apex:outputText rendered="{!displayContactUs}">
+        <apex:outputText rendered="{!searchExecuted}">
+          <div id="immediateHelp" style="text-align: right; font-weight: bold; font-size: 110%; padding-top: 12px;">{!$Label.PKB2_Answers_Might_Help}</div>
+        </apex:outputText>
+      </apex:outputText>
+      <apex:outputText rendered="{!AND(NOT(displayContactUs), NOT(viewingArticle))}">
+         <div id="rightSubHeader" style="height: 106px;">
+           <c:pkb_narrow pkbCon="{!pkbCon}" />
+         </div>
+      </apex:outputText>
+      <div id="right_content">
+
+        <apex:outputText rendered="{!NOT(displayContactUs)}">
+          <apex:outputText rendered="{!NOT(viewingArticle)}">
+            <c:pkb_featured pkbCon="{!pkbCon}" rendered="{!NOT(searchExecuted)}" />
+            <c:pkb_popular pkbCon="{!pkbCon}" rendered="{!NOT(searchExecuted)}" />
+            <c:pkb_results pkbCon="{!pkbCon}" rendered="{!searchExecuted}" showHeaderInfo="true" />
+          </apex:outputText>
+    
+          <apex:outputText rendered="{!viewingArticle}">
+            <div id="articleView" >
+              <c:pkb_articleview pkbCon="{!pkbCon}" showFeedbackYesNo="true" showBackLinks="true" />
+            </div>
+          </apex:outputText>
+        </apex:outputText>
+
+        <apex:outputText rendered="{!displayContactUs}">
+          <c:pkb_results pkbCon="{!pkbCon}" rendered="{!searchExecuted}" showHeaderInfo="false" />
+          <c:pkb_contactus_buttons_article pkbCon="{!pkbCon}" />          
+        </apex:outputText>
+
+      </div>
+
+    </div>
+
+    <div style="clear: both;"></div>
+  </div>
+<div id="fb-root"></div>
+<script src="http://connect.facebook.net/en_US/all.js"></script>
+<script> 
+   window.fbAsyncInit = function() {
+	   FB.init({
+	    appId      : '{!pkbCon.fbAppId}', // App ID
+	   });
+      FB.Canvas.setAutoGrow();
+   } 
+</script>
+</body>
+
+</html>
+<site:previewAsAdmin />
+</apex:page>

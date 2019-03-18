@@ -1,0 +1,701 @@
+<apex:page controller="qbdialer.ISDialer" docType="html-5.0" showHeader="false" standardStylesheets="false">
+    <link rel="stylesheet" href="{!URLFOR($Resource.c2c_resources, '/mobile/jquery-mobile.css')}" />
+    <link href="{!URLFOR($Resource.c2c_resources, '/fonts/proximanovasoft_semibold_macroman/stylesheet.css')}" rel="stylesheet" type="text/css" />
+    <link href="{!URLFOR($Resource.c2c_resources, '/fonts/proximanovasoft_regular_macroman/stylesheet.css')}" rel="stylesheet" type="text/css" />
+    <link href="{!URLFOR($Resource.c2c_resources, '/fonts/proximanovasoft_medium_macroman/stylesheet.css')}" rel="stylesheet" type="text/css" />
+    <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script src="https://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.js"></script>
+    <script type="text/javascript" src='/canvas/sdk/js/publisher.js'></script>
+        <div class="normal_content">
+        <header class="ISDC_Header">
+            <div class="upper_header">
+                <div class="large forceEntityIcon ISDC_logo" style="background-color: {!RecordColor};" data-aura-rendered-by="47:72.2">
+                    <img class="icon uiImage" alt="Lead" src="https://na9.salesforce.com/img/icon/t4/standard/{!ObjectTypeLowerName}_120.png" data-aura-rendered-by="51:72.2" />
+                </div>
+                <div class="header_data">
+                    <span class="ISDC_Name">{!dataObjectName}</span>
+                    <span class="ISDC_Memo">Click on a number below to call</span>
+                </div>
+            </div>
+            <div class="header_buttons">
+                <div class="vmwrap">
+                    <select class="ISDC_VM" data-mini="true" data-iconshadow="false">
+                        <option data-placeholder="true">Leave Message</option>
+                    </select>
+                </div>
+                <div class="disconnect_wrap">
+                    <button class="ISDC_Disconnect" data-mini="true">Disconnect</button>
+                </div>
+            </div>
+        </header>
+
+        <div data-role="content">
+            <div class="main_content"></div>
+            <div id="call_status"></div>
+            
+
+            <div class="ISSF1_DialLogWrap"></div>
+        </div>
+        </div>
+        <div class="invalid_license_content" style="display: none">
+
+        <span>It looks like you do not have an InsideSales.com mCall License</span>
+
+        </div>
+        <style type="text/css">
+
+        .ISDC_Header {
+            white-space: nowrap;
+        }
+
+        textarea.ui-input-text {
+            padding-left: 20px;
+        }
+
+        .ui-input-text input {
+            padding-left: 14px;
+        }
+
+        .ui-select>div {
+            text-align: left;
+            padding-left: 14px;
+        }
+        .header_data .ISDC_Memo {
+            text-shadow: none;
+        }
+
+        .ISSF1_DialLogWrap label {
+            font-size: medium;
+        }
+        
+        .ui-input-text.ui-focus {
+            background-color: white;
+        }
+
+        .ISC2C_Required {
+            color: #2089CB;
+        }
+
+        div.invalid_license_content {
+            display: none;
+            margin-left: 30px;
+            margin-right: 30px;
+            display: block;
+            text-align: center;
+            margin-top: 20%;
+        }
+
+        textarea {
+            background-color: #F0F1F2 !important;
+        }
+
+        .disconnect_wrap .ui-btn-inner {
+            background-image: -webkit-gradient(
+                linear,
+                left top,
+                left bottom,
+                color-stop(0, #DF4924),
+                color-stop(0.71, #C12F27)
+            );
+            background-image: -o-linear-gradient(bottom, #DF4924 0%, #C12F27 71%);
+            background-image: -moz-linear-gradient(bottom, #DF4924 0%, #C12F27 71%);
+            background-image: -webkit-linear-gradient(bottom, #DF4924 0%, #C12F27 71%);
+            background-image: -ms-linear-gradient(bottom, #DF4924 0%, #C12F27 71%);
+            background-image: linear-gradient(to bottom, #DF4924 0%, #C12F27 71%);
+            color: white;
+        }
+
+        .disconnect_wrap {
+            width: 35%;
+            display: inline-block;
+        }
+
+        .disconnect_wrap.only_button {
+            width: 100%;
+        }
+
+        .ISSF1_DialLogWrap {
+            display: none;
+            margin: 10px;
+            margin-top: 0px;
+        }
+
+        .vmwrap {
+            width: 64%;
+            display: inline-block;
+        }
+        .main_content {
+
+        }
+
+        .ISDC_Memo {
+            display: block;
+            color: rgb(175, 181, 185);
+            font-size: medium;
+            white-space: normal;
+            font-family: 'proxima_nova_soft_mdregular', sans-serif;
+        }
+
+        .header_buttons {
+            display: none;
+            color: white;
+            margin-left: 5px;
+            margin-right: 5px;
+            padding-bottom: 10px;
+        }
+
+        .ISDC_OnCall .header_buttons {
+            display: block;
+        }
+
+        .header_data {
+            color: white;
+            margin-top: 10px;
+            display: inline-block;
+            height: 60px;
+            vertical-align: top;
+        }   
+
+        .ISDC_Name {
+            font-family: 'proxima_nova_soft_sbregular', sans-serif;
+            font-weight: bold;
+            font-size: large;
+        }
+
+        .ISC2C_RequiredInputHidden {
+            display: none;
+        }
+
+        header {
+            background-color: #3A4A5E;
+            width: 100%;
+            display: block;
+            position: relative;
+        }
+
+        .upper_header {
+            position: relative;
+        }
+
+        .ISDC_logo {
+            display: inline-block;
+        }
+
+        .ISDC_PhoneWrap {
+            margin-top: 15px;
+            border-bottom: 1px solid #CDCED0;
+        }
+        .ISDC_Phone {
+            margin-left: 10px;
+            padding-bottom: 14px;
+        }
+
+        .ISDC_Phone_Label, .ISSF1_DialLog label {
+            color: #717171;
+            font-size: small;
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+        .ISDC_Phone_Number {
+            color: #0e7abd;
+            font-size: medium;
+            display: block;
+        }
+
+        .forceEntityIcon, .forceEntityIcon .icon {
+            border-radius: 3px;
+        }
+
+        h1 {
+            display: block;
+            font-size: x-large;
+        }
+        .forceEntityIcon.large, .forceEntityIcon.large .icon {
+            width: 60px;
+            height: 60px;
+        }
+
+        .large.forceEntityIcon {
+            margin: 10px;
+        }
+
+        .ISDC_PhoneIcon {
+            background: white  url("{!URLFOR($Resource.c2c_resources, '/img/phoneico.png')}") right center no-repeat scroll !important;
+            height:44px;
+        }
+
+        html {
+            height:95%;
+        }
+
+        body.ui-mobile-viewport.ui-overlay-c {
+            background:  url("{!URLFOR($Resource.c2c_resources, '/img/powered_by_isdc_watermark.png')}") bottom center no-repeat scroll #F0F1F2 !important;
+            padding: 0;
+            margin: 0;
+        }
+
+        body {
+            background:  url("{!URLFOR($Resource.c2c_resources, '/img/powered_by_isdc_watermark.png')}") bottom center no-repeat scroll #F0F1F2 !important;
+            padding: 0;
+            margin: 0;
+            font-family: 'proxima_nova_softregular', sans-serif;
+            color: #3c3d3e;
+        }
+
+
+        textarea,input {
+            font-family: 'proxima_nova_softregular', sans-serif;
+        }
+
+        </style>
+
+        <script type="text/javascript">
+
+        $.mobile.selectmenu.prototype.options.hidePlaceholderMenuItems = true;
+        var record_id = '{!JSENCODE(dataObjectId)}';
+        var station_number = '{!JSENCODE(utils.curUser.MobilePhone)}';
+
+        var ISSF1 = {};
+        ISSF1.CallbackPool = {};
+        ISSF1.GetBaseURL = function() {
+            var base_url = 'https://{!JSENCODE(utils.curUser.is_subdomain__c)}.insidesales.com';
+            return base_url;
+        };
+
+        ISSF1.ShowLicenseMessage = function() {
+            $('.normal_content').hide();
+            $('.invalid_license_content').show();
+        };
+
+        ISSF1.ISDC_Request = function(path, callback) {
+            var base_url = ISSF1.GetBaseURL();
+            var full_url = base_url + path + '&token=' + '{!JSENCODE(utils.curUser.is_token__c)}';
+            full_url += '&client=mcall&package='+encodeURIComponent('6.4.34');
+            var random_value = (''+Math.floor((Math.random() * 10000) + 1)+(new Date).getTime()).substring(0, 6);
+            var full_callback_name = "ISSF1.CallbackPool.c_"+random_value;
+            ISSF1.CallbackPool["c_"+random_value] = function(response) {
+                if (response && response.error && response.error.key === 'licenses_missing') {
+                    ISSF1.ShowLicenseMessage();
+                } else {
+                    callback(response);
+                }
+            };
+            full_url = full_url + '&callback='+full_callback_name;
+                        
+            var s = window.document.createElement('script');
+
+            s.type = 'text/javascript';
+            s.src = full_url;
+            window.document.body.appendChild(s);
+        };
+
+        ISSF1.ClearLocalStorage = function(key) {
+            for (var i in localStorage) {
+                var parts = i.split('.');
+                if (!(parts.length > 2)) {
+                    continue;
+                }
+                if (parts[0] === 'ISSF1' && (!key || parts[1] === key)) {
+                    delete localStorage[i];
+                }
+            }
+        };
+        
+        ISSF1.GetLocalStorage = function(key) {
+            var value = localStorage.getItem(ISSF1.GetLocalStorageKey(key));
+            if (!value) {
+                ISSF1.ClearLocalStorage(key);
+            }
+            return value;
+        }
+        ISSF1.GetLocalStorageKey = function(key) {
+            return 'ISSF1.'+key+'.'+ISSF1.GetCacheSuffix();
+        }
+        
+        ISSF1.SetLocalStorage = function(key, value) {
+            localStorage.setItem(ISSF1.GetLocalStorageKey(key), value);
+        }
+        
+        ISSF1.GetVoiceMessages = function(callback) {
+            ISSF1.ISDC_Request('/noauth/click_to_call/voice_messages?l=1', function(data) {
+                ISSF1.SetLocalStorage('VoiceMessages', JSON.stringify(data.message));
+                callback(data.message);
+            });
+        };
+        ISSF1.GetCacheSuffix = function() {
+            var date = new Date();
+            var cache_suffix = ''+date.getFullYear()+''+date.getMonth()+''+date.getDate()+''+date.getHours()+'';
+            return cache_suffix;
+        };
+        ISSF1.LoadVoiceMessages = function(messages) {
+            if (!messages) {
+                messages = ISSF1.GetLocalStorage('VoiceMessages');
+                try {
+                    messages = JSON.parse(messages);
+                } catch (e) {
+                    messages = null;
+                }
+            }
+            if (!messages) {
+                ISSF1.GetVoiceMessages(function() {
+                    ISSF1.LoadVoiceMessages();
+                });
+                return;
+            }
+            if (!messages.length) {
+                return;
+            }
+            var vm_select_el = $('.ISDC_VM');
+            for (var i = 0, il = messages.length; i < il; i++) {
+                var message = messages[i];
+                vm_select_el.append($('<option>', {"value": message.voice_message_id}).text(message.name));
+            }
+
+            try {
+                $('.ISDC_VM').selectmenu('refresh', true);
+            } catch(e) {
+            }
+
+        };
+
+        ISSF1.LeaveVoiceMessage = function(voice_message_id, callback) {
+            ISSF1.Signal(
+                voice_message_id,
+                ISSF1.LastCallInfo.Phone,
+                ISSF1.LastCallInfo.Id,
+                ISSF1.LastCallInfo.OtherId,
+                'VM',
+                function(data) {
+                    $('.ISDC_Header').removeClass('ISDC_OnCall');
+                    if (callback) {
+                        callback(data);
+                    }
+                }
+            );
+            $('.ISDC_Memo').text('Fill out the call log below');
+        };
+
+        ISSF1.GetCompanyInfo = function(callback) {
+            var user_role_id = '{!JSENCODE(utils.curUser.UserRoleId)}';
+            ISSF1.ISDC_Request('/noauth/click_to_call/company_info?l=1&UserRoleId='+encodeURIComponent(user_role_id), function(data) {
+                ISSF1.SetLocalStorage('CompanyInfo', JSON.stringify(data.message));
+                callback(data.message);
+            });
+        };
+
+        ISSF1.CreateDialLog = function(meta) {
+            var html = '';
+            var allowed_types = ['select', 'textarea', 'input_text', 'input_checkbox'];
+            for (var i = 0; i < meta.items.length; i++) {
+                var item = meta.items[i];
+                var item_html = '';
+                var req_html = '';
+                var req_lbl = '';
+
+                if ($.inArray(item.type, allowed_types) > -1) {
+                    if (item.name == 'additional_relationship__r___dp_imp_field___outbound_call_log') {
+                        item_html += '<span class="ISC2C_AdditionalRelationship">';
+                    }
+                    if (item.required) {
+                        req_html = '<div class="ISC2C_RequiredInput"> <div class="ISC2C_RequiredBlock"></div>';
+                        req_lbl ='<span class="ISC2C_Required">*</span>';
+                    }
+                    if (item.type == 'input_checkbox') {
+                        item_html += '<label for="'+item.name+'">'+item.label+req_lbl + '</label>';
+                    } else {
+                        item_html += '<label>'+item.label+':'+ req_lbl + '</label>';
+                    }
+
+                    switch (item.type) {
+                        case 'select':
+                            item_html += req_html + '<select class="ISC2C_DialLogInputs" data-iconshadow="false" name="'+item.name+'" id="'+item.name+'" >';
+                            if(item.options != null) {
+                                for(var j = 0; j < item.options.length; j++) {
+                                    item_html += '<option value="'+item.options[j]+'">'+item.options[j]+'</option>';
+                                }
+                            }
+                            item_html += '</select>';
+                            break;
+                        case 'textarea':
+                            item_html += req_html + '<textarea class="ISC2C_DialLogInputs" name="'+item.name+'" id="'+item.name+'" ></textarea>';
+                            break;
+                        case 'input_text':
+                            if(item.name == 'additional_relationship__r___dp_imp_field___outbound_call_log') {
+                                item_html += req_html + '<select class="ISC2C_DialLogInputs" id="additionalrelationship__r__type">' +
+                                    '<option value="">[SELECT]</option>' + 
+                                    '</select>' +
+                                    '<select class="ISC2C_DialLogInputs"  id="additionalrelationship__r__object">' +
+                                    '<option value="">[SELECT]</option>' + 
+                                    '</select>';
+                            } else {
+                                item_html += req_html + '<input class="ISC2C_DialLogInputs" maxlength="255" type="text" name="'+item.name+'" id="'+item.name+'" />';
+                            }
+                            break;
+                        case 'input_checkbox':
+                            item_html = req_html + '<input class="ISC2C_DialLogInputs ISC2C_DialLogInputsCheckbox" type="checkbox" name="'+item.name+'" id="'+item.name+'" />' + item_html;
+                            break;
+                    }
+                    if (item.required) {
+                        item_html += '<div id="'+item.name+'-required" class="ISC2C_RequiredInputErrorMsg ISC2C_RequiredInputHidden"><strong>Error:</strong> You must select a value</div></div>';
+                    } else {
+                        item_html += '';
+                    }
+                }
+                html += item_html;
+            }
+
+            ISSF1.DialLogElement = $('<div class="ISSF1_DialLog"><form>'+html+'</form></div>');
+            $('.ISSF1_DialLogWrap').html('').append(ISSF1.DialLogElement);
+            $(document.body).trigger('create');
+            //ISSF1.DialLogElement.page().show();
+            //$('.ISSF1_DialLog').page();
+        };
+
+        ISSF1.LoadCompanyInfo = function(company_info) {
+            if (!company_info) {
+                company_info = ISSF1.GetLocalStorage('CompanyInfo');
+                try {
+                    company_info = JSON.parse(company_info);
+                } catch (e) {
+                    company_info = null;
+                }
+            }
+            if (!company_info) {
+                ISSF1.GetCompanyInfo(function() {
+                    ISSF1.LoadCompanyInfo();
+                });
+                return;
+            }
+            ISSF1.CompanyInfo = company_info;
+            ISSF1.CreateDialLog(ISSF1.CompanyInfo.outbound_call_log);
+            ISSF1.ToggleVMButton();
+        };
+
+        ISSF1.ShowVMButton = function(show) {
+            if (show) {
+                $('.vmwrap').show();
+                $('.disconnect_wrap').removeClass('only_button');
+            } else {
+                $('.vmwrap').hide();
+                $('.disconnect_wrap').addClass('only_button');
+            }
+        };
+
+        ISSF1.ToggleVMButton = function() {
+            var company_info = ISSF1.CompanyInfo;
+            if (company_info && company_info.outbound_controls && company_info.outbound_controls.items && company_info.outbound_controls.items.length) {
+                var items = company_info.outbound_controls.items;
+                for (var i = 0, il = items.length; i < il; i++) {
+                    var row = items[i];
+                    for (var button in row) {
+                        
+                        if (row[button].button_id === 'leave_message') {
+                            ISSF1.ShowVMButton(true);
+                            return;
+                        }
+                    }
+                }
+            }
+            ISSF1.ShowVMButton(false);
+        };
+
+        ISSF1.Signal = function(message_id, phone_number, object_id, other_id, action, callback, rec_type) {
+            var url;
+            url = '/do=noauth/click_to_call/dial'
+                + '?dial_action=signal'
+                + '&signal_action='   + (action == undefined?'':encodeURIComponent(action))
+                + '&message_id='      + (message_id == undefined?'':encodeURIComponent(message_id))
+                + '&external_id='     + (object_id == undefined?'':encodeURIComponent(object_id))
+                + '&other_id='        + (other_id == undefined?'':encodeURIComponent(other_id))
+                + '&agent_number='    + encodeURIComponent(station_number)
+                + '&client_number='   + (phone_number == undefined?'':encodeURIComponent(phone_number))
+                + '&caller_id='       + (phone_number == undefined?'':encodeURIComponent(phone_number))
+                + '&rec_type='        + (rec_type == undefined?'':encodeURIComponent(rec_type));
+            return ISSF1.ISDC_Request(url, callback);
+        };
+
+        ISSF1.Disconnect = function() {
+            ISSF1.Signal(
+                '',
+                ISSF1.LastCallInfo.Phone,
+                ISSF1.LastCallInfo.Id,
+                ISSF1.LastCallInfo.OtherId,
+                'TERM',
+                function() {
+                    $('.ISDC_Header').removeClass('ISDC_OnCall');
+                }
+            );
+            $('.ISDC_Memo').text('Fill out the call log below');
+        };
+
+        ISSF1.GetGeoLocation = function(high_accuracy) {
+            try {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        ISSF1.GeoLocation = position;
+                    }, function() { throw "geolocation problem"; }, {maximumAge:60000, timeout:10000, enableHighAccuracy: high_accuracy});
+                }
+            } catch (e) {
+                if (high_accuracy) {
+                    ISSF1.GetGeoLocation(false);
+                }
+            }
+        };
+
+        ISSF1.SendDialLogToInsideSales = function() {
+            var url = '/do=noauth/click_to_call/save_dial_log?immediate_push=1&impression_id=' + encodeURIComponent(ISSF1.LastCallInfo.ImpressionId) + '&id=' + encodeURIComponent(ISSF1.LastCallInfo.ImpressionId);
+
+            for (var i = 0; i < ISSF1.CompanyInfo.outbound_call_log.items.length; i++) {
+                var item = ISSF1.CompanyInfo.outbound_call_log.items[i];
+                //.val returns the value of the checkbox not the checked status. 
+                var item_value = '';
+                if (item.type == 'input_checkbox') {
+                    item_value = $('#'+item.name).attr('checked') == 'checked' ? 'true' : 'false';
+                    url += '&'+item.name+'='+encodeURIComponent(item_value);
+                } else if ('subject___dp_imp_field___outbound_call_log' == item.name) {
+                    item_value = ('' == $('#'+item.name).val()) ? 'Call' : 'Call - ' + $('#'+item.name).val();
+                    url += '&'+item.name+'='+encodeURIComponent(item_value);
+                } else {
+                    item_value = $('#'+item.name).val();
+                    url += '&'+item.name+'='+encodeURIComponent(item_value);
+                }
+                if (item.required && !item_value) {
+                    alert('Please complete all required fields');
+                    return false;
+                }
+            }
+            
+            url += '&GeoLocation=' + encodeURIComponent(JSON.stringify(ISSF1.GeoLocation));
+
+            ISSF1.ISDC_Request(url, function(data){
+                Sfdc.canvas.publisher.publish({
+                    name: "publisher.close",
+                    payload:{ refresh:"true"}
+                });
+            });
+        };
+
+
+
+        ISSF1.Dial =  function(number, object_id, station_number) {
+            ISSF1.LastCallInfo = {
+                'Phone': number,
+                'Id': object_id,
+                'OtherId':''
+            };
+
+            var url = '/do=noauth/click_to_call/dial'
+                + '?dial_action=dial_now'
+                + '&client_number=' + encodeURIComponent(number)
+                + '&agent_number='  + encodeURIComponent(station_number )
+                + '&caller_id='     + encodeURIComponent(station_number )
+                + '&external_id='   + (object_id == undefined?'':encodeURIComponent(object_id))
+                + '&other_id='
+                + '&c2c_action=1'
+                + '&source=click_to_call';
+            var station_phone_text_ele = $('<span></span>');
+            station_phone_text_ele.text(station_number);
+            $(".ISDC_Memo").html('Connecting to you at:<br/>').append(station_phone_text_ele);
+            ISSF1.ISDC_Request(url, function(dial_response) {
+                if (dial_response && dial_response.success) {
+                    $('.ISDC_Header').addClass('ISDC_OnCall');
+                    $(".ISSF1_DialLogWrap").show();
+                    if (dial_response.message) {
+                        ISSF1.LastCallInfo.ImpressionId = dial_response.message.impression_id;
+                    }
+                    Sfdc.canvas.publisher.publish({
+                        name: "publisher.setValidForSubmit",
+                        payload:"true"
+                    });
+                    Sfdc.canvas.publisher.subscribe({
+                        name: "publisher.post",
+                        onData:function(e) {
+                            ISSF1.SendDialLogToInsideSales();
+                        }
+                    });
+
+
+
+                    $(".main_content").hide();
+                    setTimeout(function() {
+                        var caller_id_text_ele = $('<span></span>');
+                        caller_id_text_ele.text(dial_response.caller_id)
+                        $(".ISDC_Memo").html('Your Caller ID:<br/>').append(caller_id_text_ele);
+                    }, 5000);
+                    return;
+                }
+                $(".ISDC_Memo").text(dial_response.error.message);
+            });
+
+            ISSF1.GetGeoLocation(true);
+        };
+
+        ISSF1.PhoneList = {};
+
+        ISSF1.PhoneListString = '{!JSENCODE(PhoneList)}';
+        try {
+            ISSF1.PhoneList = JSON.parse(ISSF1.PhoneListString);
+        } catch (e) {
+            ISSF1.PhoneList = {};
+        }
+
+        ISSF1.PhoneListContainer = $('.main_content');
+
+        ISSF1.CreatePhoneElement = function(label, number) {
+            if (!number) {
+                return;
+            }
+            var phone_el = $('<div class="ISDC_Phone"></div>');
+            var label_el = $('<span class="ISDC_Phone_Label"></span>');
+            label_el.text(label);
+            var number_el = $('<span class="ISDC_Phone_Number"></span>');
+            number_el.text(number);
+            phone_el.append(label_el).append(number_el);
+            phone_el.bind('click', function() {
+                ISSF1.Dial(number, record_id, station_number);
+            });
+            var phone_el_wrap = $('<div class="ISDC_PhoneWrap"></div>');
+            phone_el_wrap.append(phone_el);
+            ISSF1.PhoneListContainer.append(phone_el_wrap);
+
+        };
+        ISSF1.InitializePhoneList = function() {
+            if (!ISSF1.PhoneList || !ISSF1.PhoneList.numbers) {
+                return false;
+            }
+            if (ISSF1.PhoneList.numbers.Phone) {
+                ISSF1.CreatePhoneElement(ISSF1.PhoneList.numbers.Phone.label, ISSF1.PhoneList.numbers.Phone.number);
+                delete ISSF1.PhoneList.numbers.Phone;
+            }
+            if (ISSF1.PhoneList.numbers.MobilePhone) {
+                ISSF1.CreatePhoneElement(ISSF1.PhoneList.numbers.MobilePhone.label, ISSF1.PhoneList.numbers.MobilePhone.number);
+                delete ISSF1.PhoneList.numbers.MobilePhone;
+            }
+            for (var i in ISSF1.PhoneList.numbers) {
+                var item = ISSF1.PhoneList.numbers[i]; 
+                ISSF1.CreatePhoneElement(item.label, item.number);
+            }
+        };
+
+
+        $(function() {
+            $('.header_data').css('max-width', ($('.upper_header').outerWidth() - $('.ISDC_logo').outerWidth() - 60)+'px');
+
+            $('.ISDC_Disconnect').click(function() {
+                ISSF1.Disconnect();
+            });
+            ISSF1.InitializePhoneList();
+            ISSF1.LoadCompanyInfo();
+            ISSF1.LoadVoiceMessages();
+            $('select.ISDC_VM').change(function() {
+                var voice_message_id = $('select.ISDC_VM').val();
+                ISSF1.LeaveVoiceMessage(voice_message_id, function() {
+                    
+                });
+            });
+        });
+
+        </script>
+
+        </apex:page>

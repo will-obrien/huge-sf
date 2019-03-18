@@ -1,0 +1,124 @@
+<apex:page showHeader="false"
+            standardStylesheets="false"
+            sidebar="false"
+            controller="ePrize_Zemzu.LeaderboardSidebarWidgetController"
+            action="{!initLeaderboardWidget}"
+            readOnly="true">
+
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"/>
+<apex:includeScript value="{!URLFOR($Resource.ePrize_Zemzu__compete, 'javascripts/compete-min.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.ePrize_Zemzu__compete, '/stylesheets/style.css')}"/>
+
+  <script type="text/javascript">
+    (function($) {
+
+      if($.fn.preload) {
+        $.fn.preload([
+          '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/panel_button_small_off.jpg')}',
+          '{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/panel_button_small_on.jpg')}'
+        ]);
+      }
+
+      $(document).ready(function($){
+        $('.contest-entry').each(function() {
+          var link = $(this).find('a');
+          link.attr("target", "_parent");
+          link.attr("onblur", "");
+          link.attr("onfocus", "");
+          link.attr("onmouseout", "");
+          link.attr("onmouseover", "");
+        });
+        $('.hoverDetail').hide();
+      });
+    }(jQuery));
+  </script>
+
+<div class="l11 l11-mini-dashboard">
+  <div class="min-height250">
+    <apex:outputPanel rendered="{!IF(contestId == null, true, false)}">
+      <div class="">
+        <h2>
+          There are currently no active contests.
+        </h2>
+      </div>
+    </apex:outputPanel>
+    <div class="header">
+      <h2>{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}</h2>
+    </div>
+    <div class="leaderboard">
+      <apex:variable var="count" value="{!0}" />
+      <apex:repeat value="{!topLeaders}" var="leader">
+        <div class="row-fluid">
+          <div class="span2">
+            <div class="ranking">
+              <span>#</span>
+              <span class="ranking-symbol">
+                <apex:outputText value="{!Round(count + 1, 0)}" />
+                <apex:variable var="count" value="{!count + 1}" />
+              </span>
+            </div>
+          </div>
+          <div class="span10">
+            <div class="contest-entry">
+              <span>
+                <apex:outputField value="{!leader.contestUser.ePrize_Zemzu__User__c}" rendered="{!IF(fullContest.isTeamBased, false, true)}"/>
+                  <apex:outputText value="{!leader.team.name}" rendered="{!fullContest.isTeamBased}"/>
+              </span>
+            </div>
+            <div class="contest-points">
+              <span class="pull-right">
+                <strong>
+                  <apex:outputText value="{!leader.rankByValueFormatted}" rendered="{!fullContest.isDollarRanked}"/>
+                  <apex:outputText value="{0,number,###.##%}" rendered="{!fullContest.isPercentToGoal}">
+                    <apex:param value="{!leader.value}" />
+                  </apex:outputText>
+                  <apex:outputText value="{!leader.entriesFormatted}" rendered="{!fullContest.isChanceToWin || fullContest.isEntryRanked}"/>
+                </strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </apex:repeat>
+      <div class="divider"/>
+      <div>
+        <apex:outputPanel rendered="{!IF(fullContest.isCurrentUserParticipant, true, false)}">
+          <div class="header">
+            <h2>Your Position</h2>
+          </div>
+          <div class="row-fluid">
+            <div class="span2">
+              <div class="ranking">
+                <span>#</span>
+                <span class="ranking-symbol">
+                  <apex:outputText value="{!currentUserLeaderInfo.displayRank}"/>
+                </span>
+              </div>
+            </div>
+            <div class="contest-entry">
+              <span>
+                <apex:outputField value="{!currentUserLeaderInfo.contestUser.ePrize_Zemzu__User__c}" rendered="{!IF(fullContest.isTeamBased, false, true)}"/>
+                <apex:outputText value="{!currentUserLeaderInfo.team.name}" rendered="{!fullContest.isTeamBased}"/>
+              </span>
+            </div>
+            <div class="contest-points">
+              <span class="pull-right">
+                <strong>
+                  <span><apex:outputText value="{!currentUserLeaderInfo.rankedByValueFormatted}"/></span>
+                </strong>
+              </span>
+            </div>
+          </div>
+        </apex:outputPanel>
+      </div>
+      <apex:outputPanel rendered="{!IF(contestId == null, false, true)}">
+        <div class="divider"/>
+        <div class="row-fluid">
+          <div class="see-full-leaderboard">
+            <a href="/apex/Leaderboard?contestId={!fullContest.contestEntity.id}" target="_parent" class="l11-btn l11-btn-small l11-btn-center">Leaderboard</a>
+          </div>
+        </div>
+      </apex:outputPanel>
+    </div>
+  </div>
+</div>
+</apex:page>

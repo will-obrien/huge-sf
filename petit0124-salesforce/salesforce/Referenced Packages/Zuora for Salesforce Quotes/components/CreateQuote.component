@@ -1,0 +1,275 @@
+<apex:component allowDML="true" selfClosing="true" access="global"
+	controller="zqu.CreateQuoteCompController"
+  extensions="zqu.JsRemoteController" >
+	<apex:attribute name="title" access="global" type="String"
+		description="Page title that will be displayed in the component" />
+	<apex:attribute name="subTitle" access="global" type="String"
+		description="Sub title that will be displayed in the component" />
+	<apex:attribute name="crmAccountId" access="global"
+    assignTo="{!quoteController.paramCrmAccountId}" required="false" type="String"
+    description="If there is no opportunity set, then Account Id is a must." />
+	<apex:attribute name="opportunityId" access="global"
+		assignTo="{!quoteController.paramOppId}" required="false" type="String"
+		description="Opportunity Id" />
+	<apex:attribute name="subscriptionId" access="global" type="String"
+		assignTo="{!quoteController.paramSubscriptionId}" required="true"
+		description="Subscription Id" />
+	<apex:attribute name="billingAccountId" access="global" type="String"
+		assignTo="{!quoteController.paramBillingAccountId}" required="true"
+		description="BillingAccount Id" />
+	<apex:attribute name="nextPageUrl" access="global" type="String"
+		assignTo="{!quoteController.paramNextPageUrl}"
+		description="The next page after creating quotes" />
+	<apex:attribute name="cancelPageUrl" access="global" type="String"
+		assignTo="{!quoteController.paramCancelPageUrl}"
+		description="The cancel page when clicking the cancel button" />
+	<apex:attribute name="backPageUrl" access="global" type="String"
+		assignTo="{!quoteController.paramBackPageUrl}"
+		description="The page to navigate to upon clicking the back button" />
+	
+	<!-- COM-4888 - Support for optional Back button -->	
+	<apex:attribute name="backButtonLabel" assignTo="{!backButtonText}"
+		type="String" access="global"
+		description="Text value rendered in the back button" />
+	<apex:attribute name="nextButtonLabel" assignTo="{!nextButtonText}"
+		type="String" access="global"
+		description="Text value rendered in the back button" />
+	<apex:attribute name="renderBackButton" assignTo="{!quoteController.propOptions.renderBackButton}"
+		type="Boolean" access="global"
+		description="Boolean to specify whether or not to render the back button" />
+	
+	<apex:sectionHeader rendered="{!NOT(ISBLANK(title))}" title="{!title}"
+		subtitle="{!IF(ISBLANK(subTitle), defaultSubTitle, subTitle)}"
+		id="quoteTitle" />
+
+  <!-- Include JS and CSS for T&C amendments -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/TermsAndConditions-compressed.js')}" />
+  <apex:stylesheet value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/css/TermsAndConditions-min.css')}" />
+
+  <!-- Include JS for radio button field -->
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, 'js/RadioButtonField-compressed.js')}" />
+				
+	<script>
+	  var $jq = jQuery.noConflict();
+    var zQuotesNamespace = "{!zQuotesNamespace}";
+
+	  function createQuote_CSSSet(dataId){
+	    var selector = "span[data-id='" + dataId + "']";
+	    var ele = $jq(selector);
+      if(ele.length){
+        ele.each(function(index){
+          var parentEle = $jq(this).parent(".dataCol");
+          var parentEle2 = $jq(this).parent(".data2Col");
+          if(parentEle.length){
+            parentEle.removeClass("dataCol");
+            parentEle.css('padding-top', '5px');
+          }
+          if(parentEle2.length){
+            parentEle2.removeClass("data2Col");
+            parentEle2.css('padding-top', '5px');
+          }
+        });
+      }
+	  }
+
+    function initRenewalSetting() {
+      // Options for the RenewalSetting__c radio button
+      var renewalSettingRadioButtonOptions = {};
+      renewalSettingRadioButtonOptions.fieldName = '{!zQuotesNamespace}RenewalSetting__c';
+      renewalSettingRadioButtonOptions.editMode = true; // For create quote component, we will always be in edit mode
+      renewalSettingRadioButtonOptions.defaultValue = '{!quoteController.quote.RenewalSetting__c}';
+      renewalSettingRadioButtonOptions.onclick = function(event){
+        $jq('input[data-id="renewalSettingHiddenInput"]').val(event.data.updatedValue);
+
+        // Toggle the visibility of the RenewalTerm input field for amendment/renewal quotes
+        TermsAndConditions.toggleRenewalTerm(event.data.updatedValue);
+      };
+      renewalSettingRadioButtonOptions.values = [
+        {'label' : '{!$Label.RENEWAL_SETTING_RENEW_WITH_SPECIFIC_TERM}', 'value' : 'RENEW_WITH_SPECIFIC_TERM'}, 
+        {'label' : '{!$Label.RENEWAL_SETTING_RENEW_TO_EVERGREEN}', 'value' : 'RENEW_TO_EVERGREEN'}
+      ];
+
+      RadioButtonField.initRadioButtonField(renewalSettingRadioButtonOptions);
+
+      // Toggle the visibility of the renewalTerm field based on the renewalSetting of the existing subscription (if base subscription is not evergreen)
+      if('{!quoteController.quote.Subscription_Term_Type__c}' != 'Evergreen' && '{!quoteController.quote.RenewalSetting__c}' == 'RENEW_TO_EVERGREEN') TermsAndConditions.toggleRenewalTerm('{!quoteController.quote.RenewalSetting__c}');
+    }
+
+	  $jq(function(){
+	    createQuote_CSSSet("customRenderedCurrency");
+	    createQuote_CSSSet("customRenderedInvoiceOwner");
+	    createQuote_CSSSet("customRenderedParentBillingAccount");
+	    createQuote_CSSSet("customRenderedTermType");
+
+      // Read debugMode from URL parameters
+      var debugMode = '{!$CurrentPage.parameters.jsDebugMode}';
+
+      var defaultVals = $jq.parseJSON('{!quoteController.defaultTermsAndConditionsJson}');
+      TermsAndConditions.init(zQuotesNamespace, defaultVals, "{!quoteController.quote.Subscription_Term_Type__c}", "{!$RemoteAction.JsRemoteController.recalculateTermEndDate}", debugMode);
+
+      // COM-8347 - Initialize custom rendered renewal settings
+      initRenewalSetting();
+    });
+    
+    function changeCurrency(val) {
+      if(validateInvoiceOwner)
+        validateInvoiceOwner(val);
+    }
+
+    //Function called when a mutton select option is clicked
+    function setTriggerDate(option, mutton) {
+      //If the user clicked a disabled option, do nothing
+      if(option.disabled) return false;
+      
+      //If the selected option was valid, locate the corresponding date input and set its value
+      $jq("span[data-id='customRendered" + mutton.instanceName + "'] input").val(option.value);
+      return true;
+    }
+
+    //Function to adjust the positioning of the trigger dates and muttons
+    function setTriggerDateCSS(fieldName, isRequired, isSingleColumn) {
+      //Retrieve the trigger date input by fieldName
+      var triggerDateInput = $jq("input[data-id='" + fieldName + "Input']");
+
+      //Determine the adjusted width percentage based on whether or not the field set was single or double column
+      var newWidth = isSingleColumn ? '17.5%' : '35%';
+
+      //Find the closest parent td
+      var parentTd = triggerDateInput.closest("td");
+
+      //Set the new width of the immediately previous sibling th
+      parentTd.prev("th").width(newWidth);
+
+      //For non-required fields, the parent span must float left in order to render correctly
+      if(!isRequired) {
+        triggerDateInput.parent("span").css("float", "left");
+      }
+    }
+	</script>
+	
+	<apex:form >
+    <div id="quotePropertyContainer" >
+
+      <!-- Hidden inputs to be used for recalculating term end date -->
+      <apex:outputPanel rendered="{!OR($CurrentPage.parameters.quoteType == 'Amendment', $CurrentPage.parameters.quoteType == 'Renewal')}" >
+        <apex:inputHidden value="{!quoteController.updatedTermEndDate}" html-data-id="updatedTermEndDateString" />
+      </apex:outputPanel>
+  	
+  		<apex:actionFunction name="doCancel" action="{!quoteController.cancelQuoteWizard}" immediate="true" />
+  		<apex:actionFunction name="goBack" action="{!quoteController.goBack}" immediate="true" rerender="propertyComponent" oncomplete="closeStatusModal();" />
+
+      <!-- Custom input for renewal setting (salesforce has no RADIO type) -->
+      <apex:inputHidden value="{!quoteController.updatedRenewalSetting}" html-data-id="renewalSettingHiddenInput" />
+
+  		<c:PropertyComponent saveButtonLabel="{!NextButtonText}"
+  			BackButtonLabel="{!BackButtonText}"
+  			options="{!quoteController.propOptions}"
+  			id="propertyComponent" >
+
+        <!-- Custom Rendered StartDate -->
+        <apex:outputPanel styleClass="customRenderedFieldPanel" html-data-id="customRenderedContractEffective"
+            rendered="{!IF(field.name == zQuotesNamespace + 'StartDate__c', true, false)}" > 
+          <apex:pageBlockSection columns="1" >
+            <apex:inputField value="{!quoteController.quote.zqu__StartDate__c}" required="{!field.isRequired}" html-data-id="contractEffectiveInput" >
+              <c:Mutton options="{!quoteController.dateAssistanceOptions['ContractEffective']}" rendered="{!quoteController.renderDateAssistance}" />
+            </apex:inputField>
+          </apex:pageBlockSection>
+          <script>
+            setTriggerDateCSS('contractEffective', {!field.isRequired}, {!fieldSet.isSingleColumn});
+          </script>
+        </apex:outputPanel>
+
+        <!-- Custom Rendered ServiceActivationDate -->
+        <apex:outputPanel styleClass="customRenderedFieldPanel" html-data-id="customRenderedServiceActivation"
+            rendered="{!IF(field.name == zQuotesNamespace + 'Service_Activation_Date__c', true, false)}" >
+          <apex:pageBlockSection columns="1" >
+            <apex:inputField value="{!quoteController.quote.zqu__Service_Activation_Date__c}" required="{!field.isRequired}" html-data-id="serviceActivationInput" >
+              <c:Mutton options="{!quoteController.dateAssistanceOptions['ServiceActivation']}" rendered="{!quoteController.renderDateAssistance}" />
+            </apex:inputField>
+          </apex:pageBlockSection>
+          <script>
+            setTriggerDateCSS('serviceActivation', {!field.isRequired}, {!fieldSet.isSingleColumn});
+          </script>
+        </apex:outputPanel>
+        
+        <!-- Custom Rendered CustomerAcceptanceDate -->
+        <apex:outputPanel styleClass="customRenderedFieldPanel" html-data-id="customRenderedCustomerAcceptance"
+            rendered="{!IF(field.name == zQuotesNamespace + 'Customer_Acceptance_Date__c', true, false)}" >
+          <apex:pageBlockSection columns="1" >
+            <apex:inputField value="{!quoteController.quote.zqu__Customer_Acceptance_Date__c}" required="{!field.isRequired}" html-data-id="customerAcceptanceInput" >
+              <c:Mutton options="{!quoteController.dateAssistanceOptions['CustomerAcceptance']}" rendered="{!quoteController.renderDateAssistance}" />
+            </apex:inputField>
+          </apex:pageBlockSection>
+          <script>
+            setTriggerDateCSS('customerAcceptance', {!field.isRequired}, {!fieldSet.isSingleColumn});
+          </script>
+        </apex:outputPanel>
+
+  			<!-- Custom Rendered Currency -->
+  			<apex:outputPanel styleClass="customRenderedFieldPanel" html-data-id="customRenderedCurrency"
+  				rendered="{!AND(quoteController.isInvoiceOwnerEnabled, quoteType == 'Subscription', IF(field.name == zquotesNamespace + 'Currency__c', true, false))}">
+  				<apex:outputPanel style="padding-right:8px; float: left; padding-top: 0px; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+  					styleClass="labelCol">
+  					<apex:outputLabel style="margin-right: 10px;">{!field.label}</apex:outputLabel>
+  				</apex:outputPanel>
+  				<apex:inputField value="{!quoteController.quote.zqu__Currency__c}"
+  					required="{!field.isRequired}"
+  					onchange="displayStatusModal();changeCurrency(this.options[this.selectedIndex].value);"
+  					rendered="{!NOT(quoteController.isCurrencyReadOnly)}" />
+  				<apex:outputField value="{!quoteController.quote.zqu__Currency__c}"
+  					rendered="{!quoteController.isCurrencyReadOnly}" />
+  			</apex:outputPanel>
+
+
+  			<!-- Custom Rendered Invoice Owner -->
+  			<apex:outputPanel id="customRenderedInvoiceOwner" html-data-id="customRenderedInvoiceOwner"
+  				rendered="{!AND(quoteController.isInvoiceOwnerEnabled, IF(field.name == zquotesNamespace + 'InvoiceOwnerName__c', true, false))}">
+  				<apex:pageblockSectionItem >
+  					<apex:outputPanel style="padding-right:8px; float: left; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+  						styleClass="labelCol">
+  						<apex:outputLabel style="margin-right: 8px;">{!field.label}</apex:outputLabel>
+  					</apex:outputPanel>
+  					<apex:outputPanel style="float: left;">
+  						<c:LookupComponent options="{!quoteController.invoiceOwnerLookupOptions}"
+  							isRequired="{!field.isRequired}"></c:LookupComponent>
+  					</apex:outputPanel>
+  				</apex:pageblockSectionItem>
+  			</apex:outputPanel>
+  			
+  			<apex:outputPanel id="customRenderedParentBillingAccount" html-data-id="customRenderedParentBillingAccount"
+  				rendered="{!AND(ISBLANK(billingAccountId), quoteController.isBillingAccountOwnerEnabled, quoteType == 'Subscription', field.name == zquotesNamespace + 'ZuoraParentBillingAccountName__c')}">
+  				<apex:pageBlockSectionItem >
+  					<apex:outputPanel style="padding-right:8px; float: left; width: {!IF(fieldSet.isSingleColumn, '18%','36%')};"
+  						styleClass="labelCol">
+  						<apex:outputLabel style="margin-left: 10px;">{!field.label}</apex:outputLabel>
+  					</apex:outputPanel>
+  					<apex:outputPanel style="float: left;">
+  						<c:LookupComponent options="{!quoteController.parentBillingAccountLookupOptions}"></c:LookupComponent>
+  					</apex:outputPanel>
+  				</apex:pageBlockSectionItem>
+  			</apex:outputPanel>
+        
+  		</c:PropertyComponent>
+
+  		<apex:actionFunction name="validateInvoiceOwner" rendered="{!quoteController.isInvoiceOwnerEnabled}"
+  			action="{!quoteController.onCurrencyChange}"
+  			rerender="customNotificationPanel,customRenderedInvoiceOwner"
+  			immediate="true" oncomplete="javascript:closeStatusModal();">
+  			<apex:param assignTo="{!quoteController.selectedCurrency}" value=""
+  				name="val" />
+  		</apex:actionFunction>
+  		<apex:actionFunction rendered="{!AND(quoteType != 'Subscription', quoteController.isInvoiceOwnerEnabled)}"
+  			name="changeInvoiceOwner"
+  			action="{!quoteController.changeInvoiceOwner}" status="modalStatus"
+  			rerender="customNotificationPanel" immediate="true">
+  			<apex:param assignTo="{!quoteController.invoiceOwnerLookupOptions.targetId}"
+  				value="" name="valId" />
+  			<apex:param assignTo="{!quoteController.invoiceOwnerLookupOptions.targetName}"
+  				value="" name="valName" />
+  		</apex:actionFunction>
+  		<apex:actionStatus id="modalStatus" onstart="displayStatusModal();"
+  			onstop="closeStatusModal();" />
+  	</div>	
+	</apex:form>
+
+</apex:component>

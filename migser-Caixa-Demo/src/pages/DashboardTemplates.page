@@ -1,0 +1,598 @@
+<apex:page sidebar="false" controller="DashboardTemplatesController" tabStyle="Dashboard_Templates__tab">
+    <script src="//www.jumpstartwave.com/lib/ext_dep.utils.js"></script>        
+    <script src="//www.jumpstartwave.com/lib/ext_dep.bootstrap.js"></script>
+    <script src="//www.jumpstartwave.com/lib/spectrum.min.js"></script>    
+    <script src="//www.jumpstartwave.com/scripts/utils.js"></script>
+
+    <link rel="stylesheet" href="//www.jumpstartwave.com/lib/ext_dep.utils.css" type="text/css" />
+    <link rel="stylesheet" href="//www.jumpstartwave.com/lib/ext_dep.bootstrap.css" type="text/css" />  
+    <link rel="stylesheet" href="//www.jumpstartwave.com/lib/spectrum.min.css" type="text/css" />      
+    <link rel="stylesheet" href="//www.jumpstartwave.com/styles/Style.css" type="text/css" />        
+        
+    <script>
+        var COOKIE_COLOR_WIDGET_PALETTE = "dashboardColorWidgetPalette"; // original    
+        var COOKIE_COLOR_PALETTE_REPLACE = "dashboardColorPaletteReplace"; // current
+        var COOKIE_WIDGET_COLOR_ORIG = "dashboardWidgetOrigColor";
+        var COOKIE_BOX_LOGO = "dashboardBoxLogo"; // come up with a better way to handle multiple images   
+    
+        var URL_TEMPLATE_REPO = "https://api.github.com/repos/jumpstartwave/DashboardTemplates/contents";
+        var URL_TOKEN_DASHBOARD_ID = "dashboardId";
+        var URL_TOKEN_LOGO_ID = "logoId";    
+        var BOX_LOGO_TOKEN = "Logo_box";
+    
+        var colorPaletteMap = {};
+    
+        var jQ = jQuery.noConflict();
+        jQ(function() {
+            processFolders();
+            jQ("#iconSettings").on("click", populateModalSettings);
+            postLoad();
+        });
+    
+        function getCookie(cname) {
+            var cookies = document.cookie.split(";");
+            for (var i = 0, len = cookies.length; i < len; i++) {
+              curCookie = cookies[i];
+              if (curCookie.trim().indexOf(cname + "=") === 0) {
+                return curCookie.trim().substring(cname.length + 1);
+              }
+            }
+            return "";
+        }
+    
+        function processFolders() {
+            var strFolderList = '{!folders}';
+            var folderList = JSON.parse(strFolderList);
+            folderList.sort(function(a, b) {
+                return a.name.toUpperCase() > b.name.toUpperCase() ? 1 : -1;
+            });
+            
+            for(var i=0; i<folderList.length; i++) {
+                var elOption = jQ("<option>", { value: folderList[i].id });
+                elOption.html(folderList[i].name);
+                jQ("#sel_folder").append(elOption);                
+            }
+            jQ("#sel_folder").selectpicker();             
+        }
+    
+        function loadTemplates() {
+            jQ.ajax({
+                url: URL_TEMPLATE_REPO,
+                success: function(files) {
+                    if(files == null || files.length == 0) return;
+                    
+                    jQ("#sel_template").html('<option data-hidden="true" value="">Please select a template</option>');
+                    for(var i=0; i<files.length; i++) {
+                        if(files[i].name.indexOf(".json") > -1) {
+                            var elOption = jQ("<option>", { 
+                                value: files[i].download_url, id: files[i].name.replace(".json","")
+                            });
+                            elOption.html(files[i].name);
+                            jQ("#sel_template").append(elOption);
+
+                            // Read the JSON to get the name and description
+                            getTemplateMetadata(files[i].name.replace(".json",""), files[i].download_url);                            
+                        }
+                    }
+                    jQ("#sel_template").selectpicker("refresh");                    
+                    jQ("#controls_select").show();
+                }
+            });        
+        }
+    
+        function getTemplateMetadata(filename, url) {
+            jQ.ajax({
+                url: url,
+                success: function(json) { 
+                    var templateJSON = JSON.parse(json);
+                    
+                    var thumbnailHtml = "<img class='templateThumbnail' src='" + url.replace("json","png") + "' />";
+                    var templateMetaHtml = "<div class='templateMeta'>" 
+                        + "<span class='templateName'>" + templateJSON.templateName + "</span>"
+                        + "<br/><div class='templateDescription'>" + templateJSON.templateDescription + "</div>"                    
+                        + "</div>";
+                    
+                    jQ("#" + filename).attr("data-content", "<div class='templateSelector'>" + thumbnailHtml + templateMetaHtml + "</div>");
+                    jQ("#sel_template").selectpicker('refresh');                           
+                }
+            });
+        }
+        
+        function loadTemplate(url, cb) {
+            jQ.ajax({
+                url: url,
+                success: function(json) {
+                    var templateJson = JSON.parse(json);
+                    cb(JSON.stringify(templateJson.state));
+                }
+            });
+        }
+    
+        function createNew() {
+            var templateUrl = jQ('#sel_template').val();
+            if(templateUrl != '') {
+                deleteCookies(); // clean-up previous cookies
+                
+                loadTemplate(templateUrl, function(json) {
+                    var o = JSON.parse(json);
+                    if(o["widgets"] && o["widgets"][BOX_LOGO_TOKEN]) {
+                        document.cookie = COOKIE_BOX_LOGO + "=" + btoa(JSON.stringify(o["widgets"][BOX_LOGO_TOKEN]));            
+                    }
+                    createDashboard(json, jQ("#dashboardName").val(), jQ("#sel_folder").val());
+                });
+            }            
+        }
+    
+        function reloadPage(dashboardId) {
+            if(!dashboardId) {                
+                if(location.href.indexOf("?") > -1) {
+                    var re = /[?&](sfdc.tabName=[\d\w]+)/; 
+                    var matchTab = re.exec(location.href);
+                    var tabParam = (matchTab && matchTab.length == 2) ? ("?" + matchTab[1]) : "";
+                    
+                    location.href = location.href.substring(0, location.href.indexOf("?")) + tabParam;
+                } else {
+                    location.reload();
+                }
+            } else {      
+                var currUrl = location.href;
+                if(currUrl.indexOf("?") > -1) {
+                    currUrl = currUrl.substring(0, currUrl.indexOf("?"));
+                }
+                var re = /[?&](sfdc.tabName=[\d\w]+)/; 
+                var matchTab = re.exec(location.href);
+                var tabParam = (matchTab && matchTab.length == 2) ? ("&" + matchTab[1]) : "";
+                
+                location.href = currUrl + "?" + URL_TOKEN_DASHBOARD_ID + "=" + dashboardId + tabParam;
+            }
+        }
+    
+        function postLoad() {
+            
+            // If no dashboardId, clean up
+            if(location.href.indexOf(URL_TOKEN_DASHBOARD_ID + "=") == -1) {
+                deleteCookies();
+            }
+
+            // ---------------            
+            // Post Load: If logo id present, need to refresh dashboard and reload
+            // ---------------            
+            if(location.href.indexOf(URL_TOKEN_LOGO_ID + "=") > -1) {
+                refreshDashboardLogo('{!dashboardLogoId}');
+                return;
+            }              
+            
+            // ---------------            
+            // Post Load: Wave Dashboard CSS (should add spinner too)
+            // ---------------
+            setTimeout(function() {
+                // See the bottom: reinstate this once "bug" is fixed
+                //jQ(".waveFrame").css("border","2px solid #00396b");
+            }, 2000);    
+
+            // ---------------            
+            // Post Load: Page CSS (buttons, etc.)
+            // ---------------            
+            if(location.href.indexOf(URL_TOKEN_DASHBOARD_ID + "=") > -1) {
+                jQ("#btnCreate, #controls_select, #controls_input").hide();
+                jQ("#btnDelete, #btnNew, #btnModalColor, #waveDashboardPreview, .inlineText").show();
+            } else {
+                showOnloadMessage("dashboard_templates"); // this is from Heroku, so we can push messages externally
+                loadTemplates(); 
+                jQ("#btnCreate, #controls_input").show();
+            }
+            
+            // ---------------            
+            // Post Load: Color Maps
+            // ---------------  
+            var colorPaletteReplace = atob(getCookie(COOKIE_COLOR_PALETTE_REPLACE));
+            if(colorPaletteReplace && colorPaletteReplace != "") {            
+                colorPaletteMap = JSON.parse(colorPaletteReplace);
+            }
+            
+            // ---------------            
+            // Post Load: Logo Uploader
+            // ---------------         
+            var logoWidget = atob(getCookie(COOKIE_BOX_LOGO));
+            if(logoWidget && logoWidget != "") {            
+                jQ("#btnUploadLogo").show();
+            }            
+        }
+    
+        function postCreate(dashboardId, dashboardColorWidgetPalette) {
+            document.cookie = COOKIE_COLOR_WIDGET_PALETTE + "=" + btoa(dashboardColorWidgetPalette);
+            reloadPage(dashboardId);
+        }
+    
+        function populateModalSettings() {
+            jQ('#modalBodyUploader').hide(); // this is a bit awkward
+            
+            jQ("#myModalLabel").html("Switch to a different template repository");              
+            jQ("#btnModalOK").val("Apply Changes");
+            jQ("#btnModalOK").on("click", function() {
+                if(jQ("#repoUrl").val() != URL_TEMPLATE_REPO) {
+                    URL_TEMPLATE_REPO = jQ("#repoUrl").val();
+                    loadTemplates();
+                }
+            });             
+            
+            var repoHTML = "<label for='repoUrl'>Repository URL</label>";
+            repoHTML += "<input type='text' class='form-control' id='repoUrl' value='" + URL_TEMPLATE_REPO + "' placeholder='Template repo URL'>";
+            repoHTML += "<br/><br/><label for='repoUrl'>Note: only Github repos are currently supported. Please also use the above API URL format for your custom repo configuration.</label>";
+            jQ("#modalBody").html(repoHTML);
+        }
+    
+        function populateModalColor() {
+            jQ('#modalBodyUploader').hide(); // this is a bit awkward
+            
+            var colorPalette = atob(getCookie(COOKIE_COLOR_WIDGET_PALETTE));
+            if(colorPalette == "") {
+                jQ("#modalBody").html("Hmmm...no colors detected");
+            } else {
+                jQ("#myModalLabel").html("Customize your dashboard color palette");
+                jQ("#btnModalOK").val("Apply Changes");
+                jQ("#btnModalOK").on("click", updateColors);                
+                
+                var colors = JSON.parse(colorPalette);
+                var colorKeys = Object.keys(colors);
+                colorKeys.sort(function (a,b) {
+                    var aRGB = a.replace(/[rgba()]/g,"").split(",");
+                    var bRGB = b.replace(/[rgba()]/g,"").split(",");                    
+                    
+                    if(parseInt(aRGB[0],10) == parseInt(bRGB[0],10)) {
+                        if(parseInt(aRGB[1],10) == parseInt(bRGB[1],10)) {
+                            return parseInt(aRGB[2],10) < parseInt(bRGB[2],10) ? -1 : 1;
+                        } else {
+                            return parseInt(aRGB[1],10) < parseInt(bRGB[1],10) ? -1 : 1;           
+                        }
+                    } else {
+                        return parseInt(aRGB[0],10) < parseInt(bRGB[0],10) ? -1 : 1;
+                    }
+                });
+                
+                var colorTable = "<div style='display:inline-block;width:190px'>Original color</div>";
+                colorTable += "<div style='display:inline-block'>New color</div><br/>";
+                
+                for(var i=0; i<colorKeys.length; i++) {
+                    colorTable += createColorReplacer(colors, colorKeys[i]);
+                }
+                jQ("#modalBody").html(colorTable);
+                jQ(".colorPicker").spectrum({ 
+                    showAlpha: true, showInput: true, showInitial: true,
+                    preferredFormat: "rgb", appendTo: "#modalBody",
+                    hide: function(color) {
+                        colorPaletteMap[this.id] = color.toRgbString();
+                    }
+                });
+                jQ(".tooltipUsedBy").popover({html:true, placement: "bottom"});
+            }
+        }
+    
+        function createColorReplacer(map, colorKey) {
+            var id = colorKey;
+            var currColor = colorPaletteMap[id] ? colorPaletteMap[id] : colorKey;
+            
+            var widgetList = "";
+            map[colorKey]["widgetList"].sort();
+            for(var i=0; i<map[colorKey]["widgetList"].length; i++) {
+                if(i>0) widgetList += "<br>";
+                widgetList += map[colorKey]["widgetList"][i];
+            }
+            
+            var html = "<div class='colorPaletteOrig' style='background-color:" + colorKey + "'>" + colorKey + "</div>";
+            html += "<input type='text' class='colorPicker' id='" + id + "' value='" + currColor + "' />";
+            html += "<span class='tooltipUsedBy' data-content='" + widgetList + "'>used by " + map[colorKey]["widgetList"].length + " widget(s)</span>";
+            html += "<br/>";
+            return html;
+        }
+    
+        function updateColors() {
+            origWidgetColors = atob(getCookie(COOKIE_WIDGET_COLOR_ORIG));            
+            updateColor(JSON.stringify(colorPaletteMap), origWidgetColors);
+        }
+    
+        function postUpdateColors(dashboardId, dashboardWidgetOrigColor) {
+            document.cookie = COOKIE_COLOR_PALETTE_REPLACE + "=" + btoa(JSON.stringify(colorPaletteMap));            
+            document.cookie = COOKIE_WIDGET_COLOR_ORIG + "=" + btoa(dashboardWidgetOrigColor);
+            reloadPage(dashboardId);
+        }
+
+        function populateModalLogo() {
+            jQ("#myModalLabel").html("Upload a custom logo image");      
+            jQ("#btnModalOK").val("Upload Logo");
+            jQ("#btnModalOK").on("click", function() {
+                jQ("#hdnBtnLogoUploader > input").click();
+            });            
+            var repoHTML = "<br/><label for='repoUrl'>Images are loaded into a folder called 'Shared Documents'. Please ensure this folder exists first.</label>";            
+            jQ("#modalBody").html(repoHTML);
+            jQ("#modalBodyUploader").show();
+        }    
+    
+        function deleteCookies() {
+            document.cookie = COOKIE_COLOR_WIDGET_PALETTE + "=; Max-Age=0";
+            document.cookie = COOKIE_COLOR_PALETTE_REPLACE + "=; Max-Age=0";
+            document.cookie = COOKIE_WIDGET_COLOR_ORIG + "=; Max-Age=0";
+            document.cookie = COOKIE_BOX_LOGO + "=; Max-Age=0";            
+        }            
+    </script>
+    
+    <style>
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Light.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Light.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Light.woff2')}") format('woff2');
+                font-weight: 300; 
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-LightItalic.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-LightItalic.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-LightItalic.woff2')}") format('woff2');
+                font-style: italic;
+                font-weight: 300;
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Regular.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Regular.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Regular.woff2')}") format('woff2');
+                font-weight: 400; 
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Italic.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Italic.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Italic.woff2')}") format('woff2');
+                font-style: italic;
+                font-weight: 400;
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Bold.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Bold.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Bold.woff2')}") format('woff2');
+                font-weight: 700;
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-BoldItalic.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-BoldItalic.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-BoldItalic.woff2')}") format('woff2');
+                font-style: italic;
+                font-weight: 700;            
+            }
+
+        HTML {
+            height: 100%;
+        }
+        BODY {
+            font-size: 12px;
+            font-family: Arial,Helvetica,sans-serif;
+            padding: 0px !important;
+        }
+        IMG { 
+            vertical-align: initial 
+        }
+        #header {
+            background-color: #F2F6FA;
+            height: 77px;
+            padding: 15px 15px 15px 0px;
+            border-bottom: 1px solid #e7e7e7;
+        }
+        #controls {
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+        #dashboardName {
+            margin-bottom: 10px;
+            width: 300px;
+        }
+        #btnCreate, #btnDelete, #btnNew, #btnModalColor, #btnUploadLogo,
+        #waveDashboardPreview, #modalBodyUploader, #pageTitle, #pageDesc,
+        #controls_select, #controls_input, .inlineText {
+            display: none;
+        }
+        #modalBody {
+            max-height: 450px;
+            overflow-y: scroll;
+            margin-bottom: 17px;
+        }
+        #iconSettings {
+            font-size: 18px;
+            margin-left: 5px;
+            color: #1797c0;
+            cursor: pointer;
+        }
+        BUTTON[data-id^="sel_template"], BUTTON[data-id^="sel_folder"] {
+            margin-bottom: 10px;
+        }
+        .gsbutton, BUTTON[data-id^="sel_template"], BUTTON[data-id^="sel_folder"], #dashboardName {
+            height: 32px;
+            padding: 5px 10px;
+            font-size: 14px;
+            border: 1px solid #c5d3e0;
+            border-radius: 6px; -webkit-border-radius: 6px; -moz-border-radius: 6px;
+            background-color: white;
+        }
+        .colorPaletteOrig {
+            display: inline-block;
+            position: relative;
+            top: 2px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            margin: 0px 20px 5px 0px;
+            width: 170px;    
+            border: 1px solid #91765d;
+            color: #fff;
+            text-shadow: -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a, 1px 1px 0 #1a1a1a;  
+        }
+        .colorPicker {
+            margin-left: 30px;
+            height: 30px;
+            display: inline-block;
+        }
+        .tooltipUsedBy {
+            color: #a7b8d1;
+            margin: 0px 15px;
+            border-bottom: 1px dashed #a7b8d1;
+            cursor: pointer;
+        }
+        .templateThumbnail {
+            border: 2px solid #00396b;
+            margin-right: 10px;
+        	height: 100px;
+        	width: 160px;
+        }
+        .templateMeta {
+            width: 350px;
+        }
+        .templateName {
+            font-weight: bold;
+        }
+        .templateDescription {
+            font-size: 12px;
+            font-style: italic;
+            height: 65px;
+            width: 350px;
+            overflow-y: scroll;
+            white-space: normal;
+        }
+        button[data-id=sel_template] > span > div > .templateThumbnail,
+        button[data-id=sel_template] > span > div > .templateMeta > .templateDescription {
+            display: none;
+        }
+        button[data-id=sel_template] > span > div {
+            height: initial;
+        }        
+        .templateSelector {
+            height: 100px;
+            display: flex; display: -webkit-flex; display: -moz-flex;
+        }
+        .noSidebarCell {
+            padding: 0px;
+            font-family: Salesforce Sans;
+        }
+        ul.dropdown-menu li, ol li {
+        	margin-right: 1.5em;
+        }
+        .inlineText {
+            font-family: Helvetica;
+            font-size: 14px;        
+            padding-bottom: 5px;
+            color: #5C7A99;
+        }
+        #btnDelete {
+            border-radius: 6px 0px 0px 6px;
+            height: 36px;
+            padding: 7px 19px;
+            color: #7d98b3;        
+        }
+        #btnNew {
+            border-radius: 0px 6px 6px 0px;
+            margin-left: -4px;
+            height: 36px;
+            padding: 7px 19px;  
+            color: #7d98b3;        
+        }
+    </style>
+    
+    <div id="header" style="display:block">
+        <ul class="nav navbar-nav" id="headerInfo">
+            <li><img id="testTubeIcon" src="https://www.jumpstartwave.com/assets/images/lab.png" /></li>
+            <li id="oppContainer">
+                <span class='navbarRegularText'>Dashboard Templater</span> 
+                <span id="oppName"></span>
+                <div class='navbarSmallText'>Create a new dashboard using a dashboard layout template.</div>                        
+            </li> 
+        </ul>    
+        
+        <div style="float:right; padding-top:5px">
+            <input id="btnDelete" type="button" class="gsbutton" onclick="deleteDashboard()" value="Discard"/>
+            <input id="btnNew" type="button" class="gsbutton" onclick="startNew()" value="Create a New Dashboard"/>            
+        </div>         
+    </div>
+    
+    <div id="controls">
+        <div id="controls_select">
+            <select id="sel_template" data-width="300px">
+                <option data-hidden="true" value="">Please select a template</option>
+            </select>
+            <i id="iconSettings" data-toggle="modal" data-target="#myModal" class="glyphicon glyphicon-cog">&nbsp;</i>
+            <br/>
+            <select id="sel_folder" data-width="300px">
+                <option data-hidden="true" value="">Select a target folder</option>
+            </select>            
+        </div>
+        
+        <div id="controls_input">
+            <input id="dashboardName" type="text" placeholder="Enter a dashboard name" />
+            <br/>
+        </div>
+
+        <input id="btnCreate" type="button" class="gsbutton" onclick="createNew()" value="Create"/>
+
+        <div class="inlineText">Customize your dashboard:</div>
+        <div style="float:left">
+            <input id="btnModalColor" type="button" class="gsbutton" onclick="populateModalColor()" data-toggle="modal" data-target="#myModal" value="Customize Colors" />        
+            <input id="btnUploadLogo" type="button" class="gsbutton" onclick="populateModalLogo()" data-toggle="modal" data-target="#myModal" value="Upload Logo"/>        
+        </div>        
+    </div>
+    
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="myModalLabel" />
+                </div>
+
+                <div class="modal-body" id="modalBody" /> 
+                <div class="modal-body" id="modalBodyUploader"> 
+                    <apex:form >
+                        <apex:inputfile value="{!dashboardLogo}" filename="{!dashboardLogoName}" />
+                        <div id="hdnBtnLogoUploader" style="visibility:hidden">
+                            <apex:commandButton value="Upload Logo" action="{!uploadLogo}" id="save" />                            
+                        </div>
+                    </apex:form>                   
+                </div>
+            
+                <div class="modal-footer">
+                    <input type="button" class="gsbutton" data-dismiss="modal" value="Cancel" />
+                    <input type="button" id="btnModalOK" class="gsbutton" data-dismiss="modal" value="" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <apex:form >
+        <apex:actionFunction action="{!createDashboard}" name="createDashboard" oncomplete="postCreate('{!dashboardId}','{!dashboardColorWidgetPalette}');">
+            <apex:param id="json" name="json" value="" />
+            <apex:param id="name" name="name" value="" /> 
+            <apex:param id="folder" name="folder" value="" />             
+        </apex:actionFunction>
+
+        <!-- Why? The Document upload is a DML which needs to commit first -->
+        <!-- As such, we reloaded the page; look for the logo id URL param and refresh if found -->
+        <apex:actionFunction action="{!refreshDashboardLogo}" name="refreshDashboardLogo" oncomplete="reloadPage('{!dashboardId}');" />
+        
+        <apex:actionFunction action="{!deleteDashboard}" name="deleteDashboard" oncomplete="reloadPage();" />
+        <apex:actionFunction action="{!startNew}" name="startNew" oncomplete="reloadPage();" />
+
+        <apex:actionFunction action="{!updateColor}" name="updateColor" oncomplete="postUpdateColors('{!dashboardId}','{!dashboardWidgetOrigColor}')">
+            <apex:param id="colorMap" name="colorMap" value="" />  
+            <apex:param id="widgetOrigColorMap" name="widgetOrigColorMap" value="" />              
+        </apex:actionFunction>            
+    </apex:form>
+
+    <div class="inlineText" style="padding-left:20px">Current dashboard view:</div>
+    <div id="waveDashboardPreview" style="position:relative;height:540px;overflow-y:scroll;border:2px solid #00396b;margin:0px 15px 15px 15px">
+        <div style="position:absolute;top:-64px;width:100%;height:602px;">    
+            <wave:dashboard dashboardId="{!dashboardId}" 
+                            showTitle="false" 
+                            height="600px" 
+                            openLinksInNewWindow="false" 
+                            hideOnError="true" rendered="{!dashboardId != null}"/>
+        </div>
+    </div>
+</apex:page>

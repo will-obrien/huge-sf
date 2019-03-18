@@ -1,0 +1,738 @@
+<apex:page language="en" StandardController="Account" showHeader="true" standardStylesheets="true" sidebar="false" extensions="zisf.StartupExtension,zisf.ZoomAccountExtension" action="{!appInit}">
+    
+    <c:coreCSS />
+    <style type="text/css">
+        [id*=pageErrorsBlock] h4 { /* temporary work arround so that erro messages wont be height then 3 lines and push out the frame content down */
+            display: none !important;
+        }
+        .zoom_tab_panel {
+            height: auto;
+            padding-bottom: 0;
+        }
+        .zoom_gridcolumn1 {width: 100px; vertical-align: top}
+        .zoom_gridcolumn2 {width:80%; vertical-align: top}
+        .zoom_status_item {line-height: 24px; vertical-align: middle}
+        .zoom_not_found2 {color:red; text-align: left; font-size: 110%; font-style: italic}
+        #jobFunctionTree ul.dynatree-container {overflow: auto;width: 90%;height: 130px;}
+        #managementLevelTree ul.dynatree-container {overflow: auto;width: 90%;height: 70px;}
+        .rich-toolbar {
+            border: 0;
+            padding: 0;
+            background: inherit;
+        }
+        .rich-toolbar-item {
+            padding: 1px 10px 1px 10px;
+        }
+        [id*=zoom_search_results_frame] {
+            background-color: white; 
+            margin-left: 10px; 
+            border: 1px solid silver; 
+            height: 388px;
+            overflow: hidden;
+            display: block;
+        }
+        [id*=zoom_more_contacts_tab] .leftPanel,
+        [id*=zoom_more_contacts_tab] .rightPanel {
+            height: 390px;
+        }
+        [id*=zoom_more_contacts_tab] .leftPanel {
+            display: block;
+            float: left;
+            width: 190px;
+            border: 1px solid #DDD;
+            overflow: hidden;
+            border-radius: 8px;
+            -webkit-border-radius: 8px;
+            -moz-border-radius: 8px;
+        }
+        [id*=zoom_more_contacts_tab] .leftPanel .options {
+            height: 93%;
+        }
+        [id*=zoom_more_contacts_tab] .leftPanel .options .header {
+            display: block;
+            height: 28px;
+            line-height: 28px;
+            padding-left: 8px;
+            vertical-align: middle;
+            margin: 0;
+        }
+        [id*=zoom_more_contacts_tab] .leftPanel .options .panel {
+            display: block;
+            margin-top: 10px;
+            margin: 5px 0 5px 10px;
+        }
+        [id*=zoom_more_contacts_tab] .leftPanel .actions {
+            height: 7%;
+            line-height: 7%;
+            padding-top: 2px;
+            width: 100%;
+            vertical-align: middle;
+            text-align: left;
+            background-color: #E0E0E0;
+            border-bottom: 4px solid #DBDBDB;
+        }
+        [id*=zoom_more_contacts_tab] .rightPanel {
+            display: block;
+            margin-left: 200px;
+            overflow: hidden;
+            border: 1px solid #DDD;
+            border-radius: 8px;
+            -webkit-border-radius: 8px;
+            -moz-border-radius: 8px;
+        }
+        [id*=zoom_more_contacts_tab] .rightPanel .error_message {
+            display: block;
+            width:100%;
+            height: 100%; 
+            background-color: white; 
+            color: red;
+        }
+        [id*=zoom_more_contacts_tab] .rightPanel .error_message .wrapper {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+        } 
+        [id*=search_results_table_wrap] {
+            height: 93%;
+        }
+        #search_results_table {
+            width: 100%;
+            background-color: white;
+            display: table;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+        #search_results_table input[type="checkbox"]:hover {
+            cursor: hand;
+            cursor: pointer;
+        }
+        #search_results_table .head {
+            display: table-header-group;
+        }
+        #search_results_table .head span {
+            display: table-cell;
+            padding-left: 8px;
+            height: 28px;
+            border-left: 1px solid #DDD;
+            vertical-align: middle;
+        }
+        #search_results_table .head span:first-child {
+            border: none;
+        }
+        #search_results_table .row {
+            display: table-row;
+            height: 33.5px;
+            background-color: white;
+            transition: background-color 500ms;
+            -moz-transition: background-color 500ms; /* Firefox 4 */
+            -webkit-transition: background-color 500ms; /* Safari and Chrome */
+            -o-transition: background-color 500ms; /* Opera */
+        }
+        /* Chrome and Safari overrides */
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+            #search_results_table .row {
+                height: 34px;
+            }
+        }
+        #search_results_table .row:nth-child(2n) {
+            display: table-row;
+            background-color: #F5F5F5;
+        }
+        #search_results_table .row:hover {
+            background-color: #E3E3E3;
+        }
+        #search_results_table .cell {
+            display: table-cell;
+            padding-left: 8px;
+            vertical-align: middle;
+            border-spacing: 0;
+            border-collapse: collapse;
+            cellpadding: 0;
+        }
+        #search_results_table .checkboxColumn {
+            min-width: 28px;
+            max-width: 28px;
+            width: 28px;
+        }
+        #search_results_table .cell.nameColumn  {
+            width: 30%;
+        }
+        #search_results_table .cell.nameColumn .content {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            -o-text-overflow: ellipsis;
+            -ms-text-overflow: ellipsis;
+            -moz-binding: url('ellipsis.xml#ellipsis');
+        }
+        #search_results_table .cell.nameColumn .icon {
+            float: right;
+            margin: 0 4px;
+        }
+        #search_results_table .titleColumn {
+            
+        }
+        #search_results_table .cell.titleColumn .content {
+            overflow: hidden;
+            /*white-space: nowrap;*/
+            word-wrap: break-word;
+            text-overflow: ellipsis;
+            -o-text-overflow: ellipsis;
+            -ms-text-overflow: ellipsis;
+            -moz-binding: url('ellipsis.xml#ellipsis');
+            height: 1.2em;
+        }
+        #search_results_table .infoColumn {
+            width: 40px;
+            min-width: 36px;
+        }
+        #search_results_table .infoColumn img:first-child {
+            margin-right: 4px;
+        }
+        #search_results_table .updateColumn {
+            width: 15%;
+            min-width: 6em;
+        }
+        #search_results_table .matchColumn {
+            width: 10%;
+            min-width: 4.5em;
+        }
+        #search_results_table .matchColumn a {
+            display: block;
+            text-align: center;
+        }
+        [id*=search_footer] {
+            height: 7%;
+            line-height: 28px;
+            width: 100%;
+            vertical-align: middle;
+            text-align: right;
+            background-color: #E0E0E0;
+            border-bottom: 4px solid #DBDBDB;
+        }
+        /*
+        #zoom_search_results_content {
+            height: 362px;
+            overflow: hidden;
+            width: 100%;
+        }
+        #zoom_search_results_content table {
+            height: 362px;
+            overflow: hidden;
+            width: 100%;
+        }
+        #zoom_search_results_content tbody {
+            width: 100%;
+        }
+        #zoom_search_results_content tr {
+            white-space: nowrap;
+            overflow: hidden;
+            height: 33.2px;
+        }
+        #zoom_search_results_content tr td {
+            vertical-align: center;
+            padding-left: 5px;
+        }
+        #zoom_search_results_content .checkboxColumn {
+            width: 24px;
+        }
+        #zoom_search_results_content .nameColumn {
+            min-width: 18em;
+        }
+        
+        #zoom_search_results_content .nameColumn .icon {
+            float: right;
+            margin: 0 4px;
+        }
+        #zoom_search_results_content .titleColumn  {
+            width: 100%;
+            max-width: 20em;
+        }
+        #zoom_search_results_content .titleColumn .content {
+            width: 90%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            -o-text-overflow: ellipsis;
+            -ms-text-overflow: ellipsis;
+            -moz-binding: url('ellipsis.xml#ellipsis'); 
+        }
+        #zoom_search_results_content .infoColumn {
+            min-width: 40px;
+            width: 40px;
+        }
+        #zoom_search_results_content .updateColumn {
+        }
+        #zoom_search_results_content .matchColumn {
+            width: 80px;
+        }
+        */
+        /* dynatree style override */
+        #managementLevelTree ul.dynatree-container {
+            height: auto !important;
+        }
+    </style>
+    
+    <apex:form styleClass="zoom_noselect" id="zoom_form">
+		<apex:actionStatus id="workingStatus">
+			<apex:facet name="start">
+	               <div class="waitingSearchDiv" id="el_loading" style="background-color: #fbfbfb;
+	                      height: 100%;opacity:0.80;width:100%;"> 
+	                   <div class="waitingHolder" style="top: 74.2px; width: 91px;">
+	                       <img class="waitingImage" src="/img/loading.gif" title="Loading Data From ZoomInfo...." />
+	                       <span id="statusText" style="font-size: 16px" class="waitingDescription">Loading Data From ZoomInfo....</span>
+	                   </div>
+	               </div>
+	           </apex:facet>
+		</apex:actionStatus>
+        <apex:pageMessage title="Your partner key is not valid." summary="Please try again. If these errors continue, contact your Salesforce.com administrator." severity="error" strength="3" rendered="{!NOT(ValidKey)}"/>
+        <apex:pageMessage title="ZoomInfo connection error: {!ZoomCompanyRecord.ErrorMessage}" summary="Please try again. If these errors continue, contact your Salesforce.com administrator." severity="error" strength="3" rendered="{!AND(ValidKey, ZoomCompanyRecord.HasError)}"/>
+        <apex:outputPanel styleClass="zoom_not_found" rendered="{!AND(NOT(ZoomCompanyRecord.HasError), ISNULL(ZoomCompanyRecord.CompanyID))}">
+            <apex:outputText value="We did not find this account in our database.  Please visit "/>
+            <apex:outputLink value="http://www.zoominfo.com" target="_blank">zoominfo.com</apex:outputLink>
+            <apex:outputText value=" to conduct a wider search."/>
+        </apex:outputPanel>
+        
+        <apex:pageBlock id="mainPage" title="{!Account.Name}" rendered="{!NOT(ISNULL(ZoomCompanyRecord.CompanyID))}">
+            <apex:outputPanel id="pageErrorsBlock">
+                <!--  workaround to stop page refresh if there is an error when a field is updated -->
+                <script type="text/javascript">
+                    window.reloadParentFrame = function() {return;};
+                </script>
+                <apex:pageMessages id="pageMessages" />
+            </apex:outputPanel>
+            
+            <apex:facet name="header">
+                <apex:outputPanel layout="block" id="zoom_title_panel">
+                    <apex:outputText value="{!ZoomCompanyRecord.CompanyName}" id="zoom_title" styleClass="zoom_title"/>
+                    <apex:outputPanel rendered="{!ZoomCompanySearchResults.RestrictedSize > 1}">
+                        &nbsp;&nbsp;&nbsp;&nbsp;
+                        <apex:repeat value="{!ZoomCompanySearchIndexes}" var="i">
+                            <apex:outputText value="{!i}" rendered="{!i-1 == companySearchIndex}" />
+                            <apex:commandLink value="{!i}" action="{!SelectSearchCompanyByIndex}" rendered="{!i-1 != companySearchIndex}">
+                                <apex:param name="index" value="{!i-1}" assignTo="{!companySearchIndex}"/>
+                            </apex:commandLink>
+                            <apex:outputText value=" | " rendered="{!i < ZoomCompanySearchResultsCount}" />
+                        </apex:repeat>      
+                        &nbsp;
+                        <apex:image url="/s.gif" styleClass="helpIcon" style="vertical-align: text-bottom" title="{!$Label.zoomMultipleResults}"/>
+                    </apex:outputPanel>
+                    <apex:image styleClass="zoom_logo" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/logo.png')}"/>
+                    <span class="zoom_header_actions">
+                        <apex:outputLink value="mailto:websupport@zoominfo.com?subject={!$Label.feedbackEmailSubject}" styleClass="action" target="_blank">{!$Label.feedbackEmailTitle}</apex:outputLink>
+                        <span class="divider"><!--  --></span>
+                        <apex:commandLink action="{!logout}" target="_self" value="{!$Label.actionLogout}" styleClass="action"/>
+                    </span>
+                </apex:outputPanel>
+            </apex:facet>
+            
+            <!--  Overview tab -->
+            <apex:tabPanel switchType="client" 
+                    selectedTab="Overview" 
+                    id="zoomTabPanel" 
+                    contentClass="zoom_tab_content" 
+                    styleClass="zoom_tab_panel" 
+                    tabClass="zoom_tab" 
+                    activeTabClass="zoom_active_tab" 
+                    inactiveTabClass="zoom_inactive_tab">
+                <apex:tab label="Overview" name="Overview" id="zoom_summary_tab">
+                    <div style="height:385px; overflow: auto">
+                        <apex:pageBlockSection title="Account Information" collapsible="false" columns="1">
+                            <apex:pageBlockSectionItem >
+                                <apex:outputLabel value="Name" for="zoom_name"/>
+                                <apex:outputLink value="{!ZoomCompanyRecord.ZoomCompanyUrl}" id="zoom_name" target="_blank">{!ZoomCompanyRecord.CompanyName}</apex:outputLink>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.CompanyAddress.FullAddress != ''}">
+                                <apex:outputLabel value="Address" for="zoom_address"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowAddress, 'zoom_different', '')}" value="{!ZoomCompanyRecord.CompanyAddress.FullAddress}" id="zoom_address"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateAddressAll, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowAddress == true}" 
+                                                        disabled="{!NOT(CanUpdateAddressAll)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Address" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.Website != ''}">
+                                <apex:outputLabel value="Website" for="zoom_website"/>
+                                <apex:outputPanel >
+                                    <apex:outputLink styleClass="{!IF(ShowWebsite, 'zoom_different_link', '')}" value="http://{!ZoomCompanyRecord.Website}" id="zoom_website" target="_blank">{!ZoomCompanyRecord.Website}</apex:outputLink>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateWebsite, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowWebsite == true}" 
+                                                        disabled="{!NOT(CanUpdateWebsite)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Website" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.Phone != ''}">
+                                <apex:outputLabel value="Phone" for="zoom_phone"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowPhone, 'zoom_different', '')}" value="{!ZoomCompanyRecord.Phone}" id="zoom_phone"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdatePhone, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowPhone == true}" 
+                                                        disabled="{!NOT(CanUpdatePhone)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Phone" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.Fax != ''}">
+                                <apex:outputLabel value="Fax" for="zoom_fax"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowFax, 'zoom_different', '')}" value="{!ZoomCompanyRecord.Fax}" id="zoom_fax"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateFax, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowFax == true}" 
+                                                        disabled="{!NOT(CanUpdateFax)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Fax" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="false">
+                                <apex:outputLabel value="ZoomID" for="zoom_id"/>
+                                <apex:outputText value="{!ZoomCompanyRecord.CompanyID}" id="zoom_id"/>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!AND(NOT(ISNULL(ZoomCompanyRecord.Employees)), ZoomCompanyRecord.Employees != 0)}">
+                                <apex:outputLabel value="Employees" for="zoom_employees"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowEmployees, 'zoom_different', '')}" value="{!ZoomCompanyRecord.Employees}" id="zoom_employees"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateEmployeeCount, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowEmployees == true}" 
+                                                        disabled="{!NOT(CanUpdateEmployeeCount)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Employees" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.Revenue != ''}">
+                                <apex:outputLabel value="Revenue" for="zoom_revenue"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowRevenue, 'zoom_different', '')}" value="{!ZoomCompanyRecord.Revenue}" id="zoom_revenue"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateAnnualRevenue, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowRevenue == true}" 
+                                                        disabled="{!NOT(CanUpdateAnnualRevenue)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Revenue" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.CompanyTicker != ''}">
+                                <apex:outputLabel value="Ticker" for="zoom_ticker"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowTicker, 'zoom_different', '')}" value="{!ZoomCompanyRecord.CompanyTicker}" id="zoom_ticker"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateTickerSymbol, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowTicker == true}" 
+                                                        disabled="{!NOT(CanUpdateTickerSymbol)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Ticker" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.CompanyRankingInlined != ''}">
+                                <apex:outputLabel value="Ranking" for="zoom_ranking"/>
+                                <apex:outputText value="{!ZoomCompanyRecord.CompanyRankingInlined}" id="zoom_ranking"/>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!ZoomCompanyRecord.Industry.size != 0}">
+                                <apex:outputLabel value="Industry" for="zoom_industry"/>
+                                <apex:dataList value="{!ZoomCompanyRecord.Industry}" var="ind" styleClass="zoom_list" id="zoom_industry">
+                                    <apex:outputText value="{!ind}"/>
+                                </apex:dataList>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!AND(ZoomCompanyRecord.CompanyDescription != '', ZoomCompanyRecord.CompanyDescription != null)}">
+                                <apex:outputLabel value="Description" for="zoom_description"/>
+                                <apex:outputPanel >
+                                    <apex:outputText styleClass="{!IF(ShowDescription, 'zoom_different', '')}" value="{!ZoomCompanyRecord.CompanyDescription}" id="zoom_description"/>
+                                    &nbsp;
+                                    <apex:commandButton styleClass="zoom_btn" action="{!UpdateField}" 
+                                                        value="Update" title="{!if(CanUpdateDescription, 'Click to import this field to SFDC.', 'You do not have access to update this field. Please contact your Salesforce administrator if you believe this to be in error.')}" 
+                                                        rendered="{!ShowDescription}" 
+                                                        disabled="{!NOT(CanUpdateDescription)}"
+                                                        rerender="pageErrorsBlock"
+                                                        oncomplete="reloadParentFrame()">
+                                        <apex:param name="fieldToUpdate" value="Description" assignTo="{!fieldToUpdate}"/>
+                                    </apex:commandButton>
+                                </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                        </apex:pageBlockSection>
+                    </div>
+                    <div class="zoom_divider">&nbsp;</div>
+                    <apex:variable var="updateAllButtonTooltipText" rendered="{!CanUpdateAll}" 
+                                    value="Update from ZoomInfo" />
+                    <apex:variable var="updateAllButtonTooltipText" rendered="{!NOT(CanUpdateAll) && NOT(CanUpdateNone)}" 
+                                    value="Due to insufficient permissions, some of your fields cannot be updated. Please contact your Salesforce administrator if you believe this to be in error." />
+                    <apex:variable var="updateAllButtonTooltipText" rendered="{!CanUpdateNone}" 
+                                    value="Due to insufficient permissions, you cannot update this record. Please contact your Salesforce administrator if you believe this to be in error." />
+                    <apex:commandButton action="{!UpdateAccount}" 
+                                        value="Update from ZoomInfo" 
+                                        id="copyCompanyToSalesforceButton" 
+                                        title="{!updateAllButtonTooltipText}" 
+                                        disabled="{!CanUpdateNone}" 
+                                        rerender="pageErrorsBlock"
+                                        oncomplete="reloadParentFrame()"/>
+                </apex:tab>
+                
+                <apex:tab label="Find More Contacts" name="Find More Contacts" id="zoom_more_contacts_tab"> 
+                        
+                        <apex:outputPanel styleClass="leftPanel">
+                            <div class="options">
+                                <div class="header zoom_gradient_gray">
+                                    Search Parameters
+                                </div>
+                                
+                                <apex:outputPanel styleClass="panel">
+                                    <apex:outputLabel value="Title:"/><br/>
+                                    <apex:inputText value="{!PeopleSearchParameters.TitleSelected}" style="width: 90%" onkeypress="return onenter(event);" />
+                                </apex:outputPanel>
+                                
+                                <apex:outputPanel styleClass="panel">
+                                    <apex:outputLabel value="Job Function:"/><br/>
+                                    <c:ZoomTree TreeId="jobFunctionTree" selectable="true" value="{!PeopleSearchParameters.selectedJobFunctionTreeKeys}" JsonData="{!JobFunctionTreeJson}"/>
+                                </apex:outputPanel>
+                                
+                                <apex:outputPanel styleClass="panel">
+                                    <apex:outputLabel value="Management Level:"/><br/>
+                                    <c:ZoomTree TreeId="managementLevelTree" selectable="true" value="{!PeopleSearchParameters.selectedManagementLevelTreeKeys}" JsonData="{!TitleSeniorityTreeJson}"/>
+                                </apex:outputPanel>
+                            </div>
+                            
+                            <div class="actions">
+                                <apex:commandButton action="{!searchMorePeople}" value="Search" id="searchMorePeople" rerender="pageErrorsBlock, search_results_table, status" status="search_status"/>
+                            </div>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel layout="block" id="search_results_table" styleClass="rightPanel">
+                            
+                            <apex:outputPanel id="search_results_table_wrap" 
+                                              layout="block" 
+                                              rendered="{!ZoomPeopleSearchResults.TotalResults > 0}">
+                                <div id="search_results_table" style="height: {!33.5*TotalResultsOnPage + 28}px};">
+                                    <div class="head zoom_gradient_gray">
+                                        <span class="checkboxColumn">
+                                            <apex:outputPanel title="Toggle All Rows" layout="block">
+                                                <input type="checkbox" id="checkAllBox" onclick="checkAll(this); " />
+                                            </apex:outputPanel>
+                                        </span>
+                                        <span class="nameColumn">
+                                            Name
+                                        </span>
+                                        <span class="titleColumn">
+                                            Title
+                                        </span>
+                                        <span class="infoColumn">
+                                            Info
+                                        </span>
+                                        <span class="updateColumn">
+                                            Last Update
+                                        </span>
+                                        <span class="matchColumn">
+                                            Matched
+                                        </span>
+                                    </div>
+                                    <apex:repeat value="{!PeopleSearchResults}" var="p">
+                                        <div class="row">
+                                            <span class="cell checkboxColumn">
+                                                <apex:inputCheckbox value="{!p.Selected}" selected="{!p.Selected}" title="Select" id="checkedone" rendered="{!ISNULL(p.SalesforceID)}" onclick="setCheckAllBoxPerson();"/>
+                                                <apex:inputCheckbox disabled="true" rendered="{!p.SalesforceID != null}" title="This record is already found in your Salesforce.com account"/>
+                                            </span>
+                                            <span class="cell nameColumn">
+                                            
+                                                <apex:outputLink styleClass="icon" value="http://www.linkedin.com/pub/dir/?first={!p.FirstName}&last={!p.LastName}"  target="_blank" title="Find {!p.FirstName} {!p.LastName} on LinkedIn">
+                                                    <apex:image styleClass="linkedInIcon" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/linkedin.png')}"/>
+                                                </apex:outputLink>
+                                                <apex:outputLink styleClass="icon" value="{!p.ZoomPersonUrl}"  target="_blank" title="Find {!p.FirstName} {!p.LastName} on ZoomInfo">
+                                                        <apex:image styleClass="PinWheelIcon" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/wheel.png')}"/>
+                                                </apex:outputLink>
+                                                
+                                                <div class="content">
+                                                    <apex:outputLink target="_blank" value="{!p.ZoomPersonUrl}" title="{!p.FullName}">{!p.FullName}</apex:outputLink>
+                                                </div>
+                                            </span>
+                                            <span class="cell titleColumn">
+                                                <apex:outputPanel styleClass="content" layout="block" title="{!p.JobTitle}">
+                                                    {!p.JobTitle}
+                                                </apex:outputPanel>
+                                            </span>
+                                            <span class="cell infoColumn">
+                                                <apex:image url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/email_2.png')}" title="Email is available" rendered="{!AND(NOT(ISNULL(p.Email)), p.Email!='')}" />
+                                                <apex:image url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/phone_2.png')}" title="Phone is available" rendered="{!AND(NOT(ISNULL(p.Phone)), p.Phone!='')}" />
+                                            </span>
+                                            <span class="cell updateColumn">
+                                                <apex:outputText value="{!p.LastUpdatedDateFormatted}" title="Last Update"/>
+                                            </span>
+                                            <span class="cell matchColumn">
+                                                <apex:outputLink target="_blank" rendered="{!p.SalesforceID != null}" value="/{!p.SalesforceID}">
+                                                    <apex:image url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/yes.png')}" title="This record is already found in your Salesforce.com account. Click to view" rendered="{!p.Integrated == true}" />
+                                                </apex:outputLink>
+                                            </span>
+                                        </div>
+                                    </apex:repeat>
+                                </div>
+                            </apex:outputPanel>
+                            <apex:outputPanel rendered="{!ZoomPeopleSearchResults.TotalResults == 0}" styleClass="error_message">
+                                <div class="wrapper">
+                                    <apex:outputText style="font-weight: bold" value="No Results Found." /><br/><br/>
+                                    <apex:outputText value="If you entered text into a search field, please check your spelling. Otherwise, try running your search on the " />
+                                    <apex:outputLink value="http://www.zoominfo.com" target="_blank">ZoomInfo</apex:outputLink>
+                                    <apex:outputText value=" website." />
+                                </div>
+                            </apex:outputPanel>
+                            <div id="search_footer">
+                                <apex:outputPanel >
+                                    <apex:outputText value="Page {!CurrentPage} of {!PeopleSearchTotalPages}" />
+                                    &nbsp;&nbsp;
+                                    <apex:outputPanel style="display: inline-block; vertical-align: middle">
+                                        <!-- FIRST PAGE -->
+                                        <apex:commandLink action="{!goFirstPage}" rerender="pageErrorsBlock, search_results_table, footer" rendered="{!CurrentPage > 1}" status="search_status">
+                                            <apex:image title="First Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/fp.gif')}" />
+                                        </apex:commandLink>
+                                        <apex:image title="First Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/fpg.gif')}" rendered="{!CurrentPage <= 1}"/>
+                                        <!-- PREV PAGE -->
+                                        <apex:commandLink action="{!goPrevPage}" rerender="pageErrorsBlock, search_results_table, footer" rendered="{!CurrentPage > 1}" status="search_status">
+                                            <apex:image title="Previous Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/pp.gif')}" />
+                                        </apex:commandLink>
+                                        <apex:image title="Previous Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/ppg.gif')}" rendered="{!CurrentPage <= 1}"/>
+                                        <!-- NEXT PAGE -->
+                                        <apex:commandLink action="{!goNextPage}" rerender="pageErrorsBlock, search_results_table, footer" rendered="{!CurrentPage < PeopleSearchTotalPages}" status="search_status">
+                                            <apex:image title="Next Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/np.gif')}" />
+                                        </apex:commandLink>
+                                        <apex:image title="Next Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/npg.gif')}" rendered="{!CurrentPage >= PeopleSearchTotalPages}"/>
+                                        <!-- LAST PAGE -->
+                                        <apex:commandLink action="{!goLastPage}" rerender="pageErrorsBlock, search_results_table, footer" rendered="{!CurrentPage < PeopleSearchTotalPages}" status="search_status">
+                                            <apex:image title="Last Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/lp.gif')}" />
+                                        </apex:commandLink>
+                                        <apex:image title="Last Page" url="{!URLFOR($Resource.zisf__bundle, 'bundle/images/lpg.gif')}" rendered="{!CurrentPage >= PeopleSearchTotalPages}" />
+                                    </apex:outputPanel>
+                                </apex:outputPanel>
+                            </div>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel id="footer">
+                            <table cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td>
+                                        <apex:variable var="importButtonTooltipText" rendered="{!CanCreateContactRecord}" 
+                                                        value="Copy selected contacts to Salesforce" />
+                                        <apex:variable var="importButtonTooltipText" rendered="{!NOT(CanCreateContactRecord)}" 
+                                                        value="Due to insufficient permissions, you cannot create contacts. Please contact your Salesforce administrator if you believe this to be in error." />
+                                        <apex:commandButton action="{!addMorePeopleToSalesforce}" 
+                                                            value="Import from ZoomInfo" 
+                                                            id="addMorePeopleToSalesforceButton" 
+                                                            disabled="{!NOT(CanCreateContactRecord)}" 
+                                                            title="{!importButtonTooltipText}"
+                                                            rerender="pageErrorsBlock"
+                                                            oncomplete="reloadParentFrame();parent.location.href='/{!Account.id}'"
+                                                            status="workingStatus"
+                                                             />
+                                    </td>
+                                    <td>
+                                        <apex:toolbar id="status">
+									        <script type="text/JavaScript">
+									            function setCheckAllBoxPerson() {
+									                var checkAllBox = document.getElementById('checkAllBox');
+													var selectedCount = document.getElementById('{!$component.selectedCount}');
+													var checkedCount = 0;
+									                var checked = true;
+									                if(inputElem = document.getElementsByTagName("input")) {
+									                    for(var i=0, len = inputElem.length; i < len; i++) {
+									                        if ((checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1)) {
+																if (checkbox.checked) {
+																	checkedCount++;
+																} else {
+																	checked = false;
+																}
+									                        }
+									                    }
+									                }
+									                checkAllBox.checked = checked;
+													selectedCount.innerHTML = 'Selected: ' + ({!selectedCountMinusCurrentPage} + checkedCount);
+									            }
+									        </script>   
+                                            <apex:actionStatus id="search_status" startText="Search in progress..." />
+                                            <apex:toolbarGroup itemSeparator="none" location="right" id="toolbarGroupForm">
+                                                <apex:outputText styleClass="zoom_status_item" value="Found: {!MorePeopleSearchTotalResultsAsString}" rendered="{!NOT(ISNULL(ZoomPeopleSearchResults.TotalResults))}"/>
+                                                <apex:outputText id="selectedCount" styleClass="zoom_status_item" value="Selected: {!personSelectedCount}"/>
+                                            </apex:toolbarGroup>
+                                        </apex:toolbar>
+                                    </td>
+                                </tr>
+                            </table>
+                        </apex:outputPanel>
+                </apex:tab>
+                
+            </apex:tabPanel>
+        </apex:pageBlock>
+        
+        <apex:actionFunction name="searchMorePeopleAF" action="{!searchMorePeople}" />
+    </apex:form>
+    
+    <c:coreJS />
+    <script type="text/javascript">
+        zi.ui.disableTextSelect();
+    </script>
+    
+    <script type="text/javascript">
+        (function() {
+            window.checkAll = function(cb) {
+                if(inputElem = document.getElementsByTagName("input")) {
+                    for(var i=0, len = inputElem.length; i < len; i++)
+                        (checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1) && (checkbox.checked = cb.checked);
+                }
+                setCheckAllBoxPerson()
+            }
+            
+            window.resetToggleCheck = function() {
+                if(inputElem = document.getElementsByTagName("input")) {
+                    for(var i=0, len = inputElem.length; i < len; i++)
+                        (checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1) && (inputElem[i].checked = false);
+                }
+            }
+
+            window.completeAddMorePeople = function() {
+                /*
+                if ({!HasMessages} == false) 
+                    zi.ui.reloadParent();
+                */
+            }
+            
+            window.onenter = function(ev) {
+                var keyCode = 0;
+                if (window.event) keyCode = window.event.keyCode;
+                else if (ev) keyCode = ev.which;
+                
+                if (keyCode == 13) {
+                    searchMorePeopleAF();
+                    return false;
+                } else {
+                    return true;
+                }
+             }
+             
+             window.reloadParentFrame = function() {
+                window.top.location = '/{!Account.id}';
+             };
+        })();
+    </script>
+</apex:page>

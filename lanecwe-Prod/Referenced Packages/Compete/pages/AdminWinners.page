@@ -1,0 +1,108 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.AdminWinnersController" 
+           tabStyle="Contests__tab">
+
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+
+    <apex:define name="head">
+
+    </apex:define>
+
+    <apex:define name="contentHeader">
+      <h1 class="lb-title">Prize Winners</h1>
+      <h2 class="lb-subtitle">{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}</h2>
+    </apex:define>
+
+    <apex:define name="contentMain">
+      <div class="zemzu">
+        <apex:outputPanel rendered="{!IF(fullContest.contestEntity.Id != null, true, false)}">
+
+          <apex:pageMessages />
+          <apex:pageBlock title="Contest Prize Winners">
+
+          <!--  Dollar/Entry -->
+          <apex:dataTable rendered="{!IF(fullContest.winners.size > 0 && !fullContest.isChanceToWin, true, false)}" value="{!winners}" var="winner" id="theTable" rowClasses="odd,even" styleClass="tableClass" width="100%">
+            <apex:column >
+              <apex:facet name="header">Prize</apex:facet>
+              <apex:outputText value="{!winner.win.AwardingMethod__r.Prize__r.ePrize_Zemzu__PrizeName__c}" />
+            </apex:column>
+            <apex:column styleClass="sales-person" rendered="{!IF(fullContest.isTeamBased, false, true)}">
+              <apex:facet name="header">Winner</apex:facet>
+              <apex:image height="36" width="36" value="{!winner.SmallPhotoURL}" rendered="{!isChatterEnabled}"/>&nbsp;
+              <apex:outputField value="{!winner.win.ePrize_Zemzu__WhoWon__c}" />
+            </apex:column>
+              <apex:column rendered="{!fullContest.isTeamBased}">
+                <apex:facet name="header">Winner</apex:facet>
+                <apex:outputText value="{!winner.win.Team__r.ePrize_Zemzu__TeamName__c}" />
+              </apex:column>
+              <apex:column rendered="{!fullContest.isDollarRanked}">
+                <apex:facet name="header">Value</apex:facet>
+                <apex:outputText value="{0,number,$#,###.##}"><apex:param value="{!winner.win.ePrize_Zemzu__Value__c}" /></apex:outputText>
+              </apex:column>
+              <apex:column rendered="{!fullContest.isPercentToGoal}">
+                <apex:facet name="header">Percent</apex:facet>
+                <apex:outputText value="{0,number,##.##%}"><apex:param value="{!winner.win.ePrize_Zemzu__Value__c}" /></apex:outputText>
+              </apex:column>
+              <apex:column rendered="{!fullContest.isEntryRanked}">
+                <apex:facet name="header">Points</apex:facet>
+                <apex:outputField value="{!winner.win.ePrize_Zemzu__Entries__c}"></apex:outputField>
+              </apex:column>
+              <apex:column >
+                <apex:facet name="header">Date</apex:facet>
+                <apex:outputText value=""><c:LocaleDateTime date_time_value="{!winner.win.ePrize_Zemzu__WhenWon__c}"></c:LocaleDateTime></apex:outputText>
+              </apex:column>
+          </apex:dataTable>
+
+          <apex:outputPanel rendered="{!IF(fullContest.winners.size == 0 && !fullContest.isChanceToWin, true, false)}">
+            There are no prize winners for this contest.
+          </apex:outputPanel>
+            
+            
+          <!--  Chance to Win -->
+          <apex:dataTable rendered="{!fullContest.isChanceToWin}" value="{!fullContest.prizeStatuses}" var="status" id="theTable2" rowClasses="odd,even" styleClass="tableClass" width="100%">
+            <apex:column >
+              <apex:facet name="header">Prize</apex:facet>
+              <apex:outputText value="{!status.prize.ePrize_Zemzu__PrizeName__c}" />
+            </apex:column>
+            <apex:column styleClass="sales-person" rendered="{!IF(fullContest.isTeamBased, false, true)}">
+              <apex:facet name="header">Winner</apex:facet>
+              <apex:image height="36" width="36" value="{!status.SmallPhotoURL}" rendered="{!isChatterEnabled}"/>&nbsp;
+              <apex:outputField rendered="{!status.isWon}" value="{!status.win.ePrize_Zemzu__WhoWon__c}" />
+              <apex:outputText rendered="{!!status.isWon}" value="Still available!" />
+            </apex:column>
+            <apex:column rendered="{!fullContest.isTeamBased}">
+              <apex:facet name="header">Winner</apex:facet>
+              <apex:outputText rendered="{!status.isWon}" value="{!status.win.Team__r.ePrize_Zemzu__TeamName__c}" />
+              <apex:outputText rendered="{!!status.isWon}" value="Still available!" />
+            </apex:column>
+            <apex:column >
+              <apex:facet name="header">Date</apex:facet>
+              <apex:outputText rendered="{!status.isWon}" value=""><c:LocaleDateTime date_time_value="{!status.win.ePrize_Zemzu__WhenWon__c}"></c:LocaleDateTime></apex:outputText>
+              <apex:outputText rendered="{!!status.isWon}" value="Still available!" />
+            </apex:column>
+          </apex:dataTable>
+
+          </apex:pageBlock>
+
+          <apex:pageBlock title="Send Notification" rendered="{!fullContest.IsCurrentUserAdmin}"> 
+            <apex:form rendered="{!IF(fullContest.winners.size != 0, true, false)}">
+              <apex:commandButton action="{!sendWinnerList}" value="Send Prize Winner List" id="sendWinEmailLink" />
+            </apex:form>
+            <apex:outputPanel rendered="{!IF(fullContest.winners.size == 0, true, false)}">
+              There are no prize winners for this contest.
+            </apex:outputPanel>
+          </apex:pageBlock>
+            
+        </apex:outputPanel>
+    
+        <apex:outputPanel rendered="{!IF(fullContest.contestEntity.Id == null, true, false)}">
+          <br /><br />Oops! The contest you are looking for doesn't appear to exist!  Please double check your link and try again!<br /><br />
+        </apex:outputPanel>
+      </div>
+
+    </apex:define>
+
+  </apex:composition>
+
+
+</apex:page>

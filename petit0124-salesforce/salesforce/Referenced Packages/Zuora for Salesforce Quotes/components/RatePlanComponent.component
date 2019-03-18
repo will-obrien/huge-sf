@@ -1,0 +1,93 @@
+<apex:component allowDML="true" access="global" selfClosing="false" layout="none" controller="zqu.RatePlanComponentController">
+<apex:attribute name="options" access="global" type="zqu.RatePlanComponentOptions" assignTo="{!theOptions}" description="The RatePlanComponent's configuration options." />
+
+<!-- render the CSS and JS resources here only if this is the only rate plan component on the page -->
+<c:RatePlanComponentResources rendered="{!NOT(rpcc.theOptions.multipleComponents)}" />
+
+<!-- set the CSS class name for the div that will contain the component -->
+<apex:variable var="removedClass" value="{!IF(rpcc.theOptions.isRemoved, 'removed', '')}" />
+<apex:variable var="statusText"   value="{!rpcc.rpStatusText[rpcc.chargeGroup.groupType]}" />
+
+<div class="ratePlanComponentPanel {!removedClass}" style=" position: relative; border: 1px solid {!rpBoxColors[rpcc.chargeGroup.groupType]};">
+  <apex:outputPanel layout="inline" styleClass="status" style="background-color: {!rpBoxColors[rpcc.chargeGroup.groupType]}" rendered="{!LEN(statusText) > 0}">{!statusText}
+   <!-- , {!rpcc.instanceNum} of {!rpcc.totalInstances} -->
+  </apex:outputPanel>
+  <div style="height: 15px;"></div>
+
+  <apex:outputText rendered="{!NOT(rpcc.theOptions.hideRatePlanInfo)}">
+    <table style="table-layout: fixed; margin-top: -5px; margin-bottom: 8px;">
+      <tbody>
+        <tr>
+          <td style="width: 100px; font-weight: bold; text-align: right; padding-right: 15px;">Product:</td>
+          <td style="width: 250px;" class="description">{!rpcc.chargeGroup.productName}</td>
+          <td style="width: 75px; font-weight: bold; text-align: right; padding-right: 15px;">Description:</td>
+          <td class="description"></td>
+        </tr>
+        <tr>
+          <td style="width: 100px; font-weight: bold; text-align: right; padding-right: 15px;">Rate Plan:</td>
+          <td style="width: 250px;" class="description">{!rpcc.chargeGroup.ratePlanName}</td>
+          <td style="width: 75px; font-weight: bold; text-align: right; padding-right: 15px;">Description:</td>
+          <td class="description"></td>
+        </tr>
+      </tbody>
+    </table>
+  </apex:outputText>
+
+  <apex:componentBody rendered="{!rpcc.theOptions.hideRatePlanInfo}" />
+
+<!-- 
+  <span style="font-family: 'Courier New'; font-size: 8px;">
+    chargeGroup.showVisualForceEdit: {!rpcc.chargeGroup.showVisualForceEdit}<br/>
+    chargeGroup.groupType: {!rpcc.chargeGroup.groupType}
+  </span>
+-->
+  
+    <c:ListComponent options="{!rpcc.lcOptions}">
+	  <!-- INSIDE THE LIST COMPONENT BODY, MUST REFERENCE ALL RATE PLAN COMPONENT PROPERTIES THROUGH THE 'listParentController' VARIABLE WHICH IS "PASSED" INTO THE COMPONENT BODY FROM THE LIST COMPONENT -->
+    
+      <!-- get the zCharge and zChargeData: zCharge is the zCharge object retrieved from getChargeGroups(), zChargeData is a wrapper that assists in displaying correct values -->
+      <apex:variable var="zChargeData" value="{!listParentController['zChargeWrappers'][rowNum]}" />
+      <apex:variable var="nsPrefix" value="{!listParentController['namespace']}" />
+      <apex:variable var="zCharge" value="{!zChargeData.zCharge}" />
+    <apex:variable var="fname" value="{!LOWER(f.name)}" />
+        
+      <!--  flex checking for field name, namespace safe, but potentially problematic if any custom names fields contain same string -->
+    <!-- 
+      <apex:variable var="isEditable" rendered="{!CONTAINS(fname, 'discount__c')}"       value="{!(isEditable && zCharge.isDiscountEditable)}" />
+      <apex:variable var="isEditable" rendered="{!CONTAINS(fname, 'effectiveprice__c')}" value="{!(isEditable && zCharge.isEffectivePriceEditable)}" />
+      <apex:variable var="isEditable" rendered="{!CONTAINS(fname, 'quantity__c')}"       value="{!(isEditable && zCharge.isQuantityEditable)}" />
+      <apex:variable var="isEditable" rendered="{!CONTAINS(fname, 'total__c')}"          value="{!(isEditable && zCharge.isTotalEditable)}" />
+      <apex:variable var="isEditable" rendered="{!CONTAINS(fname, 'includedunits__c')}"  value="{!(isEditable && zChargeData.isIncludedUnitsEditable)}" />
+    -->
+    
+      <!-- determine field editibility -->  
+      <!-- strict checking for field name, vulnerable to vagaries around namespace presence/absence, but safe against similarly-named customer fields -->
+      <apex:variable var="isEditable" value="{!f.isUpdateable && listParentController['chargeGroup'].showVisualForceEdit}" />
+      <apex:variable var="isEditable" rendered="{!(fname == (nsPrefix & 'discount__c'))}"       value="{!(isEditable && zCharge.isDiscountEditable)}" />
+      <apex:variable var="isEditable" rendered="{!(fname == (nsPrefix & 'effectiveprice__c'))}" value="{!(isEditable && zCharge.isEffectivePriceEditable)}" />
+      <apex:variable var="isEditable" rendered="{!(fname == (nsPrefix & 'quantity__c'))}"       value="{!(isEditable && zCharge.isQuantityEditable)}" />
+      <apex:variable var="isEditable" rendered="{!(fname == (nsPrefix & 'total__c'))}"          value="{!(isEditable && zCharge.isTotalEditable)}" />
+      <apex:variable var="isEditable" rendered="{!(fname == (nsPrefix & 'includedunits__c'))}"  value="{!(isEditable && zChargeData.isIncludedUnitsEditable)}" />
+    
+      <!-- make the actual value (instead of the displayed value) available on the page for calculation purposes -->
+      <apex:outputText styleClass="actualValue" value="{!zCharge.zqc.qcharge[fname]}" />
+      
+      <!--  for non-editable fields or for all fields when not in edit mode -->
+      <apex:outputText value="{!zChargeData.displayValues[fname]}" rendered="{!AND(NOT(isEditable && listParentController['isEditMode']), (fname != 'name'))}" />
+    
+      <apex:outputPanel layout="inline" style="cursor:pointer; text-decoration:underline;" rendered="{!AND(fname == 'name', CONTAINS(LOWER(zCharge.zqc.qCharge[nsPrefix & 'Model__c']), 'discount'))}" onclick="showChangeDiscount('{!rw.Id}');">{!zCharge.zqc.qCharge[fname]}</apex:outputPanel>
+      <apex:outputPanel layout="inline" rendered="{!AND(fname == 'name', NOT(CONTAINS(LOWER(zCharge.zqc.qCharge[nsPrefix & 'Model__c']), 'discount')))}" >{!zCharge.zqc.qCharge[fname]}</apex:outputPanel>
+      <!-- for editable fields when in edit mode -->
+      <apex:outputText rendered="{!(isEditable && listParentController['isEditMode'])}">
+        <apex:inputField value="{!zCharge.zqc.qcharge[fname]}" onchange="onFieldChange(this, '{!zCharge.zqc.qcharge[fname]}', '{!listParentController['lcInstanceName']}', '{!listParentController['quote'].Id}', '{!rw.Id}', '{!listParentController['chargeGroup'].groupID}', '{!fname}');" />
+        <apex:outputText value="%" rendered="{!(fname == (nsPrefix & 'discount__c'))}" />
+      </apex:outputText>
+      <apex:outputPanel layout="none" rendered="{!AND(fname == 'name', CONTAINS(LOWER(zCharge.zqc.qCharge[nsPrefix & 'Model__c']), 'discount'))}">
+        <input type="hidden" id="{!rw.Id}-level" value="{!zCharge.zqc.qCharge[nsPrefix & 'Discount_Level__c']}" />
+        <input type="hidden" id="{!rw.Id}-upp" value="{!zCharge.zqc.qCharge[nsPrefix & 'Upto_How_Many_Periods__c']}" />
+      </apex:outputPanel>
+    </c:ListComponent>
+
+  <div style="height: 8px;"></div>
+</div>
+</apex:component>

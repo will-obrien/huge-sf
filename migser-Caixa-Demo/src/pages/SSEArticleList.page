@@ -1,0 +1,96 @@
+<apex:page showHeader="false" standardController="Case" extensions="SSEAttachToCaseExt" standardStylesheets="false" cache="false">
+
+
+    <link rel="stylesheet" href="{!URLFOR($Resource.jMobile,'jquery.mobile-1.4.2.min.css')}" />
+
+    <link rel="stylesheet" href="{!URLFOR($Resource.jMobile,'themes/custom.min.css')}" />
+    <link rel="stylesheet" href="{!URLFOR($Resource.jMobile,'themes/jquery.mobile.icons.min.css')}" />
+
+    <script src="{!URLFOR($Resource.jMobile,'jquery-1.11.1.min.js')}"></script>
+    <script src="{!URLFOR($Resource.jMobile,'jquery.mobile-1.4.2.min.js')}"></script>
+    <script type='text/javascript' src='/canvas/sdk/js/publisher.js'></script>
+
+	<script>
+		$j = jQuery.noConflict();
+		$j(document).ready(function(){
+
+			Sfdc.canvas.publisher.subscribe({name: "publisher.showPanel",onData:function(e) {
+            	Sfdc.canvas.publisher.publish({name:"publisher.setValidForSubmit", payload:"true"});
+    		}});
+
+    		SSEAttachToCaseExt.getIds('{!Case.Id}',function(result, event) {
+                if(event.status) {
+                    console.log(result);
+                    highlight(result);
+                } else {
+                    console.log('ERROR');
+                }
+            });
+
+			/*
+			Blocked frame with different origin.
+			var elm = window.parent.document.getElementById('.primaryButton span');
+			$j(elm).text('TEST'); 
+			*/
+		});
+
+		function highlight(result) {
+			console.log('Start Highlighting');
+			for(var i=0;i<result.length;i++) {
+				var elm = $j('#art'+result[i].substring(0,15));
+				if(elm.length) {
+					console.log('Exists: ID = '+result[i]);
+					elm.css('background','red');
+					elm.addClass('hasAttach');
+				}
+			}
+		}	
+
+		function nav(id) {
+			var elm = $j('#art'+id);
+			if(elm.hasClass('hasAttach')) {
+				console.log('HAS ATTACH');
+				window.location = '/apex/SSEArticleListP2?id='+id+'&caseId={!Case.Id}&hasAttach=t';
+			}else {
+				console.log('NO ATTACH');
+				window.location = '/apex/SSEArticleListP2?id='+id+'&caseId={!Case.Id}&hasAttach=f';
+			}
+		}
+	</script>
+
+	<style>
+		span#search {
+			font-weight: bold;
+		}
+		h1 {
+			font-size: 19px; 
+		}
+		div#top {
+			margin-left: 15px;
+		}
+	</style>
+
+	<!--{!$CurrentPage.parameters.search}-->
+
+	<div data-role="page" id="p1" data-theme="a">
+		
+		<ul data-role="listview">
+			<li><h1>Knowledge Articles</h1></li>
+			<li>Searching for: <span id="search"><apex:outputText value="{!Case.Subject}"/></span></li>
+		</ul>	
+	    <knowledge:articleList articleVar="article" keyword="{!Case.Subject}" pageSize="15">
+
+	        <ul data-role="listview">
+	        	 <li>
+	        		<a id="art{!article.Id}" onClick="nav('{!article.id}')">{!article.title}</a>
+	        	</li>
+	        </ul>
+	    </knowledge:articleList>
+	</div>
+	    
+    <script type='text/javascript'>  
+        Sfdc.canvas.publisher.subscribe({name: 'publisher.post', onData:function(e) {
+            console.log('Submit');
+        }});                                           
+    </script>
+</apex:page>

@@ -1,0 +1,340 @@
+<apex:page controller="HubSpot_Inc.HubSpotOverview">
+<apex:stylesheet value="{!$Resource.HubSpot_Inc__hubspotcss}"/>
+<style type="text/css">
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * DataTables sorting
+ */
+ 
+.sorting_asc {
+    background: url("{!URLFOR($Resource.datatableszip, '/DataTables-1.8.1/media/images/sort_asc.png')}") no-repeat center right;
+}
+ 
+.sorting_desc {
+    background: url("{!URLFOR($Resource.datatableszip, '/DataTables-1.8.1/media/images/sort_desc.png')}") no-repeat center right;
+}
+ 
+.sorting {
+    background: url("{!URLFOR($Resource.datatableszip, '/DataTables-1.8.1/media/images/sort_both.png')}") no-repeat center right;
+}
+ 
+.sorting_asc_disabled {
+    background: url("{!URLFOR($Resource.datatableszip, '/DataTables-1.8.1/media/images/sort_asc_disabled.png')}") no-repeat center right;
+}
+ 
+.sorting_desc_disabled {
+    background: url("{!URLFOR($Resource.datatableszip, '/DataTables-1.8.1/media/images/sort_desc_disabled.png')}") no-repeat center right;
+}
+
+.paginate_disabled_previous {
+    background-image: url('{!URLFOR($Resource.pagebackward)}');
+    background-repeat:no-repeat;
+}
+ 
+.paginate_enabled_previous {
+    background-image: url('{!URLFOR($Resource.pagebackward)}');
+    background-repeat:no-repeat;
+}
+ 
+.paginate_disabled_next {
+    background-image: url('{!URLFOR($Resource.pageforward)}');
+    background-repeat:no-repeat;
+}
+ 
+.paginate_enabled_next {
+    background-image: url('{!URLFOR($Resource.pageforward)}');
+    background-repeat:no-repeat;
+}
+</style>
+<script type="text/javascript"  src="{!URLFOR($Resource.jqueryui, '/js/jquery-1.5.1.min.js')}" ></script>
+<script type="text/javascript"  src="{!URLFOR($Resource.jqueryui, '/js/jquery-ui-1.8.14.custom.min.js')}" ></script>
+<script type="text/javascript"  src="{!URLFOR($Resource.datatableszip, '/DataTables-1.8.1/media/js/jquery.dataTables.js')}" ></script>
+
+<script>
+
+        $j = jQuery.noConflict();
+            $j(document).ready(function() {
+
+                $j('#table2').dataTable({"sDom": '<"top"fl>rt<"bottom"ip><"clear">',
+                                          "bPaginate": true,
+                                          "aaSorting": [[2,'desc']],
+                                          "aoColumnDefs": [{ "bSortable": false, "aTargets": [ 0 ] }] 
+                                          });   
+               $j('#table3').dataTable({"sDom": '<"top"fl>rt<"bottom"ip><"clear">',
+                                          "bPaginate": true,
+                                          "aaSorting": [[2,'desc']],                                          
+                                          "aoColumnDefs": [{ "bSortable": false, "aTargets": [ 0 ] }] 
+                                          });           
+                $j( "#tabs" ).tabs();
+
+            } );
+            $j('#table1').ready(function() {
+                            $j('#table1').dataTable({"sDom": '<"top"fl>rt<"bottom"ip><"clear">',
+                                          "bPaginate": true,
+                                          "aaSorting": [[2,'desc']],
+                                          "aoColumnDefs": [{ "bSortable": false, "aTargets": [ 0 ] }] 
+                                          });
+            });
+        </script>
+
+<apex:stylesheet value="https://static.hubspot.com/final/css/common/button.css"/>
+<div class="hspage">
+    <div class="hsheader">
+        <img src="https://static.hubspot.com/final/img/ui_toolkit/asears/hubspot.png" />
+        <div style="float:right;">
+            <apex:form >
+            <apex:selectList value="{!recordSet}" size="1">
+            <apex:selectOption itemValue="all" itemLabel="All HubSpot Leads"/>
+            <apex:selectOption itemValue="my" itemLabel="My HubSpot Leads"/>
+            <apex:actionSupport event="onchange" action="{!changeData}"/>
+            </apex:selectList>
+            </apex:form>
+        </div>
+    </div>
+
+    <div class="hsbody">
+    <apex:outputPanel id="writeDebug" rendered="{!debugMode}">
+    <h3>Running in debug mode</h3>
+    <apex:repeat value="{!hsDebugOutput}" var="hsDO">
+        <p>{!hsDO}</p>
+    </apex:repeat>
+    </apex:outputPanel>
+    <div id="tabs" style="width:960px;">
+    <ul>
+        <li><a href="#tabs-1">Recent Visits</a></li>
+        <li><a href="#tabs-2">Recent Conversions</a></li>
+    </ul>    
+    <div id="tabs-1" style="width:960px;" >
+    <apex:outputPanel id="recentvisits">
+        <table class="hstable" id="table1">
+            <thead>
+                <tr class="hsthead"> 
+                    <th class="hsthead" style="min-width:50px; padding:0px;">&nbsp;</th>
+                    <th class="hsthead">Name and Company</th>
+                    <th class="hsthead">Recent Visit</th>
+                    <th class="hsthead">Total Visits</th>
+                    <th class="hsthead">Total Page Views</th>
+                    
+                </tr>
+            </thead>
+            <tbody>
+                <apex:variable var="count" value="odd"/>
+                <apex:repeat value="{!visitData}" var="visit">
+                <tr class="hstr-{!count}">  
+                        
+                            <td class="hsfav" style="padding:0px 10px 0px 10px;">
+                            <apex:outputText rendered="{!(visit['isContact']='true')}">
+                                    <img src="{!$Resource.contacticon}"  style="margin-top:10px;" />
+                            </apex:outputText>
+                            <apex:outputText rendered="{!(visit['isContact']='false')}">
+                                    <img src="{!$Resource.leadicon}"  style="margin-top:10px;" />
+                            </apex:outputText>
+
+                            </td>                            
+                            <td class="hstd"  style="width:235px;">
+                                <a class="hslink" href="/{!visit['linkId']}" target="_blank">{!visit['linkText']} </a>
+                            </td>
+     
+                   <td class="hstd"  style="width:235px;">
+                       {!visit['recentVisit']}
+                   </td>
+                   <td class="hstd"  style="text-align:center;width:180px;">
+                       {!visit['totalVisits']}
+                   </td>
+                   <td class="hstd"  style="text-align:center;width:180px;">
+                       {!visit['pageViews']}
+                   </td>                                     
+                </tr>
+                <apex:variable var="count" value="{!if(count='even','odd','even')}"/>
+            </apex:repeat>
+            </tbody>
+            <tfoot class="hstfoot">
+                <tr>
+                    <th class="hstfoot" style="min-width:50px; padding:0px;">&nbsp;</th>
+                    <th class="hstfoot" style="width:200px;">Name and Company</th>
+                    <th class="hstfoot">Recent Visit</th>
+                    <th class="hstfoot">Total Visits</th>
+                    <th class="hstfoot">Total Page Views</th>
+               </tr>
+            </tfoot>
+        </table>
+    </apex:outputPanel>   
+    </div>
+
+   
+   <div id="tabs-2" style="width:960px;">
+        <table class="hstable" id="table2">
+            <thead>
+                <tr class="hsthead">
+                    <th class="hsthead" style="min-width:50px; padding:0px;">&nbsp;</th>
+                    <th class="hsthead" style="width:200px;">Name and Company</th>
+                    <th class="hsthead" style="width:180px;">Recent Conversion Date</th>
+                    <th class="hsthead" style="width:140px;">Event</th>
+                    <th class="hsthead" style="width:100px;">Total Conversions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <apex:variable var="count" value="odd"/>
+                <apex:repeat value="{!conversionData}" var="conversion">
+                <tr class="hstr-{!count}"> 
+                    <td class="hsfav" style="padding:0px 10px 0px 10px;">
+                            <apex:outputText rendered="{!(conversion['isContact']='true')}">
+                                    <img src="{!$Resource.contacticon}"  style="margin-top:10px;" />
+                            </apex:outputText>
+                            <apex:outputText rendered="{!(conversion['isContact']='false')}">
+                                    <img src="{!$Resource.leadicon}"  style="margin-top:10px;" />
+                            </apex:outputText> 
+                          </td>
+                            <td class="hstd" style="width:235px;">
+                                <a class="hslink" href="/{!conversion['linkId']}" target="_blank">{!conversion['linkText']} </a>
+                            </td>
+
+                   
+                   <td class="hstd"  style="width:235px;">
+                       {!conversion['recentConversionDate']}
+                   </td>
+                   <td class="hstd"  style="width:180px;">
+                       {!conversion['recentConversionEvent']}
+                   </td>
+                   <td class="hstd"  style="width:150px;text-align:center;">
+                       {!conversion['conversionEvents']}
+                   </td>                                     
+                </tr>
+                <apex:variable var="count" value="{!if(count='even','odd','even')}"/>
+            </apex:repeat>
+            </tbody>
+            <tfoot>
+                <tr class="hstfoot">
+                    <th class="hstfoot" style="min-width:50px; padding:0px;">&nbsp;</th>
+                    <th class="hstfoot" style="width:200px;">Name and Company</th>
+                    <th class="hstfoot" style="width:180px;">Recent Conversion Date</th>
+                    <th class="hstfoot" style="width:140px;">Event</th>
+                    <th class="hstfoot" style="width:100px;">Total Conversions</th>
+                </tr>
+            </tfoot>             
+        </table>
+    </div>
+      
+   
+   
+   
+   
+   <!-- div id="tabs-3" style="width:960px;">
+        <table class="hstable" id="table3">
+            <thead>
+                <tr class="hsthead"> 
+                    <th class="hsthead" style="min-width:50px; padding:0px;">&nbsp;</th>
+                    <th class="hsthead" style="width:200px;">Name and Company</th>
+                    <th class="hsthead" style="width:230px;">Recent Visit</th>
+                    <th class="hsthead" style="width:100px;">Total Visits</th>
+                    <th class="hsthead" style="width:100px;">Total Conversions</th>
+                    
+                </tr>
+            </thead>
+            <tbody>
+                                <apex:variable var="count" value="odd"/>
+                <apex:repeat value="{!hsFavoriteIntels}" var="hsIFV">
+                <tr class="hstr-{!count}">  
+                        <apex:outputPanel id="contactLink" rendered="{!not(isnull(hsIFV.Contact__c))}">
+                            <td class="hsfav" style="padding:0px 10px 0px 10px;">
+                                <apex:outputPanel id="fav">
+                                <apex:outputPanel id="addTofav"  rendered="{!if(hsFavMap[hsIFV.id],false,true)}">     
+                                    <apex:form >
+                                    <apex:commandButton id="favcontact" image="{!$Resource.contacticon}"  action="{!saveFave}" status="savefave"  rerender="fav" style="background-image: url(); background-color:transparent; border-style:none;">
+                                    <apex:actionSupport event="onclick" action="{!saveFave}" status="savefave"  rerender="fav" >
+                                        <apex:param name="userId" value="{!usrId}"/>
+                                        <apex:param name="hsIntelId" value="{!hsIFV.id}"/>
+                                        <apex:param name="action" value="add"/>
+                                    </apex:actionSupport>
+                                    </apex:commandButton>
+                                    <apex:actionStatus id="savefave" startText="Adding" stopText="" startStyle="font-size:9px;align:center;color:#FE7722" /> 
+                                    </apex:form>
+                                </apex:outputPanel>
+                                <apex:outputPanel id="removeFromfav" rendered="{!hsFavMap[hsIFV.id]}" >
+                                    <apex:form >    
+                                    <apex:commandButton id="unfavcontact" image="{!$Resource.contactfavicon}" action="{!saveFave}" status="removefave"  rerender="fav" style="background-image: url(); background-color:transparent; border-style:none;">
+                                    <apex:actionSupport event="onclick" action="{!saveFave}" status="removefave"  rerender="fav" >
+                                        <apex:param name="userId" value="{!usrId}"/>
+                                        <apex:param name="hsIntelId" value="{!hsIFV.id}"/>
+                                        <apex:param name="action" value="remove"/>
+                                    </apex:actionSupport>
+                                    </apex:commandButton>
+                                    <apex:actionStatus id="removefave" startText="Removing" stopText="" startStyle="font-size:9px;align:center;color:#FE7722"/>  
+                                    </apex:form>  
+                                </apex:outputPanel>
+                                </apex:outputPanel>
+                                
+                            </td>                            
+                            <td class="hstd"  style="width:235px;">
+                                <a class="hslink" href="/{!hsIFV.contact__c}" target="_blank">{!hsIFV.contact__r.firstname} {!hsIFV.contact__r.lastname}, {!hsIFV.contact__r.account.name} </a>
+                            </td>
+                        </apex:outputPanel>
+                        <apex:outputPanel id="leadLink" rendered="{!isnull(hsIFV.Contact__c)}" >
+                            <td class="hsfav" style="padding:0px 10px 0px 10px;">
+                                <apex:outputPanel id="lfav"> 
+                                <apex:outputPanel id="laddtofav" rendered="{!if(hsFavMap[hsIFV.id],false,true)}"> 
+                                <apex:form >
+                                    <apex:commandButton id="favlead" image="{!$Resource.leadicon}"  action="{!saveFave}"  rerender="lfav" status="savefave" style="background-image: url(); background-color:transparent; border-style:none;">
+                                    <apex:actionSupport event="onclick" action="{!saveFave}" rerender="lfav" status="savefave">
+                                        <apex:param name="userId" value="{!usrId}"/>
+                                        <apex:param name="hsIntelId" value="{hsIFV.id}"/>
+                                        <apex:param name="action" value="add"/>
+                                    </apex:actionSupport>
+                                    </apex:commandButton>
+                                    <apex:actionStatus id="savefave" startText="Adding" stopText="" startStyle="font-size:9px;align:center;color:#FE7722" /> 
+                                </apex:form>
+                                </apex:outputPanel>
+                                <apex:outputPanel id="lremoveFromfav" rendered="{!hsFavMap[hsIFV.id]}" >
+                                <apex:form >
+                                    <apex:commandButton id="unfavlead" image="{!$Resource.leadfavicon}"  action="{!saveFave}"  rerender="fav" status="removefave" style="background-image: url(); background-color:transparent; border-style:none;">
+                                    <apex:actionSupport event="onclick" action="{!saveFave}" rerender="fav" status="savefave">
+                                        <apex:param name="userId" value="{!usrId}"/>
+                                        <apex:param name="hsIntelId" value="{!hsIFV.id}"/>
+                                        <apex:param name="action" value="remove"/>
+                                    </apex:actionSupport>
+                                    </apex:commandButton>
+                                    <apex:actionStatus id="removefave" startText="removing" stopText="" startStyle="font-size:9px;align:center;color:#FE7722" /> 
+                                </apex:form>
+                                </apex:outputPanel>
+                                </apex:outputPanel>                               
+
+                            </td>                            
+                            <td class="hstd" style="width:235px;">
+                                <a class="hslink" href="/{!hsIFV.Lead__c}" target="_blank">{!hsIFV.lead__r.firstname} {!hsIFV.lead__r.lastname}, {!hsIFV.lead__r.company}</a>
+                            </td>
+                        </apex:outputPanel>
+                   
+                   <td class="hstd"  style="width:265px;">
+                       {!hsIFV.recent_visit__c}
+                   </td>
+                   <td class="hstd"  style="width:150px;text-align:center;">
+                       {!hsIFV.website_visits__c}
+                   </td>
+                   <td class="hstd"  style="width:150px;text-align:center;">
+                       {!hsIFV.conversion_events__c}
+                   </td>                                     
+                </tr>
+                <apex:variable var="count" value="{!if(count='even','odd','even')}"/>
+            </apex:repeat>
+            </tbody>
+            <tfoot class="hstfoot">
+                <tr>
+                    <th class="hstfoot" style="min-width:50px; padding:0px;">&nbsp;</th>
+                    <th class="hstfoot" style="width:200px;">Name and Company</th>
+                    <th class="hstfoot" style="width:230px;">Recent Visit</th>
+                    <th class="hstfoot" style="width:100px;">Total Visits</th>
+                    <th class="hstfoot" style="width:100px;">Total Conversions</th>
+               </tr>
+            </tfoot>
+        </table>
+       
+    </div-->       
+    </div><!--end of tabs-->
+</div> 
+
+</div>
+    
+
+
+
+
+</apex:page>

@@ -1,0 +1,61 @@
+<apex:component access="global">
+    
+    <apex:attribute access="global" name="Picklist" description="Picklist values." type="String[]" required="true"/>
+    <apex:attribute access="global" name="AddressRanges" description="Picklist ranges." type="QAS_NA.AddressRangeWrapper[]" required="true" />
+    <apex:attribute access="global" name="IsStreetPartial" description="Flag indicates if verification level is Street Partial." type="Boolean" required="true"/>
+    <apex:attribute access="global" name="NumberAddition" description="Number provided by the user in case of a partial verification level." type="String" required="true" />
+    <apex:attribute access="global" name="DummyAddressAccepted" description="" type="Boolean" required="false" default="true" />
+
+    <div class="select-container active">
+        
+        <div class="radio-right">
+        <span onclick="qas_acceptRejectAddressRadioButtons(true, '{!JSENCODE($Component.maingPageBlock)}');">
+        <apex:selectRadio value="{!DummyAddressAccepted}" id="qas_recommendedRadio">
+            <apex:selectOption itemValue="true" itemLabel="Confirm number" />
+        </apex:selectRadio>
+        </span>
+        </div>
+        <hr />
+        
+        <h5 class="qas_title">Confirm your {!IF(IsStreetPartial, 'House/Building', 'apartment/suite/unit')} number:</h5>
+        
+        <dl class="qas2-datalist-alt">
+            <dt style="height:26px;"><apex:inputText styleClass="text qas_number" value="{!NumberAddition}" id="qas_number"  />
+            <input type="button" class="qas_default" onclick="submitNumber(this);" value="Submit" /></dt>
+            <dt>
+                <a class="display-picklist" href="javascript:;">Display all potential matches</a>
+                <a class="hide-picklist" href="javascript:;" style="display: none;">Hide potential matches</a>              
+            </dt>
+        </dl>
+            
+        <dl class="qas2-datalist-alt picklist" style="display: none; overflow: auto; width: 95%; height: 180px;">
+            <apex:repeat value="{!Picklist}" var="picklistItem">
+                <dt>{!picklistItem}</dt>
+            </apex:repeat>
+        </dl>
+    
+    </div>
+    
+    <script type="text/javascript" language="javascript">
+        j$(document).ready(function(){
+            j$("a.display-picklist").click(function(){
+                j$(this).parent().parent().parent().find(".picklist").show();
+                j$(this).hide();
+                j$(this).parent().find("a.hide-picklist").show();
+            });
+            
+            j$("a.hide-picklist").click(function(){
+                j$(this).parent().parent().parent().find(".picklist").hide();
+                j$(this).hide();
+                j$(this).parent().find("a.display-picklist").show();
+            });
+            
+        });
+        
+        function submitNumber(sender) {
+            j$(sender).parents("div[id$='maingPageBlock']").find("input[id$='qas_IsSubmitted']").val(true);
+            j$("input[id$='qasContinueToButton']").trigger("click");
+        }
+    </script>
+    
+</apex:component>

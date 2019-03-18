@@ -1,0 +1,362 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.PipelineBehaviorsController" extensions="ePrize_Zemzu.PipelineBehaviorsStep4ControllerExt" tabstyle="ContestBuilder__tab">
+  <script type="text/javascript">
+    function noenter(ev)
+    {
+      if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+        doSearchAF();
+        return false;
+      } else {
+        return true;
+      }
+    }
+    
+    function checkAll(cb, ie)
+    {
+      var inputElem = document.getElementsByTagName("input");
+      for(var i=0; i<inputElem.length; i++)
+      {
+        if(inputElem[i].id.indexOf(ie)!=-1)
+          if(!inputElem[i].disabled)
+            inputElem[i].checked = cb.checked;
+      }
+    }
+      
+    function confirmCancel() {
+      var isCancel = confirm("Are you sure you wish to cancel?");
+      if (isCancel) return true;
+      return false;
+    } 
+    
+  </script>
+  <apex:form id="mainForm">
+    <apex:pageBlock >
+      <apex:outputPanel >
+        <apex:outputText value="Select up to {0} contest participants and up to {1} contest observers.">
+          <apex:param value="{!maxContestParticipants}"/>
+          <apex:param value="{!maxContestAdmins}"/>
+        </apex:outputText>      
+        Participants are the users who will be tracked on the leaderboard. 
+        Observers are the users who can see the leaderboards and receive contest updates.
+      </apex:outputPanel>
+      <!-- Removed on 4/5/12, as requested by Bob Marsh
+      <apex:outputPanel >
+        <br/>
+        <br/>
+        <apex:outputText value="Only users who have the following types of Salesforce licenses will be displayed below: {0}.">
+          <apex:param value="{!applicableUserLicensesDescription}"/>
+        </apex:outputText>
+        <br/>
+        <br/>
+        <apex:outputText value="Add up to {0} participants to your contest.">
+          <apex:param value="{!maxContestParticipants}"/>
+        </apex:outputText>
+        <br/>
+        <apex:outputText value="Add up to {0} observers to your contest.">
+          <apex:param value="{!maxContestAdmins}"/>
+        </apex:outputText>
+      </apex:outputPanel>
+      <apex:outputPanel >
+        <br/>
+        <br/>
+        <apex:outputText value="If this is a team based contest, you can group the contest participants into teams. You can have up to {0} teams in your contest.">
+          <apex:param value="{!maxContestTeams}"/>
+        </apex:outputText>
+      </apex:outputPanel>
+      <apex:outputPanel rendered="{!goalContest}">
+        <br/>
+        <br/>
+        Set the goals the participants in your contest will be judged by.
+      </apex:outputPanel>
+      -->
+    </apex:pageBlock>
+    
+    <apex:pageBlock title="Contest Participants and Observers" mode="edit" id="participantSelection">
+      <apex:pageMessages />
+      <apex:pageBlockButtons >
+        <apex:commandButton action="{!previousStep}" value="Back" />
+        <apex:commandButton action="{!cancel}" value="Cancel" onclick="return confirmCancel()" immediate="true" />
+        <apex:commandButton action="{!nextStep}" value="Next" />
+      </apex:pageBlockButtons>
+      <apex:pageBlockSection title="Team Based Contest" columns="1">
+      	<apex:outputText value="If this is a team based contest, check the box below. After selecting the contest participants, you will press Next which will allow you to create teams, and assign the selected participants to each team." />
+        <apex:outputPanel >
+          <apex:inputCheckbox id="teamsCheckbox" value="{!teamContest}" disabled="{!chanceToWinContest || isChildContest}" onclick="return rerenderTeamComponents()"/>
+          <apex:outputLabel for="teamsCheckbox" value="Team Based Contest"/>
+          <apex:actionFunction name="rerenderTeamComponents" rerender="manageTeamsPanel, selectUserPanel" status="manageTeamsStatus"/>
+        </apex:outputPanel>
+      </apex:pageBlockSection>
+      
+      <apex:pageBlockSection rendered="{!isChildContest}" title="Select Participants and Observers" columns="1">
+        <apex:outputPanel >
+        	<apex:outputPanel id="contestUserPanel">
+                <apex:panelGrid columns="5" style="float:right">
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value="|<" action="{!firstPage}" disabled="{!!hasPreviousPage}" title="First Page"/>
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value="<" action="{!previousPage}" disabled="{!!hasPreviousPage}" title="Previous Page"/>
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value=">" action="{!nextPage}" disabled="{!!hasNextPage}" title="Next Page"/>
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value=">|" action="{!lastPage}" disabled="{!!hasNextPage}" title="Last Page"/>
+                  <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!usersViewedDetail}"/>
+                </apex:panelGrid>
+                
+	            <!-- This clear is needed to appropriately finish off the floated section above-->
+	            <div class="clear"></div>
+                
+                <apex:actionStatus id="userTableLoadingStatus">
+                  <apex:facet name="start">
+                    <div style="display: block; height: 100px; width: 100%">
+                      <table border="0" width="100%" height="100%">
+                        <tr>
+                          <td valign="middle" align="center">
+                            <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                  </apex:facet>
+                  <apex:facet name="stop">
+                    <apex:pageBlockTable id="availableUsersTable" value="{!availableUsers}" var="u" rowClasses="odd,even">
+                      <apex:column >
+                        <apex:facet name="header">
+                          Participant
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!u.selectedParticipant}" disabled="true"/>
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          Observer
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!u.selectedAdmin}" disabled="true"/>
+                      </apex:column>
+                      <apex:column rendered="{!!teamContest && goalContest}">
+                        <apex:facet name="header">
+                          Goal
+                        </apex:facet>
+                        <apex:outputText value="{!u.goal}"/>
+                      </apex:column>
+                      <!-- 
+                      <apex:column rendered="{!teamContest}">
+                        <apex:facet name="header">
+                          Team
+                        </apex:facet>
+                        <apex:outputText value="{!u.team}"/>
+                      </apex:column>
+                      <apex:column rendered="{!teamContest && goalContest}">
+                        <apex:facet name="header">
+                          Team Goal
+                        </apex:facet>
+                        <apex:outputText value="{!TEXT(u.teamGoal)}"/>
+                      </apex:column>
+                      -->
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="First Name" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="FirstName" assignTo="{!sortField}"/>
+                          </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputField value="{!u.selectedUser.FirstName}"/>
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Last Name" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="LastName" assignTo="{!sortField}"/>
+                          </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputField value="{!u.selectedUser.LastName}"/>
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Role" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="UserRole.Name" assignTo="{!sortField}"/>
+                          </apex:commandLink>                                                  
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.UserRole.Name}"/>                        
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Profile" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="Profile.Name" assignTo="{!sortField}"/>
+                          </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.Profile.Name}"/>
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Division" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="Division" assignTo="{!sortField}"/>
+                          </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.Division}"/>
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Department" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="Department" assignTo="{!sortField}"/>
+                          </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.Department}"/>
+                      </apex:column>
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Title" action="{!doSort}" reRender="contestUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="Title" assignTo="{!sortField}"/>
+                          </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.Title}"/>
+                      </apex:column>
+                    </apex:pageBlockTable>
+                  </apex:facet>
+                </apex:actionStatus>
+                <apex:panelGrid columns="5" style="float:right">
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value="|<" action="{!firstPage}" disabled="{!!hasPreviousPage}" title="First Page"/>
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value="<" action="{!previousPage}" disabled="{!!hasPreviousPage}" title="Previous Page"/>
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value=">" action="{!nextPage}" disabled="{!!hasNextPage}" title="Next Page"/>
+                  <apex:commandButton status="userTableLoadingStatus" reRender="contestUserPanel" value=">|" action="{!lastPage}" disabled="{!!hasNextPage}" title="Last Page"/>
+                  <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!usersViewedDetail}"/>
+                </apex:panelGrid>
+              </apex:outputPanel>
+        </apex:outputPanel>
+      </apex:pageBlockSection>
+
+      <apex:pageBlockSection rendered="{!!isChildContest}" title="Select Participants and Observers" columns="1">
+        <apex:outputPanel >
+	        <apex:outputpanel id="searchPanel">
+	          <apex:outputLabel value="Search"/>
+	          &nbsp;&nbsp;&nbsp;
+	          <apex:inputText value="{!searchValue}" onkeypress="return noenter(event);"/>
+	          <apex:actionFunction name="doSearchAF" action="{!search}" rerender="searchPanel, selectUserPanel" status="userTableLoadingStatus"/>
+	          <span style="margin-left: 5px;">
+		          <apex:selectList value="{!usersTableSearchFilterOption}" multiselect="false" size="1">
+		              <apex:selectOptions value="{!usersSearchFilterOptions}" />
+		          </apex:selectList>
+		      </span>
+	          &nbsp;&nbsp;&nbsp;
+	          <apex:commandButton action="{!search}" value="Search" rerender="searchPanel, selectUserPanel" status="userTableLoadingStatus"/>          
+	          <span style="margin-left: 45px;">
+		          <apex:selectList value="{!selectedUsersTableFilterOption}" multiselect="false" size="1">
+		              <apex:selectOptions value="{!usersTableFilterOptions}"/>
+		              <apex:actionSupport event="onchange" action="{!onUsersTableFilterOptionSelected}" rerender="searchPanel, selectUserPanel" status="userTableLoadingStatus"/>
+		          </apex:selectList>
+		      </span>
+		      <span style="margin-left: 25px;">
+		          <apex:inputCheckbox id="filterUsersCheckbox" value="{!filterSCBUsers}">
+		          	<apex:actionSupport event="onchange" action="{!refreshUserBrowser}" rerender="selectUserPanel" status="userTableLoadingStatus"/>
+	          	  </apex:inputCheckbox>
+		          <apex:outputLabel for="filterUsersCheckbox" value="Show only Users with SCB Permission Sets"/>
+		      </span>          
+	        </apex:outputpanel>
+	        <apex:outputPanel id="selectUserPanel">
+	          <apex:panelGrid columns="5" style="float:right">
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="|<" action="{!firstPage}" disabled="{!!hasPreviousPage}" title="First Page"/>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="<" action="{!previousPage}" disabled="{!!hasPreviousPage}" title="Previous Page"/>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">" action="{!nextPage}" disabled="{!!hasNextPage}" title="Next Page"/>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">|" action="{!lastPage}" disabled="{!!hasNextPage}" title="Last Page"/>
+	            <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!usersViewedDetail}"/>
+	          </apex:panelGrid>
+	          
+	          <!-- This clear is needed to appropriately finish off the floated section above-->
+	          <div class="clear"></div>
+	                                        
+	          <apex:actionStatus id="userTableLoadingStatus">
+	            <apex:facet name="start">
+	              <div style="display: block; height: 100px; width: 100%">
+	                <table border="0" width="100%" height="100%">
+	                  <tr>
+	                    <td valign="middle" align="center">
+	                      <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+	                    </td>
+	                  </tr>
+	                </table>
+	              </div>
+	            </apex:facet>
+	            <apex:facet name="stop">
+	              <apex:pageBlockTable id="availableUsersTable" value="{!availableUsers}" var="u" rowClasses="odd,even">
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:outputPanel >
+	                      <apex:inputCheckbox id="ParticipantCheckAll" value="{!participantCheckAll}" onclick="checkAll(this,'participantcheckedone')"/>
+	                      <apex:outputLabel value="Participant" for="ParticipantCheckAll"/>
+	                    </apex:outputPanel>
+	                  </apex:facet>
+	                  <apex:inputCheckbox value="{!u.selectedParticipant}" id="participantcheckedone" disabled="{!!u.eligibleParticipant}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:outputPanel >
+	                      <apex:inputCheckbox id="ObserverCheckAll" value="{!observerCheckAll}" onclick="checkAll(this,'observercheckedone')"/>
+	                      <apex:outputLabel value="Observer" for="ObserverCheckAll"/>
+	                    </apex:outputPanel>
+	                  </apex:facet>
+	                  <apex:inputCheckbox value="{!u.selectedAdmin}" id="observercheckedone" disabled="{!!u.eligibleAdmin}"/>
+	                </apex:column>
+	                <apex:column rendered="{!goalContest && !teamContest}">
+	                  <apex:facet name="header">
+	                    Goal
+	                  </apex:facet>
+	                  <apex:inputText value="{!u.goal}"/>
+	                  <apex:outputText value="{!u.goalErrorMessage}" styleClass="errorMsg" rendered="{!u.goalError}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Name" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Name" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputField value="{!u.selectedUser.Name}"/>
+	                </apex:column>
+	                <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Role" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="UserRole.Name" assignTo="{!sortField}"/>
+                          </apex:commandLink>                                                  
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.UserRole.Name}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Profile" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Profile.Name" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.SelectedUser.Profile.Name}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Division" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Division" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.selectedUser.Division}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Department" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Department" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.selectedUser.Department}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Title" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Title" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.selectedUser.Title}"/>
+	                </apex:column>
+	              </apex:pageBlockTable>
+	            </apex:facet>
+	          </apex:actionStatus>
+	          <apex:outputText rendered="{!IF(availableUsers.size == 0, true, false)}" value="No matching data found." />
+	          
+	          <apex:panelGrid columns="5" style="float:right">
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="|<" action="{!firstPage}" disabled="{!!hasPreviousPage}" title="First Page"/>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="<" action="{!previousPage}" disabled="{!!hasPreviousPage}" title="Previous Page"/>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">" action="{!nextPage}" disabled="{!!hasNextPage}" title="Next Page"/>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">|" action="{!lastPage}" disabled="{!!hasNextPage}" title="Last Page"/>
+	            <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!usersViewedDetail}"/>
+	          </apex:panelGrid>
+	        </apex:outputPanel>
+        </apex:outputPanel>
+      </apex:pageBlockSection>
+    </apex:pageBlock>
+  </apex:form>
+</apex:page>

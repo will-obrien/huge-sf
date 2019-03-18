@@ -1,0 +1,134 @@
+<apex:page standardController="InSituGen__InSitu_AppSetting__c" extensions="InSituGen.InSitu_AppSettingViewController" showHeader="true" tabStyle="InSituGen__InSitu_AppSetting__c" action="{!showCustomView}">
+    <apex:sectionHeader title="iTools Setting" subtitle="{!GlobalSetting.InSituGen__Setting__c}"/>
+    <apex:messages />
+    <apex:form > 
+    
+        <p class="myBreadcrumb">
+    	<apex:commandLink action="{!returnToManage}" value="<<Back to iTools Configuration Manager" />
+        <br/>&nbsp;</p>
+           
+        <apex:pageBlock title="{!ASDetailBlockTitle}" id="GlobalSettingDetail">
+           <apex:pageBlockButtons location="Top" id="DefaultButtons">
+               <apex:commandButton action="{!editGlobalSetting}" value="Edit" rendered="{!showEdit}"/>
+               <apex:commandButton action="{!resetGlobalSetting}" value="Reset" rendered="{!showReset}"/>
+           </apex:pageBlockButtons>
+           <apex:pageBlockSection columns="1" >
+               <apex:outputField value="{!GlobalSetting.InSituGen__Value__c}"/> 
+               <apex:outputField value="{!GlobalSetting.InSituGen__Description__c}"/>            
+           </apex:pageBlockSection>
+         </apex:pageBlock>
+
+		<apex:pageBlock title="Profile Specific Overrides" rendered="{!ShowProfileSpecific}">
+			<apex:pageBlockButtons location="Top">
+			    <apex:commandButton action="{!addProfileSetting}" value="Add" rendered="{!showEdit}" />
+			    <apex:commandButton action="{!deleteAllProfileSettings}" value="Delete All" onClick="return confirmDelete()" rendered="{!showEdit}"/>
+			</apex:pageBlockButtons>
+         	<apex:pageBlockSection columns="1">
+            	<apex:pageBlockTable value="{!AllProfileSpecificSettings}" var="ProfileSetting" id="ProfileSettingsList" 
+                  rowClasses="odd,even" styleClass="tableClass" rows="1000" frame="none" >
+                    
+                    <apex:column headerValue="Action" width="150">
+                        <apex:commandLink action="{!editSetting}" rendered="{!showEdit}">
+	                        <apex:param name="ScopeIndicator" value="{!ProfileSetting.Obj.InSituGen__Scope_Indicator__c}" />
+	                        <apex:param name="ProfileSettingID" value="{!ProfileSetting.Obj.Id}" />
+	                            <b>Edit</b>
+                        </apex:commandLink> | 
+                        <apex:commandLink action="{!deleteSetting}" onClick="return confirmDelete()" rendered="{!showEdit}" >
+	                        <apex:param name="ScopeIndicator" value="{!ProfileSetting.Obj.InSituGen__Scope_Indicator__c}" AssignTo="{!ActionScope}"/>
+	                        <apex:param name="ProfileSettingID" value="{!ProfileSetting.Obj.Id}" />
+	                        <b>Del</b>
+                        </apex:commandLink> | 
+                        <apex:commandLink rerender="HistoryList" >
+	                        <apex:param name="ScopeIndicator" value="{!ProfileSetting.Obj.InSituGen__Scope_Indicator__c}" />
+	                        <apex:param name="ProfileSettingID" value="{!ProfileSetting.Obj.Id}" />
+	                        <b>History</b>
+                        </apex:commandLink>
+
+                    </apex:column>
+                    <apex:column headerValue="Profile" width="15%">
+                        <apex:outputText value="{!ProfileSetting.ProfileName}" />
+                    </apex:column>                             
+                    <apex:column headerValue="Value" width="25%">
+                        <apex:outputText value="{!ProfileSetting.Obj.InSituGen__Value__c}"/>
+                    </apex:column>                
+                    <apex:column headerValue="Last Modified By" width="15%">
+                        <apex:outputField value="{!ProfileSetting.Obj.LastModifiedById}"/>
+                    </apex:column> 
+                    <apex:column headerValue="Last Modified Date" >
+                        <apex:outputField value="{!ProfileSetting.Obj.LastModifiedDate}"/>
+                    </apex:column> 
+                                       
+            	</apex:pageBlockTable>
+        	</apex:pageBlockSection>        
+        </apex:pageBlock>
+        
+         <apex:pageBlock title="User Specific Overrides" rendered="{!ShowUserSpecific}">
+           <apex:pageBlockButtons location="Top">
+               <apex:commandButton action="{!addUserSetting}" value="Add" rendered="{!showEdit}"/>
+               <apex:commandButton action="{!deleteAllUserSettings}" value="Delete All" onClick="return confirmDelete()" rendered="{!showEdit}"/>
+           </apex:pageBlockButtons>
+               <apex:pageBlockSection columns="1">
+               <apex:pageBlockTable value="{!AllUserSpecificSettings}" var="UserSetting" id="UserSettingsList" 
+                  rowClasses="odd,even" styleClass="tableClass" rows="1000" frame="none" >
+                    
+                    <apex:column headerValue="Action" width="150">
+                        <apex:commandLink action="{!editSetting}" rendered="{!showEdit}">
+	                        <apex:param name="ScopeIndicator" value="{!UserSetting.InSituGen__Scope_Indicator__c}" />
+	                        <apex:param name="UserSettingID" value="{!UserSetting.Id}" />
+                            <b>Edit</b>
+                        </apex:commandLink> | 
+                        <apex:commandLink action="{!deleteSetting}" onClick="return confirmDelete()" rendered="{!showEdit}">
+	                        <apex:param name="ScopeIndicator" value="{!UserSetting.InSituGen__Scope_Indicator__c}" />
+	                        <apex:param name="UserSettingID" value="{!UserSetting.Id}" />
+	                        <b>Del</b>
+                        </apex:commandLink> | 
+                        <apex:commandLink rerender="HistoryList" >
+	                        <apex:param name="ScopeIndicator" value="{!UserSetting.InSituGen__Scope_Indicator__c}" />
+	                        <apex:param name="UserSettingID" value="{!UserSetting.Id}" />
+	                        <b>History</b>
+                        </apex:commandLink>
+
+                    </apex:column>
+                    <apex:column headerValue="User" width="15%">
+                        <apex:outputText value="{!UserSetting.Scope_User__r.LastName}, {!UserSetting.Scope_User__r.FirstName}"/>
+                    </apex:column>                             
+                    <apex:column headerValue="Value" width="25%">
+                        <apex:outputText value="{!UserSetting.InSituGen__Value__c}"/>
+                    </apex:column>                
+                    <apex:column headerValue="Last Modified By" width="15%">
+                        <apex:outputField value="{!UserSetting.LastModifiedById}"/>
+                    </apex:column> 
+                    <apex:column headerValue="Last Modified Date" >
+                        <apex:outputField value="{!UserSetting.LastModifiedDate}"/>
+                    </apex:column> 
+                                       
+                </apex:pageBlockTable>
+         </apex:pageBlockSection>        
+        </apex:pageBlock>
+        
+    </apex:form>
+    
+    <apex:form id="HistoryList">
+        <apex:pageblock >
+ 			<apex:facet name="header">
+ 				<apex:outputText value="{!ASHistoryBlockTitle}" style="font-family: 'Verdana','Geneva',sans-serif; font-weight: bold; font-size: 91%; line-height: 2; margin: 0 0 0 4px" />
+ 			</apex:facet>
+            <apex:pageBlockTable value="{!HistoryRecords}" var="History" frame="none" rowClasses="odd,even" styleClass="tableClass" >
+                <apex:column headerValue="Date"  value="{!History.EventDate}"/>
+                <apex:column headerValue="User" value="{!History.ChangedBy}"/>
+                <apex:column headerValue="Action"><apex:outputText value="{!History.ChangeAction}"/></apex:column>
+            </apex:pageBlockTable>                
+            <apex:pageBlockButtons location="Bottom">
+            	<apex:commandButton action="{!refreshPage}" value="Display History of Default Value for All Users" rendered="{!IsHistoryUserSpecific || IsHistoryProfileSpecific}"/>            	
+            </apex:pageBlockButtons>
+        </apex:pageblock>
+   </apex:form> 
+ 
+<style type="text/css">
+	p.myBreadcrumb
+	{
+		line-height: 0.1
+	} 
+</style>  
+        
+ </apex:page>

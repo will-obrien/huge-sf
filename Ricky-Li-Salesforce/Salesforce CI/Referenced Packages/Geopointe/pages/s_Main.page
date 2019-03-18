@@ -1,0 +1,785 @@
+<apex:page tabStyle="Geopointe_Setup__tab" controller="geopointe.s_Main" sidebar="false" action="{!init}" title="Geopointe - Setup">
+
+	<!-- CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/ui/css/smoothness/jquery-ui-1.9.2.custom.min.css')}"/> <!-- jQuery UI CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/fieldSelector/css/fieldselector.css')}"/> <!-- FieldSelector plugin CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/> <!-- Common geopointe CSS -->
+	<apex:stylesheet value="{!$Resource.geopointe__mapCSS}"/> <!-- map css -->
+    <apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/s_main.css')}"/> <!-- CSS for s_Main.page -->
+	
+	<!-- jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}" /> <!-- jQuery UI -->
+		
+	<!-- Include the Geopointe functions -->
+	<apex:includeScript value="{!$Resource.geopointe__GeopointeJS}" />
+	
+	<!-- Other packages -->
+	<apex:includeScript value="{!$Resource.geopointe__sorttable}" /> <!-- Sorttable -->
+	<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics -->
+
+<apex:sectionHeader title="Geopointe" subtitle="Setup"/>
+
+<apex:outputPanel id="pageMessages">	
+    <apex:pageMessages escape="false" />
+</apex:outputPanel>
+
+<apex:form style="margin-top: -10px;">
+<apex:outputPanel layout="block" style="padding: 3px; margin-left: 30px; font-size: 1.1em;">
+	<apex:panelGrid columns="2">
+        <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+        To learn more, visit <a href="http://support.arrowpointe.com/" target="_blank"><b>http://support.arrowpointe.com/</b></a>. 
+        For assistance from Arrowpointe, please contact support at <a href="mailto:support@arrowpointe.com"><b>support@arrowpointe.com</b></a>.
+    </apex:panelGrid>
+</apex:outputPanel>
+<apex:outputPanel id="wrapperDIV" layout="block" rendered="{!initSuccess}">
+
+<div id="setupTabs" style="display:none;">
+    <ul>
+        <li><a href="#tab-org">Org Settings</a></li>
+        <li><a href="#tab-mapObjects">Map Objects</a></li>
+        <li><a href="#tab-dataSets">Data Sets</a></li>
+        <li><a href="#tab-actions">Actions</a></li>
+        <li><a href="#tab-layers">Layers</a></li>
+        <li><a href="#tab-batchJobs">Batch Jobs</a></li>
+    </ul>
+
+    <div id="tab-org">
+        <!-- Organization Preferences & Country Codes -->
+        <table style="width:100%;" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:top; padding-right: 5px;">
+                <!-- Organization Preferences -->
+                <apex:outputPanel >
+                <apex:pageBlock title="Organization Settings" helpTitle="Learn more about Organization Settings" helpUrl="http://support.arrowpointe.com/organization-settings/">
+                    <apex:pageBlockButtons location="top">
+                        <apex:commandButton action="{!goToEditOrgSettings}" value="Edit"/>
+                        
+                        <apex:commandButton action="{!updatePermissions}" value="Get License Information" rerender="pageMessages" 
+                        onclick="if(confirm('This process will obtain information from Arrowpointe related to your Geopointe license.\n\nContinue?')){geopointeAjaxStart('body','Retrieving Permissions...');}else{return false}"
+                        oncomplete="geopointeAjaxEnd();"/>
+
+                        <apex:commandButton action="{!updateUserPermissions}" value="Set User Permissions" rerender="pageMessages" 
+                        onclick="if(confirm('This process will assign your users to Permission Sets that come with the Geopointe application.\n\nThis helps to ensure your users have access to core Geopointe functionality.\n\nContinue?')){geopointeAjaxStart('body','Updating Permissions...');}else{return false}"
+                        oncomplete="geopointeAjaxEnd();"/>
+                        
+                        <apex:commandButton action="{!removeUserPermissions}" value="Remove User Permissions" rerender="pageMessages" 
+                        onclick="if(confirm('This process will unassign your users from the Permission Sets that come with the Geopointe application.\n\nThis is required prior to uninstalling the application..\n\nContinue?')){geopointeAjaxStart('body','Removing Permissions...');}else{return false}"
+                        oncomplete="geopointeAjaxEnd();"/>
+
+                    </apex:pageBlockButtons>
+                     <apex:pageBlockSection title="Organization Information">
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText value="Organization ID"/>
+                            <apex:outputText value="{!$Organization.Id}"/>
+                        </apex:pageBlockSectionItem>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Primary_Contact_Name__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Organization_Name__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Primary_Contact_Phone__c}"/>
+                        <apex:pageBlockSectionItem >
+                            <apex:outputText value="Address"/>
+                            <apex:outputText value="{!orgFormattedAddress}"/>
+                        </apex:pageBlockSectionItem>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Primary_Contact_Email__c}"/>
+                     </apex:pageBlockSection>
+                    <apex:pageBlockSection title="Mapping Preferences">
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Mapping_Provider__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Disable_Entire_Dataset_Search__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Default_Country_Code__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Minimum_Zoom_search_map_bounds__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Maximum_Search_Nearby_Radius__c}"/>
+                    </apex:pageBlockSection>
+                    <apex:pageBlockSection title="Check-In Preferences">
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Check_In_Creates_Task__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Check_In_Task_Subject_Prefix__c}"/>
+                    </apex:pageBlockSection>
+                    <apex:pageBlockSection title="Batch Geocode Preferences">
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Log_Batch_Geocode_Results__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Email_Batch_Geocode_Results__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Notify_If_No_Records_To_Process__c}"/>
+                    </apex:pageBlockSection>
+                    <apex:pageBlockSection title="Debug" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}">
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Last_Org_Info_Update_Send_Info__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Last_Org_Info_Update_Get_Perms__c}"/>
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Last_Geo_Location_Cleanup__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Last_Route_Cleanup__c}"/>
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Last_Temp_Cleanup__c}"/>
+                        <apex:outputText value=""/>
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_Maps__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_API__c}"/>
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_Visualize__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_Data_Cleansing__c}"/>
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_Change_Provider__c}"/>
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_SpatialKey__c}"/>
+                        
+                        <apex:outputField value="{!orgSettings.settings.geopointe__Perm_Mobile__c}"/>
+                        <apex:outputText value=""/>
+                        
+                    </apex:pageBlockSection>
+                </apex:pageBlock>
+               </apex:outputPanel>
+            </td>
+            <td style="width:350px; vertical-align:top;">
+                <!-- Analytics -->
+                <apex:outputPanel >
+                    <apex:pageBlock title="Analytics Setup">
+                        <apex:outputPanel layout="block" style="padding: 3px;">
+                            <apex:panelGrid columns="2">
+                                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                                <apex:outputText value="Geopointe Analytics offers a robust solution for geographically analyzing your Salesforce data, 
+                                                        whether it be 100s of records or 100,000 records."/>
+                            </apex:panelGrid>
+                        </apex:outputPanel>
+                        <apex:outputPanel layout="block" style="text-align: center;">
+                            <apex:commandButton action="{!gotoManageAnalytics}" value="Analytics Setup"/>
+                        </apex:outputPanel>
+                    </apex:pageBlock>
+                </apex:outputPanel>
+                
+                <!-- Country Codes -->
+                <apex:outputPanel >
+                    <apex:pageBlock title="Country Code Mappings">
+                        <apex:outputPanel layout="block" style="padding: 3px;">
+                            <apex:panelGrid columns="2">
+                                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                                <apex:outputText value="Geopointe maintains a mapping of common country values to their 2-character ISO Country Code. This greatly improves Geocoding accuracy."/>
+                            </apex:panelGrid>
+                        </apex:outputPanel>
+                        <apex:panelGrid columns="2">
+                            <apex:outputPanel >
+                                <apex:outputText value="Country Code Mappings are needed. Press the Download Mappings button to get them." style="color: #FF1100; font-weight: bold;" rendered="{!ccCount=0}"/>
+                                <apex:outputText value="# of mappings: {!ccCount}" rendered="{!ccCount>0}"/>
+                                <br/>
+                                <apex:outputText value="# of custom mappings: {!ccCountCustom}" rendered="{!ccCount>0}"/>
+                                <br/>
+                                <apex:outputLink value="{!$Page.geopointe__s_CountryCodeMapping}">Edit Mappings</apex:outputLink>
+                            </apex:outputPanel>
+                            <apex:outputPanel >
+                                <br/>
+                                <apex:commandButton action="{!refreshCCPublisherValues}" value="Download Mappings" onclick="geopointeAjaxStart('body','Downloading Mappings, this takes ~1 minute...');" />
+                                <br/>
+                            </apex:outputPanel>
+                        </apex:panelGrid>
+                    </apex:pageBlock>
+                </apex:outputPanel>
+            </td>
+        </tr></table>
+    </div>
+
+    <div id="tab-mapObjects">
+        <!-- Map Objects -->
+        <apex:pageBlock title="Map Objects" id="MapObjects" helpTitle="Learn more about Map Objects" helpUrl="http://support.arrowpointe.com/map-objects/">
+            
+            <apex:pageBlockButtons location="top">
+                <apex:commandButton value="New Map Object" action="{!object_new}"/>
+            </apex:pageBlockButtons>
+
+            <apex:panelGrid columns="2" styleClass="setupTabInfo">
+                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                <apex:outputPanel >
+                    Map Objects are the custom or standard objects in your system that can be mapped. For example, if you want to map Accounts you 
+                    will create an Account Map Object and setup the address fields that should be used for mapping.
+                </apex:outputPanel>
+            </apex:panelGrid>
+            
+            <apex:pageblockTable value="{!MapObjects}" var="mo" rowClasses="odd,even" styleClass="sortable">
+                
+                <apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+                    <apex:outputPanel >
+                        
+                        <apex:outputPanel >
+                            <apex:commandLink value="Edit" action="{!object_edit}">
+                                <apex:param value="{!mo.mo.name}" assignTo="{!SelectedEntity}" name="sobj"/>
+                            </apex:commandLink>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel rendered="{! mo.mo.Status__c =='Active' && NOT(mo.isBeingReferenced) && mo.mo.name != 'geopointe__geo_location__c' }">
+                            &nbsp;|&nbsp;
+                            <apex:commandLink value="Deactivate"  action="{!object_statusUpdate}" rerender="MapObjects"
+                            onclick="if(confirm('Are you sure you wish to deactivate this record? Deactivating a Map Object will disallow this object from being mapped, but will keep the record in your system in case you wish to activate it later.')){geopointeAjaxStart('body','Deactivating...');}else{return false}"
+                            oncomplete="geopointeAjaxEnd();">
+                                <apex:param value="Inactive" assignTo="{!setTo}" name="sobj_inactive"/>
+                                <apex:param value="{!mo.mo.name}" assignTo="{!SelectedEntity}" name="mo"/>
+                            </apex:commandLink>  
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel rendered="{! NOT(mo.mo.Status__c =='Active') && mo.mo.name != 'geopointe__geo_location__c' }">
+                            &nbsp;|&nbsp;
+                            <apex:commandLink value="Activate" action="{!object_statusUpdate}" rerender="MapObjects" onclick="geopointeAjaxStart('body','Activating...');" oncomplete="geopointeAjaxEnd();">
+                                <apex:param value="Active" assignTo="{!setTo}" name="sobj_active"/>
+                                <apex:param value="{!mo.mo.name}" assignTo="{!SelectedEntity}" name="mo"/>
+                            </apex:commandLink>  
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel rendered="{! NOT(mo.mo.Status__c =='Active') && NOT(mo.isBeingReferenced) && mo.mo.name != 'geopointe__geo_location__c' }">
+                            &nbsp;|&nbsp;
+                            <apex:commandLink value="Delete" action="{!object_delete}" rerender="MapObjects"
+                            onclick="if(confirm('Are you sure you wish to delete this record? Deleting a Map Object will disallow this object from being mapped at all. If you think you might wish to map this object again, it is recommended to leave it as Inactive rather than deleting it.')){geopointeAjaxStart('body','Deleting...');}else{return false}"
+                            oncomplete="geopointeAjaxEnd();">
+                                <apex:param value="{!mo.mo.name}" assignTo="{!SelectedEntity}" name="sobjd"/>
+                            </apex:commandLink>
+                        </apex:outputPanel>
+                        
+                    </apex:outputPanel>
+                </apex:column>
+                
+                <apex:column headerValue="Object">{!SUBSTITUTE(mo.mo.name, 'geopointe__',' ')}</apex:column>
+                            
+                <apex:column headerValue="Active">
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! mo.mo.Status__c = 'Active' }" />
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! mo.mo.Status__c != 'Active' }" />
+                </apex:column>
+                
+                <apex:column headerValue="Name Field">{!SUBSTITUTE(mo.mo.geopointe__Name_Field__c, 'geopointe__',' ')}</apex:column>
+                
+                <apex:column headerValue="Street Field" rendered="{!NOT(mo.isReferencing)}">{!SUBSTITUTE(mo.mo.geopointe__Street_Field__c, 'geopointe__',' ')}</apex:column>
+                
+                <apex:column headerValue="City Field" rendered="{!NOT(mo.isReferencing)}">{!SUBSTITUTE(mo.mo.geopointe__City_Field__c, 'geopointe__',' ')}</apex:column>
+                
+                <apex:column headerValue="State/Province Field" rendered="{!NOT(mo.isReferencing)}">{!SUBSTITUTE(mo.mo.geopointe__State_Field__c, 'geopointe__',' ')}</apex:column>
+                
+                <apex:column headerValue="Postal Code Field" rendered="{!NOT(mo.isReferencing)}">{!SUBSTITUTE(mo.mo.geopointe__PostalCode_Field__c, 'geopointe__',' ')}</apex:column>
+                
+                <apex:column headerValue="Country Field" rendered="{!NOT(mo.isReferencing)}">{!SUBSTITUTE(mo.mo.geopointe__Country_Field__c, 'geopointe__',' ')}</apex:column>
+                
+                <apex:column headerValue="Custom Lat/Lon Fields" rendered="{!NOT(mo.isReferencing)}">
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! AND( NOT(ISBLANK(mo.mo.Latitude_Field__c)), NOT(ISBLANK(mo.mo.Longitude_Field__c)) )}" />
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! AND( ISBLANK(mo.mo.Latitude_Field__c), ISBLANK(mo.mo.Longitude_Field__c) )}" />
+                </apex:column>
+                
+                <apex:column headerValue="Has Filter" rendered="{!NOT(mo.isReferencing)}">
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{!NOT(ISBLANK(mo.mo.geopointe__Map_Object_Filter__c))}" />
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{!ISBLANK(mo.mo.geopointe__Map_Object_Filter__c)}" />
+                </apex:column>
+                
+                <apex:column headerValue="Last Geocode" value="{!mo.mo.geopointe__Last_Geocode_Batch_Run__c}" rendered="{!NOT(mo.isReferencing)}"/>
+                
+                <apex:column headerValue="Batch Size" value="{!mo.mo.geopointe__Geocode_Batch_Size__c}" rendered="{!NOT(mo.isReferencing)}"/>
+                
+                <apex:column headerValue="Batch Geocode" rendered="{!NOT(mo.isReferencing)}">
+                    <apex:commandLink value="All" action="{!runBatchGeocode}">
+                        <apex:param name="sobj_batchGeo_All_MO" value="{!mo.mo.name}" assignTo="{!mapObjectForGeocoding}"/>
+                        <apex:param name="sobj_batchGeo_All_delta" value="false" assignTo="{!performDeltaGeocode}"/>
+                    </apex:commandLink>
+                    <apex:outputText value=" | "/>
+                    <apex:commandLink value="Delta" action="{!runBatchGeocode}">
+                        <apex:param name="sobj_batchGeo_Delta_MO" value="{!mo.mo.name}" assignTo="{!mapObjectForGeocoding}"/>
+                        <apex:param name="sobj_batchGeo_Delta_delta" value="true" assignTo="{!performDeltaGeocode}"/>
+                    </apex:commandLink>
+                </apex:column>
+                
+                <apex:column colspan="10" style="padding-left: 50px;" rendered="{!mo.isReferencing}">
+                    <b>This Map Object references the <u>{!mo.mo.geopointe__Referenced_Map_Object__c}</u> Map Object</b>
+                </apex:column>
+                
+            </apex:pageblockTable>
+        </apex:pageBlock>
+    </div>
+
+    <div id="tab-dataSets">
+        <!-- Data Sets -->
+        <apex:pageBlock title="Data Sets" id="DataSets" helpTitle="Learn more about Data Sets" helpUrl="http://support.arrowpointe.com/data-sets/">
+            
+            <apex:pageBlockButtons location="top">
+                <apex:commandButton value="New Data Set" action="{!dataset_new}"/>
+            </apex:pageBlockButtons>
+
+            <apex:panelGrid columns="2" styleClass="setupTabInfo">
+                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                <apex:outputPanel >
+                    Data Sets are similar to reports. They are a predifined list of fields and filters users can select from when searching a map.
+                </apex:outputPanel>
+            </apex:panelGrid>
+            
+            <apex:pageblockTable value="{!DataSets}" var="ds" rowClasses="odd,even" styleClass="sortable">
+                <apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+                    <apex:outputPanel >
+                    
+                        <apex:outputPanel >
+                            <apex:commandLink value="Edit" action="{!DataSet_edit}">
+                                <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="ds"/>
+                            </apex:commandLink>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel rendered="{!NOT(ds.geopointe__Status__c =='Active')}">
+                            &nbsp;|&nbsp;
+                            <apex:commandLink value="Activate" reRender="DataSets" action="{!DataSet_statusUpdate}" onclick="geopointeAjaxStart('body','Activating...');" oncomplete="geopointeAjaxEnd();">
+                                <apex:param value="Active" assignTo="{!setTo}" name="dsd_active"/>
+                                <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="dsd"/>
+                            </apex:commandLink> 
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel rendered="{!ds.geopointe__Status__c =='Active'}">
+                            &nbsp;|&nbsp;
+                            <apex:commandLink value="Deactivate" action="{!DataSet_statusUpdate}" rerender="DataSets"
+                            onclick="if(confirm('Are you sure you wish to deactivate this record? Deactivating a Data Set will disallow it from being used in your maps, but will keep the record in your system in case you wish to activate it later.')){geopointeAjaxStart('body','Deactivating...');}else{return false}"
+                            oncomplete="geopointeAjaxEnd();">
+                                <apex:param value="Inactive" assignTo="{!setTo}" name="ds_inactive"/>
+                                <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="dsd"/> 
+                            </apex:commandLink>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel >
+                            &nbsp;|&nbsp;
+                            <apex:commandLink value="Delete" action="{!DataSet_delete}" rerender="DataSets"
+                            onclick="if(confirm('Are you sure you wish to delete this record? Deleting a Data Set will disallow it from being used in your maps. If you think you might wish to map this Data Set again, it is recommended to leave it as Inactive rather than deleting it.')){geopointeAjaxStart('body','Deleting...');}else{return false}"
+                            oncomplete="geopointeAjaxEnd();">
+                                <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="dsd"/>
+                            </apex:commandLink>
+                        </apex:outputPanel>
+                        
+                        <apex:outputPanel >
+                            &nbsp;|&nbsp;
+                            <a href="#" class="datasetCloneBtn" data-object="{!ds.Name}" data-datasetName="{!ds.geopointe__Data_Set_Name__c}">Clone</a>
+                        </apex:outputPanel>
+                        
+                    </apex:outputPanel>
+                </apex:column>
+                <apex:column value="{!ds.geopointe__Data_Set_Name__c}"/>
+                <apex:column headerValue="Map Object">{!SUBSTITUTE(ds.geopointe__Map_Object__c, 'geopointe__',' ')}</apex:column>
+                <apex:column headerValue="Active">
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! ds.Status__c = 'Active' }" />
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! ds.Status__c != 'Active' }" />
+                </apex:column>
+                <apex:column value="{!ds.geopointe__Color_Markers_By__c}"/>
+                <apex:column value="{!ds.geopointe__Available_Maps__c}"/>
+                <apex:column value="{!ds.geopointe__Available_Visualize__c}"/>
+                <apex:column headerValue="1-Column Address" value="{!ds.geopointe__Formatted_Address_for_Data_Table__c}"/>
+                <apex:column headerValue="Show Filter">
+                    <apex:outputPanel rendered="{!ds.geopointe__Show_Filter__c == 'my'}">My Records</apex:outputPanel>
+                    <apex:outputPanel rendered="{!ds.geopointe__Show_Filter__c == 'all'}">All Records</apex:outputPanel>
+                    <apex:outputPanel rendered="{!ds.geopointe__Show_Filter__c == 'acctteams'}">On Account Team</apex:outputPanel>
+                </apex:column>
+                <apex:column headerValue="Unique Id" value="{!ds.Name}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+                <apex:column headerValue="Color"><div style="background-color: #{!JSENCODE(ds.Color__c)}; width: 15px; height: 15px;"> </div></apex:column>
+            </apex:pageblockTable>
+        </apex:pageBlock>
+    </div>
+
+    <div id="tab-actions">
+        <!-- Actions -->
+        <apex:pageBlock title="Actions" helpTitle="Learn more about Actions" helpUrl="http://support.arrowpointe.com/actions/" id="actionsPageBlock">
+            <apex:pageBlockButtons location="top">
+                <a class="btn gpLinkButton" href="{!URLFOR($Action.Action__c.New)}">New Action</a>
+            </apex:pageBlockButtons>  
+
+            <apex:panelGrid columns="2" styleClass="setupTabInfo">
+                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                <apex:outputPanel >
+                    Actions allow you to attach custom logic to individual records on a map or the results of an entire search. These can be links that open up external pages,
+                    Visualforce pages, or even execute Apex code.
+                </apex:outputPanel>
+            </apex:panelGrid>
+
+            <apex:pageBlockSection title="Record Actions" collapsible="false" columns="1">
+                <apex:pageBlockSectionItem >    
+                    <apex:outputPanel >
+                        On the Map page these Record Actions are displayed in the pop-up bubble when a user selects a pin on the map. 
+                        These actions can only be applied to one record at a time.<br/><br/>
+
+                        <apex:pageBlockTable value="{!recordActions}" var="a" id="recordActionsTable">
+                            <apex:column headerValue="Action" style="font-weight:bold;" width="285px">
+                                <apex:outputLink value="{!URLFOR($Action.Action__c.Edit, a.Id)}">Edit</apex:outputLink>&nbsp;|&nbsp;
+
+                                <apex:outputPanel rendered="{!showActionUserAccess}">
+                                    <apex:outputLink value="{!URLFOR($Action.Action__c.Share, a.Id)}">User Access</apex:outputLink>&nbsp;|&nbsp;
+                                </apex:outputPanel>
+
+                                <apex:commandLink rendered="{!NOT(a.geopointe__Active__c)}" value="Activate" action="{!setActionActive}" rerender="actionsPageBlock" 
+                                onclick="geopointeAjaxStart('body','Activating...');" oncomplete="geopointeAjaxEnd();">
+                                    <apex:param value="true" assignTo="{!actionActiveValue}" name="actionActiveValue"/> 
+                                    <apex:param value="{!a.Id}" assignTo="{!actionIdForDML}" name="actionIdForDML"/> 
+                                </apex:commandLink>
+
+                                <apex:commandLink rendered="{!a.geopointe__Active__c}" value="Deactivate" action="{!setActionActive}" rerender="actionsPageBlock" 
+                                onclick="geopointeAjaxStart('body','Deactivating...');" oncomplete="geopointeAjaxEnd();">
+                                    <apex:param value="false" assignTo="{!actionActiveValue}" name="actionActiveValue"/>
+                                    <apex:param value="{!a.Id}" assignTo="{!actionIdForDML}" name="actionIdForDML"/>
+                                </apex:commandLink>
+
+                                <apex:outputPanel rendered="{!a.geopointe__Standard_Action__c == ''}">
+                                    &nbsp;|&nbsp;
+                                    <apex:commandLink value="Delete" action="{!deleteAction}" rerender="actionsPageBlock" 
+                                    onclick="if(confirm('This will permanently DELETE the Action: {!JSENCODE(a.Name)}')){geopointeAjaxStart('body','Deleting...');}else{return false}"
+                                    oncomplete="geopointeAjaxEnd();">
+                                        <apex:param value="{!a.Id}" assignTo="{!actionIdForDML}" name="actionIdForDML"/>
+                                    </apex:commandLink>
+                                </apex:outputPanel>
+                        
+                                <apex:outputPanel rendered="{!a.geopointe__Standard_Action__c == ''}">
+                                    |&nbsp;
+                                    <apex:outputLink value="{!URLFOR($Action.Action__c.Clone, a.Id)}">Clone</apex:outputLink>
+                                </apex:outputPanel>
+
+                                <!-- Hidden element used to update sort order -->
+                                <span class="hiddenId" style="display:none;" data-id="{!a.Id}"/>
+                            </apex:column>
+                            <apex:column headerValue="Order" width="135px" styleClass="actionSortCol">
+                                <a href="#"><apex:image url="/s.gif" alt="Top" styleClass="doubleArrowUp" title="Top"/></a>
+                                <a href="#"><apex:image url="/s.gif" alt="Up" styleClass="upArrowIcon" title="Up"/></a>
+                                <a href="#"><apex:image url="/s.gif" alt="Down" styleClass="downArrowIcon" title="Down"/></a>   
+                                <a href="#"><apex:image url="/s.gif" alt="Bottom" styleClass="doubleArrowDwn" title="Bottom"/></a>
+                            </apex:column>
+                            <apex:column value="{!a.Name}"/>
+                            <apex:column value="{!a.geopointe__Active__c}"/>
+                            <apex:column value="{!a.geopointe__Display_Type__c}"/>
+                            <apex:column value="{!a.geopointe__Action_Type__c}"/>
+                            <apex:column value="{!a.geopointe__Behavior__c}"/>
+                            <apex:column value="{!a.geopointe__Map_Objects__c}"/>
+                            <apex:column value="{!a.geopointe__Apex_Class__c}"/>
+                            <apex:column headerValue="Custom">
+                                <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{!a.geopointe__Standard_Action__c == ''}" />
+                                <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{!a.geopointe__Standard_Action__c != ''}" />
+                            </apex:column>
+                        </apex:pageBlockTable>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem> 
+            </apex:pageBlockSection>  
+
+            <apex:pageBlockSection title="List Actions" collapsible="false" columns="1">
+                <apex:pageBlockSectionItem >    
+                    <apex:outputPanel >
+                        On the Map page these List Actions can be accessed with the "Actions" button under the map on the right side. 
+                        These actions can process all the records returned in a search.<br/><br/>
+
+                        <apex:pageBlockTable value="{!listActions}" var="a" id="listActionsTable" >
+                            <apex:column headerValue="Action" style="font-weight:bold;" width="285px">
+                                <apex:outputLink value="{!URLFOR($Action.Action__c.Edit, a.Id)}">Edit</apex:outputLink>&nbsp;|&nbsp;
+
+                                <apex:outputPanel rendered="{!showActionUserAccess}">
+                                    <apex:outputLink value="{!URLFOR($Action.Action__c.Share, a.Id)}">User Access</apex:outputLink>&nbsp;|&nbsp;
+                                </apex:outputPanel>
+
+                                <apex:commandLink rendered="{!NOT(a.geopointe__Active__c)}" value="Activate" action="{!setActionActive}" rerender="actionsPageBlock" 
+                                onclick="geopointeAjaxStart('body','Activating...');" oncomplete="geopointeAjaxEnd();">
+                                    <apex:param value="true" assignTo="{!actionActiveValue}" name="actionActiveValue"/> 
+                                    <apex:param value="{!a.Id}" assignTo="{!actionIdForDML}" name="actionIdForDML"/> 
+                                </apex:commandLink>
+
+                                <apex:commandLink rendered="{!a.geopointe__Active__c}" value="Deactivate" action="{!setActionActive}" rerender="actionsPageBlock" 
+                                onclick="geopointeAjaxStart('body','Deactivating...');" oncomplete="geopointeAjaxEnd();">
+                                    <apex:param value="false" assignTo="{!actionActiveValue}" name="actionActiveValue"/>
+                                    <apex:param value="{!a.Id}" assignTo="{!actionIdForDML}" name="actionIdForDML"/>
+                                </apex:commandLink>
+
+                                <apex:outputPanel rendered="{!a.geopointe__Standard_Action__c == ''}">
+                                    &nbsp;|&nbsp;
+                                    <apex:commandLink value="Delete" action="{!deleteAction}" rerender="actionsPageBlock" 
+                                    onclick="if(confirm('This will permanently DELETE the Action: {!JSENCODE(a.Name)}')){geopointeAjaxStart('body','Deleting...');}else{return false}"
+                                    oncomplete="geopointeAjaxEnd();">
+                                        <apex:param value="{!a.Id}" assignTo="{!actionIdForDML}" name="actionIdForDML"/>
+                                    </apex:commandLink>
+                                </apex:outputPanel> 
+
+                                <apex:outputPanel rendered="{!a.geopointe__Standard_Action__c == ''}">
+                                    |&nbsp;
+                                    <apex:outputLink value="{!URLFOR($Action.Action__c.Clone, a.Id)}">Clone</apex:outputLink>
+                                </apex:outputPanel>
+
+                                <!-- Hidden element used to update sort order -->
+                                <span class="hiddenId" style="display:none;" data-id="{!a.Id}"/>
+                            </apex:column>
+                            <apex:column headerValue="Order" width="135px" styleClass="actionSortCol">
+                                <a href="#"><apex:image url="/s.gif" alt="Top" styleClass="doubleArrowUp" title="Top"/></a>
+                                <a href="#"><apex:image url="/s.gif" alt="Up" styleClass="upArrowIcon" title="Up"/></a>
+                                <a href="#"><apex:image url="/s.gif" alt="Down" styleClass="downArrowIcon" title="Down"/></a>   
+                                <a href="#"><apex:image url="/s.gif" alt="Bottom" styleClass="doubleArrowDwn" title="Bottom"/></a>
+                            </apex:column>
+                            <apex:column value="{!a.Name}"/>
+                            <apex:column value="{!a.geopointe__Active__c}"/>
+                            <apex:column value="{!a.geopointe__Action_Type__c}"/>
+                            <apex:column value="{!a.geopointe__Map_Objects__c}"/>
+                            <apex:column value="{!a.geopointe__Apex_Class__c}"/>
+                            <apex:column headerValue="Custom">
+                                <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{!a.geopointe__Standard_Action__c == ''}" />
+                                <apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{!a.geopointe__Standard_Action__c != ''}" />
+                            </apex:column>
+                        </apex:pageBlockTable>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem> 
+            </apex:pageBlockSection>  
+        </apex:pageBlock>
+    </div>
+
+    <div id="tab-layers">
+        <!-- Layers -->
+        <apex:pageBlock title="Layers" helpTitle="Learn more about Layers" helpUrl="http://support.arrowpointe.com/layers/" id="layersPageBlock">
+            <apex:pageBlockButtons location="top" rendered="{!orgSettings.settings.geopointe__Mapping_Provider__c == 'Google'}">
+                <a class="btn gpLinkButton" href="{!URLFOR($Action.Layer__c.New)}">New Layer</a>
+            </apex:pageBlockButtons>
+            
+            <apex:panelGrid columns="2" styleClass="setupTabInfo">
+                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                <apex:outputPanel >
+                    Layers are KML, KMZ, or GEORSS files that can be added to the map. 
+                </apex:outputPanel>
+            </apex:panelGrid>
+
+            <apex:outputPanel rendered="{!orgSettings.settings.geopointe__Mapping_Provider__c != 'Google'}">
+                <apex:pageMessage severity="info" escape="false" >
+                    The Layers feature is only supported when Google Maps is the mapping provider. 
+                    Please contact <a href="mailto:support@arrowpointe.com?subject=Change Mapping Provider to Google" target="_blank">support@arrowpointe.com</a> 
+                    to start the process of changing mapping providers.
+                </apex:pageMessage>
+            </apex:outputPanel>
+
+            <apex:outputPanel rendered="{!orgSettings.settings.geopointe__Mapping_Provider__c == 'Google'}">
+                <apex:pageblockTable value="{!layers}" var="l" rendered="{!layers.size > 0}" styleClass="sortable">
+                    <apex:column headerValue="Action" style="font-weight:bold;" width="285px">
+                        
+                        <apex:outputLink value="{!URLFOR($Action.Layer__c.Edit, l.Id)}">Edit</apex:outputLink>&nbsp;|&nbsp;
+
+                        <apex:outputPanel rendered="{!showLayerUserAccess}">
+                            <apex:outputLink value="{!URLFOR($Action.Layer__c.Share, l.Id)}">User Access</apex:outputLink>&nbsp;|&nbsp;
+                        </apex:outputPanel>
+                        
+                        <apex:commandLink rendered="{!NOT(l.geopointe__Active__c)}" value="Activate" action="{!setLayerActiveValue}" rerender="layersPageBlock" 
+                        onclick="geopointeAjaxStart('body','Activating...');" oncomplete="geopointeAjaxEnd();">
+                            <apex:param value="true" assignTo="{!layerActiveValue}" name="layerActiveValue"/> 
+                            <apex:param value="{!l.Id}" assignTo="{!layerIdForDML}" name="layerIdForDML"/> 
+                        </apex:commandLink>
+
+                        <apex:commandLink rendered="{!l.geopointe__Active__c}" value="Deactivate" action="{!setLayerActiveValue}" rerender="layersPageBlock" 
+                        onclick="geopointeAjaxStart('body','Deactivating...');" oncomplete="geopointeAjaxEnd();">
+                            <apex:param value="false" assignTo="{!layerActiveValue}" name="layerActiveValue"/>
+                            <apex:param value="{!l.Id}" assignTo="{!layerIdForDML}" name="layerIdForDML"/>
+                        </apex:commandLink>
+
+                        &nbsp;|&nbsp;
+                        <apex:commandLink value="Delete" action="{!deleteLayer}" rerender="layersPageBlock" 
+                        onclick="if(confirm('This will permanently DELETE the Layer: {!JSENCODE(l.Name)}')){geopointeAjaxStart('body','Deleting...');}else{return false}"
+                        oncomplete="geopointeAjaxEnd();">
+                            <apex:param value="{!l.Id}" assignTo="{!layerIdForDML}" name="layerIdForDML"/>
+                        </apex:commandLink>
+                    </apex:column>
+
+                    <apex:column value="{!l.Name}"/>
+                    <apex:column value="{!l.geopointe__Description__c}"/>
+                    <apex:column value="{!l.geopointe__URL__c}"/>
+                    <apex:column value="{!l.geopointe__Active__c}"/>
+                    <apex:column value="{!l.geopointe__Auto_Load__c}"/>
+                </apex:pageblockTable>
+
+                <apex:outputText escape="false" rendered="{!layers == 0}">
+                    There are currently no Layers.
+                </apex:outputText>
+            </apex:outputPanel>
+        </apex:pageBlock>
+    </div>
+
+    <div id="tab-batchJobs">
+        <!-- Scheduled Jobs -->
+        <apex:pageBlock title="Scheduled Jobs" helpTitle="Learn more about the Geocoder" helpUrl="http://support.arrowpointe.com/the-geocoder/" id="scheduledJobsPageBlock">
+            <apex:pageBlockButtons location="top">
+                <apex:commandButton action="{!rescheduleApexJobs}" value="Schedule Jobs" rerender="pageMessages,scheduledJobsPageBlock" onclick="geopointeAjaxStart('body','Scheduling Jobs...');" oncomplete="geopointeAjaxEnd();"/>
+                <apex:commandButton action="{!unscheduleApexJobs}" value="Cancel Jobs" rerender="pageMessages,scheduledJobsPageBlock" onclick="geopointeAjaxStart('body','Canceling Jobs...');" oncomplete="geopointeAjaxEnd();"/>
+            </apex:pageBlockButtons>
+            <apex:outputPanel layout="block" style="margin: 3px 30% 3px 30px; padding: 3px;" rendered="{!schedulesSize > 0}">
+                <apex:panelGrid columns="2">
+                    <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                    <apex:outputText value="Geopointe schedules logic to run in the background to improve your experience and to relieve you of manual work. The list below shows what Geopointe currently has scheduled." />
+                </apex:panelGrid>
+            </apex:outputPanel>
+            <apex:pageblockTable value="{!schedules}" var="s" rowClasses="odd,even" rendered="{!schedulesSize > 0}" styleClass="sortable">
+                <apex:column headerValue="Job Name" value="{!s.scheduleName}"/>
+                <apex:column headerValue="Job Description" width="40%" value="{!s.scheduleDescription}"/>
+                <apex:column headerValue="Status" value="{!s.scheduleStatus}"/>
+                <apex:column headerValue="Frequency" value="{!s.scheduleFrequency}"/>
+                <apex:column headerValue="Submitted By" value="{!s.submittedBy}"/>
+                <apex:column headerValue="Last Run" value="{!s.lastScheduledRun}"/>
+                <apex:column headerValue="Next Run" value="{!s.nextScheduledRun}"/>
+                <apex:column headerValue="Schedule Id" value="{!s.scheduleID}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+            </apex:pageblockTable>
+            <apex:outputText escape="false" rendered="{!schedulesSize == 0}">
+                There are currently no Geopointe jobs scheduled. Click the <b>Schedule Jobs</b> button to setup the schedule.
+            </apex:outputText>
+        </apex:pageBlock>
+        
+        <!-- Current & Recently Completed Jobs -->
+        <apex:pageBlock title="Current & Recently Completed Batch Jobs" id="batchJobList">
+            <apex:pageBlockButtons location="top">
+                <apex:commandButton value="Refresh" rerender="batchJobList" onclick="geopointeAjaxStart('body','Refreshing Batch Job List...');" oncomplete="geopointeAjaxEnd();"/>
+            </apex:pageBlockButtons>
+            
+            <apex:panelGrid columns="2" styleClass="setupTabInfo">
+                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info32.png')}" height="16px"/>
+                <apex:outputPanel >
+                    Below is a list of the batch jobs currently running as well as the 10 most recently completed batch jobs (<a href="/apexpages/setup/listAsyncApexJobs.apexp" target="_blank"><em>Monitor All Jobs</em></a>)
+                </apex:outputPanel>
+            </apex:panelGrid>
+
+            <apex:pageblockTable value="{!apexBatchJobs}" var="job" rowClasses="odd,even" rendered="{!apexBatchJobsCount > 0}" styleClass="sortable">
+                <apex:column headerValue="Job Type" value="{!job.apexClass}"/>
+                <apex:column headerValue="Status" value="{!job.Status}"/>
+                <apex:column headerValue="Total Items" value="{!job.TotalJobItems}"/>
+                <apex:column headerValue="Processed Items" value="{!job.JobItemsProcessed}"/>
+                <apex:column headerValue="Errored Items" value="{!job.NumberOfErrors}"/>
+                <apex:column headerValue="Submitted" value="{!job.CreatedDate}"/>
+                <apex:column headerValue="Completed" value="{!job.CompletedDate}"/>
+                <apex:column headerValue="Running User" value="{!job.RunningUser}"/>
+                <apex:column headerValue="Job Id" value="{!job.jobId}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+            </apex:pageblockTable>
+            <apex:outputText rendered="{!apexBatchJobsCount == 0}">
+                There are no Geopointe jobs currently running nor have any ever been run.
+            </apex:outputText>
+        </apex:pageBlock>
+    </div>
+</div>
+
+</apex:outputPanel>
+
+</apex:form>
+<div id="clonePanel" style="display: none">
+  <div class="bd">
+        <apex:outputPanel id="master">
+        <apex:form >
+            <apex:pageBlock >
+            <apex:pageBlockButtons location="bottom">
+            <apex:commandButton value="Save" action="{!dataset_clone}" onclick="geopointeAjaxStart('.cloneDataSetModal','Cloning...');" oncomplete="geopointeAjaxEnd();"/>
+            <input id="closeClone" class="btn" type="button" value="Cancel"/>
+            
+            </apex:pageBlockButtons>
+                <apex:pageBlockSection columns="1" >
+                    <apex:pageBlockSectionItem helpText="Enter a name for the new Data Set that will be created as a result of the clone.">
+                        <apex:outputLabel >Name:</apex:outputLabel>
+                        <apex:inputText value="{!DSCopy}" onkeydown=""/>
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+            
+            <apex:inputText value="{!selectedEntity}" styleClass="hiddenCloneObject" style="display:none;"/>	
+            
+        </apex:form>
+        </apex:outputPanel>
+  </div>
+</div>
+
+<apex:outputPanel id="dummyPanel"/>
+
+<apex:form >
+    <!--Action function that gets called on page load to assign admin perm set to user view this page-->
+    <apex:actionFunction name="assignAdminPermSet" action="{!assignAdminPermSet}" rerender="dummyPanel"/>
+
+    <!--Action function that updates acton order -->
+    <apex:actionFunction name="updateActionOrder" action="{!updateActionOrder}" rerender="dummyPanel">
+        <apex:param name="actionJSON" assignTo="{!actionJSON}" value=""/>
+    </apex:actionFunction>
+</apex:form>
+
+
+<script type="text/javascript">
+	
+	var j$ = jQuery.noConflict();
+	
+	j$(document).ready(function(){
+		j$('#setupTabs').tabs({
+            select: function(event, ui) {                   
+                window.location.hash = ui.tab.hash;
+            }
+        }).show();
+
+        //Autoload the correct tab based on tab url param
+        var tabParam = '{!$CurrentPage.parameters.tab}';
+        if(tabParam){
+             jQuery('#setupTabs a[href="#'+tabParam+'"]').click();
+        }
+
+        //Create jquery ui dialog for data set clone
+		j$("#clonePanel").dialog({
+			autoOpen: false,
+			dialogClass: 'cloneDataSetModal',
+			modal: true,
+			position: 'center',
+			resizable: false,
+			title: 'Clone Data Set',
+			width: 400,
+			close: function( event, ui ) {
+				//Clear out the hidden input field that stores selected entity
+				j$(".hiddenCloneObject").val('');
+			}
+		});
+
+		//Event listener to open the clone dialog
+		j$("body").on("click",".datasetCloneBtn",function(e){
+			
+			//Set the title of the dialog box
+			j$( "#clonePanel" ).dialog( "option", "title", "Clone "+j$(this).attr("data-datasetName")+" Data Set" );
+			
+			//Set the selected entity
+			j$(".hiddenCloneObject").val(j$(this).attr("data-object"));
+			
+			j$("#clonePanel").dialog("open");
+			e.preventDefault();
+		});
+		
+		//Event listner to close the jquery ui dialog
+		j$("body").on("click","#closeClone",function(e){
+			j$("#clonePanel").dialog("close");
+			e.preventDefault();
+		});
+
+        //Event listeners for sorting action tables
+        j$("body").on('click','.actionSortCol img',function(e){ //Up
+            var $listElement = j$(this).closest("tr");
+
+            if(j$(this).hasClass('upArrowIcon')){
+                $listElement.prev().before($listElement);
+
+            }else if(j$(this).hasClass('downArrowIcon')){
+                $listElement.next().after($listElement);
+
+            }else if(j$(this).hasClass('doubleArrowDwn')){
+                $listElement.appendTo($listElement.closest('tbody'));
+
+            }else if(j$(this).hasClass('doubleArrowUp')){
+                $listElement.prependTo($listElement.closest('tbody'));
+            }
+            
+            updateSortOrder();
+
+            e.preventDefault();
+        });
+        
+        //Remove the standard last row class from the action tables, this messes up sorting styling as last tr has no bottom border
+        jQuery("table[id$='recordActionsTable'] tr.last").removeClass('last');
+        jQuery("table[id$='listActionsTable'] tr.last").removeClass('last');
+
+        //Assign Geopointe Admin Permission set
+        assignAdminPermSet();
+	});
+
+    function updateSortOrder(){
+        var actionsToUpdate = []; //Array of Action__c objects
+
+        //Loop through record actions 
+        jQuery("table[id$='recordActionsTable'] .hiddenId").each(function(i){
+            actionsToUpdate.push({
+                Id: jQuery(this).attr('data-id'),
+                Order__c: i + 1
+            });
+        });
+        
+        //Loop through list actions
+        jQuery("table[id$='listActionsTable'] .hiddenId").each(function(i){
+            actionsToUpdate.push({
+                Id: jQuery(this).attr('data-id'),
+                Order__c: i + 1
+            });
+        });
+
+        //Call action function that will update order
+        updateActionOrder(JSON.stringify(actionsToUpdate));
+    }
+	
+	//JS Merge fields
+	gp_orgSettings = new Object();
+	gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';
+    
+</script>
+
+</apex:page>

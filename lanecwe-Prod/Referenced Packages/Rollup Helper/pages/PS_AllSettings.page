@@ -1,0 +1,257 @@
+<!--*************************************************************************************************************************
+/*                                                                                                                          *
+/*  Company: Passage Technology, All Rights Reserved                                                                        *
+/*  Purpose: Build source query for rollups.                                                                                *
+/*  Author:  Brent Gossett (224-552-0077)                                                                                   *
+/*                                                                                                                          *
+/****************************************************************************************************************************-->
+
+<apex:page controller="rh2.PS_settingManagementController" sidebar="false" tabStyle="PS_All_Rollups__tab" action="{!numActive}">
+    
+    <apex:includeScript value="{! URLFOR($Resource.PT_Resources_v1, '/js/modernizr-1.7.min.js') }"/>
+     
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/reset.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/grid.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/general.css') }"/>
+    <apex:stylesheet value="{! URLFOR($Resource.PT_Resources_v1, '/css/css3.css') }"/> 
+     
+    
+    <style>
+        [id$=heading] { padding-top:20px; padding-bottom:5px;}
+        .h_scroll {overflow-x:auto;}
+        .caption {font-size:smallest; padding-left:10px; padding-bottom:5px; padding-top:5px;}
+        .breadcrumb {font-size:small;}
+        .action {width:90px;}
+        .checkmark2 {
+            background-image: url({!URLFOR($Resource.PT_Resources_v1, 'images/checkmark.png')});
+            margin-left: 6px;
+            width: 12px;
+            height: 12px;
+        }
+        
+    </style>
+    
+    <!-- upgrade message for non paying customers -->
+    <center>
+    <apex:form styleClass="col_15" rendered="{!and(count > 4, notpaid)}" id="upgradeMessage">
+    <div id="updateBox" rendered="false">
+    <div class="message" style="text-align:center"><font size="3">You may only have five active rollups at a time. In order to increase the number of active rollups you may upgrade.  
+                                                                  Please visit <a href="http://www.passagetech.com/products/rollup-helper">http://www.passagetech.com/products/rollup-helper</a> 
+                                                                  for more information. <br></br>
+                                                                  Or you may click the upgrade button below to upgrade.</font> </div>
+    </div>
+    </apex:form>
+   </center>
+    
+    <apex:form >
+    
+    
+    
+     <script>
+     
+     /*********************************************************************
+     Function used to display the confirmation dialogue. As well as displaying
+     the Upgrade information for the non paying users.
+     *********************************************************************/
+        function confirmActive(checkActive, fieldName) 
+        {
+       
+       
+        
+           /*********************************
+           if the user is a non paying customer
+           **********************************/
+           if({!count} < 5 || checkActive =="true" && {!notpaid} == true)
+           {
+           
+            if(checkActive == "true")
+            {
+            return confirm("Are you sure you would like to deactivate " + fieldName + "?");
+            }
+            
+            else 
+            {
+            return confirm("Are you sure you would like to activate " + fieldName + "?");
+            }
+            
+           }
+           
+           else if({!count} >= 5 && {!notpaid} == true)
+           {
+                
+           //setTimeout("location.reload(true)");
+          
+           return false;
+           }
+           
+           /*********************************
+           else the user is a paying customer
+           **********************************/
+         
+           else
+           {
+           
+            if(checkActive == "true")
+            {
+            return confirm("Are you sure you would like to deactivate " + fieldName + "?");
+            }
+            
+            else 
+            {
+            return confirm("Are you sure you would like to activate " + fieldName + "?");
+            }
+           
+           }
+        
+        }
+        
+        
+     </script>
+
+
+            
+            
+    <apex:outputPanel styleClass="row" layout="block" id="master_block">
+        <apex:pageBlock helpUrl="http://rolluphelper.passagetech.com/resources/user-guide"
+                        helpTitle="Help for this Page"
+                        title="All Rollups"
+        >
+
+        <apex:pageBlockButtons >
+            <!-- Premium Feature Notice -->
+            <apex:outputLink rendered="{!notpaid}" style="margin-left:0px;" target="_blank" value="http://www.passagetech.com/products/rollup-helper">
+                <apex:image value="{!URLFOR($Resource.rh2__PT_Resources_v1, 'images/upgrade_icon_green.gif')}" width="16" height="17" style="vertical-align:text-top;"/>
+            </apex:outputLink>
+            <apex:commandButton value="Upgrade" rendered="{!notpaid}" onClick="window.open('http://www.passagetech.com/products/rollup-helper');"/>
+            <!-- Premium Feature Notice -->
+            <apex:commandButton value="New" action="{!URLFOR($Page.rh2__PS_SelectMaster)}"/>  
+            <apex:commandButton value="Run As {!$User.FirstName + ' ' + $User.LastName}" action="{!newAgent}" 
+                rendered="{!NOT(isRunningUserCurrentUser)}" reRender="running_user"/>            
+                
+        </apex:pageBlockButtons>
+        
+            <apex:outputPanel styleClass="row" id="running_user">
+                <apex:outputPanel styleClass="col col_16" style="padding-bottom:5px;">
+                    <apex:outputText value="Running As {!runningUser}" rendered="{!isBatchActive}" styleClass="col col_3 align_left"/>
+                    <apex:outputText value="{!Count} of {!total} Rollups Active" id="displayNum" styleClass="col col_12 align_right"/>
+               </apex:outputPanel>
+            </apex:outputPanel>
+            
+            <apex:outputPanel rendered="{! customSettingsExist }"  id="setting_values" styleClass="row">
+                
+                <apex:pageBlockTable value="{! customSettings }" var="item" id="table">
+                    
+                    <apex:variable var="isScheduled" value="{!not(isBlank(item.rh2__targetFieldName__c))}"/>
+                    
+                    <apex:column headerClass="action" styleClass="action">
+                        <apex:facet name="header">Action</apex:facet>
+                        
+                        <apex:outputLink value="/apex/PS_Job" rendered="{!isBlank(item.rh2__targetFieldName__c)}">
+                            <apex:param name="s" value="{!item.name}"/>
+                            <apex:outputText value="Run"/>
+                        </apex:outputLink>
+                        <apex:outputLink value="/apex/PS_Job" rendered="{!not(isBlank(item.rh2__targetFieldName__c))}">
+                            <apex:param name="id" value="{!item.rh2__targetFieldName__c}"/>
+                            <apex:outputText value="Run"/>
+                        </apex:outputLink>
+                        
+                        <apex:outputText value=" | "/>  
+                        <apex:outputLink value="/apex/PS_RollupType?s={!item.Name}">Edit</apex:outputLink>
+                        
+                        <apex:outputText value=" | "/>
+                        <apex:commandLink value="Del" reRender="setting_values, master_block, running_user, displayNum" action="{! delCustomSetting }">
+                            <apex:param name="settingId" value="{! item.Name }"/>
+                        </apex:commandLink>
+                        
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:image value="{!URLFOR($Resource.rh2__PT_Resources_v1, 'images/s.gif')}" styleClass="scheduledIcon"/>                           
+                        
+                        </apex:facet>
+                    
+                    <!-- Job Active check image display-->
+                        <apex:image value="{!URLFOR($Resource.rh2__PT_Resources_v1, 'images/s.gif')}" 
+                        styleClass="checkmark2" rendered="{!item.rh2__targetFieldLength__c == 1}" />                                              
+                        
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="Relationship Field" action="{! doSettingSort }" rerender="table">
+                                <apex:param name="sortField" value="relationshipField__c" assignTo="{!sortField}"/>
+                            <apex:outputText value="{!IF(sortField=='relationshipField__c', IF(sortDirection=='asc', ' ▲', ' ▼'),' ▼▲')}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        {! item.relationshipField__c }
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="Source Field" action="{! doSettingSort }" rerender="table">
+                                <apex:param name="sortField" value="sourceField__c" assignTo="{!sortField}"/>
+                            <apex:outputText value="{!IF(sortField=='sourceField__c', IF(sortDirection=='asc', ' ▲', ' ▼'),' ▼▲')}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        {! item.sourceField__c }
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="Logic" action="{! doSettingSort }" rerender="table">
+                                <apex:param name="sortField" value="logic__c" assignTo="{!sortField}"/>
+                            <apex:outputText value="{!IF(sortField=='logic__c', IF(sortDirection=='asc', ' ▲', ' ▼'),' ▼▲')}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        {! item.logic__c }
+                    </apex:column>
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="Condition" action="{! doSettingSort }" rerender="table">
+                                <apex:param name="sortField" value="relationshipName__c" assignTo="{!sortField}"/>
+                            <apex:outputText value="{!IF(sortField=='relationshipName__c', IF(sortDirection=='asc', ' ▲', ' ▼'),' ▼▲')}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        <apex:outputLink value="/apex/PS_DefineFilter?f={! item.condition__c }">{! item.relationshipName__c }</apex:outputLink>
+                    </apex:column>
+                    <apex:column > 
+                        <apex:facet name="header">
+                            <apex:commandLink value="Target Field" action="{! doSettingSort }" rerender="table">
+                                <apex:param name="sortField" value="targetField__c" assignTo="{! sortField }"/>
+                            <apex:outputText value="{!IF(sortField=='targetField__c', IF(sortDirection=='asc', ' ▲', ' ▼'),' ▼▲')}"/>
+                            </apex:commandLink>
+                        </apex:facet>
+                        {! item.targetField__c }                         
+                    </apex:column>
+                    
+                    <apex:column >
+                        <apex:facet name="header">
+                            <apex:commandLink value="Active"/>
+                        </apex:facet>
+                        
+                        <!-- Active rollup checkbox -->
+                           <apex:commandLink onClick="if (!confirmActive('{!item.rh2__conditional__c}', '{!item.rh2__targetField__c}')) return false;" action="{!setActive}"> 
+                            <apex:inputfield value="{!item.rh2__conditional__c}" id="activeCheckbox" />
+                            <apex:param name="rollupId" value="{!item.name}"/> 
+                           </apex:commandLink> 
+                          
+                            
+                            
+                    </apex:column>
+                    
+                </apex:pageBlockTable>
+                
+            </apex:outputPanel>
+                
+
+            <apex:pageBlockSection rendered="{! !customSettingsExist }">
+                <apex:outputText styleClass="col col_16">
+                    No rollup settings exist yet.  To get started, select a&nbsp;<apex:outputLink value="{!URLFOR($Page.rh2__PS_SelectMaster)}">target object</apex:outputLink>.
+                </apex:outputText>
+            </apex:pageBlockSection>
+
+        </apex:pageBlock>
+        
+    </apex:outputPanel>
+    </apex:form>
+    
+    
+
+</apex:page>

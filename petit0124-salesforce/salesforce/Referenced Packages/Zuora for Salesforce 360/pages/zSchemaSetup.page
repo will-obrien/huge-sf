@@ -1,0 +1,212 @@
+<apex:page controller="Zuora.zSchemaSetupController">
+	<style type="text/css">
+.captionStyle {
+	text-align: left;
+	font-size: large;
+}
+</style>
+<script>
+  function disableUpload(btnId){
+    var btn = document.getElementById(btnId);
+    if(btn){
+      btn.disabled = true;
+      btn.className = 'btnDisabled';
+    }
+  }
+  
+  function upload(btnId){
+    disableUpload(btnId);
+    uploadWsdl();
+  }
+</script>
+	<apex:form >
+		<apex:messages id="msg" />
+		<apex:pageBlock title="zSchema Setup" id="zclp">
+			<apex:pageBlockSection id="uploadArea" title="Upload Zuora WSDL File"
+				columns="2" collapsible="false">
+				<apex:pageBlockSectionItem >
+					<apex:outputPanel >
+						<apex:inputFile value="{!wsdlbody}" fileName="{!filename}"
+							accept="wsdl"></apex:inputFile>
+						<apex:commandButton id="uploadBtn" onclick="upload('{!$Component.uploadBtn}');" value="Upload"  />
+					</apex:outputPanel>
+				</apex:pageBlockSectionItem>
+				<apex:actionRegion id="clearArea">
+					<apex:pageBlockSectionItem >
+						<apex:actionstatus id="clearupStatus">
+							<apex:facet name="start">
+								<apex:commandButton value="Clearing" disabled="true" />
+							</apex:facet>
+							<apex:facet name="stop">
+								<apex:commandButton id="clearbtn" value="Clear Schema Cache"
+									title="Remove Zuora Objects and Fields from Custom Setting"
+									action="{!cleanup}"
+									onclick="if(!window.confirm('This action will delete all Zuora Objects and Fields from the cache, and cannot be undone. Are you sure you want to continue?')) return false;"
+									status="clearupStatus" rerender="clearArea,zuoraObjList,fieldtable,msg"
+									disabled="{!disableObjList}" />
+							</apex:facet>
+						</apex:actionstatus>
+					</apex:pageBlockSectionItem>
+				</apex:actionRegion>
+			</apex:pageBlockSection>
+      <apex:actionFunction name="uploadWsdl" action="{!upload}" />
+			<apex:actionRegion >
+				<apex:pageBlockSection id="zuoraObjList" title="Zuora Objects"
+					columns="1" collapsible="false">
+					<apex:pageBlockSectionItem >
+						<apex:outputLabel value="Zuora Objects"></apex:outputLabel>
+						<apex:outputPanel >
+							<apex:selectList id="objList" value="{!ObjName}" size="1"
+								multiselect="false" disabled="{!disableObjList}">
+								<apex:actionSupport event="onchange" action="{!selectzObject}"
+									reRender="fieldtable" />
+								<apex:selectOptions value="{!zObjects}"></apex:selectOptions>
+							</apex:selectList>
+						</apex:outputPanel>
+					</apex:pageBlockSectionItem>
+				</apex:pageBlockSection>
+				<apex:pageBlockSection columns="1">
+					<apex:pageBlockTable value="{!objDisplayFields}" var="objField"
+						id="fieldtable" rowClasses="odd,even" cellpadding="2%"
+						styleClass="list" captionClass="captionStyle" rules="cols">
+
+						<apex:facet name="footer">
+							<apex:actionstatus id="addnewfieldstatus">
+								<apex:facet name="start">
+									<apex:commandButton value="Adding New Field" disabled="true" />
+								</apex:facet>
+								<apex:facet name="stop">
+									<apex:commandButton value="Add New Field"
+										action="{!preAddCustomField}" reRender="fieldtable,objList"
+										rendered="{!displayAddButton}" status="addnewfieldstatus" />
+								</apex:facet>
+							</apex:actionstatus>
+
+						</apex:facet>
+						<apex:facet name="caption">
+							<apex:outputLabel value="Fields of {!objName}"
+								rendered="{!IF(objName !=''&&objName!='--None--',true,false)}"></apex:outputLabel>
+						</apex:facet>
+						<apex:column width="20%">
+							<apex:facet name="header">Field Name</apex:facet>
+							<apex:outputText value="{!objField.zField.Zuora__zFieldName__c}"
+								rendered="{!!objField.IsEditing}" />
+							<apex:inputfield value="{!objField.zField.Zuora__zFieldName__c}"
+								rendered="{!objField.isEditing}" />
+						</apex:column>
+
+						<apex:column width="8%">
+							<apex:facet name="header">Type</apex:facet>
+							<apex:outputText value="{!objField.zField.Zuora__FieldType__c}"
+								rendered="{!!objField.IsEditing}" />
+							<apex:outputLabel value="string" rendered="{!objField.isEditing}" />
+						</apex:column>
+						<apex:column width="10%">
+							<apex:facet name="header">zObject Type Name</apex:facet>
+							<apex:outputText value="{!objField.zField.Zuora__zObjectTypeName__c}" />
+						</apex:column>
+						<apex:column width="10%">
+							<apex:facet name="header">Is Nullable</apex:facet>
+							<apex:inputCheckbox disabled="{!!objField.zField.Zuora__IsZuoraCustomField__c || !objField.IsEditing}"
+								value="{!objField.zField.Zuora__IsNullable__c}" />
+						</apex:column>
+						<apex:column width="10%">
+						  <apex:facet name="header">Is Array</apex:facet>
+						  <apex:inputCheckbox disabled="{!!objField.zField.Zuora__IsZuoraCustomField__c || !objField.IsEditing}"
+                value="{!objField.zField.Zuora__IsArray__c}" />
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Is Zuora Custom Field</apex:facet>
+							<apex:inputcheckbox disabled="true"
+								value="{!objField.zField.Zuora__IsZuoraCustomField__c}" />
+						</apex:column>
+						<apex:column width="6%">
+							<apex:facet name="header">Version</apex:facet>
+							<apex:outputText value="{!objField.zField.Zuora__zApiVersion__c}"
+								rendered="{!!objField.IsEditing}" />
+							<apex:inputfield value="{!objField.zField.Zuora__zApiVersion__c}"
+								rendered="{!objField.isEditing}" />
+						</apex:column>
+						<apex:column >
+							<apex:facet name="header">Actions</apex:facet>
+							<apex:actionstatus id="editstatus">
+								<apex:facet name="start">
+									<apex:commandButton value="Editing" disabled="true" />
+								</apex:facet>
+								<apex:facet name="stop">
+									<apex:commandButton value="Edit"
+										rendered="{!objField.zField.IsZuoraCustomField__c && !objField.IsEditing }"
+										disabled="{!editMode||disableObjList}"
+										reRender="fieldtable,objList,clearbtn"
+										action="{!editCustomField}" status="editstatus">
+										<apex:param name="editingFieldName"
+											assignTo="{!editingFieldName}"
+											value="{!objField.zField.Name}" />
+									</apex:commandButton>
+								</apex:facet>
+							</apex:actionstatus>
+							<apex:actionstatus id="deletestatus">
+								<apex:facet name="start">
+									<apex:commandButton value="Deleteing" disabled="true" />
+								</apex:facet>
+								<apex:facet name="stop">
+									<apex:commandButton value="Delete"
+										rendered="{!objField.zField.Zuora__IsZuoraCustomField__c && !objField.IsEditing}"
+										disabled="{!editMode||disableObjList}" reRender="fieldtable"
+										action="{!deleteCustomField}" status="deletestatus">
+										<apex:param name="deletingField"
+											assignTo="{!editingFieldName}"
+											value="{!objField.zField.Name}" />
+									</apex:commandButton>
+								</apex:facet>
+							</apex:actionstatus>
+							<apex:actionstatus id="savestatus">
+								<apex:facet name="start">
+									<apex:commandButton value="Saving" disabled="true" />
+								</apex:facet>
+								<apex:facet name="stop">
+									<apex:commandbutton value="Save"
+										rendered="{!objField.IsEditing&&editMode}"
+										reRender="fieldtable,objList,clearbtn"
+										action="{!saveCustomField}" status="savestatus">
+										<apex:param name="saveField" assignTo="{!editingFieldName}"
+											value="{!objField.zField.Name}" />
+									</apex:commandbutton>
+								</apex:facet>
+							</apex:actionstatus>
+							<apex:actionstatus id="addstatus">
+								<apex:facet name="start">
+									<apex:commandButton value="Adding" disabled="true" />
+								</apex:facet>
+								<apex:facet name="stop">
+									<apex:commandbutton value="Add"
+										rendered="{!objField.IsEditing&&!editMode}"
+										reRender="fieldtable,objList,clearbtn"
+										action="{!addCustomField}" status="addstatus">
+										<apex:param name="addField" assignTo="{!editingFieldName}"
+											value="{!objField.zField.Name}" />
+									</apex:commandbutton>
+								</apex:facet>
+							</apex:actionstatus>
+							<apex:actionstatus id="cancelstatus">
+								<apex:facet name="start">
+									<apex:commandButton value="Canceling" disabled="true" />
+								</apex:facet>
+								<apex:facet name="stop">
+									<apex:commandbutton value="Cancel"
+										rendered="{!objField.IsEditing}"
+										reRender="fieldtable,objList,clearbtn" immediate="true"
+										action="{!cancelEditCustomField}" status="cancelstatus">
+										<apex:param name="cancelEdit" assignTo="{!editingFieldName}"
+											value="{!objField.zField.Name}" />
+										</apex:commandButton>
+								</apex:facet>
+							</apex:actionstatus>
+
+						</apex:column>
+					</apex:pageBlockTable>
+				</apex:pageBlockSection>
+				</apex:actionregion>
+		</apex:pageBlock>
+	</apex:form>
+</apex:page>

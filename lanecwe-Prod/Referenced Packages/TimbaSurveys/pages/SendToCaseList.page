@@ -1,0 +1,293 @@
+<apex:page standardController="Case" recordSetVar="caseList" extensions="TIMBASURVEYS.SendToCaseListController">
+
+    <!-- DOJO Js -->
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad: true"></script>
+    <script type="text/javascript">
+		dojo.require("dojox.widget.Standby");
+		dojo.require("dojox.widget.Toaster");
+
+		dojo.require("dijit.Dialog");
+    </script>
+
+    <!-- Styles Sheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/common.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/collector.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/SurveyCollect.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/analyzer_questions_section.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/surveyCollection.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/navigation_survey_analyzer.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/tabsDisplay.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/sendEmailPopUp_styles.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/common.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/surveyDialogs.css')}" />
+    <apex:stylesheet value="{!$Resource.TIMBASURVEYS__TS_Styles}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Standby/Standby.css')}" />
+
+    <apex:include pageName="TIMBASURVEYS__TimbaSurveyStyles" />
+
+    <style type="text/css">
+        .listwrapper {
+            height:300px;
+            width:500px;
+            border:1px solid black;
+            overflow-y:scroll;
+            margin:10px;
+        }
+
+        .listwrapper ul,.listwrapper ul li {
+            list-style:none;
+            margin:0;
+            padding:0;
+        }
+
+        #sendToCaseListWizardContainer {
+            margin:10px;
+        }
+        .dijitDialogPaneContent {
+        	padding: 10px 10px 30px !important;
+        }
+    </style>
+
+
+    <script type="text/javascript">
+
+    	var SurveyId = '';
+    	var selectedIdsString = '';
+        var cpNotification = false;
+        var scn = false;
+        var additionalOptions = '';
+        var sendToAll = '';
+
+    	// onLoad methods of dojo
+        var init = function () {
+            // Add the class to load the css styling
+            dojo.query('body').addClass('soria');
+            // Remove footer
+            dojo.query('.noTableFooter')[0].style.display = 'none';
+        }
+
+        // Fire events onload
+        dojo.addOnLoad(init);
+
+        function replaceAll(text, strA, strB){
+            return text.replace( new RegExp(strA,"g"), strB );
+        }
+
+    	// displays the pop up with the options
+    	function sendInvitationsToSelected(){
+            SurveyId = dojo.byId('surveyId').value;
+        	sendEmailsOverlayDijit.show();
+        }
+
+        // fires checkRecipientsOperation who loads the lists
+        function sendToWhoMenu(){
+            checkExistingRecipientsOperation(SurveyId);
+        }
+
+        // fires sendSurveyToSelected
+        function checkExistingRecipientsCompleted(success, data){
+            if(data.length > 0){
+                var response = dojo.fromJson(data);
+                dojo.byId('existentRecipients').innerHTML = response.list;
+                dojo.byId('substractionIds').innerHTML = response.substraction_ids;
+            }
+            sendSurveyToSelected();
+        }
+
+        // checks the selected and triggers salvedCollectOperation ( which inserts the recipients)
+        function sendSurveyToSelected(){
+        	overlay.show();
+
+        	var i = dojo.query('.dijitDialogPaneContent > input[type=radio]:checked')[0].value;
+
+            if( i == 1 || i == '1' ){
+            	sendToAll = 'new';
+                selectedIdsString = replaceAll('{!targetIds}',',','|');
+            }
+            else if( i == 2 || i == '2' ){
+            	sendToAll = 'who has not';
+                selectedIdsString = dojo.byId('substractionIds').innerHTML;
+            }
+            else
+            	sendToAll = 'all';
+
+            try {
+                var isAnonymous = dojo.byId('anonymousCollection').checked;
+                if (isAnonymous) {
+                    additionalOptions += '&isAnonymous=true';
+                }
+            } catch(e) {}
+            try {
+                var enableNow = dojo.byId('startCollectionRightNow');
+                if (enableNow != null) {
+                    if (enableNow.checked) {
+                        additionalOptions += '&scn=true';
+                        scn = true;
+                    }
+                }
+            } catch(e) {}
+
+            // Backup the email Template
+            additionalOptions += '&senToAll=' + sendToAll;
+
+            validateSelectedOperation();
+        }
+        
+        function validateSelectedCompleted(success, error){
+        	if(success){
+            salvedCollectorOperation(SurveyId);
+        	}else{
+        		alert(error);
+        		redirectURL();
+        	}
+        }
+
+        function backupTemplateCompleted(success, cpNotification, sendToAll, scn){
+            updateTemplateOperation(cpNotification, SurveyId, sendToAll, scn);
+        }
+
+        function updateTemplateCompleted(success, scn){
+            if (success) {
+            	console.log ( sendToAll );
+                collectOperation(SurveyId, sendToAll, scn);
+            }else{
+                alert('{!$Label.timbasurveys_Templte_Error_While_Update}.');
+                overlay.hide();
+            }
+        }
+
+        function savedCollectorCompleted(success, numberRecipient, error){
+        	if(success) {
+        		backupTemplateOperation(SurveyId, cpNotification, sendToAll, scn);
+        	}else{
+        		alert(error);
+        	}
+        }
+
+        function collectCompleted(data){
+            var operationStatus = dojo.fromJson(data);
+            if (operationStatus.success) {
+                rebuildTemplate();
+            }else{
+                if (operationStatus.exception != undefined) {
+                    if (operationStatus.exception.indexOf("MASS_MAIL_LIMIT_EXCEEDED") > 0) {
+                        alert('{!$Label.timbasurveys_Collect_Sorry_daily_mass}');
+                        overlay.hide();
+                    } else {
+                        alert('{!$Label.timbasurveys_surveycollect_You_limit_to_send_mass_emails}');
+                    }
+                    overlay.hide();
+                }
+            }
+        }
+
+        // Replace Email Templates
+        function rebuildTemplate() {
+            resetEmailTemplateOperation(SurveyId);
+        }
+
+        function resetEmailTemplateCompleted(success){
+            if (success){
+                redirectURL();
+            }else{
+                console.log('Error: reset email template');
+            }
+        }
+    </script>
+
+	<c:ErrorMessage msgTitle="{!$Label.timbasurveys__timbasurveys_no_records_selected}" msg="" retUrl="{!retUrl}" rendered="{!targetIds == null || targetIds == ''}"/>
+
+	<apex:outputPanel rendered="{!targetIds != null && targetIds != ''}">
+	    <apex:outputPanel styleClass="sectionHeader" layout="block">
+	        <h1 class="Collect"><apex:outputLabel value="{!$Label.timbasurveys__timabasurveys_Survey_Collection}" /></h1>
+	    </apex:outputPanel>
+
+	    <div jsId="SaveOverlay" dojoType="dojox.widget.Standby" target="sendToCaseListWizardContainer" color="white"></div>
+
+	    <div id="sendToCaseListWizardContainer">
+			<apex:outputPanel id="surveyselectionstep" layout="block">
+				<h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_The_list_of} Contacts from Cases {!$Label.timbasurveys__timbasurveys_Collect_to_send_survey}:" /></h2><br />
+				<apex:outputPanel styleClass="listwrapper" layout="block">
+				    <apex:dataList value="{!selected}" var="aCase" id="caseList">
+						<apex:outputText value="{!aCase.CaseNumber} - {!aCase.Contact.Name} - {!aCase.Contact.Email}" />
+					</apex:dataList>
+				</apex:outputPanel>
+				<h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Select_survey_to_invitations}: " /></h2>
+				<select id="surveyId">
+					<apex:repeat value="{!surveyList}" var="survey">
+						<option value="{!HTMLENCODE(survey.Id)}"><apex:outputText value="{!survey.Name}" /></option>
+					</apex:repeat>
+				</select>
+				<p>
+					<apex:outputLink styleClass="dijitReset dijitInline dijitButtonNode customDijitLinks" value="javascript:;" onclick="sendInvitationsToSelected()">
+						<apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Send_Invitations}" />
+					</apex:outputLink>
+				</p>
+
+				<div id="sendEmailsOverlay" jsId="sendEmailsOverlayDijit" dojoType="dijit.Dialog" color="white" title="{!$Label.timbasurvey_Collect_Send_to}:" style="height: auto; width: 500px;">
+			    	<input type="radio" class='radio' name='radio' value='1' checked="checked"/><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Recipients_who_have_recieved}."/><br/>
+			    	<input type="radio" class='radio' name='radio' value='2'/><div id="radio2"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Recipients_who_have_not}."/></div>
+			    	<input type="radio" class='radio' name='radio' value='3'/><div id="radio3"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_all_recipients}."/></div>
+					<div id="sendTo"></div>
+					<button id="cancelButton" class="leftContainer surveyButton" onClick="sendEmailsOverlayDijit.hide();"><img alt="{!$Label.timbasurvey_surveylist_cancel}" src="{!URLFOR($Resource.SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurvey_surveylist_cancel}</button>
+					<button id="doneButton" class="leftContainer surveyButton" onClick="sendEmailsOverlayDijit.hide(); sendSurveyToSelected();" ><img alt="{!$Label.timbasurvey_surveyCollect_Send}" src="{!URLFOR($Resource.SurveyResources2,'img/collector/mail_send.png')}"/>{!$Label.timbasurvey_surveyCollect_Send}</button>
+				</div>
+
+		        <div id="confirmationstep" style="display:none;">
+		            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_The_following_contacts}." /></h2> <br/>
+		            <div id="existentRecipients" class="listwrapper" ></div>
+		            <div id="substractionIds" style="display:none;"></div>
+		            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Send_invitations_again} "/></h2>
+		            <br /><br />
+			        <apex:outputLink styleClass="dijitReset dijitInline dijitButtonNode customDijitLinks" value="javascript:;" onclick="sendSurveyToSelected('all')">
+			        	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Send_Again}" />
+			        </apex:outputLink>
+			        <apex:outputLink styleClass="dijitReset dijitInline dijitButtonNode customDijitLinks" value="javascript:;" onclick="sendSurveyToSelected('substract')">
+			        	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_No_Send_only_uninvited}." />
+			        </apex:outputLink>
+		        </div>
+		        <div id="resultStep" style="display:none;">
+		        	<p><h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Success} "/></h2></p>
+		            <br />
+		            <p><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Invitations_sent}"/></p>
+		            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurveyToSelected('all')">{!$Label.timbasurveys__timbasurveys_Collect_No_Send_only_uninvited}.</a>
+		        </div>
+			</apex:outputPanel>
+		</div>
+		<!-- Dojox StandBy Widget for lists -->
+	    <div jsId="overlay" dojoType="dojox.widget.Standby" target="sendToCaseListWizardContainer" color="white"></div>
+	    <apex:form id="sendToCaseListActionsFrom">
+	        <apex:actionFunction name="redirectURL" action="{!redirectPage}" />
+	        <apex:actionFunction name="updateTemplateOperation" onComplete="updateTemplateCompleted({!success},'{!scn}')" action="{!updateTemplate}" rerender="sendToCaseListActionsFrom">
+	            <apex:param name="cpNotification" value="" assignTo="{!cpNotification}" />
+	            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+	            <apex:param name="additionalOptions" value="" assignTo="{!sendToAll}" />
+	            <apex:param name="scn" value="" assignTo="{!scn}" />
+	        </apex:actionFunction>
+	        <apex:actionFunction name="resetEmailTemplateOperation" onComplete="resetEmailTemplateCompleted({!success})" action="{!resetEmailTemplate}" rerender="sendToCaseListActionsFrom">
+	            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+	        </apex:actionFunction>
+	        <apex:actionFunction name="backupTemplateOperation" onComplete="backupTemplateCompleted({!success}, '{!cpNotification}', '{!sendToAll}','{!scn}')" action="{!backUpTemplate}" rerender="sendToCaseListActionsFrom">
+	            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+	            <apex:param name="cpNotification" value="" assignTo="{!cpNotification}" />
+	            <apex:param name="sendToAll" value="" assignTo="{!sendToAll}" />
+	            <apex:param name="scn" value="" assignTo="{!scn}" />
+	        </apex:actionFunction>
+	        <apex:actionFunction name="checkExistingRecipientsOperation" onComplete="checkExistingRecipientsCompleted({!success}, '{!outputMessage}')" action="{!checkExistingRecipients}" rerender="sendToCaseListActionsFrom">
+	            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+	        </apex:actionFunction>
+	        <apex:actionFunction name="collectOperation" onComplete="collectCompleted('{!outputMessage}')" action="{!collectOperation}" rerender="sendToCaseListActionsFrom">
+	            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+	            <apex:param name="sendToAll" value="" assignTo="{!sendToAll}" />
+	            <apex:param name="scn" value="" assignTo="{!scn}" />
+	        </apex:actionFunction>
+	        <apex:actionFunction name="salvedCollectorOperation" oncomplete="savedCollectorCompleted({!success}, '{!TEXT(numberRecipeint)}','{!error}')" action="{!salvedCollector}" rerender="sendToCaseListActionsFrom">
+	            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+	        </apex:actionFunction>
+	        <apex:actionFunction name="validateSelectedOperation" oncomplete="validateSelectedCompleted({!success},'{!error}');" action="{!validateSelected}" />
+	    </apex:form>
+	</apex:outputPanel>
+</apex:page>

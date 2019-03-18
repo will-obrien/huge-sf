@@ -1,0 +1,142 @@
+<apex:component layout="block" access="global">
+
+  <!-- options for modal component -->
+  <apex:attribute description="The modal component's unique identifier" name="name" required="true" type="String" access="global" />
+  <apex:attribute description="The modal component's width in pixels or percentage" name="width" required="false" type="String" access="global" />
+  <apex:attribute description="The modal component's minimal height" name="minHeight" required="false" type="String" access="global" />
+
+  <!-- including jQuery -->
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  
+  <!-- le CSS -->
+  <style type="text/css">
+    .{!name}-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      opacity: 0.5;
+      filter: alpha(opacity=50);
+      z-index: 900;
+      cursor: pointer;
+    }
+    .{!name}-modal-dialog {
+      width: {!IF(ISBLANK(width), '80%', width)};
+      min-height: {!IF(ISBLANK(minHeight), 0, minHeight)};
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      background-color: #fff;
+      box-shadow: 0px 0px 8px 1px rgba(0, 0, 0, 0.50);
+      z-index: 1000;
+    }
+    .modal-simple-content {
+      padding: 20px;
+    }
+    .modal-header {
+      background-color: #eee;
+      padding: 20px;
+      text-align: center;
+    }
+    .modal-sidebar {
+      width: 160px;
+      padding: 20px;
+      float: left;
+    }
+    .modal-content {
+      margin-left: 200px;
+      padding: 20px;
+      border-left: 1px solid #eee;
+    }
+    .modal-buttons {
+      float: clear;
+      border-top: 1px solid #eee;
+      padding: 20px;
+      text-align: center;
+    }
+    .modal-close {
+      position: absolute;
+      background: url("{!URLFOR($Resource.ImagesAndJavascriptZip, '/images/modal-close.png')}") 0 0 no-repeat;
+      background-size: 24px 24px;
+      width: 24px;
+      height: 24px;
+      display: block;
+      text-indent: -9999px;
+      top: -13px;
+      right: -13px;
+    }
+  </style>
+
+  <div class="{!name}-modal-overlay"></div>
+  
+  <div class="{!name}-modal-dialog">
+    <div class="modal-body">
+      <apex:componentBody />
+      <a href="#" class="modal-close">close</a>
+    </div>
+  </div>
+
+  <!-- le JavaScript -->
+  <script type="text/javascript">
+    // Get jQuery, no conflict
+    var j$ = jQuery.noConflict();
+
+    // The modal's commands
+    var {!name} = (function () {
+
+      var method = {};
+
+      // Correct the left-margin for the modal to center it
+      method.center = function () {
+        var marginLeft = Math.max(j$('.{!name}-modal-dialog').width(), 0) / -2;
+        j$('.{!name}-modal-dialog').css('margin-left', marginLeft);
+      };
+
+      // Open the modal
+      method.open = function () {
+        method.center();
+        j$('.{!name}-modal-dialog').fadeIn('fast');
+        j$('.{!name}-modal-overlay').fadeIn('fast');
+      };
+
+      // Close the modal
+      method.close = function () {
+        j$('.{!name}-modal-dialog').fadeOut('fast');
+        j$('.{!name}-modal-overlay').fadeOut('fast');
+        if(this.closeCallback){
+          this.closeCallback.call(this);
+        }
+      };
+
+      return method;
+    }());
+
+    // Bind the close button... to the close modal function
+    j$('.modal-close').on('click', function(e) {
+      e.preventDefault();
+      {!name}.close();
+    })
+
+    // When the document is ready
+    j$(document).ready(function () {
+      // Hide all instance for the modal
+      j$('.{!name}-modal-dialog').hide();
+      j$('.{!name}-modal-overlay').hide();
+
+      // Bind the escape key to the close modal function
+      j$(document).bind('keydown', function(e) {
+        if (e.which == 27) {
+          e.preventDefault();
+          {!name}.close();
+        }
+      });
+    });
+
+    // Make sure all modal(s) are closed at loading time
+    {!name}.close();
+
+  </script>
+
+</apex:component>

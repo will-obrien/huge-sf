@@ -1,0 +1,349 @@
+<apex:page docType="html-5.0"
+  standardStylesheets="false"
+  showHeader="false"
+  sidebar="false"
+  controller="ePrize_Zemzu.CompeteChatterProfileController">
+
+  <apex:pageMessages />
+  <apex:stylesheet value="{!URLFOR($Resource.ePrize_Zemzu__work, 'stylesheets/main.css')}"/>
+  <apex:includeScript value="//cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"/>
+
+  <div class="body--work-profile">
+
+    <div role="banner">
+      <div class="layout--logo">
+        <h1 class="compete-logo">LevelEleven</h1>
+      </div>
+      <div class="container--score">
+        <h3 class="anchored">Compete Score</h3>
+        <div class="stats__score">
+          <h2 class="score__number">{!CompeteScore}</h2>
+        </div>
+        <div class="container--progress">
+          <div class="progress">
+            <span class="progress__fill" style="width: {!CompeteScore}%"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="container--stats">
+        <h3 class="anchored">Stats</h3>
+        <ul class="list--simple stats__attributes">
+          <li>
+            <a href="#" class="stat"><span class="stat__number">{!NumberCompletedContests}</span> Contest<apex:outputText value="s" rendered="{!NumberCompletedContests != 1}"/> completed</a>
+          </li>
+          <li>
+            <a href="#" class="stat"><span class="stat__number">{!NumberWins}</span> win<apex:outputText value="s" rendered="{!NumberWins != 1}"/> ({!WinPercentage}%)</a>
+          </li>
+          <li>
+            <a href="#" class="stat"><span class="stat__number">{!TopThird}</span> time<apex:outputText value="s" rendered="{!TopThird != 1}"/> in the top third</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <main role="main">
+      <header class="container--contests__header">
+        <div class="container--branding">
+          <h2>Current Contests</h2>
+        </div>
+      </header>
+      <apex:pageBlock mode="maindetail" id="currentContest" rendered="{!DisplayContest}">
+        <apex:outputPanel rendered="{!isOwnProfile || isAdmin }">
+          <script type="text/javascript">
+            $(document).ready(function() {
+              $('[data-type=rank]').jplaced();
+            });
+          </script>
+          <div class="container--nav-bar">
+            <div class="nav-bar">
+              <apex:form id="nextContestForm">
+                <apex:commandLink action="{!previousContest}" rendered="{!HasPreviousContests}" value="Prev Contest" styleClass="nav-bar__button--previous" id="previousContestAction" reRender="currentContest, chatterComments"/>
+                <h3 class="nav-bar__title">{!displayedContest.ContestName}</h3>
+                <apex:commandLink action="{!nextContest}" rendered="{!HasMoreContests}" value="Next Contest" styleClass="nav-bar__button--next" id="nextContestAction" reRender="currentContest, chatterComments"/>
+              </apex:form>
+            </div>
+          </div>
+
+          <div class="container--contest-summary">
+            <div class="container--leaderboard">
+              <div class="container--ranking">
+                <h2 class="ranking__place" data-type="rank">{!leaderInfo.displayRank}</h2>
+                <span class="ranking__total">out of {!displayedContest.participants.size}</span>
+              </div>
+
+              <div class="container--countdown">
+                <div class="countdown">
+                  <h2 class="countdown__time">{!leaderBoard.ContestTimeRemainingDisplayValue}</h2>
+                  <div>
+                    <span class="countdown__qualifier">{!leaderBoard.ContestTimeRemainingDisplayText}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="container--contenders">
+                <h2 class="anchored">Ahead and Behind</h2>
+                <ol class="ahead-behind">
+                  <apex:repeat value="{!AheadAndBehind}" var="leader">
+                      <li>
+                        <apex:outputPanel rendered="{!leader.User.Id != currentUserId}" layout="block" styleClass="leader-display">
+                          <span class="ahead-behind__place">
+                            <apex:outputText value="{0, number}">
+                              <apex:param value="{!leader.contestUser.ePrize_Zemzu__CurrentRank__c}" />
+                            </apex:outputText>.
+                          </span>
+                          <span class="ahead-behind__name">
+                            <a target="_parent" href="/{!leader.contestUser.User__c}{!CompeteTabURL}">{!leader.User.firstname} {!leader.User.lastname}</a>
+                          </span>
+                          <span class="ahead-behind__val">
+                            <apex:outputText rendered="{!displayedContest.isDollarRanked}" value=" {!leader.rankByValueFormatted}"/>
+                            <apex:outputText value="{0,number,###.##%}" rendered="{!displayedContest.isPercentToGoal}">
+                              <apex:param value="{!leader.value}" />
+                            </apex:outputText>
+                            <apex:outputText rendered="{!displayedContest.isEntryRanked}" value=" {!leader.entriesFormatted}pts" />
+                          </span>
+                        </apex:outputPanel>
+                      </li>
+
+                      <li>
+                        <apex:outputPanel rendered="{!leader.User.Id == currentUserId}" layout="block" styleClass="leader-display">
+                          <span class="ahead-behind__place">
+                            <apex:outputText value="{0, number}">
+                              <apex:param value="{!leader.contestUser.ePrize_Zemzu__CurrentRank__c}" />
+                            </apex:outputText>.
+                          </span>
+                          <span class="ahead-behind__name">You</span>
+                          <span class="ahead-behind__val">
+                            <apex:outputText rendered="{!displayedContest.isDollarRanked}" value="{!leader.rankByValueFormatted}"/> <apex:outputText value="{0,number,###.##%}" rendered="{!displayedContest.isPercentToGoal}">  <apex:param value="{!leader.value}" />  </apex:outputText> <apex:outputText rendered="{!displayedContest.isEntryRanked}" value="{!leader.entriesFormatted}pts"/>
+                          </span>
+                        </apex:outputPanel>
+                      </li>
+                  </apex:repeat>
+                </ol>
+              </div>
+
+            </div>
+
+            <div class="container--secondary">
+              <div class="container--activities">
+                <h4 class="activities__headline anchored">Rewarded Activities</h4>
+                <ul class="activities__list">
+                  <apex:repeat value="{!RewardedActivites}" var="act">
+                    <li>{!act}</li>
+                  </apex:repeat>
+                </ul>
+              </div>
+
+              <div class="container--full">
+                <a target="_parent" href="{!displayedContest.LeaderboardUrl}" class="button--action">View Full Leaderboard</a>
+              </div>
+            </div>
+          </div>
+        </apex:outputPanel>
+
+        <apex:outputPanel rendered="{!!isOwnProfile && !isAdmin}">
+          <script type="text/javascript">
+            $(document).ready(function() {
+              $('[data-type=rank]').jplaced();
+            });
+          </script>
+          <div class="container--nav-bar">
+            <div class="nav-bar">
+              <apex:form id="previousContestFormNotMyProfile">
+                <apex:commandLink action="{!previousContest}" rendered="{!HasPreviousContests}" value="Prev Contest" styleClass="nav-bar__button--previous" id="previousContestAction" reRender="currentContest, chatterComments"/>
+              </apex:form>
+              <h3 class="nav-bar__title">{!displayedContest.ContestName}</h3>
+              <apex:form id="nextContestFormNotMyProfile">
+                <apex:commandLink action="{!nextContest}" rendered="{!HasMoreContests}" value="Next Contest" styleClass="nav-bar__button--next" id="nextContestAction" reRender="currentContest, chatterComments"/>
+              </apex:form>
+            </div>
+          </div>
+
+          <div class="container--contest-summary">
+            <div class="container--leaderboard">
+
+              <div class="container--versus">
+                <div class="versus">
+                  <div class="versus__person--you">
+                    <div class="avatar--large">
+                      <a target="_parent" href="/{!currentUserId}{!CompeteTabURL}">
+                        <img src="{!versus.you.FullPhotoUrl}" />
+                      </a>
+                    </div>
+                    <a target="_parent" href="/{!currentUserId}{!CompeteTabURL}">
+                      <h2 class="user__name">You</h2>
+                    </a>
+                    <span class="score">
+                      <apex:outputText value="{0,number,###.##%}" rendered="{!displayedContest.isPercentToGoal}">  
+                        <apex:param value="{!versus.yourPoints}" />
+                      </apex:outputText>
+                      <apex:outputText rendered="{!displayedContest.isEntryRanked}" value="{!versus.yourPoints} points"/>
+                      <apex:outputText rendered="{!displayedContest.isDollarRanked}"  value="{0,number,$#,###.##}"> 
+                        <apex:param value="{!versus.yourPoints}" />
+                      </apex:outputText>
+                      <span class="complex line">
+                        <h4 data-type="rank"><apex:outputText value="{0, number}"><apex:param value="{!versus.yourRank}"/></apex:outputText></h4>
+                        <span>out of</span>
+                        <h4>{!leaderInfo.displayRankOutOf}</h4>
+                      </span>
+                    </span>
+                  </div>
+
+                  <div class="container--versus__versus">
+                    <div class="versus__versus">
+                      <h4>vs.</h4>
+                    </div>
+                  </div>
+
+                  <div class="versus__person--them">
+                    <div class="avatar--large">
+                      <a target="_parent" href="/{!viewedUser.Id}{!CompeteTabURL}">
+                        <img class="avatar__photo" src="{!versus.them.FullPhotoUrl}" />
+                      </a>
+                    </div>
+                      <a target="_parent" href="/{!viewedUser.Id}{!CompeteTabURL}">
+                        <h2 class="user__name">{!versus.them.FirstName}</h2>
+                      </a>
+                    <span class="score">
+                      <apex:outputText value="{0,number,###.##%}" rendered="{!displayedContest.isPercentToGoal}">  
+                        <apex:param value="{!versus.theirPoints}" />
+                      </apex:outputText>
+                      <apex:outputText rendered="{!displayedContest.isEntryRanked}" value="{!versus.theirPoints} points"/>
+                      <apex:outputText rendered="{!displayedContest.isDollarRanked}"  value="{0,number,$#,###.##}"> 
+                        <apex:param value="{!versus.theirPoints}" />
+                      </apex:outputText>
+                      <span class="complex line">
+                        <h4 data-type="rank"><apex:outputText value="{0, number}"><apex:param value="{!versus.theirRank}"/></apex:outputText></h4>
+                        <span>out of</span>
+                        <h4>{!leaderInfo.displayRankOutOf}</h4>
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="container--secondary">
+                <div class="container--single-contender">
+                  <ul class="single-contender__stats">
+                    <li>
+                      <span class="complex line">
+                        <h4>
+                          <apex:outputText value="{!ABS(versus.PositionsBehind)}"/>
+                        </h4> positions
+                        <apex:outputText value=" behind {!versus.them.firstName}" rendered="{!versus.yourRank > versus.theirRank}"/> 
+                        <apex:outputText value=" ahead of {!versus.them.firstName}" rendered="{!versus.yourRank < versus.theirRank}"/> 
+                      </span>
+                    </li>
+                    <li>
+                      <span class="complex line">
+                        <apex:outputPanel layout="none" rendered="{!displayedContest.isPercentToGoal}">
+                          <h4>
+                            <apex:outputText value="{0,number,###.##%}">  
+                              <apex:param value="{!ABS(versus.PointsBehind)}" />
+                            </apex:outputText>
+                          </h4> 
+                          <apex:outputText value=" needed to pass {!versus.them.firstName}" rendered="{!versus.yourRank > versus.theirRank}"/> 
+                          <apex:outputText value=" ahead of {!versus.them.firstName}" rendered="{!versus.yourRank < versus.theirRank}"/>  
+                        </apex:outputPanel>
+                        <apex:outputPanel layout="none" rendered="{!displayedContest.isEntryRanked}">
+                          <h4>
+                            <apex:outputText value="{!ABS(versus.PointsBehind)}"/> 
+                          </h4> 
+                          <apex:outputText value=" points needed to pass {!versus.them.firstName}" rendered="{!versus.yourRank > versus.theirRank}"/> 
+                          <apex:outputText value=" points ahead of {!versus.them.firstName}" rendered="{!versus.yourRank < versus.theirRank}"/>
+                        </apex:outputPanel>
+                        <apex:outputPanel layout="none" rendered="{!displayedContest.isDollarRanked}">
+                          <h4>
+                            <apex:outputText value="{0,number,$#,###.##}"> 
+                              <apex:param value="{!ABS(versus.PointsBehind)}" />
+                            </apex:outputText>
+                          </h4> 
+                          <apex:outputText value="  needed to pass {!versus.them.firstName}" rendered="{!versus.yourRank > versus.theirRank}"/> 
+                          <apex:outputText value="  ahead of {!versus.them.firstName}" rendered="{!versus.yourRank < versus.theirRank}"/>  
+                        </apex:outputPanel>   
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div class="container--full">
+                  <a target="_parent" href="{!displayedContest.LeaderboardUrl}" class="button--action">View Full Leaderboard</a>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </apex:outputPanel>
+      </apex:pageBlock>
+      <apex:pageBlock mode="maindetail" id="noContests" rendered="{!!DisplayContest}">
+      <apex:outputPanel rendered="{!isOwnProfile}">
+        You haven't been in any competitions. Why not <a target="_parent" href="/{!currentUserId}">suggest one in Chatter?</a>
+      </apex:outputPanel>
+      <apex:outputPanel rendered="{!!isOwnProfile}">
+        You and {!viewedUser.Name} aren't in any competitions together. Why not <a target="_parent"  href="/{!viewedUser.Id}">suggest one in Chatter</a>?
+      </apex:outputPanel>
+      </apex:pageBlock>
+    </main>
+
+    <aside>
+      <apex:outputPanel layout="none"  rendered="{!isChatterGroupEnabled}">
+        <h2 class="anchored">Contest Chatter</h2>
+      </apex:outputPanel>
+      <apex:outputPanel id="chatterComments" styleClass="chatter__posts" rendered="{!displayedContest != null}">
+        <script type="text/javascript">
+          $(document).ready(function() {
+            $('[data-type=rank]').jplaced();
+          });
+        </script>
+        <apex:form id="chatterForm" styleClass="chatter__comment__field" rendered="{!isChatterGroupEnabled}">
+          <div class="chatter__post__value">
+            <apex:inputText value="{!chatterPost}" styleClass="full"/>
+          </div>
+          <div class="chatter__post__action">
+            <apex:commandLink action="{!postChatter}" value="Share" styleClass="button--sf full" id="theCommandLink" reRender="chatterComments"/>
+          </div>
+        </apex:form>
+        <ul class="list--bare chatter__messages">
+          <apex:outputPanel layout="none" id="chatterFeed" rendered="{!isChatterGroupEnabled}">
+            <apex:repeat value="{!ChatterFeedItems}" var="feeditem" rendered="{!displayedContest != null}">
+              <li class="chatter__post">
+                <div class="chatter__user">
+                  <div class="user__avatar">
+                    <apex:image styleClass="photo" url="{!feedItem.author.smallPhotoUrl}" />
+                  </div>
+                </div>
+                <div class="chatter__comment">
+                  <h4 class="user__name">{!feedItem.author.name}</h4>
+                  <p>{!feeditem.Body}</p>
+                </div>
+                <apex:outputPanel rendered="{!feedItem.comments.size > 0}" layout="none">
+                  <div class="chatter__comments">
+                    <ul class="list--bare">
+                      <apex:repeat value="{!feedItem.comments}" var="comment">
+                        <li class="chatter__comment--sub">
+                          <div class="chatter__user">
+                            <div class="user__avatar">
+                              <apex:image styleClass="photo" url="{!comment.author.smallPhotoUrl}"/>
+                            </div>
+                          </div>
+                          <div class="chatter__comment">
+                            <h4 class="user__name">{!comment.author.name}</h4>
+                            <p>{!comment.body}</p>
+                          </div>
+                        </li>
+                      </apex:repeat>
+                    </ul>
+                  </div>
+                </apex:outputPanel>
+              </li>
+            </apex:repeat>
+          </apex:outputPanel>
+        </ul>
+      </apex:outputPanel>
+    </aside>
+
+  </div>
+
+  <apex:includeScript value="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+  <apex:includeScript value="{!URLFOR($Resource.ePrize_Zemzu__work, 'javascripts/work-min.js')}"/>
+</apex:page>

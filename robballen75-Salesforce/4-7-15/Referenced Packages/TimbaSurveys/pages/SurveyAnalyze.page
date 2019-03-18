@@ -1,0 +1,979 @@
+<apex:page controller="TIMBASURVEYS.SurveyAnalyzeController" sidebar="false" tabstyle="Timba_Surveys__tab" action="{!initGraphics}">
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'required/jquery-1.4.2.min.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'jquery.datePicker.min-2.1.2.js')}" />
+    <script type="text/javascript" src="{!URLFOR($Resource.jqTransform, 'jqtransformplugin/jquery.jqtransform.js')}" ></script>
+    <script type="text/javascript" src="{!URLFOR($Resource.Datepicker, 'date.js')}" ></script>
+
+
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/analyzer_questions_section.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/navigation_survey_analyzer.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/tabsDisplay.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'datePicker.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jqtransformplugin/jqtransform.css')}" />
+
+	<apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/SurveyAnalyze.css')}" />
+	<style type="text/css">
+    	.surveyDateRange {
+    		font-size: 19px;
+    		float: left;
+    		padding-left: 14px;
+    	}
+    	.clearDates {
+			height: 31px;
+			margin-bottom: 4px;
+			margin-left: 20px;
+    	}
+    	.acceptContainer {
+    		float: left;
+    	}
+    	.accept{
+    		padding: 6px;
+    		height: 31px;
+    	}
+	    .dateSelectorWrapper {
+		    width: 145px;
+		    margin-left: 10px;
+		    float: left;
+		}
+		.dateSelectorWrapper2 {
+		    width: 259px;
+		    margin-left: 10px;
+		    float: left;	    
+			margin-top: -3px;
+		}
+		
+    	.nextDateSelector {
+    		padding-right: 5px;
+    	}
+		.optionsContainer {
+		    overflow: hidden;
+		    position: relative;
+		}
+        .dateortime {
+            width: 150px;
+        }
+
+        .dateortime .jqTransformInputWrapper {
+            width:110px !important;
+        }
+        .dateortime a.dp-choose-date{
+            background: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, '/img/calendar.png')}') right no-repeat;
+            background-repeat:no-repeat;
+            position:absolute;
+            top:0px;
+            left:110px;
+            width:24px;
+            height:24px;
+            overflow:visible;
+            margin-left:3px;
+            text-indent:-9999px;
+            display:block;
+        }
+    </style>
+    <apex:composition template="TIMBASURVEYS__timbaSurveysTemplate">
+        <!-- customJs Imports & Script Tags -->
+        <apex:define name="customJs">
+            <script type="text/JavaScript" src="{!URLFOR($Resource.curvyCornersSrc)}"></script>
+            <apex:include pageName="TIMBASURVEYS__entityEncodeJs" />
+            <script type="text/javascript">
+				// add required dojo widgets
+				dojo.require("dojox.charting.Chart2D");
+				dojo.require("dojox.charting.plot2d.Pie");
+				dojo.require("dojox.charting.action2d.Highlight");
+				dojo.require("dojox.charting.action2d.MoveSlice");
+				dojo.require("dojox.charting.action2d.Tooltip");
+				dojo.require("dojox.charting.themes.MiamiNice");
+				dojo.require("dojox.charting.widget.Legend");
+				dojo.require("dojo.NodeList-traverse");
+
+				meta = document.createElement('meta');
+                meta.content = "IE=7";
+                meta.httpEquiv = "X-UA-Compatible";
+                document.getElementsByTagName('head').item(0).appendChild(meta);
+
+                // Charting things
+                //Current Selected recipient
+                var RecipientId = '';
+                var currentSectionName = 'analyze';
+				var isQuestionCharts = false;
+                dojo.addOnLoad(function(){
+                    $(function(){
+                        Date.format = 'yyyy-mm-dd';
+                        $('.datepicker').datePicker({
+                                clickInput:true,
+                                startDate:'2009-01-01'
+                            })
+                            .dpSetOffset(25, -5);
+                    });
+                    // Charting Things
+                    var dc = dojox.charting;
+
+
+                <apex:repeat value="{!SurveyAnalyzeItems}" var="parentSurveyItem">
+                  if({!parentSurveyItem.renderPieChart}){
+                    // PIE CHART CODE
+					isQuestionCharts = true;
+                     if({!parentSurveyItem.renderCharts})
+                     {
+                        chartData = new Object();
+                     chartData = [{!parentSurveyItem.PieSeries}];
+                     if(dojo.isIE != null){
+                         dojo.forEach(chartData,function(obj,index,array){
+                            obj.text = entity.decode(obj.text);
+                         });
+                     }
+
+                      var chart{!JSENCODE(parentSurveyItem.Id)} = new dc.Chart2D("{!JSENCODE(parentSurveyItem.Id)}");
+                      
+						//Define colors
+						//this index will be increased for each plotted (percentage > 0) value
+						var plottedCount = 0;
+						dojo.forEach(chartData, function(obj, index, array) {
+							if (obj.y > 0) {
+								obj.color = dc.themes.MiamiNice.colors[(plottedCount % dc.themes.MiamiNice.colors.length)];
+								plottedCount++;
+							}
+						});
+						//don't let two adjacent slices have the same color
+						if (plottedCount % dc.themes.MiamiNice.colors.length == 1 && plottedCount > dc.themes.MiamiNice.colors.length) {
+							//switch the color for the last one with a positive value
+							chartData[(plottedCount - 1)].color = chartData[1].color;
+						}
+
+                      chart{!JSENCODE(parentSurveyItem.Id)}.setTheme(dc.themes.MiamiNice)
+                         .addPlot("default", {
+                            type: "Pie",
+                            font: "normal normal 9pt Tahoma",
+                            fontColor: "black",
+                            labelOffset: -10,
+                            radius: 60
+                      }).addSeries("Series A",chartData);
+
+                      var anim_a = new dc.action2d.MoveSlice(chart{!JSENCODE(parentSurveyItem.Id)}, "default");
+                      var anim_b = new dc.action2d.Highlight(chart{!JSENCODE(parentSurveyItem.Id)}, "default");
+                      var anim_c = new dc.action2d.Tooltip(chart{!JSENCODE(parentSurveyItem.Id)}, "default");
+                      chart{!JSENCODE(parentSurveyItem.Id)}.render();
+
+                      }
+
+
+                    } //cierro el piechart
+                    <apex:repeat value="{!parentSurveyItem.ChildAnalyzeItems}" var="surveyItem">
+                     isQuestionCharts = true;
+                     // PIE CHART CODE
+                     if({!surveyItem.renderPieChart}){
+                     	if({!surveyItem.renderCharts}){
+	                        childchartData = new Object();
+	                        childchartData = [{!surveyItem.PieSeries}];
+	                        if(dojo.isIE != null){
+
+	                            dojo.forEach(childchartData,function(obj,index,array){
+	                                obj.text = entity.decode(obj.text);
+	                            });
+	                        }
+
+	                        var chart{!surveyItem.Id} = new dc.Chart2D("{!surveyItem.Id}");
+
+	                        chart{!surveyItem.Id}.setTheme(dc.themes.MiamiNice)
+	                            .addPlot("default", {
+	                            type: "Pie",
+	                            font: "normal normal 9pt Tahoma",
+	                            fontColor: "black",
+	                            labelOffset: -10,
+	                            radius: 60
+	                        }).addSeries("Series A", childchartData);
+
+	                        var anim_a = new dc.action2d.MoveSlice(chart{!surveyItem.Id}, "default");
+	                        var anim_b = new dc.action2d.Highlight(chart{!surveyItem.Id}, "default");
+	                        var anim_c = new dc.action2d.Tooltip(chart{!surveyItem.Id}, "default");
+
+	                        chart{!surveyItem.Id}.render();
+	                      }
+                      }
+                      </apex:repeat>
+                  </apex:repeat>
+
+                    // close all detailgraphs
+                    var elem = dojo.query('.questionDetailGraphsContainer');
+                    for (var i = elem.length - 1; i >= 0; i--){
+                            elem[i].style.display = 'none';
+                    };
+
+                    elem = dojo.query('.disabled');
+                    for (var i = elem.length - 1; i >= 0; i--){
+                            elem[i].style.backgroundPosition = "left bottom";
+                            elem[i].href = '#';
+                    };
+
+                    dojo.query('.pageCon .next:not(.disabled)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+                    dojo.query('.pageCon .prev:not(.disabled)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+                    dojo.query('.pageCon .end:not(.disabled)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+                    dojo.query('.pageCon .begin:not(.disabled)').onmouseover(function(e){
+                        dojo.addClass(this,'hover');
+                    });
+
+                    dojo.query('.pageCon .next:not(.disabled)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+                    dojo.query('.pageCon .prev:not(.disabled)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+                    dojo.query('.pageCon .end:not(.disabled)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+                    dojo.query('.pageCon .begin:not(.disabled)').onmouseout(function(e){
+                        dojo.removeClass(this,'hover');
+                    });
+
+
+                    dojo.query('.pageCon .count').onclick(function(e){
+                      dojo.toggleClass(dojo.query('.selectList',this)[0],'displayBlock');
+                    });
+
+                    var lista = dojo.query('.pageCon .count')[0];
+                    var inlis = '<ul class="selectList">';
+                    for (var i = 1; i <= {!TotalPageNumber}; i++){
+                            inlis += '<li><a href="{!$Page.TIMBASURVEYS__SurveyAnalyze}?id={!URLENCODE(survey.Id)}&p='+i+'">'+i+'</a></li>';
+                    };
+                    inlis += '</ul>';
+                    lista.innerHTML += inlis;
+
+                    if(dojo.query('.questionDetail').length <= 2){
+                        expandAll();
+                    }
+                    
+                    jQuery('#fill_survey_dialog .dijitDialogTitleBar').click(function(){
+						jQuery('#dp-popup').hide();
+					});
+
+					 jQuery('#get_pdf_analyze .dijitDialogTitleBar').click(function(){
+						jQuery('#dp-popup').hide();
+					});
+
+                });
+
+                <!--  NEW DESIGN JAVASCRIPT -->
+                    // If no collapsed questions are left, the button should be set to
+                    // "Collapse all". Should be called after expanding any question.
+                    function questionExpanded() {
+
+                        var elems = dojo.query('.questionDetail > .questionDetailTextArea');
+                        var collapsedTextAreaQuestions = 0;
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            if(elems[i].style.display == 'none') {
+                                collapsedTextAreaQuestions++;
+                            }
+                        };
+
+                        elems = dojo.query('.questionDetail > .questionDetailGraphsContainer');
+                        var collapsedGraphs = 0;
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            if(elems[i].style.display == 'none') {
+                                collapsedGraphs++;
+                            }
+                        };
+
+                        if(collapsedTextAreaQuestions + collapsedGraphs == 0) {
+                            setToCollapseAll();
+                        }
+
+                    }
+
+                    // If no expanded questions are left, the button should be set to
+                    // "Expand all". Should be called after collapsing any question.
+                    function questionCollapsed() {
+                        var elems = dojo.query('.questionDetail > .questionDetailTextArea');
+                        var expandedTextAreaQuestions = 0;
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            if(elems[i].style.display == 'block') {
+                                expandedTextAreaQuestions++;
+                            }
+                        };
+
+                        elems = dojo.query('.questionDetail > .questionDetailGraphsContainer');
+                        var expandedGraphs = 0;
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            if(elems[i].style.display == 'block') {
+                                expandedGraphs++;
+                            }
+                        };
+
+                        if(expandedTextAreaQuestions + expandedGraphs == 0) {
+                            setToExpandAll();
+                        }
+                    }
+
+                    function setToExpandAll() {
+                        var button = dojo.query('a[class="expandAll"]')[0];
+                        button.innerHTML = '{!$Label.timbasurveys__timbasurveys_analyzer_expandAll}';
+                        button.href = 'javascript:expandAll();';
+                    }
+
+                    function setToCollapseAll() {
+                        var button = dojo.query('a[class="expandAll"]')[0];
+                        button.innerHTML = '{!$Label.timbasurveys_analyzer_collapseAll}';
+                        button.href = 'javascript:collapseAll();';
+                    }
+
+                    function expandAll(){
+                        var elems = dojo.query('.questionDetail > .questionDetailTextArea');
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elems[i].style.display = 'block';
+                        };
+
+                        elems = dojo.query('.questionDetail > .questionDetailGraphsContainer');
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elems[i].style.display = 'block';
+                        };
+
+                        elems = dojo.query('.questionDetail > .questionDetailHeader > .toRight > .detailsChange');
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elems[i].innerHTML = '{!$Label.timbasurveys_analyzer_collapse}';
+                        };
+
+                        setToCollapseAll();
+                    }
+
+                    function collapseAll(){
+                        var elems = dojo.query('.questionDetail > .questionDetailTextArea');
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elems[i].style.display = 'none';
+                        };
+
+                        elems = dojo.query('.questionDetail > .questionDetailGraphsContainer');
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elems[i].style.display = 'none';
+                        };
+
+                        elems = dojo.query('.questionDetail > .questionDetailHeader > .toRight > .detailsChange');
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elems[i].innerHTML = '{!$Label.timbasurveys_analyzer_expand}';
+                        };
+
+                        setToExpandAll();
+                    }
+
+                    function collapser(me){
+                        var elems = dojo.query('> .questionDetailTextArea', dojo.query(me).closest('.questionDetail')[0]);
+                        if (elems.length == 0){
+                            elems = dojo.query('> .questionDetailGraphsContainer', dojo.query(me).closest('.questionDetail')[0]);
+                        }
+                        var elem;
+                        for (var i = elems.length - 1; i >= 0; i--){
+                            elem = elems[i];
+
+                            if(!elem.style.display){
+                                elem.style.display = 'block';
+                                me.innerHTML = '{!$Label.timbasurveys_analyzer_collapse}';
+                                questionExpanded();
+                            }else if (elem.style.display == 'block'){
+                                elem.style.display = 'none';
+                                me.innerHTML = '{!$Label.timbasurveys_analyzer_expand}';
+                                questionCollapsed();
+                            }else{
+                                elem.style.display = 'block';
+                                me.innerHTML = '{!$Label.timbasurveys_analyzer_collapse}';
+                                questionExpanded();
+                            }
+                        };
+                    }
+
+                    function overRow(row, isin){
+                        if (isin) {
+                            row.bgColor = '#e7f5fb';
+
+                        }else{
+                            row.bgColor = '#ffffff';
+                        }
+                    }
+
+                    function overAll(botton, isin){
+                        if (isin) {
+                            botton.style.backgroundPosition="0px -25px";
+                        }else{
+                            botton.style.backgroundPosition="0px 0px";
+                        }
+                    }
+
+                    function detailShow(title, url){
+                        var a = dojo.byId('showAll');
+
+                        a.setAttribute('title',title);
+
+                        a = dojo.query('iframe' , a)[0];
+
+                        a.setAttribute('src',url);
+
+                        dijit.byId('showAll').show();
+                    }
+
+            <!-- script of Analyzer Banner -->
+
+                function periodicResponseEraserCompleted(success, action, recordsLeft){
+                    if(success){
+                        if(recordsLeft == 'true'){
+                            periodicResponseEraserOperation('{!JSENCODE(SurveyId)}', action);
+                        }else{
+                            if(action == 'clear'){
+                                //clearSurveyCallFinal();
+                                clearSurveyCallFinalOperation('{!JSENCODE(SurveyId)}');
+                            }
+                        }
+                    }else{
+                        alert('{!$Label.timbasurvey_surveylist_Error_found_during_response_erase}.');
+                        listOverlay.hide();
+                    }
+                }
+
+                /* clearSurveyCall */
+                function clearSurveyCall(){
+                   if(confirm('{!$Label.timbasurvey_surveyAnalyze_Delete_all}')){
+                       listOverlay.show();
+                       periodicResponseEraserOperation('{!JSENCODE(SurveyId)}', 'clear');
+                   }
+                }
+
+                function clearSurveyCallFinal(){
+                    // TO DO: Remove this function, refactor
+                    clearSurveyCallFinalOperation('{!JSENCODE(SurveyId)}');
+                }
+
+                function clearSurveyCallFinalCompleted(success){
+                    if (success){
+                        window.location = '{!$Page.TIMBASURVEYS__SurveyCollect}?id={!URLENCODE(SurveyId)}';
+                    }else{
+                        listOverlay.hide();
+                        alert('{!$Label.timbasurvey_surveyAnalyze_Delete_all_error}.');
+                    }
+                }
+
+                function chooseExport(){
+                    dijit.byId('fill_survey_dialog').show();
+                    if(!isQuestionCharts){
+                    	jQuery(".exportPDF").hide();
+                    }else{
+                    	jQuery(".exportPDF").show();
+                    }
+                    exportExcelHide();
+                }
+
+                function closePopUp(){
+                     dijit.byId('fill_survey_dialog').hide();
+                }
+                
+                function resetDates(){
+                	var d = new Date();
+                	$(".datepicker").datePicker({ defaultDate: new Date() });
+                	$('#startDate').val('');
+					$('#endDate').val('');
+				}
+                
+                /**
+		        * Improvment #40266
+		        * Ability to view pdf export and excel export by date range
+		        **/
+				function updateRangeDatesInReport(){
+					var startDate = $('#startDate').val();
+					var endDate = $('#endDate').val();
+					// check if dates are valid
+					var sDate = new Date(startDate);
+					var eDate = new Date(endDate);
+					if (sDate > eDate){
+						StartDateGraterDialog.show();
+					}else{
+						if($('.containerExport #exportExcel').attr('class') == 'surveyButton exportExcel'){
+							window.location='{!$Page.SurveyXlsReport}?id={!URLENCODE(SurveyId)}&p={!CurrentPageNumber}&isxls=true&sDate=' + encodeURI(startDate) + '&eDate=' + encodeURI(endDate);
+							closePopUp();
+						}else{
+                            if({!onePage}){
+                                window.open('{!$Page.ExportToPDF}?id={!URLENCODE(SurveyId)}&from=0&to=' + encodeURI({!oneLinkTo}) + '&sDate=' + encodeURI(startDate) + '&eDate=' + encodeURI(endDate), '_blank');closePopUp();
+                            }else{
+                                analyzeSurveyFunction('&sDate=' + encodeURI(startDate) + '&eDate=' + encodeURI(endDate));pdfExport();closePopUp();
+                            }
+						}
+						$('.containerExport #exportExcel').removeClass('exportExcel');						
+					}
+				}
+				
+				function exportExcelHide(){
+					if(jQuery('#startDate').val() != '' || jQuery('#endDate').val() != ''){
+					    jQuery('#exportExcel').hide();
+					}else{
+						jQuery('#exportExcel').show();
+					}
+				}
+                
+				//Export to PDF
+				function pdfExport(){
+					resetPdfPopUp();
+                    dijit.byId('get_pdf_analyze').show();
+                   	if(!isQuestionCharts){
+                    	jQuery(".exportPDF").hide();
+                    }else{
+                    	jQuery(".exportPDF").show();
+                    }
+                    exportExcelHide();
+                }
+
+				function resetPdfPopUp(){
+					$("table[id$= get_pdf_analyze_table]").remove();
+				}
+				
+				/**
+		        * Improvment #135
+		        * Ability to view responses by date range in Analyze tab
+		        **/
+				function updateBrowserDates(){
+					var startDate = $('#startDateNotExport').val();
+					var endDate = $('#endDateNotExport').val();
+					if ((startDate == '') || (endDate == '')){
+						StartDateEmptyDialog.show();
+					}else{
+						// check if dates are valid
+						var sDate = new Date(startDate);
+						var eDate = new Date(endDate);
+						// In IE date parsing is bugged, you should do it this way
+						if (dojo.isIE){
+							var splittedDate = startDate.split("-");
+							sDate = new Date(splittedDate[0],splittedDate[1]-1,splittedDate[2]); 
+							splittedDate = endDate.split("-");
+							eDate = new Date(splittedDate[0],splittedDate[1]-1,splittedDate[2]);
+						}
+						if (sDate > eDate){
+							StartDateGraterDialog.show();
+						}else{
+							listOverlay.show();
+							var url = window.location.href;
+							if (url.indexOf("&") > 0){
+						        var prefix = url.substring(0, url.indexOf("&"));
+						        url = prefix;
+						    }    
+						    url += '&sdate=';
+							url += startDate;
+							url += '&edate=';
+							url += endDate;
+						    window.location.href = url;
+						}
+                    }
+                }
+                function closePdf(){
+                    dijit.byId('get_pdf_analyze').hide();
+					}
+                
+                function analyzeSurvey(date){
+                	analyzeSurveyFunction(date);
+                	pdfExport();
+				}
+
+            </script>
+        </apex:define>
+        <apex:define name="breadCrumb">
+            <c:timbaSurveysBreadCrumb steps="{!$Label.timbasurveys__timbasurveys_Survey_List}:::{!$Page.TIMBASURVEYS__SurveyList},,,{!survey.Name}"/>
+        </apex:define>
+        <apex:define name="body">
+
+        <!-- ------------------------------------------- -->
+        <!-- The list of Questions and the charts needed -->
+        <!-- ------------------------------------------- -->
+
+        <div data-dojo-type="dijit.layout.ContentPane" title="{!$Label.timbasurvey_Analyze_Analyze_Items}" id="analyze">
+            <apex:outputpanel id="fullMasterContainer">
+                <apex:outputPanel styleClass="tabSet" layout="block">
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyOverview}" styleClass="tabElem">
+                            <apex:param name="id" value="{!SurveyId}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_overview}" />
+                        </apex:outputLink>
+                    <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.updateable}">
+                        <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyPreview}" styleClass="tabElem">
+                            <apex:param name="id" value="{!SurveyId}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_design}"/>
+                        </apex:outputLink>
+                        <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyCollect}" styleClass="tabElem">
+                            <apex:param name="id" value="{!SurveyId}" />
+                            <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_collect}" />
+                        </apex:outputLink>
+                    </apex:outputpanel>
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="tabElem imIn">
+                        <apex:param name="id" value="{!SurveyId}" />
+                        <apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_analize}" />
+                    </apex:outputLink>
+                    <div class="marginInf"></div>
+            </apex:outputpanel>
+        <apex:outputPanel styleClass="banner" layout="block">
+            <div class="surveyStat"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_surveyStats}" /></div>
+            <div class="browseBy"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_browseBy}" /></div>
+            <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="questions selected">
+                <apex:param name="id" value="{!SurveyId}" />
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_questions}" />
+            </apex:outputLink>
+            <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyBrowser}" styleClass="recipients">
+                <apex:param name="id" value="{!SurveyId}" />
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_recipients}"/>
+            </apex:outputLink>
+            <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__SurveyResponse__c.deletable}">
+                <button onclick="clearSurveyCall();" class="surveyButton cancel" style="float:right;">
+                    <apex:image value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/icons/canceliconsmall.png')}" /><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_deleteResponses}" id="deleteResponesAnalyzer"/>
+                </button>
+            </apex:outputpanel>
+            <button onclick="resetDates(); chooseExport();" class="surveyButton" style="float:right;">
+                <apex:image value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/icons/xlssmall.png')}" /><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_export}" id="export"/>
+            </button>
+            <div id="fill_survey_dialog" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurveys_analyzer_SelectExport}" data-dojo-id="fill_survey_dialog">
+                <div class="dialogContent" >
+                    <div class="centerContainer">
+                    	<apex:outputPanel styleClass="containerDateRange" layout="block">
+							<apex:outputPanel styleClass="dateSelectorWrapper" layout="block">
+					            <apex:outputPanel styleClass="browseBy nextDateSelector" layout="block">
+					            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_From_this_date}" />
+					            </apex:outputPanel>
+					            <apex:outputPanel styleClass="optionsContainer dateortime" layout="block">
+					            	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+					            		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+					            			<input class="datepicker" id="startDate" type="text" maxlength="70" disabled="disabled" onchange="exportExcelHide();"/>
+					            		</apex:outputPanel>
+					            	</apex:outputPanel>
+					            </apex:outputPanel>
+							</apex:outputPanel>
+							<apex:outputPanel styleClass="dateSelectorWrapper" layout="block">
+					            <apex:outputPanel styleClass="browseBy nextDateSelector" layout="block">
+					            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_To_this_date}" />
+					            </apex:outputPanel>
+					            <apex:outputPanel styleClass="optionsContainer dateortime" layout="block">
+					            	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+					            		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+					            			<input class="datepicker" id="endDate" type="text" maxlength="70" disabled="disabled" onchange="exportExcelHide();"/>
+					            		</apex:outputPanel>
+					            	</apex:outputPanel>
+					            </apex:outputPanel>
+							</apex:outputPanel>
+						</apex:outputPanel>
+						<apex:outputPanel styleClass="containerExport" layout="block">
+	                        <button onclick="$(this).addClass('exportExcel'); updateRangeDatesInReport();" id="exportExcel" class="surveyButton" style="margin-top: 10px; margin-left: 27px;">
+	                            <apex:image value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/icons/xlssmall.png')}" /><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_excelReport}" id="exportExcel"/>
+	                        </button>
+	                        <button onclick="updateRangeDatesInReport();" class="surveyButton exportPDF" style="margin-top: 10px; margin-left: 10px;">
+                                <apex:image value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/icons/pdfsmall.png')}" /><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_PDFReport}" id="exportPDF2"/>
+	                        </button>
+                        </apex:outputPanel>
+                    </div>
+                </div>
+            </div>
+            <div id="get_pdf_analyze" data-dojo-type="dijit.Dialog" title="Get PDF" data-dojo-id="get_pdf_analyze" style="min-width: 230px;">
+		    	<div class="dialogContent" >
+		        	<div class="centerContainer" id="get_pdf_analyze_container">
+		            	<apex:outputPanel styleClass="containerDateRange" layout="block" id="list_Links">
+							<apex:outputPanel styleClass="dateSelectorWrapper" layout="block">	
+								<apex:dataTable value="{!links}" var="link" cellPadding="4" border="1" id="get_pdf_analyze_table">
+			   						<apex:column >
+			        					<apex:outputLink value="{!link.link}" target="_blank">{!link.text}</apex:outputLink>
+			      					</apex:column>
+				 				</apex:dataTable>
+							</apex:outputPanel>
+						</apex:outputPanel>
+		          	</div>
+		      	</div>
+			</div>
+            <apex:outputLink value="javascript:expandAll();" styleClass="expandAll">
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_expandAll}" />
+            </apex:outputLink>
+        </apex:outputPanel>
+        <apex:outputPanel styleClass="banner" layout="block">
+			<apex:outputPanel styleClass="surveyDateRange" layout="block">
+		    	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Date_Range}" />
+		    </apex:outputPanel>
+			<apex:outputPanel styleClass="dateSelectorWrapper2" layout="block">
+		        <apex:outputPanel styleClass="browseBy nextDateSelector" layout="block">
+		        	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_From_this_date}" />
+		        </apex:outputPanel>
+		        <apex:outputPanel styleClass="optionsContainer dateortime" layout="block">
+		        	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+		        		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+		        			<input class="datepicker" id="startDateNotExport" type="text" maxlength="70" disabled="disabled" />
+		        		</apex:outputPanel>
+		        	</apex:outputPanel>
+		        </apex:outputPanel>
+			</apex:outputPanel>
+			<apex:outputPanel styleClass="dateSelectorWrapper2" layout="block">
+		        <apex:outputPanel styleClass="browseBy nextDateSelector" layout="block">
+		        	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_To_this_date}" />
+		        </apex:outputPanel>
+		        <apex:outputPanel styleClass="optionsContainer dateortime" layout="block">
+		        	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+		        		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+		        			<input class="datepicker" id="endDateNotExport" type="text" maxlength="70" disabled="disabled" />
+		        		</apex:outputPanel>
+		        	</apex:outputPanel>
+		        </apex:outputPanel>
+			</apex:outputPanel>
+			<apex:outputPanel styleClass="acceptContainer" layout="block">
+				<button class="surveyButton accept" onclick="updateBrowserDates();">
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_002surveyDesigner_Apply}" />
+				</button>
+			</apex:outputPanel>
+			<apex:outputPanel id="resetDatesPanel" styleClass="resetDatesPanel" layout="block">
+				<button class="surveyButton accept clearDates" onclick="return resetDates()">
+					<apex:image id="clearDates" value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/surveylist/delete.png')}" alt="{!$Label.timbasurveys__timbasurveys_surveycollect_Clear}" />
+					<apex:outputtext value="{!$Label.timbasurveys__timbasurveys_surveycollect_Clear}" />
+				</button>
+			</apex:outputPanel>
+		</apex:outputPanel>       
+        <apex:outputPanel styleClass="masterContainer" id="masterContainer" layout="block">
+			<apex:outputPanel layout="block" styleClass="totalQuestionsWrapper">
+				<apex:outputText styleClass="totalQuestionsText" value="{!$Label.timbasurveys__timbasurveys_analyzer_Total_Questions}: {!cantResp}" />
+			</apex:outputPanel>
+                <div class="questionList" style="overflow: hidden;">
+                    <apex:outputText styleClass="questionListTitle" value="{!$Label.timbasurveys__timbasurveys_analyzer_questionsInPage}" />
+                    <span id="pageNum" class="questionListNum"><apex:outputText value="{!CurrentPageNumber}"/></span>
+                    <ul>
+                        <apex:repeat value="{!SurveyAnalyzeItems}" var="surveyItem">
+                            <li class="questionItem">
+                                <apex:outputText styleClass="questionListNumber" value="{!surveyItem.SurveyQuestion.RowPlacement}" />
+                                <apex:outputLink value="#{!surveyItem.Id}questionDetail" styleClass="questionListName">
+                                    <apex:outputText value="{!surveyItem.Question}" />
+                                </apex:outputLink>
+                            </li>
+                        </apex:repeat>
+                    </ul>
+                </div>
+				<div class="questionDetailContainer" style="width: auto; float: none;overflow-x: hidden;padding-right: 53px;padding-left: 20px;  ">
+				    <apex:repeat value="{!SurveyAnalyzeItems}" var="surveyItem">
+				        <div class="questionDetail" id="{!JSINHTMLENCODE(surveyItem.Id)}questionDetail" style="width: 100%;">
+				            <div class="questionDetailHeader" style="padding-right: 15px;">
+				                <div class="toLeft">
+				                    <apex:outputText styleClass="questionDetailNumber" value="{!surveyItem.SurveyQuestion.RowPlacement}" />
+				                    <span class="questionDetailName" id="{!JSINHTMLENCODE(surveyItem.Id)}ToolTip">
+				                    	<apex:outputText value="{!IF(LEN(surveyItem.Question) > 50, LEFT(surveyItem.Question,50) & '...', surveyItem.Question)}" />
+				                    </span>
+									<div data-dojo-type="dijit.Tooltip" data-dojo-props="connectId:'{!JSINHTMLENCODE(surveyItem.Id)}ToolTip',position:['above']" style="display:none;">
+										<apex:outputText value="{!surveyItem.Question}" /><br/>
+										<apex:repeat value="{!surveyItem.ChildAnalyzeItems}" var="childSurveyItem" >
+											<apex:outputText title="{!childSurveyItem.Question}" value="{!IF(LEN(childSurveyItem.Question) > 50, '-' & LEFT(childSurveyItem.Question,50) & '...', '-' & childSurveyItem.Question)}" /><br/>
+                                        </apex:repeat>
+									</div>
+							    </div>
+							    <div class="toRight">
+							        <div class="detailsChange" onclick="collapser(this);">{!$Label.timbasurveys__timbasurveys_analyzer_expand}</div>
+							        <apex:outputText styleClass="questionDetailType" value="{!surveyItem.questionTypeName}" />
+							    </div>
+							</div>
+							<apex:outputPanel rendered="{!!surveyItem.HasChild}" layout="none">
+        <!--------------------------- Response Grid  --------------------------------->
+								<apex:outputPanel layout="none" rendered="{!NOT(surveyItem.renderCharts)}">
+								    <div class="questionDetailTextArea" style="display: none;">
+								        <apex:outputPanel styleClass="detailHeader" layout="block">
+								            <div class="colRecipient"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_analyzer_recipient}" id="analyzerRecipient" /></div>
+								            <apex:outputText styleClass="colResponse" value="{!$Label.timbasurveys__timbasurveys_analyzer_responses}" />
+								        </apex:outputPanel>
+									    <apex:outputPanel styleClass="detailData" id="detailData" layout="block">
+									        <table border="0" cellspacing="0">
+												<apex:repeat value="{!innerSurveyAnalyzeItemClassList}" var="srList">
+													<apex:repeat value="{!srList}" var="sr"> 
+														<apex:outputPanel layout="none" rendered="{!IF(sr.innerStringResponse.AnswerQuestions == surveyItem.Id,true,false)}">
+															 <tr>
+															    <td class="colRecipientCont" >
+															        <apex:outputLink value="../{!sr.innerStringResponse.SummaryId}" title="View Summary">
+															            <apex:param name="bkt_analyzer" value="true" />
+															            <apex:param name="p" value="{!SurveyPageNumber}"/>
+															            <apex:outputText value="{!IF(LEN(sr.innerStringResponse.Recipient) <= 0, $Label.timbasurveys__timbasurvey_Analyze_Anonymous , sr.innerStringResponse.Recipient)}" />
+															        </apex:outputLink>
+															    </td>
+															    <td class="colResponseCont">
+															        <apex:outputText rendered="{!!sr.innerStringResponse.RichTextEnabled}" value="{!sr.innerStringResponse.Response}"/>
+															        <apex:outputText rendered="{!sr.innerStringResponse.RichTextEnabled}" value="{!sr.innerStringResponse.RichResponse}" escape="false"/>
+															        <apex:outputText value="{!$Label.timbasurveys__timbasurvey_Analyze_No_Response}" rendered="{!IF(LEN(sr.innerStringResponse.Response)  == 0 ,true, false)}" />
+															    </td>
+															</tr>
+														</apex:outputPanel>	
+													</apex:repeat>
+												</apex:repeat>
+									        </table>
+									    </apex:outputPanel>
+									        <apex:outputPanel rendered="{!IF(surveyItem.has_more_string_responses, true, false)}" layout="none">
+									            <apex:outputLink styleClass="seeAllResult" value="javascript:detailShow('{!surveyItem.Question}', '{!$Page.TIMBASURVEYS__AnalyzerAdditionalResults}?sid={!survey.Id}&qid={!surveyItem.Id}&p={!SurveyPageNumber}');" onmouseover="overAll(this, true);" onmouseout="overAll(this, false);"></apex:outputLink>
+									        </apex:outputPanel>
+									    </div>
+									</apex:outputPanel>
+        <!------------------------------- Barchart and Pie  ---------------------------------->
+                                        <apex:outputPanel layout="none" rendered="{!surveyItem.renderCharts}">
+                                            <div class="questionDetailGraphsContainer">
+                                                <div class="questionDetailGraphs" >
+                                                    <div class="rowGraph">
+                                                        <table>
+                                                            <tr>
+                                                                <td style="text-align: right;">
+                                                                    <apex:outputText style="font-weight: bold;" value="{!$Label.timbasurveys__timbasurveys_analyzer_option}" />
+                                                                </td>
+                                                                <td colspan="2" style="padding-left: 10px;">
+                                                                    <apex:outputText style="font-weight: bold;" value="{!$Label.timbasurveys__timbasurveys_analyzer_percentage}" />
+                                                                </td>
+                                                                <td style="padding-left: 10px;">
+                                                                    <apex:outputPanel layout="none" rendered="{!surveyItem.IsWeightManaged}" styleClass="spanNum">
+                                                                        <apex:outputText style="font-weight: bold;" value="{!$Label.timbasurveys__timbasurveys_analyzer_value}" />
+                                                                    </apex:outputPanel>
+                                                                </td>
+                                                                <td style="padding-left: 10px;">
+                                                                    <apex:outputPanel layout="none" rendered="{!surveyItem.IsWeightManaged}" styleClass="spanNum">
+                                                                        <apex:outputText style="font-weight: bold;" value="{!$Label.timbasurveys__timbasurveys_analyzer_hits}" />
+                                                                    </apex:outputPanel>
+                                                                </td>
+                                                                <td style="padding-left: 10px;">
+                                                                    <apex:outputPanel layout="none" rendered="{!surveyItem.IsWeightManaged}" styleClass="spanNum">
+                                                                        <apex:outputText style="font-weight: bold;" value="{!$Label.timbasurveys__timbasurveys_analyzer_total}" />
+                                                                    </apex:outputPanel>
+                                                                </td>
+                                                            </tr>
+                                                            <apex:repeat value="{!surveyItem.OptionsData}" var="od">
+                                                                        <tr>
+                                                                            <td style="text-align: right;">
+                                                                                <span class="spanNum" title="{!od.Option}" >{!IF(LEN(od.Option) > 40, LEFT(od.Option,40) & '...', od.Option)}</span>
+                                                                            </td>
+                                                                            <td style="padding-left: 10px;">
+                                                                                <div class="totalBar">
+                                                                                    <div class="porsentage" style="width:{!od.Percent};"></div>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td>
+                                                                                <apex:outputText styleClass="spanRate" value="{!od.Percent}" />
+                                                                            </td>
+                                                                            <td style="padding-left: 10px;">
+                                                                                <apex:outputPanel layout="none" rendered="{!surveyItem.IsWeightManaged}" styleClass="spanRate">{!od.Weight}</apex:outputPanel>
+                                                                            </td>
+                                                                            <td style="padding-left: 10px;">
+                                                                                <apex:outputPanel layout="none" rendered="{!surveyItem.IsWeightManaged}" styleClass="spanRate">{!od.totalHits}</apex:outputPanel>
+                                                                            </td>
+                                                                            <td style="padding-left: 10px;">
+                                                                                <apex:outputPanel layout="none" rendered="{!surveyItem.IsWeightManaged}" styleClass="spanRate">{!od.TotalWeight}</apex:outputPanel>
+                                                                            </td>
+                                                                        </tr>
+                                                            </apex:repeat>
+                                                        </table>
+                                                    </div>
+                                                    <div class="cackeGraph" id="{!surveyItem.Id}" style="background-color: transparent;margin-left: 35px;" ></div>
+                                                </div>
+                                                <apex:outputPanel rendered="{!surveyItem.IsWeightManaged}" layout="block" style="margin-top: 10px;">
+                                                    <apex:outputText styleClass="questionDetailPonderation" value="{!$Label.timbasurveys__timbasurveys_analyzer_ponderation}" />
+                                                    <div class="questionDetailGraphs" style="min-height: 10px; padding-top: 10px; padding-bottom: 10px;">
+                                                        <table style="margin-left: 20px;">
+                                                            <tbody>
+                                                            <tr>
+                                                                <td class="questionDetailPonderationValues">
+                                                                    <b>{!$Label.timbasurveys__timbasurveys_analyzer_noresponses}</b>
+                                                                    <apex:outputText styleClass="questionDetailPonderation" value="{!surveyItem.NoResponses}" />
+                                                                </td>
+                                                                <td class="questionDetailPonderationValues">
+                                                                    <b>{!$Label.timbasurveys__timbasurveys_analyzer_questions_not_answered}</b>
+                                                                    <apex:outputText styleClass="questionDetailPonderation" value="{!surveyItem.notAnswered}" />
+                                                                </td>
+                                                                <td class="questionDetailPonderationValues">
+                                                                    <b>{!$Label.timbasurveys__timbasurveys_analyzer_total_ponderation}</b>
+                                                                    <apex:outputText styleClass="questionDetailPonderation" value="{!surveyItem.TotalWeight}" />
+                                                                </td>
+                                                                <td class="questionDetailPonderationValues">
+                                                                    <b>{!$Label.timbasurveys__timbasurveys_analyzer_max_ponderation}</b>
+                                                                    <apex:outputText styleClass="questionDetailPonderation" value="{!surveyItem.MaxWeight}" />
+                                                                </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </apex:outputPanel>
+                                            </div>
+                                        </apex:outputPanel>
+                                    </apex:outputPanel>
+        <!------------------------- Start Multiple Child Question panel ---------------------->
+                                    <apex:repeat value="{!surveyItem.ChildAnalyzeItems}" var="childSurveyItem" >
+                                        <div class="questionDetailGraphsContainer">
+                                            <div class="questionDetailGraphs" style="height: auto; overflow: hidden;">
+                                                <div class="subName">
+                                                    <apex:outputText title="{!childSurveyItem.Question}" value="{!IF(LEN(childSurveyItem.Question) > 50, LEFT(childSurveyItem.Question,50) & '...', childSurveyItem.Question)}" />
+                                                </div>
+
+                                        <apex:outputPanel layout="none" rendered="{!childSurveyItem.renderCharts}">
+                                            <div class="rowGraph">
+                                                <table>
+                                                    <apex:repeat value="{!childSurveyItem.OptionsData}" var="od">
+                                                                <tr>
+                                                                    <td style="text-align: right;">
+                                                                        <apex:outputText styleClass="spanNum" title="{!od.Option}" value="{!IF(LEN(od.Option) > 40, LEFT(od.Option,40) & '...', od.Option)}" />
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="totalBar">
+                                                                            <div class="porsentage" style="width:{!od.Percent};"></div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <apex:outputText styleClass="spanRate" value="{!od.Percent}" />
+                                                                    </td>
+                                                                </tr>
+                                                    </apex:repeat>
+                                                </table>
+                                            </div>
+                                            <div class="cackeGraph" id="{!HTMLENCODE(childSurveyItem.Id)}" style="background-color: transparent;margin-left: 35px;" ></div>
+                                        </apex:outputPanel>
+                                    </div>
+                                </div>
+                            </apex:repeat>
+                        </div>
+                    </apex:repeat>
+                </div>
+                <div class="pageCon">
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="begin {!IF(!renderPrevPageBtn, 'disabled', '')}" style="{!IF(!renderPrevPageBtn, 'cursor:default', '')}" onclick="return {!renderPrevPageBtn}">
+                    	<apex:param name="id" value="{!survey.Id}" />
+                    	<apex:param name="p" value="1" />
+                    </apex:outputLink>
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="prev {!IF(!renderPrevPageBtn, 'disabled', '')}" style="{!if(!renderPrevPageBtn, 'cursor:default', '')}" onclick="return {!renderPrevPageBtn}">
+                    	<apex:param name="id" value="{!survey.Id}" />
+                    	<apex:param name="p" value="{!prevPageNumber}" />
+                    </apex:outputLink>
+                    <apex:outputPanel styleClass="count" layout="block">
+                    	<apex:outputText value="{!CurrentPageNumber}/{!TotalPageNumber}" /><img src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/pagination_picklist.png')}" />
+                    </apex:outputPanel>
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="next {!IF(!renderNextPageBtn, 'disabled', '')}" style="{!IF(!renderNextPageBtn, 'cursor:default', '')}" onclick="return {!renderNextPageBtn}">
+                    	<apex:param name="id" value="{!survey.Id}" />
+                    	<apex:param name="p" value="{!nextPageNumber}" />
+                    	</apex:outputLink>
+                    <apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="end {!if(!renderNextPageBtn, 'disabled', '')}" style="{!if(!renderNextPageBtn, 'cursor:default', '')}" onclick="return {!renderNextPageBtn}">
+                    	<apex:param name="id" value="{!survey.Id}" />
+                    	<apex:param name="p" value="{!TotalPageNumber}" />
+                    	<apex:param name="sdate" value="{!startDate}" />
+                    	<apex:param name="edate" value="{!endDate}" />
+                    </apex:outputLink>
+                </div>
+<!-- -------------------------------End of new design---------------------------------------------------------- -->
+        </apex:outputPanel>
+        </apex:outputPanel>
+    </div>
+        <!-- dialog -->
+        <div data-dojo-type="dijit.Dialog" id="showAll">
+            <iframe frameborder="0" marginwidth="0" marginheight="0" src="" class="showAllDetail"></iframe>
+        </div>
+        <div data-dojo-type="dijit.Dialog" id="StartDateGrater" data-dojo-id="StartDateGraterDialog" title="{!$Label.timbasurvey_surveyBrowser_Select_Dates}">
+            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Start_Date_Grater}." />
+        </div>
+        <div data-dojo-type="dijit.Dialog" id="StartDateEmpy" data-dojo-id="StartDateEmptyDialog" title="{!$Label.timbasurvey_surveyBrowser_Select_Dates}">
+            <apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Dates_Empty}." />
+        </div>
+       <!-- END dialog -->
+       <div data-dojo-id="listOverlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'bodyTable', color: 'white'"></div>
+        </apex:define>
+    </apex:composition>
+    <apex:outputPanel id="myStateSurveyAnalyze" rendered="false" />
+    <apex:form id="surveyAnalyzeActions">
+        <apex:actionFunction name="clearSurveyCallFinalOperation" oncomplete="clearSurveyCallFinalCompleted({!success})" action="{!clearRecipientsResponses}" rerender="myStateSurveyAnalyze">
+            <apex:param name="SurveyId" value="" assignTo="{!SurveyId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="periodicResponseEraserOperation" oncomplete="periodicResponseEraserCompleted({!success},'{!action}','{!recordsLeft}')" action="{!periodicEraseResponeses}" rerender="myStateSurveyAnalyze">
+            <apex:param name="surveyList" value="" assignTo="{!surveyList}" />
+            <apex:param name="action" value="" assignTo="{!action}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="analyzeSurveyFunction" action="{!linksList}" rerender="list_Links">
+        	<apex:param name="dateToPDF" value="" assignTo="{!dateToPDF}"/>
+    	</apex:actionFunction>
+    </apex:form>
+</apex:page>

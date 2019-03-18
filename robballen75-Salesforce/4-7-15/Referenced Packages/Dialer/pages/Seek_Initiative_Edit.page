@@ -1,0 +1,1117 @@
+<apex:page standardController="qbdialer__SeekInitiative__c"
+    extensions="qbdialer.SeekInitiative"
+    tabStyle="is_links__tab"
+    title="Seek Initiative Edit: {!qbdialer__SeekInitiative__c.Name}"
+    rendered="{!qbdialer__SeekInitiative__c.qbdialer__can_edit__c}"
+    action="{!checkSeekProfPerms}"
+    id="SeekInitiative">
+<script type="text/javascript"> __jQuery = null;if(typeof(jQuery) != "undefined") __jQuery = jQuery; jQuery = null; </script>
+<script type="text/javascript" src="{!URLFOR($Resource.c2c_resources, '/lib/jquery.min.js')}"></script>
+<script type="text/javascript">
+	qbjq = jQuery.noConflict();
+	jQuery = __jQuery;
+    var previousOnload = window.onload;
+    window.onload = function() { 
+        if (previousOnload) { 
+            previousOnload();
+        }
+        onLoadCriteria();
+        if(document.getElementById("SeekInitiative:editPage:query_name").value == ''){
+            //if this is an add, set default values
+            validateSeekInitiativeDefaults();
+        }
+    }
+    
+    function validateSeekInitiativeDefaults(){
+        //Email Templates
+        document.getElementById("SeekInitiative:editPage:use_salesforce_templates:0").checked = true;
+        toggleEmailFolders();
+
+        //visibility
+        document.getElementById("SeekInitiative:editPage:fshare:0").checked = true;
+
+        //callbacks
+        document.getElementById("SeekInitiative:editPage:call_backs:0").checked = true;
+        
+        //Neuralytics Smart Sorting
+        checkLicense('neur',
+            function (data) {
+                var smartSort = document.getElementById("SeekInitiative:editPage:neuralytics_sort");
+                if (smartSort) {
+                    smartSort.value = (data != null && data.message) ? "On" : "Off"
+                }
+            }
+        );
+    }
+    
+    qbjq(document).ready(function() {
+        getLocalPresenceData();
+
+        // disable calling time fields
+        toggleCallingTimes({!IF(SeekInitiative__c.LimitCallingTimes__c, true, false)});
+    });
+        
+    function lp_blocks_response(response) {
+        var selected_val = qbjq(".bucket_id").val();
+        var first_item = false;
+        if (response.lp_able) {
+            qbjq('#local_presence_table').show();
+            qbjq('#local_presence_block_select').html('');
+            for (var i=0; i < response.blocks.length; i++) {
+                if (qbjq(".bucket_id").val() == response.blocks[i].id) {
+                    selected_val = response.blocks[i].id;
+                    qbjq('.bucket_id').val(selected_val);
+                }
+                if (first_item === false) {
+                    first_item = response.blocks[i].id;
+                }
+                qbjq('#local_presence_block_select').append(qbjq('<option value="'+response.blocks[i].id+'">'+response.blocks[i].label+'</option>'));
+            }	
+            if (first_item !== false && !qbjq('.bucket_id').val()) {
+                qbjq('.bucket_id').val(first_item)
+            }
+            qbjq('#local_presence_block_select').val(qbjq('.bucket_id').val()); 
+ 		}
+    }
+    
+    /**
+     * Calls the check_license action.
+     * @param string license The license key to check.
+     * @param function callback The function to call on success.
+     */
+    function checkLicense(license, callback) {
+        var user_subdomain = '{!JSENCODE($User.is_subdomain__c)}';
+        qbjq.ajax({
+            url: 'https://' + user_subdomain + '.insidesales.com/do=noauth/check_license?key=' + license,
+            dataType: 'jsonp',
+            success: callback
+        });
+    }
+    
+    function getLocalPresenceData() {
+        var script_element   = document.createElement('script');
+        var user_oauth_token = '{!JSENCODE($User.is_token__c)}';
+        var user_subdomain   = '{!JSENCODE($User.is_subdomain__c)}';
+        script_element.type  = 'text/javascript';
+        script_element.src   = 'https://'+user_subdomain+'.insidesales.com/admin/salesforce/local_presence_blocks?token='+user_oauth_token;
+        document.body.appendChild(script_element);
+    }
+        
+    function toggleEmailFolders() {
+        var use_salesforce_templates = document.getElementById("SeekInitiative:editPage:use_salesforce_templates:0").checked;
+        setTemporaryName();
+        qbjq('[id="SeekInitiative:editPage:availableEmailFolders"]').children().remove();
+        qbjq('[id="SeekInitiative:editPage:emailFolders"]').children().remove();
+        qbjq('#loading_folders').show();
+        setEmailFolderType(use_salesforce_templates ? '1' : '0');
+    }
+
+    function toggleLocalPresence(show) {
+        var items = document.getElementsByClassName('local_presence_panel');
+        if (show) {
+            for (var i=0; i < items.length; i++) {
+                items[i].style.display = "";
+            }
+        } else {
+            for (var i=0; i < items.length; i++) {
+                items[i].style.display = "none";
+            }
+        }
+    }
+    
+    function buildRoleMap(){
+        var l = document.getElementById('{!$Component.SeekInitiative.role_option_list}');
+        eval('var items = '+l.innerHTML);
+        var options = [];
+        var selected = [];
+        for (var i = 0; i < items.length; i++) {
+             var group_name = items[i].group_name;//document.getElementById(id+":group_name").innerHTML;
+             var label      = items[i].label;//document.getElementById(id+":label").innerHTML;
+             var role_id    = items[i].id;//document.getElementById(id+":id").innerHTML;
+             var sort_data  = items[i].sort_data;//document.getElementById(id+":sort_data").innerHTML;
+             if (items[i].selected == '1') {
+                 selected[selected.length] = role_id;
+                 if (existingSelduel_select_1.options.length == 1 && existingSelduel_select_1.options[0].value == "") {
+                     existingSelduel_select_1.options[0] = null;
+                 }
+
+                 existingSelduel_select_1.options[existingSelduel_select_1.options.length] = new Option(label, role_id);
+             }
+
+             options[options.length] = [group_name, label, role_id, sort_data.toLowerCase(), existingSelduel_select_1];
+        }
+
+        duel_select_0Var.addOptions(false, options);
+        existingSelduel_select_0.options[0] = new Option('--None--','');
+        duel_select_0Var.filter();
+    }
+        
+    var current_filter_number = 0;
+    var redirect_on_save      = true;
+    
+    /*
+     * In order to do a request to Apex, required fields must be populated.  The following functions are a hack to allow this to happen if the user
+     * has not set the required fields.
+     */
+    function setTemporaryName(){
+        document.getElementById("SeekInitiative:editPage:use_salesforce_templates:0").disabled = true;
+        document.getElementById("SeekInitiative:editPage:use_salesforce_templates:1").disabled = true;
+        document.getElementById('{!$Component.SeekInitiative.editPage.query_name}').disabled = true;
+        if (document.getElementById('{!$Component.SeekInitiative.editPage.query_name}').value == '') {
+            document.getElementById('{!$Component.SeekInitiative.editPage.query_name}').value = '- - - - - - - - - - - - - - - - - - - - - - - - - - -';
+        }
+    }
+        
+    function unsetTemporaryName(){
+        document.getElementById("SeekInitiative:editPage:use_salesforce_templates:0").disabled = false;
+        document.getElementById("SeekInitiative:editPage:use_salesforce_templates:1").disabled = false;
+        qbjq("#loading_folders").hide();
+        document.getElementById('{!$Component.SeekInitiative.editPage.query_name}').disabled = false;
+        if(document.getElementById('{!$Component.SeekInitiative.editPage.query_name}').value == '- - - - - - - - - - - - - - - - - - - - - - - - - - -'){
+            document.getElementById('{!$Component.SeekInitiative.editPage.query_name}').value = '';
+        }
+    }
+    
+    function onLoadCriteria() {
+        buildRoleMap();
+        initEmailFolders();
+        document.getElementById('duel').style.display = (document.getElementById('{!$Component.SeekInitiative.editPage:fshare}:2').checked ? 'block' : 'none');
+        redirect_on_save = (getSeekInitiativeId() != '');
+        showHideTimeblocks();
+        showHideNeuralytics();
+    }
+    
+    function showHideNeuralytics() {
+        checkLicense('neur',
+            function (data) {
+                document.getElementById('SeekInitiative:editPage:neuralytics_panel').style.display = data.message ? 'block' : 'none';
+            }
+        );
+    }
+        
+    function showHideTimeblocks() {
+        document.getElementById('{!$Component.SeekInitiative.editPage.timeblock_queries}').style.display        = getSeekInitiativeId() == ''?'none':'';
+        document.getElementById('{!$Component.SeekInitiative.editPage.timeblock_queries_notice}').style.display = getSeekInitiativeId() != ''?'none':'';
+    }
+        
+    function getSelectedQBRoles() {
+        if (! getSeekInitiativeId()) {
+            document.getElementById("{!$Component.SeekInitiative.editPage.query_name_error}").style.display = "";
+            document.getElementById("{!$Component.SeekInitiative.editPage.query_name}").style.borderWidth = "2px";
+            document.getElementById("{!$Component.SeekInitiative.editPage.query_name}").style.borderColor = "#cc0000";
+            toggleSaveBtns(false);
+            return;
+        }
+
+        showHideTimeblocks();
+        if (existingSelduel_select_1.options.length > 0 && existingSelduel_select_1.options[0].value != "") {
+            var options = "";
+            for (var i = 0; i < existingSelduel_select_1.options.length; i++) {
+                if(options != "") {
+                    options += ",";
+                }
+                existingSelduel_select_1.options[i].selected = false;
+                options += existingSelduel_select_1.options[i].value;
+            }
+            saveSelectedQBRoles(options);
+        } else {
+            reloadSeekInitiative();
+        }
+    }
+        
+    var quick_save = true;
+    
+    function hideStatuses(){
+        document.getElementById('roleSaveStatus.stop').style.display  = 'none';
+        document.getElementById('querySaveStatus.stop').style.display = 'none';
+    }
+        
+    function redirectToView() {
+        var id = getSeekInitiativeId();
+        if (id) {
+            top.window.location.href = '/apex/Seek_Initiative_List_View';
+        }
+    }
+        
+    function getSeekInitiativeId() {
+        var id = document.getElementById('{!$Component.SeekInitiative.editPage.sf_seek_initiative_id}').innerHTML;
+        id     = id.replace(/[^0-9a-zA-z]/g, '');
+        if (id != "") {
+            if(id.length == 18){
+                id = id.substr(0, 15);
+            }
+            return id;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function unselectRoles(){
+        var dd = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_0}');
+        var i;
+        for(i = 0; i < dd.options.length; i++) {
+            dd.options[i].selected = false;
+        }
+
+        dd = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_1}');
+        for(i = 0; i < dd.options.length; i++) {
+            dd.options[i].selected = false;
+        }
+    }
+
+    function saveComplete() {
+        showHideTimeblocks();
+        if(!quick_save && redirect_on_save) {
+            redirectToView();
+        }
+        else {
+            redirect_on_save = true;
+        }
+	    toggleSaveBtns(false);
+    }
+        
+    function showCallBackGracePeriod()
+    {
+    /*
+        if (document.getElementById('{!$Component.SeekInitiative.editPage.call_backs}:0').checked) {
+            document.getElementById("call_back_grace_period").style.display = "none";
+        }
+        else {
+            document.getElementById("call_back_grace_period").style.display = "block";
+        }
+    */
+    }
+        
+    function moveRight() {
+        var src_dd = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_1}');
+        var dst_dd = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_0}');
+        if (! src_dd.disabled && ! dst_dd.disabled) {
+            duel_select_0Var.beforeMoveRight();
+            window.editPage_DLBEInstance.instMoveOption(dst_dd, src_dd,'--None--', [], null,'--None--',false,null,'editPage_duel_errorMsg');
+        }
+    }
+
+    function moveLeft() {
+        var src_dd = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_0}');
+        var dst_dd = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_1}');
+        if (! src_dd.disabled && ! dst_dd.disabled) {
+            window.editPage_DLBEInstance.instMoveOption(dst_dd, src_dd,'--None--', [], null,'--None--',false,null,'editPage_duel_errorMsg');duel_select_0Var.moveLeft();
+        }
+    }
+
+    function toggleCallingTimes(isChecked) {
+        var start    = document.getElementById("{!$Component.SeekInitiative.editPage.call_start_time}");
+        var end      = document.getElementById("{!$Component.SeekInitiative.editPage.call_end_time}");
+
+        if (start && end) {
+            start.disabled = ! isChecked;
+            end.disabled   = ! isChecked;
+        }
+    }
+
+    function checkSaveStatus() {
+        var errors = document.getElementById('{!$Component.SeekInitiative.editPage.pageMsgs}');
+        if (errors && errors.innerHTML == '') {
+            getSelectedQBRoles()
+        } else {
+            window.scroll(0,0);
+            toggleSaveBtns(false);
+	    }
+    }
+        
+    /* Start Timeblock Functions */
+    function addNewTimeblock(){
+        var name      = document.getElementById('timeblock_name');
+        var starttime = document.getElementById('timeblock_starttime');
+        var endtime   = document.getElementById('timeblock_endtime');
+        if(!validateTimeblockTimes(starttime.value, endtime.value)){
+            return false;
+        }
+        saveNewTimeblock(name.value, starttime.value, endtime.value);
+    }
+
+    function validateTimeblockTimes(start_time, end_time) {
+        if(end_time <= start_time) {
+            alert("Start time must be before the end time!");
+            return false;
+        } else {
+            return true;
+        }    
+    }
+        
+    function editNewTimeblock(){
+        name.value = '';
+        var new_id   = document.getElementById('{!$Component.SeekInitiative.editPage.new_timeblock_id}').innerHTML;
+        if(new_id == 'overlap') {
+            alert('You cannot have overlapping timeblocks!');
+            return;
+        } else {
+            sendSyncRequest(new_id);
+            editTimeblock(new_id);
+        }
+    }
+        
+    function cloneTimeblockComplete() {
+        name.value = '';
+        var new_id = document.getElementById('{!$Component.SeekInitiative.editPage.new_timeblock_id}').innerHTML;
+        if (new_id != 'overlap') {
+            sendSyncRequest(new_id);
+        } else {
+            alert('You cannot have overlapping timeblocks!');
+            return;
+        }
+    }
+        
+    function editTimeblock(id){
+        var neuralytics = qbjq("#SeekInitiative\\:editPage\\:neuralytics_sort");
+        if (neuralytics.length > 0)
+            neuralytics = "?neuralytics=" + (neuralytics.val() == "On" ? 1 : 0);
+        else
+            neuralytics = "";
+        
+        window.open('/'+id+'/e' + neuralytics, '', 'scrollbars=1,resizable=1,width=1200,height=800');
+    }
+        
+    var timeblock_edit_in_process = false;
+    
+    function editTimeblockTimes(id){
+        if(timeblock_edit_in_process){
+            alert('You may only edit times for one query at a time!');
+            return;
+        }
+        timeblock_edit_in_process = true;
+
+        var start_time_dd = document.getElementById('timeblock_starttime_span').innerHTML;
+        var current_start_time = document.getElementById('SeekInitiativeTimeblockStartTimeValue:'+id).innerHTML;
+        document.getElementById('SeekInitiativeTimeblockStartTime:'+id).innerHTML = start_time_dd.replace('timeblock_starttime', 'timeblock_starttime:'+id);;
+        document.getElementById('SeekInitiativeTimeblockActions:'+id).innerHTML = '<input type="button" value="Save" onclick="saveTimeblockTimes(\''+id+'\')"> <input type="button" value="Cancel" onclick="cancelEditTimeblockTimes(\''+id+'\')">';
+        document.getElementById('timeblock_starttime:'+id).value = current_start_time;
+
+        var end_time_dd = document.getElementById('timeblock_endtime_span').innerHTML;
+        var current_end_time = document.getElementById('SeekInitiativeTimeblockEndTimeValue:'+id).innerHTML;
+        document.getElementById('SeekInitiativeTimeblockEndTime:'+id).innerHTML = end_time_dd.replace('timeblock_endtime', 'timeblock_endtime:'+id);
+        document.getElementById('timeblock_endtime:'+id).value = current_end_time;
+    }
+
+    function saveTimeblockTimes(id){
+        var start_time = document.getElementById('timeblock_starttime:'+id).value;
+        var end_time = document.getElementById('timeblock_endtime:'+id).value;
+        if(!validateTimeblockTimes(start_time, end_time)){
+            return false;
+        }
+        commitTimeblockTimes(id, start_time, end_time);
+    }
+        
+    function EditTimeblockTimesComplete() {
+        timeblock_edit_in_process = false;
+    }
+
+    function cancelEditTimeblockTimes(id) {
+        cancelTimeblockTimeEdit();
+    }
+
+    function updateTimeblockPriority(id, delta) {
+        commitTimeblockPriority(id, delta);
+    }
+    /* End Timeblock Functions */
+
+    function initEmailFolders(){
+        var available_folders = document.getElementById('SeekInitiative:editPage:availableEmailFolders');
+        var email_folders = document.getElementById('SeekInitiative:editPage:emailFolders');
+        if(email_folders == null || available_folders == null) return;
+        eval('var items = '+document.getElementById('SeekInitiative:selected_emails').innerHTML);
+        for(var i = 0; i < items.length; i++){
+            email_folders.options[email_folders.options.length] = new Option(items[i].label, items[i].value);
+        }
+        eval('var items = '+document.getElementById('SeekInitiative:available_emails').innerHTML);
+        for(var i = 0; i < items.length; i++){
+            available_folders.options[available_folders.options.length] = new Option(items[i].label, items[i].value);
+        }	
+    }
+    
+    function prepEmailFolders() {
+        // copy the data out of the emailFolders field
+        var email_folders = document.getElementById('SeekInitiative:editPage:emailFolders');
+        if (email_folders == null) {
+            return;
+        }
+        var email_folder_options = [];
+        for (var i=0; i < email_folders.options.length; i++) {
+            email_folder_options[email_folder_options.length] = email_folders.options[i].value;		
+        }
+        email_folder_options = email_folder_options.join(';');
+        document.getElementById('SeekInitiative:editPage:emailFolderSelected').value=email_folder_options;
+
+        var available_folders = document.getElementById('SeekInitiative:editPage:availableEmailFolders');
+        for (var i = 0; i < available_folders.children.length; i++) {
+            var tmp_option = available_folders.children[i];
+            tmp_option.selected = false;			
+        }
+
+        for (var i = 0; i < email_folders.children.length; i++) {
+            var tmp_option = email_folders.children[i];
+            tmp_option.selected = false;			
+        }
+    }
+    
+    function move_email_folders_right() {
+        var available_folders = document.getElementById('SeekInitiative:editPage:availableEmailFolders');
+        var selected_folders = document.getElementById('SeekInitiative:editPage:emailFolders');
+
+        for (var i=available_folders.children.length-1; i>=0; i--) {
+            var tmp = available_folders.children[i];
+            if (tmp.selected) {
+                tmp.parentNode.removeChild(tmp);
+                selected_folders.appendChild(tmp);
+            }
+        }
+    }
+        
+    function move_email_folders_left() {
+        var available_folders = document.getElementById('SeekInitiative:editPage:availableEmailFolders');
+        var selected_folders = document.getElementById('SeekInitiative:editPage:emailFolders');
+        for (var i=selected_folders.children.length-1; i>=0; i--) {
+            var tmp = selected_folders.children[i];
+            if (tmp.selected) {
+                tmp.parentNode.removeChild(tmp);
+                available_folders.appendChild(tmp);
+            }
+        }
+    }
+
+	/*
+	 * handle save button click
+	 */
+	function saveClick(is_quick) {
+		toggleSaveBtns(true);
+
+		if (undefined==is_quick) {
+			is_quick=false;
+		}
+		unselectRoles();
+		quick_save=is_quick;
+		prepEmailFolders();
+		saveQB();
+		return false;
+	}
+
+	/*
+	 * toggle all save buttons
+	 */
+	function toggleSaveBtns(dis) {
+		if (undefined == dis) {
+			dis = false;
+		}
+		var btns = [
+			'save', 'save2'
+			, 'savequick', 'savequick2'
+		];
+
+		for (var i=0;i<btns.length;i++) {
+			toggleBtn(btns[i],dis);
+		}
+	}
+
+	/*
+	 * toggle whether or not the
+	 * last-clicked button is disabled
+	 */
+	function toggleBtn(btn,dis) {
+		if (undefined == dis) {
+			dis = false;
+		}
+		b=qbjq('#SeekInitiative\\:editPage\\:'+btn);
+		b.attr('disabled', dis);
+		if (dis) {
+			b.addClass('btnDisabled')
+		} else {
+			b.removeClass('btnDisabled')
+		}
+	}
+        
+    </script>
+    <div style="margin-bottom: 5px">
+        <a href="/apex/is_links">InsideSales</a>
+        <strong>&gt;</strong>
+        <a href="/apex/Seek_Initiative_List_View">Seek Lists</a>
+        <strong>&gt;</strong>
+        Seek List
+    </div>
+	<apex:outputPanel style="display:none" >
+		<pre>encoded options: <apex:outputText id="role_option_list" value="{!RoleOptions}"/></pre>
+	</apex:outputPanel>
+	<apex:outputPanel style="display:none" >
+		Selected:  <apex:outputText id="selected_emails"  value="{!emailFolders}"/><br />
+		Available: <apex:outputText id="available_emails" value="{!availableEmailFolders}"/>
+	</apex:outputPanel>
+    <div class="bPageBlock bEditBlock secondaryPalette">
+        <apex:form id="editPage">
+            <apex:pageMessages id="pageMsgs"/>
+            <apex:outputPanel id="dq_data" style="display:none">
+                <apex:outputText id="sf_seek_initiative_id"             value="{!SeekInitiativeId}"/>
+                <apex:outputText id="sf_dialer_initiative_id"           value="{!qbdialer__SeekInitiative__c.qbdialer__DialerInitiativeId__c}"/>
+                <apex:outputText id="sf_seek_initiative_name"           value="{!SeekInitiativeName}"/>
+                <apex:outputText id="sf_seek_initiative_limit_calls_to" value="{!LimitCallsTo}"/>
+            </apex:outputPanel>
+            <div class="pbHeader">
+                <table width="100%"><tbody>
+                    <tr><td class="pbButtonb" align="center">
+                        <apex:commandButton value=" Save " id="save"        onclick="return saveClick();" title=" Save "/>
+                        <apex:commandButton value=" Quick Save " id="savequick"  onclick="return saveClick(true);"  title=" Quick Save " rendered="{!QuickSaveable}"/>
+                        <apex:commandButton value=" Cancel "      action="{!SeekEditCancel}"                                        title=" Cancel "     immediate="true"/>
+                        <apex:actionFunction name="saveQB" action="{!saveQB}" rerender="dq_data,pageMsgs" oncomplete="checkSaveStatus()" status="querySaveStatus">
+                            <apex:param name="selected_field" value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="saveNewTimeblock" action="{!addNewTimeblock}" oncomplete="editNewTimeblock()" rerender="timeblock_query_rows,new_timeblock_id">
+                            <apex:param name="timeblock_name"      value=""/>
+                            <apex:param name="timeblock_starttime" value=""/>
+                            <apex:param name="timeblock_endtime"   value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="cloneTimeblock" action="{!copyTimeblock}" oncomplete="cloneTimeblockComplete()" rerender="timeblock_query_rows,new_timeblock_id">
+                            <apex:param name="copy_timeblock_id" value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="sendSyncRequest" action="{!sendSyncRequest}" oncomplete="/* do not remove */"/>
+                        <apex:actionFunction name="commitTimeblockTimes" action="{!commitTimeblockTimes}" oncomplete="EditTimeblockTimesComplete();" rerender="timeblock_query_rows">
+                            <apex:param name="timeblock_id"      value=""/>
+                            <apex:param name="timeblock_starttime" value=""/>
+                            <apex:param name="timeblock_endtime"   value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="commitTimeblockPriority" action="{!commitTimeblockPriority}" oncomplete="EditTimeblockTimesComplete();" rerender="timeblock_query_rows">
+                            <apex:param name="timeblock_id"      value=""/>
+                            <apex:param name="timeblock_priority" value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="cancelTimeblockTimeEdit" oncomplete="EditTimeblockTimesComplete();" rerender="timeblock_query_rows">
+                            <apex:param name="timeblock_id"      value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="saveSelectedQBRoles" action="{!saveSelectedQBRoles}" oncomplete="reloadSeekInitiative()" status="roleSaveStatus" rerender="dq_data">
+                            <apex:param name="roles" value=""/>
+                        </apex:actionFunction>
+                        <apex:actionFunction name="reloadSeekInitiative" action="{!reloadSeekInitiative}" oncomplete="saveComplete()"/>
+                    </td></tr>
+                    <tr><td class="pbTitle" align='center'>
+                        <apex:actionStatus id="querySaveStatus"
+                            onstart="this.style.display=''"
+                            startText="...saving query..."
+                            stopText=""
+                            startStyle="font-weight:bold;font-style:italic;"
+                            stopStyle="display:none;"/>
+                        <apex:actionStatus id="roleSaveStatus"
+                            onstart="this.style.display=''"
+                            startText="...saving roles..."
+                            stopText=""
+                            startStyle="font-weight:bold;font-style:italic;"
+                            stopStyle="font-weight:bold;font-style:italic;display:none;"/>
+                    </td></tr>
+                </tbody></table>
+            </div>
+            <div class="pbBody">
+                <div class="pbSubblock">
+                    <div class="pbSubheader first tertiaryPalette">
+                        <span class="pbSubExtra">
+                            <span class="requiredLegend">
+                                <span class="requiredExampleOuter"><span class="requiredExample">&nbsp;</span></span>
+                                <span class="requiredText"> = Required Information</span>
+                            </span>
+                        </span>
+                        <h3>List&nbsp;Information</h3>
+                    </div>
+                    <div class="pbSubbody">
+                        <table><tbody>
+                            <tr>
+                                <td class="labelCol requiredInput"><label>Name:</label></td>
+                                <td class="dataCol" style="white-space: nowrap;">
+                                    <div class="requiredInput">
+                                        <div class="requiredBlock"></div>
+                                        <apex:inputField id="query_name" value="{!qbdialer__SeekInitiative__c.name}" required="true" style="{!QueryNameStyle}"/>
+                                    </div>
+                                </td>
+                                <td class="labelCol requiredInput"><label>Dialer Panel:</label></td>
+                                <td class="dataCol" style="white-space: nowrap;">
+                                    <div class="requiredInput">
+                                        <div class="requiredBlock"></div>
+                                        <span id="dialer_panel_span">
+                                        <apex:selectList id="default_dialer_panel_id" size="1" title="Dialer_Panel" value="{!DefaultDialerPanel}"> 
+                                                <apex:selectOptions value="{!DialerPanelOptions}"/>
+                                        </apex:selectList>
+                                    </span>
+                                    </div>
+                                </td>
+								<!--
+                                <td class="labelCol" style="white-space: nowrap;"><label>Limit Calls To:</label></td>
+                                <td class="dataCol" style="width:100%;"><apex:inputField value="{!SeekInitiative__c.LimitCallsTo__c}"/></td>
+                                -- Add select options here --
+								-->
+                            </tr>
+                            <tr>
+                                <td class="labelCol"><label>Caller ID:</label></td>
+                                <td class="dataCol"><apex:inputField value="{!qbdialer__SeekInitiative__c.qbdialer__CallerID__c}"/></td>
+                                <td class="labelCol" style="white-space: nowrap;"><label>Time Between Calls (minutes):</label></td>
+                                <td class="dataCol"><apex:inputField value="{!qbdialer__SeekInitiative__c.qbdialer__TimeBetweenCalls__c}"/></td>
+                            </tr>
+                            <tr>
+                                <td class="labelCol" valign="top" style="white-space: nowrap;"><label for="{!$Component.SeekInitiative.editPage.LimitCallingTimes}">Limit Calling Times:</label></td>
+                                <td class="dataCol" valign="top" style="white-space: nowrap;">
+                                    <apex:inputCheckbox id="LimitCallingTimes" value="{!qbdialer__SeekInitiative__c.qbdialer__LimitCallingTimes__c}" onclick="toggleCallingTimes(this.checked)"/>
+                                    <apex:selectList id="call_start_time" size="1" title="Call Start Time" value="{!qbdialer__SeekInitiative__c.qbdialer__StartTime__c}">
+                                        <apex:selectOption itemLabel="12am" itemValue="00:00"/>
+                                        <apex:selectOption itemLabel="1am"  itemValue="01:00"/>
+                                        <apex:selectOption itemLabel="2am"  itemValue="02:00"/>
+                                        <apex:selectOption itemLabel="3am"  itemValue="03:00"/>
+                                        <apex:selectOption itemLabel="4am"  itemValue="04:00"/>
+                                        <apex:selectOption itemLabel="5am"  itemValue="05:00"/>
+                                        <apex:selectOption itemLabel="6am"  itemValue="06:00"/>
+                                        <apex:selectOption itemLabel="7am"  itemValue="07:00"/>
+                                        <apex:selectOption itemLabel="8am"  itemValue="08:00"/>
+                                        <apex:selectOption itemLabel="9am"  itemValue="09:00"/>
+                                        <apex:selectOption itemLabel="10am" itemValue="10:00"/>
+                                        <apex:selectOption itemLabel="11am" itemValue="11:00"/>
+                                        <apex:selectOption itemLabel="12pm" itemValue="12:00"/>
+                                        <apex:selectOption itemLabel="1pm"  itemValue="13:00"/>
+                                        <apex:selectOption itemLabel="2pm"  itemValue="14:00"/>
+                                        <apex:selectOption itemLabel="3pm"  itemValue="15:00"/>
+                                        <apex:selectOption itemLabel="4pm"  itemValue="16:00"/>
+                                        <apex:selectOption itemLabel="5pm"  itemValue="17:00"/>
+                                        <apex:selectOption itemLabel="6pm"  itemValue="18:00"/>
+                                        <apex:selectOption itemLabel="7pm"  itemValue="19:00"/>
+                                        <apex:selectOption itemLabel="8pm"  itemValue="20:00"/>
+                                        <apex:selectOption itemLabel="9pm"  itemValue="21:00"/>
+                                        <apex:selectOption itemLabel="10pm" itemValue="22:00"/>
+                                        <apex:selectOption itemLabel="11pm" itemValue="23:00"/>
+                                    </apex:selectList>
+                                    <apex:selectList id="call_end_time" size="1" title="Call End Time" value="{!qbdialer__SeekInitiative__c.qbdialer__EndTime__c}">
+                                        <apex:selectOption itemLabel="12am" itemValue="00:00"/>
+                                        <apex:selectOption itemLabel="1am"  itemValue="01:00"/>
+                                        <apex:selectOption itemLabel="2am"  itemValue="02:00"/>
+                                        <apex:selectOption itemLabel="3am"  itemValue="03:00"/>
+                                        <apex:selectOption itemLabel="4am"  itemValue="04:00"/>
+                                        <apex:selectOption itemLabel="5am"  itemValue="05:00"/>
+                                        <apex:selectOption itemLabel="6am"  itemValue="06:00"/>
+                                        <apex:selectOption itemLabel="7am"  itemValue="07:00"/>
+                                        <apex:selectOption itemLabel="8am"  itemValue="08:00"/>
+                                        <apex:selectOption itemLabel="9am"  itemValue="09:00"/>
+                                        <apex:selectOption itemLabel="10am" itemValue="10:00"/>
+                                        <apex:selectOption itemLabel="11am" itemValue="11:00"/>
+                                        <apex:selectOption itemLabel="12pm" itemValue="12:00"/>
+                                        <apex:selectOption itemLabel="1pm"  itemValue="13:00"/>
+                                        <apex:selectOption itemLabel="2pm"  itemValue="14:00"/>
+                                        <apex:selectOption itemLabel="3pm"  itemValue="15:00"/>
+                                        <apex:selectOption itemLabel="4pm"  itemValue="16:00"/>
+                                        <apex:selectOption itemLabel="5pm"  itemValue="17:00"/>
+                                        <apex:selectOption itemLabel="6pm"  itemValue="18:00"/>
+                                        <apex:selectOption itemLabel="7pm"  itemValue="19:00"/>
+                                        <apex:selectOption itemLabel="8pm"  itemValue="20:00"/>
+                                        <apex:selectOption itemLabel="9pm"  itemValue="21:00"/>
+                                        <apex:selectOption itemLabel="10pm" itemValue="22:00"/>
+                                        <apex:selectOption itemLabel="11pm" itemValue="23:00"/>
+                                    </apex:selectList>
+                                </td>
+                                <td colspan="2" rowspan="2" class="dataCol" style="width: 400px">
+                                    &nbsp;<i>(Times based on the area code of the person's phone number.  This is not 100% accurate since there are some area codes that span multiple time zones.)</i>
+                                </td>
+                            </tr>
+                        </tbody></table>
+                    </div>
+                </div>
+                <apex:outputPanel id="neuralytics_panel" style="display: none">
+                    <div class="pbSubblock">
+                        <div class="pbSubheader tertiaryPalette"><h3>Neuralytics<sup><apex:outputText value="&reg;" escape="false" /></sup></h3></div>
+                        <div class="pbSubbody">
+                            <table border="0" cellSpacing="0" cellPadding="0" width="100%" style="height:45px;"><tbody>
+                                <tr>
+                                    <td class="dataCol">
+                                        <div>
+                                            <p style="font-style:italic; margin-top:0; margin-bottom:1em;">
+                                            Neural Sort is a predictive system helping you know who to call and when to call.
+                                            Using complex learning algorithms Neural Sort will use the data already in your system to determine which of your records are most likely to contact and sort them accordingly.
+                                            </p>
+                                            <table cellpadding="2" cellspacing="2"><tbody>
+                                                <tr>
+                                                    <td class="labelCol" >
+                                                        <label>Neural Sort:</label>
+                                                    </td>
+                                                    <td class="dataCol">
+                                                        <apex:selectList id="neuralytics_sort" size="1" title="Neural Sort" style="width:123px" value="{!qbdialer__SeekInitiative__c.qbdialer__SmartSort__c}">
+                                                            <apex:selectOption itemLabel="On"  itemValue="On"/>
+                                                            <apex:selectOption itemLabel="Off" itemValue="Off"/>
+                                                        </apex:selectList>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody></table>
+                        </div>
+                    </div>
+                </apex:outputPanel>
+				<apex:outputPanel id="permissions_panel">
+					<div class="pbSubblock">
+						<div class="pbSubheader tertiaryPalette"><h3>Dialer Settings</h3></div>
+						<table>
+							<tr id="ring_timeout">
+								<td><strong>Ring Time-Out:</strong></td>
+								<td><apex:inputField value="{!qbdialer__SeekInitiative__c.qbdialer__RingTimeout__c}" id="ring_timeout_apex"/><i>(secs)</i></td>
+							</tr>
+							<tr id="local_presence_row">
+								<td>
+									<table id="local_presence_table" style="display: none">
+									<tbody>
+										<tr style="" id="local_presence_row">
+											<td class="labelCol requiredInput"><label>Use Local Presence:</label></td>
+											<td class="dataCol"><apex:inputField id="use_local_presence" value="{!qbdialer__SeekInitiative__c.qbdialer__Use_Local_Presence__c}" onclick="toggleLocalPresence(document.getElementById('local_presence_panel').style.display);"/></td>
+										</tr>
+										<tr id="local_presence_panel" class="local_presence_panel" style="{!IF(Use_Local_Presence, '', 'display:none')}">
+											<td class="labelCol">Local Presence Block</td>
+											<td class="dataCol">
+												<select id="local_presence_block_select" onchange="qbjq('.bucket_id').val(qbjq(this).val());"></select>
+												<span style="display: none;"><apex:inputField id="bucket_id" styleclass="bucket_id" value="{!qbdialer__SeekInitiative__c.qbdialer__Local_Presence_Bucket__c}" /></span>
+											</td>
+										</tr>
+										<tr id="local_presence_panel" class="local_presence_panel" style="{!IF(Use_Local_Presence, '', 'display: none')}">
+											<td class="labelCol">Test Against Regular Numbers: </td>
+											<td class="dataCol"><apex:inputField id="test_local_presence" value="{!qbdialer__SeekInitiative__c.qbdialer__Test_Local_Presence__c}" /></td>
+										</tr>
+									</tbody>
+									</table>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</apex:outputPanel>
+				<div class="pbSubblock"></div>
+                <div class="pbSubblock">
+                    <div class="pbSubheader tertiaryPalette"><h3>Email Settings</h3></div>
+                    <div class="pbSubbody">
+                        <table><tbody>
+                            <tr>
+                                <td class="labelCol" style="text-align:left">
+                                
+									<apex:actionfunction name="setEmailFolderType" id="setEmailFolderType"  action="{!updateEmailFolderType}" rerender="available_emails,selected_emails" oncomplete="unsetTemporaryName();initEmailFolders();">
+										<apex:param name="use_salesforce_templates" value="" />
+									</apex:actionfunction>
+									<apex:selectRadio id="use_salesforce_templates" layout="pageDirection" value="{!qbdialer__SeekInitiative__c.qbdialer__UseSalesforceEmailTemplates__c}" onclick="toggleEmailFolders();">
+										<apex:selectOption id="use_salesforce_email_templates"     itemValue="true"     itemLabel="Use Salesforce Email Templates"/>
+										<apex:selectOption id="use_insidesales_email_templates"    itemValue="false"    itemLabel="Use InsideSales.com Email Templates"/>
+									</apex:selectRadio>
+				
+									<div style="width: 700px; display:block" id="email_folder_panel"><br/>
+										<div style="float: left; text-align: center;">
+											<span style="font-weight: bold">Available Email Folders</span><br/>
+											<div style="position:absolute"><div id="loading_folders" style="text-align:left;position:relative; top: 10px; left: 10px; display:none;"><img src="https://qbdialer.na6.visual.force.com/img/loading.gif"/> Loading Folders...</div></div>
+											<select multiple="true" size="10" id="SeekInitiative:editPage:availableEmailFolders" style="width: 200px; height: 150px;">
+											</select>
+										</div>
+										<div style="float: left; text-align: center; width: 100px;">
+											<br/><br/><br/>
+											Add<br/>
+											<img src="/s.gif" alt="Add"  onclick="move_email_folders_right();"  class="picklistArrowRight" />
+											<br/><br/>
+											<img src="/s.gif" alt="Remove" onclick="move_email_folders_left();" class="picklistArrowLeft" />
+											<br/>
+											Remove
+										</div>
+										<div style="float: left; text-align: center;">
+											<span style="font-weight: bold">Selected Email Folders</span><br/>
+											<select id="SeekInitiative:editPage:emailFolders" multiple="true" size="8" style="width: 200px; height: 150px;">
+											</select>
+											<apex:inputHidden id="emailFolderSelected"/>
+											<apex:outputText value="{!qbdialer__SeekInitiative__c.qbdialer__EmailFolders__c}" rendered="false" />
+										</div> 
+									</div>
+								</td>
+                            </tr>
+			
+                        </tbody></table>
+
+		
+                    </div>
+                </div>
+                
+                
+                
+                <div class="pbSubblock">
+					<div class="pbSubheader tertiaryPalette"><h3>Default Communications Templates</h3></div>
+					<div class="pbSubbody">
+						<table border="0" cellSpacing="0" cellPadding="0"><tbody>
+							<tr>
+								<td class="labelCol requiredInput"><label>Script:</label></td>
+								<td class="dataCol">
+									<div>
+										<apex:selectList id="default_script_id" size="1" title="Script" value="{!DefaultDialerScript}"> 
+											<apex:selectOptions value="{!DialerScriptOptions}"/>
+										</apex:selectList>
+									</div>
+								</td>
+							</tr>
+						</tbody></table>
+					</div>
+                    <div class="pbSubheader tertiaryPalette"><h3>Assign Users</h3></div>
+                    <div class="pbSubbody">
+                        <apex:selectRadio id="fshare" layout="pageDirection" value="{!qbdialer__SeekInitiative__c.qbdialer__Attendees__c}" onclick="document.getElementById('duel').style.display = (document.getElementById('{!$Component.SeekInitiative.editPage:fshare}:2').checked ? 'block' : 'none');">
+                            <apex:selectOption id="fsharefsharenone"   onclick="document.getElementById('duel').style.display = 'none';" itemValue="fsharenone"   itemLabel="Visible only to me"/>
+                            <apex:selectOption id="fsharefshareall"    onclick="document.getElementById('duel').style.display = 'none';" itemValue="fshareall"    itemLabel="Visible to all users"/>
+                            <apex:selectOption id="fsharefsharegroups" onclick="document.getElementById('duel').style.display = 'block';"  itemValue="fsharegroups" itemLabel="Visible to certain groups of users"/>
+                        </apex:selectRadio>
+                        <br/>
+                        <div style="display:block" id="duel" class="duelingListBox">
+                            <div style="display:none" id="editPage_duel_errorMsg" class="errorMsg">&nbsp;</div>
+                            <div>
+                                <label for="sharing_search">Search:</label>&nbsp;
+                                <select id="sharing_search" title="Group Type" onchange="duel_select_0Var.filter()" name="sharing_search">
+                                    <option selected="selected" value="A">Roles</option>
+                                    <option value="D">Roles and Subordinates</option>
+                                    <option value="U">Specific Users</option>
+                                </select>
+                                &nbsp;&nbsp;
+                                <label for="searchValue_sharing_search">for:</label>&nbsp;
+                                <input type="text" onkeydown="return duel_select_0Var.handleKeyDown(event);" onpropertychange="duel_select_0Var.handlePropertyChange();" id="searchValue_sharing_search" maxlength="80" name="searchValue_sharing_search" />&nbsp;
+                                <input id="go_duel_select_0Var" class="btn" title="Find" onclick="duel_select_0Var.doSearch();" value=" Find " type="button" name="go_duel_select_0" /><br/>
+                                <div style="visibility:hidden" id="error_SeekInitiative:editPage:duel_select_0" class="errorMsg"></div>
+                            </div>
+                            <table class="layout"><tbody>
+                                <tr>
+                                    <td class="selectCell">
+                                        <div class="selectTitle"><label for="duel_select_0">Available</label></div>
+                                        <apex:selectList id="duel_select_0" size="14" multiselect="true">
+                                            <apex:selectOption itemLabel="--None--" itemValue=""/>
+                                            <!-- <apex:selectOptions value="{!RoleOptions}"/> -->
+                                        </apex:selectList>
+                                    </td>
+                                    <td class="buttonCell">
+                                        <div class="text">Add</div>
+                                        <div class="text"><a id="duel_select_0_right" href="javascript:moveRight()"><img class="rightArrowIcon" title="Add" alt="Add" src="/s.gif"/></a></div>
+                                        <div class="text"><a id="duel_select_0_left" href="javascript:moveLeft()"><img class="leftArrowIcon" title="Remove" alt="Remove" src="/s.gif"/></a></div>
+                                        <div class="duelingText">Remove</div>
+                                    </td>
+                                    <td class="selectCell">
+                                        <div class="selectTitle"><label for="duel_select_1">Selected</label></div>
+                                        <apex:selectList id="duel_select_1" size="14" multiselect="true">
+                                            <apex:selectOption itemValue="" itemLabel="--None--"/>
+                                        </apex:selectList>
+                                    </td>
+                                </tr>
+                            </tbody></table>
+                            <script type="text/javascript">
+                                var duel_select_0Var = new SelectFilterElement('sharing_search', 'R', '{!$Component.SeekInitiative.editPage.duel_select_0}', '', '{!$Component.SeekInitiative.editPage.duel_select_1}', 100, true);
+                                var existingSelduel_select_1 = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_1}');
+                                var existingSelduel_select_0 = document.getElementById('{!$Component.SeekInitiative.editPage.duel_select_0}');
+                                window.editPage_DLBEInstance=new DuelingListBoxesElement(['{!$Component.SeekInitiative.editPage.duel_select_0}','{!$Component.SeekInitiative.editPage.duel_select_1}'],'editPage_duel_errorMsg');
+                                document.getElementById('duel').style.display = 'none';
+                            </script>
+                        </div>
+                    </div>
+                </div>
+                <div class="pbSubblock">
+                    <div class="pbSubheader tertiaryPalette"><h3>Callback Settings</h3></div>
+                    <div class="pbSubbody">
+                        <div><strong>Receiving Callbacks:</strong></div>
+                        <apex:inputCheckbox value="{!qbdialer__SeekInitiative__c.qbdialer__Prevent_callbacks__c}" id="prevent_callbacks" />
+                        <label for="SeekInitiative:editPage:prevent_callbacks">Prevent users from receiving callbacks while dialing in this list</label>
+                        <br />
+                        <br />
+                        <div><strong>Who can call back:</strong></div>
+                        <apex:selectRadio id="call_backs" layout="pageDirection" value="{!qbdialer__SeekInitiative__c.qbdialer__CallbackPermission__c}" onclick="showCallBackGracePeriod();">
+                            <apex:selectOption id="cb_owner" itemValue="owner" itemLabel="Only the owner of the callback"/>
+                            <apex:selectOption id="cb_list" itemValue="attendees" itemLabel="All attendees of this initiative"/>
+                            <apex:selectOption id="cb_all" itemValue="all" itemLabel="All users"/>
+                        </apex:selectRadio>
+                    </div>
+                    <!-- 
+                    <div id="call_back_grace_period" class="pbSubbody" style="display: {!IF(showGracePeriod,'block','none')};">
+                        <strong>Grace Period:</strong>&nbsp;&nbsp;
+                        <apex:inputField value="{!SeekInitiative__c.CallbackGracePeriod__c}" style="width:50px;"/> minutes
+                    </div>
+                     -->
+                </div>
+                <div class="pbSubblock">
+                    <apex:actionFunction name="deleteTimeblock" action="{!deleteTimeblock}" oncomplete="/* do not remove */" rerender="timeblock_query_rows,new_timeblock_id">
+                        <apex:param name="timeblock_id" value=""/>
+                    </apex:actionFunction>
+                    <div class="pbSubheader tertiaryPalette">
+                        <h3>Timeblock Queries</h3>
+                        <apex:outputPanel id="timeblock_queries_notice" style="display:none">
+                            <div class="errorMsg"><strong>You must save the initiative before you can add timeblocks.</strong></div>
+                        </apex:outputPanel>
+                    </div>
+                    <apex:outputPanel id="timeblock_queries" style="display:none">
+                        <div class="pbSubbody">
+                            <table border="0" cellspacing="0" cellpadding="0" width="50%"><tbody>
+                                <tr><td nowrap="nowrap">
+                                    <input id="timeblock_name" type="text" />
+                                    <span id="timeblock_starttime_span">
+                                        <select id="timeblock_starttime">
+                                            <option value='00:00'>12am</option>
+                                            <option value='01:00'>1am</option>
+                                            <option value='02:00'>2am</option>
+                                            <option value='03:00'>3am</option>
+                                            <option value='04:00'>4am</option>
+                                            <option value='05:00'>5am</option>
+                                            <option value='06:00'>6am</option>
+                                            <option value='07:00'>7am</option>
+                                            <option value='08:00' selected="selected">8am</option>
+                                            <option value='09:00'>9am</option>
+                                            <option value='10:00'>10am</option>
+                                            <option value='11:00'>11am</option>
+                                            <option value='12:00'>12pm</option>
+                                            <option value='13:00'>1pm</option>
+                                            <option value='14:00'>2pm</option>
+                                            <option value='15:00'>3pm</option>
+                                            <option value='16:00'>4pm</option>
+                                            <option value='17:00'>5pm</option>
+                                            <option value='18:00'>6pm</option>
+                                            <option value='19:00'>7pm</option>
+                                            <option value='20:00'>8pm</option>
+                                            <option value='21:00'>9pm</option>
+                                            <option value='22:00'>10pm</option>
+                                            <option value='23:00'>11pm</option>
+                                        </select>
+                                    </span>
+                                    <span id="timeblock_endtime_span">
+                                        <select id="timeblock_endtime">
+                                            <option value='00:00'>12am</option>
+                                            <option value='01:00'>1am</option>
+                                            <option value='02:00'>2am</option>
+                                            <option value='03:00'>3am</option>
+                                            <option value='04:00'>4am</option>
+                                            <option value='05:00'>5am</option>
+                                            <option value='06:00'>6am</option>
+                                            <option value='07:00'>7am</option>
+                                            <option value='08:00'>8am</option>
+                                            <option value='09:00' selected="selected">9am</option>
+                                            <option value='10:00'>10am</option>
+                                            <option value='11:00'>11am</option>
+                                            <option value='12:00'>12pm</option>
+                                            <option value='13:00'>1pm</option>
+                                            <option value='14:00'>2pm</option>
+                                            <option value='15:00'>3pm</option>
+                                            <option value='16:00'>4pm</option>
+                                            <option value='17:00'>5pm</option>
+                                            <option value='18:00'>6pm</option>
+                                            <option value='19:00'>7pm</option>
+                                            <option value='20:00'>8pm</option>
+                                            <option value='21:00'>9pm</option>
+                                            <option value='22:00'>10pm</option>
+                                            <option value='23:00'>11pm</option>
+                                            <option value='23:59'>11:59pm</option>
+                                        </select>
+                                    </span>
+                                    <input class="btn" value=" Add New Timeblock " type="button" onclick="prepEmailFolders(); addNewTimeblock(); return false;" />
+                                    &nbsp;<i>(Timeblock times are according to the time zone of the user marked as the Admin in InsideSales.com)</i>
+                                    <apex:outputPanel id="new_timeblock_id" style="display:none">{!NewTimeblockId}</apex:outputPanel>
+                                </td></tr>
+                            </tbody></table>
+                            <br/>
+                            <div class="multiuserCalendar dayView">
+                                <apex:outputPanel id="timeblock_query_rows">
+                                    <table class="calendarTable" border="0" cellspacing="0" cellpadding="0" style="width:300px"><tbody>
+                                        <tr class="headerRow">
+                                            <th class="cbCol">Action</th>
+                                            <th class="nameCol">Name</th>
+                                            <th class="nameCol">Start Time</th>
+                                            <th class="nameCol">End Time</th>
+											<th class="nameCol">Limit Calls To</th>
+                                            <th class="nameCol">Priority</th>
+                                            <th>&nbsp;</th>
+                                            <th class="nameCol">12am</th>
+                                            <th class="nameCol">1am</th>
+                                            <th class="nameCol">2am</th>
+                                            <th class="nameCol">3am</th>
+                                            <th class="nameCol">4am</th>
+                                            <th class="nameCol">5am</th>
+                                            <th class="nameCol">6am</th>
+                                            <th class="nameCol">7am</th>
+                                            <th class="nameCol">8am</th>
+                                            <th class="nameCol">9am</th>
+                                            <th class="nameCol">10am</th>
+                                            <th class="nameCol">11am</th>
+                                            <th class="nameCol">12pm</th>
+                                            <th class="nameCol">1pm</th>
+                                            <th class="nameCol">2pm</th>
+                                            <th class="nameCol">3pm</th>
+                                            <th class="nameCol">4pm</th>
+                                            <th class="nameCol">5pm</th>
+                                            <th class="nameCol">6pm</th>
+                                            <th class="nameCol">7pm</th>
+                                            <th class="nameCol">8pm</th>
+                                            <th class="nameCol">9pm</th>
+                                            <th class="nameCol">10pm</th>
+                                            <th class="nameCol">11pm</th>
+                                        </tr>
+                                        <apex:repeat value="{!TimeblockQueries}" var="tbq"><tr class="even" data-priority="{!tbq.Priority}">
+                                            <td nowrap="nowrap" class="cbCol" id="SeekInitiativeTimeblockActions:{!tbq.Id}">
+                                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                                <a href="javascript:void(0)" onclick="editTimeblock('{!tbq.Id}')">Edit Query</a>
+                                                |
+                                                <a href="javascript:void(0)" onclick="editTimeblockTimes('{!tbq.Id}')">Edit Times</a>
+                                                |
+                                                <a href="javascript:void(0)" onclick="cloneTimeblock('{!tbq.Id}')">Clone</a>
+                                                |
+                                                <a href="javascript:void(0)" onclick="if(confirm('Are you sure?')) deleteTimeblock('{!tbq.Id}')">Del</a>
+                                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                            </td>
+                                            <td nowrap="nowrap" style="padding-left:15px">{!tbq.Name}</td>
+                                            <td nowrap="nowrap" style="padding-left:15px; text-align:right">
+                                                <span id="SeekInitiativeTimeblockStartTime:{!tbq.Id}">{!tbq.StartTimeDisplay}</span>
+                                                <span id="SeekInitiativeTimeblockStartTimeValue:{!tbq.Id}" style="display: none">{!tbq.StartTime}</span>
+                                            </td>
+                                            <td nowrap="nowrap" style="padding-left:15px; text-align:right">
+                                                <span id="SeekInitiativeTimeblockEndTime:{!tbq.Id}">{!tbq.EndTimeDisplay}</span>
+                                                <span id="SeekInitiativeTimeblockEndTimeValue:{!tbq.Id}" style="display:none">{!tbq.EndTime}</span>
+                                            </td>
+                                            <td nowrap="nowrap" style="padding-left:15px">{!tbq.LimitCallsTo}</td>
+                                            <td nowrap="nowrap" style="padding-left:15px; text-align:center">
+                                                <a href="javascript:void(0)" onclick="updateTimeblockPriority('{!tbq.Id}', 1)"><img src="https://sforce.insidesales.com/images/arrow_up2.gif"/></a>
+                                                <a href="javascript:void(0)" onclick="updateTimeblockPriority('{!tbq.Id}', -1)"><img src="https://sforce.insidesales.com/images/arrow_down2.gif"/></a>
+                                            </td>
+                                            <td>&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour0}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour1}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour2}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour3}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour4}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour5}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour6}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour7}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour8}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour9}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour10}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour11}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour12}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour13}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour14}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour15}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour16}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour17}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour18}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour19}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour20}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour21}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour22}">&nbsp;</td>
+                                            <td style="background-color:{!tbq.hour23}">&nbsp;</td>
+                                        </tr></apex:repeat>
+                                    </tbody></table>
+									<apex:inputField id="show_query" value="{!qbdialer__SeekInitiative__c.qbdialer__Show_Query__c}" />
+									<label for="show_query">Show agents the names of the queries used to pull records in to the PowerDialer</label>
+                                </apex:outputPanel>
+                            </div>
+                        </div>
+                    </apex:outputPanel>
+                </div>
+                <div class="pbBottomButtons">
+                    <table><tbody>
+                        <tr>
+                            <td class="pbButtonb" align="center">
+                                <apex:commandButton value=" Save " id="save2"       onclick="return saveClick();" title=" Save "/>
+                                <apex:commandButton value=" Quick Save " id="savequick2" onclick="return saveClick(true);"  title=" Quick Save " rendered="{!QuickSaveable}"/>
+                                <apex:commandButton value=" Cancel "     action="{!SeekEditCancel}"                                        title=" Cancel "     immediate="true"/>
+                            </td>
+                        </tr>
+                    </tbody></table>
+                </div>
+            </div>
+        </apex:form>
+        <div class="pbFooter secondaryPalette"><div class="bg"></div></div>
+    </div>
+</apex:page>

@@ -1,0 +1,97 @@
+<apex:page showHeader="false" standardStylesheets="false" cache="false" >
+<!--
+Copyright (c) 2014, Henry Liu
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+	<link rel="stylesheet" href="{!URLFOR($Resource.S1AssetWorkFeedback,'/plain/styles.css')}"/>
+	<link rel="stylesheet" href="{!URLFOR($Resource.S1AssetWorkFeedback,'/plain/icons.css')}"/>
+	<link rel="stylesheet" href="{!URLFOR($Resource.WorkFeedbackResource,'bootstrap3_1_1.min.css')}"/>
+	<apex:include pageName="WorkFeedbackActionCSS"/>
+
+	<script src="{!URLFOR($Resource.WorkFeedbackResource,'jquery1_11_0.min.js')}"></script>
+	<script src="{!URLFOR($Resource.WorkFeedbackResource,'bootstrap3_1_1.min.js')}"></script>
+	
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+	
+
+	<div id="myWrapper" ng-app="workfeedback">
+		 <div id="workfeedbackctrl" ng-controller="workfeedbackctrl">
+			<to-who></to-who>
+			<who-should-see></who-should-see>
+			<feedback-text></feedback-text>
+			<button class="myDesktopSubmitBtn" onclick="saveSubmit()">Submit</button>
+		
+			<div class="loadingPopup tc brm bg-6-80p text-color-5 sq-100" ng-show="showLoadingScreen">
+				<img src="{!URLFOR($Resource.S1AssetWorkFeedback,'/plain/assets/loading-white.gif')}" alt="loading" class="sq-35 mtl mbs dib"/>
+				<span class="db f4">Loading</span>
+			</div>
+			<div id="successPopup" class="tc brm bg-6-80p sq-130" ng-show="showSuccessPopup">
+				<div class="sg-icon-art sg-icn--fnt center tc icon-utility-success" style="color:#4ab471" title="success"></div>
+				<p class="tc mts mbl caps text-truncate wht" title="success">
+	              <strong class="ng-binding">success</strong>
+	            </p>
+            </div>
+
+            <desktop-animate ng-if="onMobile==false"></desktop-animate>
+		</div> 
+	</div>
+
+	<apex:includeScript value="{!URLFOR($Resource.WorkFeedbackResource,'angular1_2_12.min.js')}"/>
+    <script src="{!URLFOR($Resource.WorkFeedbackResource,'angular-animate.js')}"/>
+    <apex:include pageName="WorkFeedbackAngular"></apex:include>
+    <apex:include pageName="WorkFeedbackGlobalFunction"></apex:include>
+    <script type="text/javascript" src="/canvas/sdk/js/publisher.js"></script>
+    <script>
+    	// google analytics
+		(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+		(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+		m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+		})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+		ga('create', 'UA-48529596-1', 'work.com');
+		ga('send', 'pageview');
+	</script>
+    <script type="text/javascript">
+		var recordId = '{!$CurrentPage.parameters.Id}'; //this get's the id of the record you are on
+		$(document).ready(function(){
+			//if in salesforce1
+			if( (typeof sforce == 'undefined') || (sforce == null) ) {
+				$("#feedbackTextArea").css("height","130px");
+				$(".myDesktopSubmitBtn").show();
+				console.log("in desktop");
+			}
+			else
+			{
+				console.log("in mobile");
+				$(".loadingPopup").center();
+				$("#successPopup").center();
+			}
+			
+		});
+
+		function saveSubmit()
+		{
+			angular.element(document.getElementById('workfeedbackctrl')).scope().saveFeedback(); //call controller's save function
+		}
+		//publisher action	
+		if( (typeof sforce != 'undefined') && (sforce != null) ) {
+			console.log("init!");
+			Sfdc.canvas.publisher.subscribe({name: "publisher.post", onData:function(e) { //on submit do the following
+				saveSubmit(); //or whatever javascript function you want to put here
+			}});
+		}
+	</script>
+</apex:page>

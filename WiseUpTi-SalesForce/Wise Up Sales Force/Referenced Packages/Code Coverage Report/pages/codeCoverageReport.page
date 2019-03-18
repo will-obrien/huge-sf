@@ -1,0 +1,42 @@
+<apex:page controller="CodeCReport.CodeCoverageReportController" readOnly="true" >
+    <apex:form >
+        <apex:pageMessage severity="info" title="Please Execute Run All Test First For updated Result" detail="Your overall code coverage is currently {!OrgCodeCoverage}% ." strength="3"> </apex:pageMessage>
+        <apex:pageBlock id="PB1">
+            <apex:pageMessages ></apex:pageMessages>
+            <apex:pageBlockButtons location="Top">
+                <apex:commandButton action="{!GetTestClassResult}" value="Get Code Coverage Report" rendered="{!Not(ErrorsPresent)}" reRender="showResult,PB1" status="waitStatus"  />             
+                <apex:commandButton action="{!Export}" value="Download Report" rendered="{!if(jsonReponse.records.size > 0,true,false)}" />             
+            </apex:pageBlockButtons>
+        </apex:pageBlock>
+
+        
+       <center>
+            <apex:actionStatus id="waitStatus" >
+                 <apex:facet name="start">
+                     <div id="light" >
+                        <img src="/img/loading.gif"   title="Please Wait..." />
+                        <span class="waitingDescription">Please Wait...</span>
+                     </div>
+                 </apex:facet>
+            </apex:actionStatus>                   
+       </center>         
+
+        <apex:pageBlock id="showResult">
+            <apex:pageBlockSection title="Result" columns="1" id="Result">
+               <apex:pageBlockTable value="{!jsonReponse.records}" var="Rec">
+                   <apex:column value="{!Rec.ApexClassOrTriggerId}" headerValue="Class Id" />
+                   
+                   <!--
+                   <apex:column value="{!mapClassWrapper[Rec.ApexClassOrTriggerId].name }" headerValue="Class Name" />
+                   <apex:column value="{!mapClassWrapper[Rec.ApexClassOrTriggerId].type }" headerValue="Type" />
+                   -->
+                   <apex:column value="{!Rec.ApexClassOrTrigger.name }" headerValue="Name" />
+                   <apex:column value="{!Rec.NumLinesCovered}" headerValue="Num Lines Covered"/>
+                   <apex:column value="{!Rec.NumLinesUncovered}" headerValue="Num Lines Uncovered"/>
+                   <apex:column value="{!Rec.TotalLine}" headerValue="Total Line"/>
+                   <apex:column value="{!Rec.CoverageInPer}" headerValue="Code Coverage %"/>
+               </apex:pageBlockTable>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

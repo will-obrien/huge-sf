@@ -1,0 +1,59 @@
+<apex:page standardController="Field_Trip__Object_Analysis__c" extensions="Field_Trip.analyzeLaunchExtension" standardStylesheets="true">
+        
+    <apex:form >
+
+        <apex:sectionHeader title="Field Trip" subtitle="{!theRecord.Name} Analysis"/>
+        
+         « <a href='/{!theRecord.Id}'><font style="font-size:8pt">Back to Field Trip</font></a>
+        
+        <apex:messages style="font-color:red"/>
+        <br/>
+        <apex:outputText rendered="{!queryStringHasError}">
+            <font style="color:red">
+                Warning: Your SOQL filter does not appear to be valid, continuing will likely result in a failed analysis.<br/>
+            </font>
+        </apex:outputText>
+        <br/>
+        <apex:outputText rendered="{!closeToBatchLimit}">
+            <font style="color:red">
+                Warning: You appear to be at or near the salesforce limit of 5 active batch processes. 
+                If you attempt to analyze and receive an error, wait until one or more other processes finish and try again.<br/>
+            </font>
+        </apex:outputText>
+        
+        <br/>
+        <apex:outputPanel rendered="{!not(underway)}">
+            To launch the batch apex job which will comb through your records and produce the results, just click the button below.
+            <br/>
+            <br/>
+            <apex:commandButton value="Begin Analysis" action="{!goAnalyze}"/>
+        </apex:outputPanel>
+
+        <apex:outputText rendered="{!underway}">
+            Analysis of the {!theRecord.Field_Trip__Object_Name__c} object has begun. This page does not need to remain open, you will receive an email when it is completed. 
+            You can monitor the progress of the analysis below, or refer to the <a href="/apexpages/setup/listAsyncApexJobs.apexp" target="_blank">Apex Job Queue</a>. 
+            <font style="color:red; font-weight:bold;">Do not refresh this page</font>, the table below updates automatically every few seconds.
+            <br/>
+            <br/>
+            <b>This process may take a number of hours depending on how many records are to be processed.  Until you receive notification that the process has finished, you should not run reports on this Field Trip or otherwise inspect its child 'Field Analysis' records.</b>
+        </apex:outputText>
+        <br/>
+        <br/>
+        <br/>
+    
+        <apex:pageBlock title="Job Status" id="jobStatus">
+        
+            <apex:pageBlockTable value="{!job}" var="j">
+                <apex:column value="{!j.status}"/>
+                <apex:column value="{!j.jobitemsprocessed}"/>
+                <apex:column value="{!j.totaljobitems}"/>
+                <apex:column value="{!j.numberoferrors}"/>
+                <apex:column value="{!j.extendedstatus}"/>
+            </apex:pageBlockTable>
+            
+        </apex:pageBlock>
+
+        <apex:actionPoller reRender="jobStatus" interval="5"/>
+
+    </apex:form>
+</apex:page>

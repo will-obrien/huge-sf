@@ -1,0 +1,238 @@
+<apex:page controller="INFA.CTRL_TasksAngular"
+    sidebar="false" 
+    action="{!ICSTaskMonitoringLogin}" 
+    standardStylesheets="false"
+    tabStyle="ICS_Data_Wizard__tab">
+
+<link rel="stylesheet"
+    href="{!URLFOR($Resource.AngularResource,'lib/css/bootstrap.min.css')}" />
+<link
+    rel="stylesheet"
+    href="{!URLFOR($Resource.AngularResource,'app/css/angularStyle.min.css')}" />
+
+<script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/jquery.min.js')}"></script>
+<!--<script src="{!URLFOR($Resource.AngularResource,'bootstrap.min.js')}"></script>-->
+<script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/handlebars.runtime-v2.0.0.js')}"></script>
+
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/angular.min.js')}"></script>
+
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/ui-bootstrap-tpls-0.12.0.min.js')}"></script>
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/angular-translate.min.js')}"></script>
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/angular-translate-loader-static-files.min.js')}"></script>
+
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/angular-ui-router.min.js')}"></script>
+
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/ui-grid.js')}"></script>
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/angular-scroll.js')}"></script>
+
+<script>
+    var displayAngularApp = {!displayAngularApp};
+    var remoteSiteAvailable = {!remoteSiteAvailable};
+    infaWidgeti18nPath = '{!URLFOR($Resource.AngularResource,'infaDataWizard/i18n')}';
+    infaWidgetLocale = '{!userLanguage}';
+    if (!displayAngularApp || !remoteSiteAvailable) {
+        angular.module("$resources", []).constant('$resources', {
+            angularResource: '{!URLFOR($Resource.AngularResource,"/")}',
+            userLocale: '{!userLocale}',
+            userLanguage: '{!userLanguage}',
+            supportedLanguages: ['ja', 'en_US', 'fr']
+        });
+    } else {
+        angular.module("$resources", []).constant('$resources', {
+            informatica: '{!URLFOR($Resource.InformaticaResources,"Informatica/")}',
+            angularResource: '{!URLFOR($Resource.AngularResource,"/")}',
+            vf: '{!URLFOR($Resource.VF_Page_Images,"/")}',
+            apexNamespace: '{!apexNamespace}',
+            icSessionId: '{!icSessionId}',
+            serverUrl: '{!serverUrl}',
+            resourceUrl: '{!resourceUrl}',
+            boxClientId: '{!boxClientId}',
+            boxConnName: '{!boxConnName}',
+            userLocale: '{!userLocale}',
+            userLanguage: '{!userLanguage}',
+            supportedLanguages: ['ja', 'en_US', 'fr'],
+            jobList: JSON.parse('{!SUBSTITUTE(SUBSTITUTE(jobList, '\\', '\\\\'), "'", "\'")}'),
+            taskList: JSON.parse('{!SUBSTITUTE(SUBSTITUTE(taskList, '\\', '\\\\'), "'", "\'")}')
+        });
+    }
+</script>
+<!-- <script src="{!URLFOR($Resource.AngularResource,'app/js/app.min.js')}"></script> -->
+<script src="{!URLFOR($Resource.AngularResource,'app/js/app.js')}"></script>
+<script src="{!URLFOR($Resource.AngularResource,'lib/js/angular-locale_' + LOWER(SUBSTITUTE(userLocale, '_', '-')) + '.js')}" />
+
+<div ng-app="Tasks">
+<apex:outputPanel rendered="{!(!remoteSiteAvailable)}">
+    <div class="bs wrap-container">
+        <div class="header row">
+            <div class="wizard col-md-9 col-xs-6">
+                <img
+                    class="header-logo"
+                    src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/data_wizard_logo.svg')}"
+                    alt="Informatica" />
+                <!-- <div style="font-family: 'Futura Hv BT', Arial, sans-serif; color: black; font-size: 20px">-->
+                <span class="title1">
+                    <span>Data Wizard</span>
+                </span>
+            </div>
+            <div class="informatica-logo col-md-3 col-xs-6">
+                <img
+                    src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/poweredbyINFA.png')}"
+                    alt="Informatica" />
+            </div>
+        </div>
+        <hr class="content-separator"/>
+        <div class="browser-warning" ng-show="{! (!isBrowserSupported)}" >
+            <img class="browser-warning-image" src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/status_error.png')}"/>
+            <span translate="BROWSER_NOT_SUPPORTED"></span>
+        </div>
+        <div class="status-error" />
+        <div class="status-error-text">
+            <span translate="UPDATE_SF_SECURITY_CONTROL_INSTRUCTION"></span><br /><br />
+            <span translate="REMOTE_SITE_SETTING_INSTRUCTION"></span><br />
+            <ul>
+                <li>https://app.informaticaondemand.com</li>
+                <li>https://app2.informaticacloud.com</li>
+            </ul>
+        </div>
+        <!-- TODO: pull out this video element into a common service that can be used here AND in ListCtrl -->
+        <div style="margin-top: 10px; background-color: #EDECFC; border-radius: 10px; padding: 15px 15px 15px 15px;">
+            <b style="margin-bottom: 15px;"><span translate="WELCOME"></span>!</b><br />
+            <dw-video width="860" height="480" thumbnail="{!resourceUrl}/Datawizard_Resources/Informatica_Datawizard_Intro_Video_Thumbnail.png" url="{!resourceUrl}/Datawizard_Resources/Informatica_Datawizard_Intro_Video.mp4"/>
+        </div>
+    </div>
+</apex:outputPanel>
+<apex:outputPanel rendered="{! (!displayAngularApp) && remoteSiteAvailable }">
+    <div class="bs wrap-container">
+        <div class="header row">
+            <div class="wizard col-md-9 col-xs-6">
+                <img
+                    class="header-logo"
+                    src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/data_wizard_logo.svg')}"
+                    alt="Informatica" />
+                <!-- <div style="font-family: 'Futura Hv BT', Arial, sans-serif; color: black; font-size: 20px">-->
+                <span class="title1">
+                    <span>Data Wizard</span>
+                </span>
+            </div>
+            <div class="informatica-logo col-md-3 col-xs-6">
+                <img
+                    src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/poweredbyINFA.png')}"
+                    alt="Informatica" />
+            </div>
+        </div>
+        <hr class="content-separator"/>
+        <div class="browser-warning" ng-show="{! (!isBrowserSupported)}" >
+            <img class="browser-warning-image" src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/status_error.png')}"/>
+            <span translate="BROWSER_NOT_SUPPORTED"></span>
+        </div>
+        <div class="status-error" />
+        <b><span translate="SFDC_OAUTH_DENY"></span> <a href='{!sfdcOAuthUrl}' translate="RETRY_OAUTH"></a></b>
+        <!-- TODO: pull out this video element into a common service that can be used here AND in ListCtrl -->
+        <div style="margin-top: 10px; background-color: #EDECFC; border-radius: 10px; padding: 15px 15px 15px 15px;">
+            <b style="margin-bottom: 15px;"><span translate="WELCOME"></span>!</b><Br />
+            <dw-video width="860" height="480" thumbnail="{!resourceUrl}/Datawizard_Resources/Informatica_Datawizard_Intro_Video_Thumbnail.png" url="{!resourceUrl}/Datawizard_Resources/Informatica_Datawizard_Intro_Video.mp4"/>
+        </div>
+    </div>
+</apex:outputPanel>
+<apex:outputPanel rendered="{! displayAngularApp && remoteSiteAvailable}">
+    <link rel="stylesheet" 
+        href="{!URLFOR($Resource.AngularResource,'lib/css/ui-grid.css')}" />
+
+    <link
+        rel="stylesheet"
+        type="text/css"
+        href="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/css/jquery-ui.min.css')}" />
+    <link
+        rel="stylesheet"
+        type="text/css"
+        href="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/css/ui.fancytree.css')}" />
+    <link
+        rel="stylesheet"
+        type="text/css"
+        href="{!URLFOR($Resource.AngularResource,'infaDataWizard/css/infaWidgets.min.css')}" />
+
+    <body>
+        <apex:pageMessages escape="false" />
+        <input
+            type="file"
+            id="fileSelector"
+            style="display: none;" />
+            <c:CMPNT_DRCTVS />
+            <div class="bs">
+                <div class="wrap-container">
+                    <div ng-show="$root.stateChanging">
+                        <loader>
+                        <div class="loader"></div>
+                        </loader>
+                    </div>
+                    <div ng-hide="$root.stateChanging" ng-cloak="ng-cloack" class="ng-cloak">
+                        <div 
+                            class="header row"
+                            ng-controller="NavigationCtrl">
+                            <div class="wizard col-md-9 col-xs-6">
+                                <img
+                                    class="header-logo"
+                                    src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/data_wizard_logo.svg')}"
+                                    alt="Informatica" />
+                                <span ng-repeat="item in menu">
+                                    <span
+                                    ng-class="'title' + ($index + 1)"
+                                    ng-click="item.state&&go(item.state)">
+                                        <span ng-bind="item.label"></span>
+                                    </span>
+                                    <span ng-if="$index < menu.length - 1">&gt;</span>
+                                </span>
+                                <span ng-show="$root.taskName">&quot;<span ng-bind="$root.taskName"></span>&quot;
+                                </span>
+                            </div>
+                            <div class="informatica-logo col-md-3 col-xs-6">
+                                <img
+                                    src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/poweredbyINFA.png')}"
+                                    alt="Informatica" />
+                            </div>
+                        </div>
+                        <hr class="content-separator"/>
+                        <div class="browser-warning" ng-show="{! (!isBrowserSupported)}" >
+                            <img class="browser-warning-image" src="{!URLFOR($Resource.InformaticaResources,'Informatica/img/status_error.png')}"/>
+                            <span translate="BROWSER_NOT_SUPPORTED"></span>
+                        </div>
+                        <ui-view></ui-view>
+                    </div>
+                </div>
+            </div>
+        <script src="{!URLFOR($Resource.AngularResource,'lib/js/connection.js')}"></script>
+
+        <script type="text/javascript">
+            sforce.connection.sessionId = '{!$Api.Session_Id}';
+            var userId = '{!$User.id}';
+        </script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/jquery-ui.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/jquery.fancytree.min.js')}"></script>
+        <!--<script src="{!URLFOR($Resource.AngularResource,'bootstrap.min.js')}"></script>-->
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/cldr.js')}"></script>
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/event.js')}"></script>
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/supplemental.js')}"></script>
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/globalize.js')}"></script>
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/number.js')}"></script>
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/message.js')}"></script>
+        <script type="text/javascript" src="{!URLFOR($Resource.AngularResource,'infaDataWizard/lib/js/globalize/unresolved.js')}"></script>
+
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaDataFilter.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaDataPreview.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaIconMenu.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaMapper.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaObjectSelection.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaTemplateHelpers.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/js/infaWidgetsGlobalize.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/i18n/infaDataFilterLocale.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/i18n/infaMapperLocale.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/i18n/infaExpressionLocale.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/i18n/infaObjectSelectionLocale.min.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'infaDataWizard/i18n/cldrdata/infaWidgetsNumberFormats.min.js')}"></script>
+
+        <script src="{!URLFOR($Resource.AngularResource,'lib/js/FileSaver.js')}"></script>
+        <script src="{!URLFOR($Resource.AngularResource,'lib/js/select.js')}"></script>
+    </body>
+</apex:outputPanel>
+</div>
+</apex:page>

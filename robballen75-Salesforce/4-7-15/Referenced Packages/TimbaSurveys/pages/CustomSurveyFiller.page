@@ -1,0 +1,645 @@
+<apex:page controller="TIMBASURVEYS.CustomSurveyFillerController" sidebar="false" tabstyle="Timba_Surveys__tab">
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad: true"></script>
+	<script type="text/javascript">
+		// Load libraries for Dojo 1.7.2
+		dojo.require("dojo.parser");
+		dojo.require("dojox.widget.Standby");
+		dojo.require("dijit.form.Form");
+	</script>
+
+    <!-- Common Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/common.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Standby/Standby.css')}" />
+
+    <!-- Section Specific styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/list.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/surveyDialogs.css')}" />
+
+    <!-- Section Specific styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/surveyList.css')}" />
+
+    <style type="text/css">
+        .lists_wrapper {
+            margin:4px;
+            margin-top:20px;
+        }
+        #users-container tr.header th{
+            padding:0px 4px;
+            font-size: 13px
+        }
+
+        #users-container tr.tbody td{
+            font-size: 11px ;
+        }
+        #users-container tr.tbody tr{
+            border-bottom:1px solid #D2E9EE;
+        }
+
+        #users-container tr.tbody tr:hover{
+            background-color: #D2E9EE;
+            text-decoration: underline;
+        }
+
+        #users-container tbody{
+            border:medium none;
+            padding:0 2px;
+        }
+        #users-container tr.header a{
+            color:#FFFFFF;
+            font-size:11px;
+            text-decoration:none;
+        }
+
+        #users-container{
+            width:97%;
+        }
+
+        #users-container .align_left{
+            text-align: left;
+        }
+
+        #search th{
+            padding: 3px;
+        }
+
+        #search a{
+            text-decoration : none;
+            color: #FFFFFF
+        }
+        #search{
+            width:806px;
+        }
+
+        #users div{
+            margin:3px 10px 2px 160px;
+            text-align:center;
+        }
+        ul.letterSearch{
+            padding:5px;
+            text-align:center;
+            display:block;
+            margin:0 auto;
+            width:550px;
+
+        }
+        ul.letterSearch li {
+            cursor:pointer;
+            list-style:none outside none;
+            margin:0 0 0 0;
+            padding:0;
+            text-align:right;
+
+            color:#fff;
+            text-transform:uppercase;
+
+            float:left;
+        }
+        .searchInputBox{
+
+        }
+        #tableUser{
+            height:423px;
+            width:806px;
+            margin:-6px 0 0;
+            background:none repeat scroll 0 0 #ECF0F3;
+        }
+        .bottomCornersLightBlue{
+            width:806px;
+            margin-top:-21px;
+        }
+        div.leftFloatRecipientList{
+            float:left;
+            width:806px;
+        }
+        .tabPanelEdition{
+            height:30px;
+            background:url({!URLFOR($Resource.SurveyResources2,'img/collector/bg_contCollectHead.png')}) repeat-x;
+        }
+        .pageContent{
+            padding:0;
+        }
+
+        .searchInput{
+            -moz-border-radius:5px 5px 5px 5px;
+            background:none repeat scroll 0 0 #FFFFFF;
+            border:1px solid #CCCCCC;
+            float:right;
+            margin-right:7px;
+            margin-top:-7px;
+        }
+        .searchInput input{
+            border:none;
+            width:100px;
+            height:20px;
+            color:#7C7C7C;
+            padding-left:5px;
+            /* Fix */
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+            border-radius: 5px;
+        }
+        .searchInput img{
+            display:inline;
+            width:24px;
+            height:24px;
+            vertical-align:top;
+        }
+        .timbasurvey_list tr.header th.first {
+            *background:url({!URLFOR($Resource.SurveyResources2,'img/shared/thbackground.png')}) repeat-x scroll 0 0 #53C6E7;
+        }
+        .timbasurvey_list tr.header th.last {
+            *background:url({!URLFOR($Resource.SurveyResources2,'img/shared/thbackground.png')}) repeat-x scroll 0 0 #53C6E7;
+        }
+
+        .timbasurvey_list tr.selected {
+            background-repeat:repeat-x;
+            background-color:#6DD3EC;
+            background-image: none;
+            color:#FFFFFF;
+        }
+
+        .displayBlock {
+            display: block !important;
+        }
+
+    </style>
+    <script type="text/javascript">
+        var userId =  new Array({!Contact_CollectorController.TotalPages}+1);
+        var tablaIuser = new Array();
+        var prev = 1;
+
+        // onLoad methods of dojo
+        var init = function(){
+           attachPaginationEvents();
+        }
+
+        // Fire events onload
+        dojo.addOnLoad(init);
+
+
+        //-----------------------------------
+        //       loading table
+        //-----------------------------------
+
+        function loadingTable(){
+            var checkBoxArray = dojo.query('.timbasurvey_list input:checkbox');
+
+            if(prev != viw ){
+                //------------------------------
+                //         salved
+                //------------------------------
+                userId[prev]=tablaIuser;
+
+                //------------------------------
+                //         Loading
+                //------------------------------
+
+                if(userId[viw]!=null){
+                    tablaIuser = userId[viw];
+                    var surveyRow;
+                    for (var i = 0; i < tablaIuser.length ; i++){
+                        surveyRow = dojo.query('#'+tablaIuser[i]).parents('tr')[0];
+                        dojo.addClass(surveyRow,'selected');
+                        dojo.byId(tablaIuser[i]).checked = true;
+                    }
+                    if(tablaIuser.length == checkBoxArray.length-1 ){
+                        dojo.byId('check_all').checked = true;
+                    }
+
+                } else {
+                    tablaIuser = new Array();
+                }
+            }else{
+                if(userId[viw]!=null){
+                    tablaIuser = userId[viw];
+                    var surveyRow;
+
+                    for (var i = 0; i < tablaIuser.length ; i++){
+                        surveyRow = dojo.query('#'+tablaIuser[i]).parents('tr')[0];
+                        dojo.addClass(surveyRow,'selected');
+                        dojo.query('#'+tablaIuser[i]).checked = true;
+                    }
+                    if(tablaIuser.length == checkBoxArray.length-1 ){
+                        dojo.byId('check_all').checked = true;
+                    }
+                }else{
+                    tablaIuser = new Array();
+                }
+            }
+            prev = viw ;
+            Overlay.hide();
+        }
+
+
+        function onSearchComplete(){
+            Overlay.hide();
+            //Reset Search
+            dojo.byId('searchinput').value='';
+            //Check Selected Recipients
+            var selectedRecipients = dojo.query('.checkbox');
+            var selectedUserStr = UserRecipientList.toString();
+            dojo.forEach(selectedRecipients, function (o,i,a){
+                var isSelected = selectedUserStr.search(o.id);
+                if(isSelected != -1){
+                    o.checked = true;
+                }
+            });
+            var chkboxArray = dojo.filter( dojo.query('.checkbox') , function (obj){return ((obj.id!='check_all') && (obj.checked==true))} );
+            if(chkboxArray.length >= dojo.query('.checkbox').length){
+                dojo.byId('check_all').checked = true
+            }
+        }
+
+        function handleSearchInput(obj,e) {
+            if(e && e.keyCode == 13){
+                paginationSearchBy(obj.value,'byWord','name');
+            }
+            Overlay.hide();
+        }
+
+        function searchByWord(value){
+            if(value!=''){
+                paginationSearchBy(value,'byWord','name');
+            }
+            Overlay.hide();
+        }
+
+        function attachPaginationEvents(){
+            headers = dojo.query('.timbasurvey_list tr.header');
+            var checkBoxArray = dojo.query('.timbasurvey_list input:checkbox');
+            checkBoxArray.onclick(function(e){
+                var surveyRow = dojo.query('#'+this.id).parents('tr')[0];
+                if(this.id == 'check_all'){
+                    if(this.checked){
+                        dojo.forEach(checkBoxArray,function(o,i,a){
+                            var surveyId =  o.id.split('-')[0];
+                            if(o.id!='check_all'){
+                                dojo.addClass(dojo.query('#'+o.id).parents('tr')[0],'selected');
+                                o.checked = true;
+                                tablaIuser.push(surveyId);
+                            }
+                        });
+                    }else{
+                        dojo.forEach(checkBoxArray,function(o,i,a){
+                            var surveyId =  o.id.split('-')[0];
+                            dojo.removeClass(dojo.query('#'+o.id).parents('tr')[0],'selected');
+                            o.checked = false;
+                            tablaIuser = new Array();
+                        });
+                    }
+                }else{
+                    var surveyId =  this.id.split('-')[0];
+                    if(this.checked){
+                        tablaIuser.push(surveyId);
+
+                        dojo.addClass(surveyRow,'selected');
+                        dojo.removeClass(surveyRow, 'hover');
+                        /* If All Survey Checks Are Checked Then Check The Head CheckBox */
+                        if(tablaIuser.length == checkBoxArray.length-1 ){
+                            dojo.byId('check_all').checked = true;
+                        }
+                    }else{
+
+                        var i = 0 ;
+                            while((i < tablaIuser.length) && (tablaIuser[i] != surveyId)){
+                                i++;
+                            }
+                        tablaIuser.splice(i, 1);
+                            dojo.byId('check_all').checked = false;
+                        dojo.removeClass(surveyRow,'selected');
+                    }
+                }
+            });
+            /* Page Number DropDown List Functionality */
+            dojo.query('.selectList li').onclick(function(e){
+                Overlay.show();
+                paginationSetPage(parseInt(this.innerHTML,10));
+            });
+            /* Alphabetic Pagination Functionality */
+            dojo.query('ul.letterSearch li').onclick(function(){
+                Overlay.show();
+                paginationSearchBy(this.className,'byChar','name');
+
+            });
+            dojo.forEach(headers,function(o,i,a){
+                dojo.query('th:first-child',o).addClass('first');
+                dojo.query('th:last-child',o).addClass('last');
+            });
+            /* Add Visual Functionality*/
+            dojo.query('.timbasurvey_list tbody tr').onmouseover(function(e){
+                if (!dojo.hasClass(this,'selected')) {
+                    dojo.addClass(this, 'hover');
+                }
+            });
+            dojo.query('.timbasurvey_list tbody tr').onmouseout(function(e){
+                if (!dojo.hasClass(this,'selected')) {
+                    dojo.removeClass(this, 'hover');
+                }
+            });
+            dojo.query('.timbasurvey_list tbody tr').onclick(function(e){
+
+            });
+            dojo.query('.listnavigator .selectContainer').onclick(function(e){
+                dojo.toggleClass(dojo.query('.selectList',this)[0],'displayBlock');
+            });
+            dojo.query('tr td .actionPanel a').onmouseover(function(e){
+                dojo.addClass(this,'hover');
+            });
+            dojo.query('tr td .actionPanel a').onmouseout(function(e){
+                dojo.removeClass(this,'hover');
+            });
+            dojo.query('.actionPanel a.disable').forEach(function(o){
+                o.href='javascript:;';
+            });
+            dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseover(function(e){
+                dojo.addClass(this,'hover');
+            });
+            dojo.query('.listnavigator div:not(.selectContainer):not(.count)').onmouseout(function(e){
+                dojo.removeClass(this,'hover');
+            });
+            selectedUsers = new Array();
+
+            Overlay.hide();
+            loadingTable();
+        }
+
+        function searchInputFixIE7(){
+            if((dojo.isIE == '7') || (dojo.isIE == '6')){
+                var divBox = dojo.byId('searchinputcontact');
+                if(divBox != null){
+                    divBox.style.marginTop = '-27px';
+                }
+
+                divBox = dojo.byId('searchinputlead');
+                if(divBox != null){
+                    divBox.style.marginTop = '-27px';
+                }
+            }
+        }
+
+        //-----------------------------------
+        //       returno user id
+        //-----------------------------------
+        function returnUserId(){
+            var ids='';
+            ids += userId.toString();
+            for(var i = 0 ; i < tablaIuser.length; i++ ){
+                if(ids.indexOf(tablaIuser[i])==-1)
+                    ids+=tablaIuser[i]+',';
+            }
+            var b = ids.split(',');
+            var a='';
+            var trim ;
+            for (var i = 0 ; i<b.length;i++ ){
+                if(b[i]!=null){
+                    trim = b[i]!= "";
+                     if (trim)
+                        a+=b[i]+',';
+                }
+            }
+            return a.split(',');
+        }
+    </script>
+    <div data-dojo-id="Overlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'lists_wrapper', color:'white'"></div>
+    <apex:outputPanel layout="block" styleClass="sectionHeader">
+        <h1 class="Design"><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyFiller_Custom_Fill}" /></h1>
+    </apex:outputPanel>
+    <div class="lists_wrapper" id="lists_wrapper">
+
+        <!-- The list of Contacts -->
+        <apex:pageBlock rendered="{!display_contact_list}" >
+            <br/>
+            <p><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyFiller_Select_contact} : " /></p>
+            <br/><br />
+            <apex:outputPanel layout="block" styleClass="tabPanelEdition">
+                <apex:outputpanel layout="block" styleClass="letterBox centerContainer">
+                    <ul class="letterSearch" >
+                        <apex:repeat value="{!Contact_CollectorController.AlphabeticPaginationSet}" var="letter">
+                            <li class="{!IF(letter!='*',letter,'%')}" style="{!IF(letter!='*','','width:150px;')}">
+                                <apex:outputText value="{!IF(letter!='*',letter,$Label.timbasurveys__timbasurvey_UserCollection_All)}" />&nbsp;{!IF(letter=='*',' | ','')}&nbsp;
+                            </li>
+                        </apex:repeat>
+                    </ul>
+                   </apex:outputpanel>
+                    <div id="searchinputcontact" class="searchInput">
+                        <input id="searchinput" type="text" value="" onKeyPress="handleSearchInput(this,event)"/>
+                        <a href="javascript:;" onClick="searchByWord(dojo.byId('searchinput').value);"><img src="{!URLFOR($Resource.SurveyResources2,'img/list/search.png')}" /></a>
+                    </div>
+                </apex:outputPanel>
+                <apex:outputPanel id="contact_list">
+                    <apex:outputPanel layout="none" rendered="{!Contact_list.size=0}">
+                        <tr><td colspan="4"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_There_is_no_matches}" /></td></tr>
+                    </apex:outputPanel>
+                    <apex:pageBlockTable value="{!contact_list}" var="contact" rendered="{!Contact_list.size!=0}">
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Name}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="cid" value="{!contact.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!contact.Name}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurveys_RecipientList_Account}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="cid" value="{!contact.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!contact.Account.Name}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Title}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="cid" value="{!contact.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!contact.Title}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Phone}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="cid" value="{!contact.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList"/>
+                                <apex:outputText value="{!contact.Phone}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Email}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="cid" value="{!contact.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!contact.Email}" />
+                            </apex:outputLink>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                    <apex:outputPanel styleClass="listnavigator" layout="block">
+                        <apex:outputPanel layout="block" styleClass="begin {!IF(Contact_CollectorController.renderPrevious,'','disabled')}" onclick="Overlay.show();paginationFirst()" />
+                        <apex:outputPanel layout="block" styleClass="prev {!IF(Contact_CollectorController.renderPrevious,'','disabled')}" onclick="Overlay.show();paginationPrevious()" />
+                        <apex:outputPanel layout="block" styleClass="selectContainer">
+                            <ul class="selectList">
+                                <apex:repeat value="{!Contact_CollectorController.NumericPaginationSet}" var="Page">
+                                    <li>
+                                        <apex:outputText value="{!Page}" />
+                                    </li>
+                                </apex:repeat>
+                            </ul>
+                            <apex:outputPanel layout="block" styleClass="count">
+                                <apex:outputText value="{!Contact_CollectorController.Page}/{!Contact_CollectorController.TotalPages}" />
+                            </apex:outputPanel>
+                            <script type="text/javascript">
+                                var viw = {!Contact_CollectorController.Page};
+                            </script>
+                        </apex:outputPanel>
+                        <apex:outputPanel layout="block" styleClass="next {!IF(Contact_CollectorController.renderNext,'','disabled')}" onclick="Overlay.show();paginationNext()" />
+                        <apex:outputPanel layout="block" styleClass="end {!IF(Contact_CollectorController.renderNext,'','disabled')}" onclick="Overlay.show();paginationLast()" />
+                    </apex:outputPanel>
+                </apex:outputPanel>
+            </apex:pageBlock>
+            <apex:pageBlock rendered="{!display_lead_list}" >
+                <br/>
+                <p><apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyFiller_Select_lead}: " /></p>
+                <br/><br />
+                <apex:outputPanel styleClass="tabPanelEdition" layout="block">
+                    <apex:outputpanel layout="block" styleClass="letterBox centerContainer">
+                        <ul class="letterSearch" >
+                            <apex:repeat value="{!Contact_CollectorController.AlphabeticPaginationSet}" var="letter">
+                                <li class="{!IF(letter!='*',letter,'%')}">&nbsp;{!IF(letter!='*',letter,$Label.timbasurveys__timbasurvey_UserCollection_All)}&nbsp;{!IF(letter=='*',' | ','')}&nbsp;</li>
+                            </apex:repeat>
+                        </ul>
+                   </apex:outputpanel>
+                    <div id="searchinputlead" class="searchInput">
+                        <input id="searchinput" type="text" value="" onKeyPress="handleSearchInput(this,event)"/>
+                        <a href="javascript:;" onClick="searchByWord(dojo.byId('searchinput').value);"><img src="{!URLFOR($Resource.SurveyResources2,'img/list/search.png')}" /></a>
+                    </div>
+                </apex:outputPanel>
+                <apex:outputPanel id="lead_list">
+                    <apex:outputPanel layout="none" rendered="{!Lead_list.size=0}">
+                        <tr><td colspan="4"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_There_is_no_matches}" /></td></tr>
+                    </apex:outputPanel>
+                    <apex:pageBlockTable value="{!lead_list}" var="lead"  rendered="{!Lead_list.size!=0}">
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Name}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.Name}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Company}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.Company}"/>
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_State}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.State}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Phone}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.Phone}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Email}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.Email}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_Status}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.Status}" />
+                            </apex:outputLink>
+                        </apex:column>
+                        <apex:column >
+                            <apex:facet name="header">{!$Label.timbasurveys__timbasurvey_surveylist_CreatedDate}</apex:facet>
+                            <apex:outputLink value="{!$Page.TIMBASURVEYS__Survey}">
+                                <apex:param name="id" value="{!surveyId}" />
+                                <apex:param name="lid" value="{!lead.Id}" />
+                                <apex:param name="custom_fill" value="true" />
+                                <apex:param name="back" value="surveyList" />
+                                <apex:outputText value="{!lead.CreatedDate}" />
+                            </apex:outputLink>
+                        </apex:column>
+                  </apex:pageBlockTable>
+                  <apex:outputPanel layout="block" styleClass="listnavigator">
+                    <apex:outputPanel layout="block" styleClass="begin {!IF(Contact_CollectorController.renderPrevious,'','disabled')}" onclick="Overlay.show();paginationFirst()" />
+                    <apex:outputPanel layout="block" styleClass="prev {!IF(Contact_CollectorController.renderPrevious,'','disabled')}" onclick="Overlay.show();paginationPrevious()" />
+                    <apex:outputPanel layout="block" styleClass="selectContainer">
+                        <ul class="selectList">
+                            <apex:repeat value="{!Contact_CollectorController.NumericPaginationSet}" var="Page">
+                                <li>
+                                    <apex:outputText value="{!Page}" />
+                                </li>
+                            </apex:repeat>
+                        </ul>
+                        <apex:outputPanel layout="block" styleClass="count">
+                            <apex:outputText value="{!Contact_CollectorController.Page}/{!Contact_CollectorController.TotalPages}" />
+                        </apex:outputPanel>
+                        <script type="text/javascript">
+                            var viw = {!Contact_CollectorController.Page};
+                        </script>
+                    </apex:outputPanel>
+                    <apex:outputPanel layout="block" styleClass="next {!IF(Contact_CollectorController.renderNext,'','disabled')}" onclick="Overlay.show();paginationNext()" />
+                    <apex:outputPanel layout="block" styleClass="end {!IF(Contact_CollectorController.renderNext,'','disabled')}" onclick="Overlay.show();paginationLast()" />
+                </apex:outputPanel>
+            </apex:outputPanel>
+        </apex:pageBlock>
+    </div>
+    <script type="text/javascript">
+        searchInputFixIE7();
+    </script>
+	<apex:form id="customFillerActionsForm">
+	    <apex:actionFunction name="paginationNext" action="{!Contact_CollectorController.GoNext}" onComplete="attachPaginationEvents()" rerender="contact_list,lead_list" />
+	    <apex:actionFunction name="paginationLast" action="{!Contact_CollectorController.GoLast}" onComplete="attachPaginationEvents()" rerender="contact_list,lead_list" />
+	    <apex:actionFunction name="paginationPrevious" action="{!Contact_CollectorController.GoPrevious}" onComplete="attachPaginationEvents()" rerender="contact_list,lead_list" />
+	    <apex:actionFunction name="paginationFirst" action="{!Contact_CollectorController.GoFirst}" onComplete="attachPaginationEvents()" rerender="contact_list,lead_list" />
+	    <apex:actionFunction name="paginationSetPage" action="{!Contact_CollectorController.setPage}" onComplete="attachPaginationEvents()" rerender="contact_list,lead_list">
+	        <apex:param name="Page" value="0" />
+	    </apex:actionFunction>
+	    <apex:actionFunction name="paginationSearchBy" action="{!Contact_CollectorController.searchBy}" rerender="contact_list,lead_list" oncomplete="Overlay.hide()">
+	        <apex:param name="param" value="*" />
+	        <apex:param name="op" value="" />
+	        <apex:param name="field" value="" />
+	    </apex:actionFunction>
+	</apex:form>
+</apex:page>

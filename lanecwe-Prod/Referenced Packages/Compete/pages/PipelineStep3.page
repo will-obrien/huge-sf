@@ -1,0 +1,397 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.PipelineBehaviorsController"
+           extensions="ePrize_Zemzu.PipelineBehaviorsStep3ControllerExt" 
+           tabStyle="ContestBuilder__tab">
+  <script>
+    function confirmCancel() {
+        var isCancel = confirm("Are you sure you wish to cancel?");
+        if (isCancel) return true;
+    
+       return false;
+    }  
+  </script>  
+  <apex:stylesheet value="{!$Resource.ePrize_Zemzu__zemzu_css}"/>
+  <apex:form prependId="false">
+    <apex:pageBlock rendered="{!(isChanceToWin) || (isEntryRanked)}" >
+      <p>
+        Enter up to five prizes to include in your contest.
+      </p>
+    </apex:pageBlock>
+    <apex:pageBlock rendered="{!(!isChanceToWin) && (!isEntryRanked) && !isDynamicPoints}" >
+      <p>
+        Enter your leaderboard and rewarding details.
+      </p>
+    </apex:pageBlock>
+    <apex:pageBlock id="prizePageBlock" title="{!IF(isChanceToWin, 'Instant Win Prizes', IF(isEntryRanked,'Prizes for Top Performers', 'Leaderboard and Rewards'))}" mode="edit">
+      
+      <apex:pageMessages />
+      <!-- The pageBlockButtons tag defines the buttons that appear at the top
+           and bottom of the pageBlock. Like a facet, it can appear anywhere in
+           a pageBlock, but always defines the button areas.  
+           The Next button contained in this pageBlockButtons area
+           calls the step2 controller method, which returns a pageReference to
+           the next step of the wizard. -->  
+      <apex:pageBlockButtons >
+        <apex:commandButton action="{!previousStep}" value="Back"/>
+        <apex:commandButton action="{!cancel}" value="Cancel" onclick="return confirmCancel()" immediate="true"/>
+        <apex:commandButton action="{!nextStep}" value="Next"/>
+      </apex:pageBlockButtons>
+      <apex:outputPanel id="prizePage">
+
+        <apex:pageBlockSection columns="1" title="Leaderboard Settings" rendered="{!(!isChanceToWin) && (!isEntryRanked) && (!isDynamicPoints)}" >
+          Your contest leaderboard will be calculated by the following field:<br/>
+          <apex:selectList id="rankField" value="{!leaderBoardField}" multiselect="false" size="1" rendered="{!!isChildContest}">
+            <apex:selectOptions value="{!CustomFieldsOpp}" />
+          </apex:selectList>
+          <apex:outputText label="" value="{!contest.ePrize_Zemzu__LeaderboardRankBy__c}" rendered="{!isChildContest}" />
+        </apex:pageBlockSection>
+        <apex:pageBlockSection rendered="{!isPercentToGoal}">
+          <apex:outputPanel rendered="{!isPercentToGoal}" >
+            <br/><br/>
+            <apex:outputText value="Would you like each users goal to be displayed on the leaderboard?" />
+            <br/>
+            <apex:selectRadio value="{!contest.ePrize_Zemzu__DisplayContestGoals__c}" label="" disabled="{!isChildContest}">
+              <apex:selectOption itemValue="true" itemLabel="Yes"/>
+              <apex:selectOption itemValue="false" itemLabel="No"/>
+            </apex:selectRadio>    
+        <!-- <apex:inputCheckbox id="displayGoals" value="{!contest.ePrize_Zemzu__DisplayContestGoals__c}" rendered="{!isPercentToGoal}" />  -->
+          </apex:outputPanel>
+        </apex:pageBlockSection>
+        <apex:pageBlockSection columns="1" title="Tie Breaker Settings" >
+          A contest tie will be decided by the following criteria:<br/>
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel layout="block" styleClass="requiredInput prizeValue">
+              <apex:outputPanel layout="block" />
+                <apex:selectList value="{!contest.ePrize_Zemzu__TieBreakerValue__c}" size="1">
+                  <apex:selectOptions value="{!tieBreakerPicklistValues}" />
+                </apex:selectList>
+                <!-- <apex:inputField id="tieBreakerValue" value="{!newPrize.TieBreakerValue__c}" label="Tie Breaker Value" styleClass="inputPrizeReserveValue"/> -->
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>  
+        </apex:pageBlockSection>
+
+        <apex:pageBlockSection columns="1" title="Prizes">
+          <apex:pageBlockSectionItem >
+            <apex:outputPanel layout="block">
+              <apex:outputLabel value="Award Prizes for Contest?" id="contestPrizeLabel" for="contestPrizes" />
+            <apex:inputCheckbox id="contestPrizes" value="{!contest.ePrize_Zemzu__Prizes__c}"/>
+        </apex:outputPanel>
+      </apex:pageBlockSectionItem>
+         
+      <apex:outputPanel id="contestPrizes_sub"> 
+        <apex:outputText value="There are no prizes yet for this contest." rendered="{!IF(prizes.Size == 0, true, false)}"/>   
+        <apex:variable var="count" value="{!0}"/>
+        
+        <apex:repeat value="{!PrizesWithBadges}" var="prizeEntity" rendered="{!IF(prizes.Size > 0, true, false)}">
+          <div class="l11 l11-panel" style="max-width: 250px; padding: 7px; min-height:85px;">
+            <div>
+              <apex:outputPanel rendered="{!prizeEntity.isBadge}" layout="block" styleClass="pull-right">
+                <img style="border:1px solid; border-radius:40px" src="{!prizeEntity.badgeUrl}" width="75px" height="75px"/>
+              </apex:outputPanel>
+              <h2 class="prizePlace pull-left" style="margin: 0px 5px 0px 0px;"><apex:outputText value="{!count + 1}" /></h2>
+              <h3 style="margin-bottom:5px;">
+                <apex:outputField value="{!prizeEntity.prize.ePrize_Zemzu__ARV__c}" rendered="{!prizeEntity.prize.ePrize_Zemzu__ARV__c != null && prizeEntity.prize.ePrize_Zemzu__ARV__c > 0}"/>
+              </h3>
+            </div>
+            <div>
+              <h3 style="margin-bottom:0px;">
+                {!prizeEntity.prize.ePrize_Zemzu__PrizeName__c}
+              </h3>
+            </div>
+            <p><apex:outputText value="{!prizeEntity.prize.ePrize_Zemzu__Description__c}" /></p>
+            <apex:outputPanel rendered="{!prizeEntity.prize.ePrize_Zemzu__PrizeReserve__c}" layout="block">
+              <div style="border-bottom:1px solid #EAEAEA; margin: 5px 0px 5px 0px;"/>
+              <h4 style="padding-top: 7px;">
+                <apex:outputText value="Prize Reserve Value - "/>
+                <apex:outputText value="{0,number,$###,###.00}" rendered="{!isDollarRanked}">
+                  <apex:param value="{!prizeEntity.prize.ePrize_Zemzu__ReserveAmount__c}" />
+                </apex:outputText>
+                <apex:outputText value="{0,number,###,### Points}" rendered="{!isEntryRanked}">
+                  <apex:param value="{!prizeEntity.prize.ePrize_Zemzu__ReserveAmount__c}" />
+                </apex:outputText>
+                <apex:outputText value="{0,number,###,###.##}%" rendered="{!isPercentToGoal}">
+                  <apex:param value="{!prizeEntity.prize.ePrize_Zemzu__ReserveAmount__c}" />
+                </apex:outputText>
+              </h4>
+            </apex:outputPanel>
+            <div style="border-bottom:1px solid #EAEAEA; margin: 5px 0px 5px 0px;"/>
+            <apex:outputPanel layout="block">
+              <apex:outputPanel >
+                <a class="btn">+ Edit Prize
+                  <apex:actionSupport event="onclick" action="{!editPrize}" rerender="prizePageBlock" status="listStatus">
+                      <apex:param name="prizeIndex" value="{!Round(count, 0)}" assignTo="{!prizeIndexToEdit}"/>
+                  </apex:actionSupport>
+                </a>
+              </apex:outputPanel>
+              <apex:outputPanel >
+                <a class="btn">- Remove Prize
+                  <apex:actionSupport event="onclick" action="{!removePrize}" rerender="prizePageBlock" status="listStatus">
+                    <apex:param name="prizeIndex" value="{!Round(count, 0)}" assignTo="{!prizeIndexToRemove}"/>
+                  </apex:actionSupport>
+                </a>
+              </apex:outputPanel>
+            </apex:outputPanel>
+          </div>
+          <apex:variable var="count" value="{!count + 1}"/>
+        </apex:repeat>
+
+        <apex:actionStatus startText=" updating..." stopText="" id="listStatus"/>
+        </apex:outputPanel>
+      </apex:pageBlockSection>
+
+      <apex:outputPanel id="contestPrizes_sub">
+        <apex:pageBlockSection title="New Prize" columns="1" id="prizeForm" >
+          <apex:inputHidden id="prizePlace" value="{!prizeIndexToEdit}"/>
+          <apex:inputHidden id="prizeEditMode" value="{!prizeEditMode}"/>
+          <apex:inputHidden id="prizeBadgeId" value="{!newPrize.ePrize_Zemzu__Badge__c}"/>
+          
+          <apex:pageblockSectionItem rendered="{!isWorkEnabled}">
+            <button type="button" data-toggle="modal" data-target="#badgeModal" onclick="selectBadge();">Select Badge</button>
+          </apex:pageblockSectionItem>
+          <apex:pageBlockSectionItem helptext="Short name of the prize." id="prizeNameBlock">
+            <apex:outputLabel value="Prize Name" id="prizeNameLabel" for="prizeName" />
+            <apex:outputPanel layout="block" styleClass="requiredInput" >
+              <apex:outputPanel layout="block" styleClass="requiredBlock" />
+              <apex:inputField id="prizeName" value="{!newPrize.ePrize_Zemzu__PrizeName__c}" label="Prize Name"/>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+
+          <apex:inputField id="prizeDescription" value="{!newPrize.ePrize_Zemzu__Description__c}"/>
+          <apex:inputCheckbox id="prizeNoMonetaryValue" value="{!newPrize.ePrize_Zemzu__No_Monetary_Value__c}" styleClass="noMonetaryCheckbox" />
+      
+          <apex:pageBlockSectionItem helptext="Enter an estimated monetary value of the prize. For any prizes over $600, winners will need to work with the finance department to complete an affidavit and any necessary tax forms." id="prizeValueContainer">
+            <apex:outputLabel value="Prize Value" id="prizeValueLabel" for="prizeValue" styleClass="prizeValue" />
+            <apex:outputPanel layout="block" styleClass="requiredInput prizeValue">
+              <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+              <apex:inputField id="prizeValue" value="{!newPrize.ePrize_Zemzu__ARV__c}" label="Prize Value" styleClass="inputPrizeValue" />
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+          
+          <apex:inputCheckbox id="prizeReserve" value="{!newPrize.ePrize_Zemzu__PrizeReserve__c}" styleClass="prizeReserveCheckbox"/>
+          
+          <apex:pageBlockSectionItem helptext="Enter a value that must be met in order for the prize to be rewarded" >
+            <apex:outputLabel value="Prize Reserve Value" id="reserveValueLabel" for="prizeReserveValue" styleClass="prizeValue" />
+            <apex:outputPanel layout="block" styleClass="requiredInput prizeValue">
+              <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+              <apex:inputField id="prizeReserveValue" value="{!newPrize.ePrize_Zemzu__ReserveAmount__c}" label="Prize Reserve Value" styleClass="inputPrizeReserveValue"/>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+          
+          <apex:pageBlockSectionItem rendered="{!isChanceToWin}">
+            <apex:outputLabel value="Prize Quantity" id="prizeQuantityLabel" for="prizeQuantity" />
+            <apex:outputPanel layout="block" styleClass="requiredInput">
+              <apex:outputPanel layout="block" styleClass="requiredBlock"/>
+              <apex:inputField id="prizeQuantity" value="{!newPrize.ePrize_Zemzu__TotalQuantity__c}" label="Prize Quantity"/>
+            </apex:outputPanel>
+          </apex:pageBlockSectionItem>
+          
+          <apex:outputPanel >
+            <apex:outputPanel style="block" rendered="{!prizeEditMode == false}">
+              <a class="btn">+ Add this Prize
+                <apex:actionSupport event="onclick" action="{!validatePrize}" rerender="prizePageBlock" status="listStatus" />
+              </a>
+            </apex:outputPanel>
+            <apex:outputPanel style="block" rendered="{!prizeEditMode}">
+              <a class="btn">+ Save this Prize
+                <apex:actionSupport event="onclick" action="{!validatePrize}" rerender="prizePageBlock" status="listStatus" />
+              </a>
+            </apex:outputPanel>
+            <apex:outputPanel style="block" rendered="{!prizeEditMode}">
+              <a class="btn">- Cancel
+                <apex:actionSupport event="onclick" action="{!cancelEditPrizeMode}" rerender="prizePageBlock" status="listStatus" />
+              </a>
+            </apex:outputPanel>
+          </apex:outputPanel>
+        </apex:pageBlockSection>
+      </apex:outputPanel>
+      <script type="text/javascript"> 
+          //This section of javascript has to be within 
+            //the form that is re-rendered through ajax requests so
+            //that the onready event fires showing or hiding the checkbox as
+            //appropriate after a prize is selected to be edited.
+          function addSlashes(inputString){ 
+             //no need to do (str+'') anymore because 'this' can only be a string
+             var str = inputString.replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0').replace(/'/g, "\\'");
+             return str;
+          }
+          Handlebars.registerHelper('escape', function(text) {
+            var safeText = addSlashes(text);
+            return new Handlebars.SafeString(safeText);
+          });
+          jQuery(document).ready(function($){
+            var checkboxSections = [ 'contestPrizes' ];
+            initEnableDisablePageSectionsByCheckboxState(checkboxSections);    
+            initPage();   
+
+            showHidePrizeValueField($('.noMonetaryCheckbox')); 
+            showHidePrizeReserveField($('.prizeReserveCheckbox'));              
+            $('.noMonetaryCheckbox').click(function() {
+              showHidePrizeValueField (this);
+            });
+            $('.prizeReserveCheckbox').click(function() {
+              showHidePrizeReserveField (this);
+            });
+          });
+
+          //Show or hide the value field based on the state of the 
+          //no monetary value checkbox. This script takes a reference to the 
+          //no monetary value checkbox as a parameter. 
+          function showHidePrizeValueField (noMonetaryValueCheckbox) {              
+              if(jQuery(noMonetaryValueCheckbox).is(':checked')){
+                  jQuery(noMonetaryValueCheckbox).parents('tr').next().hide();
+                  //$('.prizeValue').hide();
+                  jQuery('.inputPrizeValue').val('');
+              }
+              else{
+                  jQuery(noMonetaryValueCheckbox).parents('tr').next().show();
+                  //$('.prizeValue').show();
+              }       
+          }
+          function showHidePrizeReserveField (prizeReserveValueCheckbox) {              
+              if(jQuery(prizeReserveValueCheckbox).is(':checked')){
+                  jQuery(prizeReserveValueCheckbox).parents('tr').next().show();
+                  //$('.prizeValue').show();
+              }
+              else{
+                  jQuery(prizeReserveValueCheckbox).parents('tr').next().hide();
+                  //$('.prizeValue').hide();
+                  jQuery('.inputPrizeReserveValue').val('');
+              }       
+          }
+
+          function selectBadge(){
+            jQuery.modal("<div id='badgeModal'></div>", {
+              backgound: 'white',
+              minWidth: 715,
+              minHeight: 500
+            });
+            jQuery('#simplemodal-container').css('background-color', 'white');
+            loadBadges();
+          }
+
+          function drawBadge(badge){
+            console.log(badge);
+            var prizeValue = null;
+            if(badge.ImageUrl){
+              badge.ImageUrl = badge.ImageUrl.substring(0,15);
+            }
+            if(badge.RewardFund){
+              prizeValue = badge.RewardFund.Value
+              badge.PrizeValue = prizeValue;
+            }else{
+              prizeValue = '';
+              badge.PrizeValue = '';
+            }
+            var templateSource = jQuery('#badge-template').html();
+            var compiledTemplate = Handlebars.compile(templateSource);
+            var dataTemplate = compiledTemplate(badge);
+            jQuery('#badgeModal').append(dataTemplate);
+          }
+          function storeBadge(badgeId, badgeName, badgeDescription, badgePrizeValue){
+            var prizeBadgeId = document.getElementById("{!$Component.prizePageBlock.prizeForm.prizeBadgeId}");
+            prizeBadgeId.value = badgeId;
+            var prizeBadgeName = document.getElementById("{!$Component.prizePageBlock.prizeForm.prizeNameBlock.prizeName}");
+            prizeBadgeName.value = badgeName;
+            
+            var prizeBadgeDescription = document.getElementById("{!$Component.prizePageBlock.prizeForm.prizeDescription}");
+            prizeBadgeDescription.value = badgeDescription;
+
+            var elms =[prizeBadgeId];
+            if(badgePrizeValue != ''){
+              var prizeBadgeValue = document.getElementById("{!$Component.prizePageBlock.prizeForm.prizeValueContainer.prizeValue}");
+              prizeBadgeValue.value = badgePrizeValue;
+              elms.push(prizeBadgeValue);
+            }else{
+              var noPrizeCheckbox = document.getElementById("{!$Component.prizePageBlock.prizeForm.prizeNoMonetaryValue}");
+              elms.push(noPrizeCheckbox);
+              noPrizeCheckbox.checked = true;
+              showHidePrizeValueField(jQuery('.noMonetaryCheckbox')); 
+            }
+            disableInputs(elms, true);
+            jQuery.modal.close();
+          }
+          function disableInputs(elmArray, enabled){
+            for(var i = 0; i < elmArray.length; i++){
+              var elm = elmArray[i];
+              elm.disabled = enabled;
+            }
+          }
+          (function($){
+            if($.fn.jplaced){
+              $('.prizePlace').jplaced({ 
+                appendText : '',
+                outputType : 'digits',
+                outputClass : 'superscript' 
+              });
+              
+              if( $.browser.msie && $.browser.version < 8 ){
+                $('.prize').find('.btn').css('display','inline-block');
+              }
+            }
+            if($.fn.jplaced){
+                var numPrizes = 0;
+                $('table.prize').each(function(){
+                numPrizes++;
+              });
+            
+              if(getID('prizeEditMode').val() == 'true') {
+                numPrizes = parseInt(getID('prizePlace').val());
+              }
+
+              getID('prizeForm').find('.pbSubheader h3').html(numPrizes + 1).jplaced({
+                appendText : ' Place Prize',
+                outputType : 'placedWord',
+                outputClass : ''
+              });
+            }
+
+
+            function getID(_id){
+              var domObj = null;
+              $('[id]').each(function(){
+                if($(this).attr('id').indexOf(_id) == $(this).attr('id').length - _id.length && $(this).attr('id').indexOf(_id) >= 0){
+                    domObj = $(this);
+                  }
+              });
+              return domObj
+            }
+          })(jQuery);
+          
+      </script>
+
+      </apex:outputPanel>
+    </apex:pageBlock>
+  </apex:form>
+  <script>
+    function loadBadges(){
+      Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.PipelineBehaviorsController.getAvailableBadges}',
+        function(result, event){
+          if(event.status){
+            for(var i = 0; i < result.length; i++ ){
+              drawBadge(result[i]);
+            }
+          }
+        }
+      );
+    }
+  </script>
+  <script id="badge-template" type="text/x-handlebars-template">
+    <div id="{{Id}}" class="badge-gift">
+      <img class="badge__icon" src="/servlet/servlet.FileDownload?file={{ImageUrl}}" width="75" height="75"/>
+      <h3 class="badge__title">{{Name}}</h3>
+      <p class="badge__description">{{Description}}</p>
+      {{#if RewardFund}}
+        <div class="badge__reward">
+          <h3 class="reward__value">${{RewardFund.Value}}</h3>
+          <h4 class="reward__type">for {{RewardFund.Type}}</h4>
+        </div>
+      {{/if}}
+      <div class="action--badge">
+        <a href="#"
+           class="btn pull-right"
+           onclick="storeBadge('{{Id}}', '{{escape Name}}', '{{escape Description}}', {{#if PrizeValue}} {{PrizeValue}} {{else}} '' {{/if}});"
+        >Pick Badge</a>
+      </div>
+    </div>
+  </script>
+</apex:page>

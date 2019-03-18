@@ -1,0 +1,286 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.ViewAllContestEntriesController" 
+           tabStyle="Contests__tab"
+           action="{!initOnlinePageDisplay}">
+
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+
+    <apex:define name="head">
+      <script type="text/javascript">                                      
+        
+        function confirmRejectSelection() {
+            var isOk = confirm("Are you sure that you want to reject the selected entries?");
+            if (isOk) {
+               return true;
+            }
+            else {
+               return false;
+            }
+        }
+        
+        function checkAll(cb) {
+          var inputElem = document.getElementsByTagName("input");
+          for(var i=0; i<inputElem.length; i++)
+          {
+            if(inputElem[i].id.indexOf("checkedone") != -1)
+              inputElem[i].checked = cb.checked;
+          }
+        }    
+        
+        function noenter(ev) {
+          if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+            doSearchAF();
+            return false;
+          } else {
+            return true;
+          }
+        }
+
+      </script>  
+    </apex:define>
+
+    <apex:define name="contentHeader">
+      <h1 class="lb-title">View All Entries</h1>
+      <h2 class="lb-subtitle">{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}</h2>
+    </apex:define>
+
+    <apex:define name="contentMain">
+      <div class="zemzu">
+        <apex:outputPanel rendered="{!IF(contestId != null, true, false)}">
+                <apex:form >
+                    <!-- This is needed so the javascript which highlights the selected menu is displayed. --> 
+                    <div id="viewAllContestEntriesHeader" style="display:none;"></div>                
+
+                    <apex:pageBlock tabStyle="ContestBuilder__tab" title="Entry History For All Participants">
+                        <apex:pageBlockButtons location="both">
+                          <apex:commandButton action="{!updateSelectedRejectedEntries}" value="Reject Selected Entries" reRender="searchPanel, tableWrapperPanel, pageMessages" onclick="if (!confirmRejectSelection()) return false;" status="processingStatus" rendered="{!IF((fullContest.winners.size == 0 && (fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin) && !fullContest.isChanceToWin), true, false)}">
+                            <apex:actionSupport action="{!refreshMessages}" />
+                          </apex:commandButton>
+
+                          <apex:commandButton action="{!exportToExcel}" value="Export All Entries to Excel">
+                          </apex:commandButton>
+                                                   
+                          <apex:outputlink value="/apex/Leaderboard" styleClass="btn">
+                             Back To Leaderboard
+                             <apex:param name="contestId" value="{!contestId}"/>
+                          </apex:outputlink>
+                                         
+                        </apex:pageBlockButtons>
+                        
+                        <apex:actionStatus id="processingStatus">
+                          <apex:facet name="start">
+                            <div style="padding: 15px 0; text-align: center;">
+                               <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" /><br/>
+                               Processing, please wait...
+                            </div>
+                          </apex:facet>
+                          <apex:facet name="stop">
+                          </apex:facet>
+                        </apex:actionStatus>
+                        <apex:pageBlockSection columns="1" collapsible="false">  
+                              <apex:outputPanel >
+                                <apex:outputText value="To date, {0,number,###,###,###} entries have been submitted for this contest."><apex:param value="{!totalActionCount}" /></apex:outputText>
+                                <br/><br/>
+                                <apex:outputText value="This page can retrieve up to a maximum of 10,000 entries at a time. If your contest has more entries than this, then you will need to filter the results using the search criteria below. You may also use the search criteria to find a specific set of entries, such as for a given date range."/>
+                              </apex:outputPanel>
+                        
+                              <apex:pageBlockSection columns="2" title="Search Criteria">  
+                                  <apex:outputText styleClass="font-smaller font-gray" value="Keyword search by participant, type, or description."/>
+                                  <apex:pageBlockSectionItem />
+                                  
+                                  <apex:inputText value="{!searchValue}" onkeypress="return noenter(event);" label="Search Text"/>
+                                  <apex:pageBlockSectionItem />
+                                  
+                                <apex:inputField value="{!tmpActionSearchFilterObject.ePrize_Zemzu__CloseDateStart__c}" id="search__startdate" required="false" label="Start Date"/>
+                                <apex:inputField value="{!tmpActionSearchFilterObject.ePrize_Zemzu__CloseDateEnd__c}" id="search__enddate" required="false" label="End Date"/>
+                                
+                                
+                                <apex:pageBlockSectionItem >
+                                    <apex:commandButton action="{!search}" value="Search" rerender="searchPanel, tableWrapperPanel" status="tableLoadingStatus"/>
+                                      <apex:actionFunction name="doSearchAF" action="{!search}" rerender="searchPanel, tableWrapperPanel" status="tableLoadingStatus"/>
+                                </apex:pageBlockSectionItem>         
+                                  <apex:pageBlockSectionItem />
+                              </apex:pageBlockSection>                            
+                              
+                        <apex:outputPanel id="tableWrapperPanel">  
+                                <apex:pageMessages id="pageMessages" />                                                                                                 
+                                <apex:panelGrid columns="5" style="float:right">
+                                  <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value="|<" action="{!firstPage}" disabled="{!!hasPrevious}" title="First Page"/>
+                                  <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value="<" action="{!previousPage}" disabled="{!!hasPrevious}" title="Previous Page"/>
+                                  <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value=">" action="{!nextPage}" disabled="{!!hasNext}" title="Next Page"/>
+                                  <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value=">|" action="{!lastPage}" disabled="{!!hasNext}" title="Last Page"/>
+                                  <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!RecordsViewedDetail}"/>
+                                </apex:panelGrid>
+                                <div class="clear"></div>
+                          
+                          <apex:actionStatus id="tableLoadingStatus">
+                            <apex:facet name="start">
+                              <div style="display: block; height: 100px; width: 100%">
+                                <table border="0" width="100%" height="100%">
+                                  <tr>
+                                    <td valign="middle" align="center">
+                                      <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+                                    </td>
+                                  </tr>
+                                </table>
+                              </div>
+                            </apex:facet>
+                            <apex:facet name="stop">                                                                            
+                                    <apex:outputPanel id="viewEntriesTablePanel">                                                  
+                                        <apex:outputText value="There are no points to display." rendered="{!availableActions.size == 0 && !fullContest.isChanceToWin}"/>
+                                        <apex:outputText value="There are no plays to display." rendered="{!availableActions.size == 0 && fullContest.isChanceToWin}"/>
+                
+                                        <apex:pageBlockTable value="{!availableActions}" var="details" id="detailsTable" rendered="{!availableActions.size > 0}" rowClasses="odd,even" width="100%">
+                                          <apex:column rendered="{!IF((fullContest.winners.size == 0 && (fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin) && !fullContest.isChanceToWin), true, false)}">
+                                            <apex:facet name="header">
+                                              <apex:inputCheckbox styleClass="checkbox" onclick="checkAll(this)"/>
+                                            </apex:facet>
+                                            <apex:inputCheckbox styleClass="checkbox" value="{!details.selected}" id="checkedone"/>                                                                                
+                                          </apex:column>
+                                          
+                                          <apex:column >
+                                            <apex:facet name="header">
+                                                <apex:commandLink value="DATE/TIME" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="CreatedDate" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                    
+                                            </apex:facet>
+                                            <apex:outputText value=""><c:LocaleDateTime date_time_value="{!details.selectedAction.createddate}"></c:LocaleDateTime></apex:outputText>
+                                          </apex:column>
+                                          <apex:column rendered="{!fullContest.IsParentContest}">
+                                            <apex:facet name="header">                                    
+                                                <apex:commandLink value="CONTEST" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="Contest__c" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                                                        
+                                            </apex:facet>
+                                            <apex:outputlink value="/apex/Leaderboard">
+                                  {!details.selectedAction.Contest__r.ePrize_Zemzu__ContestName__c}
+                                  <apex:param name="contestId" value="{!details.selectedAction.Contest__r.Id}"/>
+                                  <apex:param name="sfdc.tabName" value="{!$CurrentPage.parameters.sfdc.tabName}"/>
+                                </apex:outputlink>                                    
+                                          </apex:column>
+                                          <apex:column >
+                                            <apex:facet name="header">                                    
+                                                <apex:commandLink value="PARTICIPANT" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="User__r.Name" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                                                        
+                                            </apex:facet>
+                                            
+                                            <apex:outputText value="{!details.selectedAction.User__r.FirstName + ' ' + details.selectedAction.User__r.LastName}"/>                                    
+                                          </apex:column>
+                                          
+                                          <apex:column >
+                                            <apex:facet name="header">
+                                                <apex:commandLink value="TYPE" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="Name" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                    
+                                            </apex:facet>
+                                                                              
+                                            <apex:outputText value="{!details.selectedAction.Name}" />
+                                          </apex:column>
+                                          
+                                              <apex:column >
+                                                <apex:facet name="header">
+                                                    <apex:commandLink value="BEHAVIOR" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                      <apex:param name="sortField" value="PipelineBehavior__r.Name" assignTo="{!sortField}"/>
+                                                    </apex:commandLink>                                    
+                                                </apex:facet>
+                                                                                  
+                                                <apex:outputText value="{!details.selectedAction.PipelineBehavior__r.Name}" />
+                                              </apex:column>
+                                                                                                                      
+                                          <apex:column >
+                                            <apex:facet name="header">
+                                                <apex:commandLink value="DESCRIPTION" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="RelatedObjectName__c" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                       
+                                            </apex:facet>
+        
+                                            <apex:outputPanel rendered="{!details.selectedAction.ePrize_Zemzu__RelatedObjectName__c != null && details.selectedAction.ePrize_Zemzu__RelatedObjectName__c != ''}">
+                                                <!-- Only show the link if it is not an adhoc action, or if it is an adhoc action and the opportunity__c has been specified. -->
+                                                <apex:commandLink target="_blank" rendered="{!!details.selectedAction.ePrize_Zemzu__ActionAdHoc__c || (details.selectedAction.ePrize_Zemzu__ActionAdHoc__c && details.selectedAction.ePrize_Zemzu__Opportunity__c != null)}" value="{!details.selectedAction.ePrize_Zemzu__RelatedObjectName__c}" action="{!viewDetailsRelatedRecord}">
+                                                  <apex:param name="contestId" value="{!contestId}"/>
+                                                  <apex:param name="actionId" value="{!details.selectedAction.id}"/>
+                                                </apex:commandLink>                                      
+                                                <apex:outputText rendered="{!details.selectedAction.ePrize_Zemzu__ActionAdHoc__c && details.selectedAction.ePrize_Zemzu__Opportunity__c == null}" value="{!details.selectedAction.ePrize_Zemzu__RelatedObjectName__c}" />                                  
+                                            </apex:outputPanel>
+                                            
+                                            <!-- 
+                                            -- This is here for backwards compatibility. On 3/21/12, we added the new column RelatedObjectName__c which is 255 byte field that can
+                                            -- be filtered and sorted. To make it backwards compatible with older versions of SCB, we have to properly handle when  
+                                            -- this field is empty 
+                                            -->
+                                            <apex:outputPanel rendered="{!details.selectedAction.ePrize_Zemzu__RelatedObjectName__c == null || details.selectedAction.ePrize_Zemzu__RelatedObjectName__c == ''}">
+                                                <!-- Only show the link if it is not an adhoc action, or if it is an adhoc action and the opportunity__c has been specified. -->
+                                                <apex:commandLink target="_blank" rendered="{!!details.selectedAction.ePrize_Zemzu__ActionAdHoc__c || (details.selectedAction.ePrize_Zemzu__ActionAdHoc__c && details.selectedAction.ePrize_Zemzu__Opportunity__c != null)}" value="{!details.selectedAction.ePrize_Zemzu__Name__c}" action="{!viewDetailsRelatedRecord}">
+                                                  <apex:param name="contestId" value="{!contestId}"/>
+                                                  <apex:param name="actionId" value="{!details.selectedAction.id}"/>
+                                                </apex:commandLink>                                      
+                                                <apex:outputText rendered="{!details.selectedAction.ePrize_Zemzu__ActionAdHoc__c && details.selectedAction.ePrize_Zemzu__Opportunity__c == null}" value="{!details.selectedAction.ePrize_Zemzu__Name__c}" />                                  
+                                            </apex:outputPanel>
+                                        
+                                          </apex:column>
+        
+                                          <apex:column style="text-align: right;" rendered="{!fullContest.isEntryRanked}">
+                                            <apex:facet name="header">                                    
+                                                <apex:commandLink value="POINTS" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="Quantity__c" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                                                        
+                                            </apex:facet>
+                                            <apex:outputText value="{!details.act.FormattedValue}"/>
+                                          </apex:column>
+
+                                          <apex:column style="text-align: right;" rendered="{!fullContest.isDollarRanked || fullContest.isPercentToGoal}">
+                                            <apex:facet name="header">                                    
+                                              <apex:commandLink value="VALUE" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                <apex:param name="sortField" value="Opportunity__r.{!fullContest.leaderboardRankByField}" assignTo="{!sortField}"/>
+                                              </apex:commandLink>                                                                        
+                                            </apex:facet>
+                                            <!-- 
+                                            <apex:outputText value="{0, number, $0.00}"><apex:param value="{!Round(details.Opportunity__r.Amount, 0)}" /></apex:outputText>
+                                            -->
+                                            <apex:outputText value="{0, number, $0.00}" rendered="{!!fullContest.IsDynamicPoints}">
+                                                 <apex:param value="{!Round(details.selectedAction.Opportunity__r[fullContest.leaderboardRankByField], 2)}" />
+                                            </apex:outputText>
+                                            
+                                            <apex:outputText value="{!details.act.FormattedValue}" rendered="{!fullContest.IsDynamicPoints}"/>                
+                                                                            
+                                          </apex:column>       
+
+                                          <apex:column style="text-align: right;" rendered="{!fullContest.isChanceToWin}">
+                                            <apex:facet name="header">                                    
+                                                <apex:commandLink value="PLAYS" action="{!doSort}" rerender="viewEntriesTablePanel" status="tableLoadingStatus">
+                                                  <apex:param name="sortField" value="Quantity__c" assignTo="{!sortField}"/>
+                                                </apex:commandLink>                                                                        
+                                            </apex:facet>
+                                            <apex:outputText value="{!Round(details.selectedAction.ePrize_Zemzu__Quantity__c, 0)}"/>
+                                          </apex:column>
+
+                                        </apex:pageBlockTable>
+                                            <div class="clear"></div>                                   
+                                      <apex:panelGrid columns="5" style="float:right">
+                                        <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value="|<" action="{!firstPage}" disabled="{!!hasPrevious}" title="First Page"/>
+                                        <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value="<" action="{!previousPage}" disabled="{!!hasPrevious}" title="Previous Page"/>
+                                        <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value=">" action="{!nextPage}" disabled="{!!hasNext}" title="Next Page"/>
+                                        <apex:commandButton status="tableLoadingStatus" reRender="tableWrapperPanel" value=">|" action="{!lastPage}" disabled="{!!hasNext}" title="Last Page"/>
+                                        <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!RecordsViewedDetail}"/>
+                                      </apex:panelGrid>
+                                      <div class="clear"></div>                                                                                                        
+                                    </apex:outputPanel>                       
+                            </apex:facet>
+                          </apex:actionStatus>
+                              </apex:outputPanel>                    
+                        </apex:pageBlockSection>
+                    </apex:pageBlock>
+                      
+                </apex:form>
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!IF(contestId == null, true, false)}">
+          <br /><br />Oops! The contest you are looking for doesn't appear to exist!  Please double check your link and try again!<br /><br />
+        </apex:outputPanel>
+      </div>
+    </apex:define>
+
+
+  </apex:composition>
+  
+</apex:page>

@@ -1,0 +1,106 @@
+<apex:page tabStyle="My_Settings__tab" controller="geopointe.s_Personal" sidebar="false" title="Geopointe - Personal Settings">
+
+<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- jQuery -->
+<apex:includeScript value="{!$Resource.geopointe__sorttable}" /> <!-- Sorttable -->
+
+<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics -->
+
+<!-- Custom CSS -->
+<apex:stylesheet value="{!$Resource.geopointe__mapCSS}"/> <!-- map css -->
+
+<apex:sectionHeader title="Geopointe" subtitle="My Personal Geopointe Settings"/>
+    
+<apex:pageMessages escape="false" id="pageMessages"/>
+<apex:outputPanel id="wrapperDIV" layout="block" style="margin: 10px;">
+<apex:form >
+	<apex:outputPanel layout="block" style="margin: 5px;">
+		<apex:commandLink value="« Go to Map" action="{!goToMapPage}"/>
+		&nbsp;&nbsp;
+		<apex:commandLink value="« Go to Visualize" action="{!goToVisualize}"/>
+	</apex:outputPanel>
+	<!-- User Settings -->
+    <apex:pageBlock title="My Settings">
+    	<apex:pageBlockButtons location="top">
+            <apex:commandButton action="{!goToEditUserSettings}" value="Edit"/>
+        </apex:pageBlockButtons>
+		<apex:pageBlockSection title="Preferences">
+			<apex:outputField value="{!userSettings.geopointe__Use_Geolocation__c}"/>
+			<apex:outputField value="{!userSettings.geopointe__Use_Scrollwheel_Zoom__c}"/>
+			<apex:outputField value="{!userSettings.geopointe__Hide_Sidebar__c}"/>
+			<apex:outputField value="{!userSettings.geopointe__Number_Map_Pins__c}"/>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection title="Starting Map Position" columns="1">
+			<apex:outputField value="{!userSettings.geopointe__Starting_Lat__c}"/>
+			<apex:outputField value="{!userSettings.geopointe__Starting_Lng__c}"/>
+			<apex:outputField value="{!userSettings.geopointe__Starting_Zoom__c}"/>
+		</apex:pageBlockSection>
+	</apex:pageBlock>
+	
+    <!-- Data Sets -->
+    <apex:pageBlock title="My Data Sets" id="DataSets">
+        <apex:pageBlockButtons location="top">
+            <apex:commandButton value="New Data Set" action="{!dataset_new}"/>
+        </apex:pageBlockButtons>
+        <apex:outputPanel layout="block" style="margin: 3px 30% 3px 30px; padding: 3px;">
+            <apex:panelGrid columns="2">
+                <apex:image url="{!URLFOR($Resource.geopointe__images, '/info.png')}"/>
+                <apex:outputText value="A Data Set is what maps and queries in the application are working with.  It is related to a 
+                                        Map Object and defines the fields and filters to be used for the resulting map. Multiple Data Sets can
+                                        exist for the same Map Object." />
+            </apex:panelGrid>
+        </apex:outputPanel>
+        <apex:pageblockTable value="{!DataSets}" var="ds" rowClasses="odd,even" styleClass="sortable">
+            <apex:column headerValue="Action" style="font-weight:bold" headerClass="sorttable_nosort">
+                <apex:outputPanel >
+                    <apex:commandLink value="Edit" action="{!DataSet_edit}">
+                        <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="ds"/>
+                    </apex:commandLink>
+                    <apex:outputText >&nbsp;|&nbsp;</apex:outputText> 
+                    <apex:commandLink value="Activate"  rendered="{!NOT(ds.geopointe__Status__c =='Active')}" reRender="DataSets" action="{!DataSet_statusUpdate}">
+                        <apex:param value="Active" assignTo="{!setTo}" name="dsd_inactive"/>
+                        <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="dsd"/>
+                    </apex:commandLink> 
+                    <apex:commandLink value="Deactivate" rendered="{!ds.geopointe__Status__c =='Active'}" action="{!DataSet_statusUpdate}" onclick="return confirm('Are you sure you wish to deactivate this record? Deactivating a Data Set will disallow it from being used in your maps, but will keep the record in your system in case you wish to activate it later.')">
+                        <apex:param value="Inactive" assignTo="{!setTo}" name="ds_inactive"/>
+                        <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="dsd"/> 
+                    </apex:commandLink>
+                    <apex:outputText >&nbsp;|&nbsp;</apex:outputText> 
+                    <apex:commandLink value="Delete" action="{!DataSet_delete}" onclick="return confirm('Are you sure you wish to delete this record? Deleting a Data Set will disallow it from being used in your maps. If you think you might wish to map this Data Set again, it is recommended to leave it as Inactive rather than deleting it.')" >
+                        <apex:param value="{!ds.name}" assignTo="{!SelectedEntity}" name="dsd"/>
+                    </apex:commandLink>                
+                    
+                </apex:outputPanel>
+            </apex:column>
+            <apex:column value="{!ds.geopointe__Data_Set_Name__c}"/>
+            <apex:column headerValue="Map Object">{!SUBSTITUTE(ds.geopointe__Map_Object__c, 'geopointe__',' ')}</apex:column>
+            <apex:column headerValue="Active">
+            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_checked.gif')}" rendered="{! ds.Status__c = 'Active' }" />
+            	<apex:image url="{!URLFOR($Resource.geopointe__images, '/checkbox_unchecked.gif')}" rendered="{! ds.Status__c != 'Active' }" />
+            </apex:column>
+            <apex:column value="{!ds.geopointe__Color_Markers_By__c}"/>
+            <apex:column value="{!ds.geopointe__Available_Maps__c}"/>
+            <apex:column value="{!ds.geopointe__Available_Visualize__c}"/>
+            <apex:column headerValue="1-Column Address" value="{!ds.geopointe__Formatted_Address_for_Data_Table__c}"/>
+            <apex:column headerValue="Show Filter">
+                <apex:outputPanel rendered="{!ds.geopointe__Show_Filter__c == 'my'}">My Records</apex:outputPanel>
+                <apex:outputPanel rendered="{!ds.geopointe__Show_Filter__c == 'all'}">All Records</apex:outputPanel>
+                <apex:outputPanel rendered="{!ds.geopointe__Show_Filter__c == 'acctteams'}">On Account Team</apex:outputPanel>
+            </apex:column>
+            <apex:column headerValue="Unique Id" value="{!ds.Name}" rendered="{!NOT(ISNULL($CurrentPage.parameters.debug))}"/>
+            <apex:column headerValue="Color"><div style="background-color: #{!JSENCODE(ds.Color__c)}; width: 15px; height: 15px;"> </div></apex:column>
+        </apex:pageblockTable>
+    </apex:pageBlock>
+
+</apex:form>
+</apex:outputPanel>
+
+<script type="text/javascript">
+        
+	jQuery.noConflict();
+	jQuery(document).ready(function(){
+		sorttable.init();
+	});
+
+</script>
+
+</apex:page>

@@ -1,0 +1,87 @@
+<apex:page controller="zqu.LookupBrowseController" sidebar="false"
+  showheader="false">
+  <script language="javascript">
+   window.onload = new function() 
+   { 
+      // bring popup window to front
+      window.focus(); 
+      var ele=document.getElementById('{!$Component.form.block.section.query}');
+      if (ele)
+      {
+         ele.focus();
+      }
+   }
+   
+   function fillIn(name, id)
+   {
+     var winMain = window.opener; 
+     if ( winMain == null ) winMain = window.parent.opener; 
+     
+     var nameElement = winMain.document.getElementById("{!JSENCODE($CurrentPage.parameters.namefield)}");
+     var nameDisplayElement = winMain.document.getElementById( "{!JSENCODE($CurrentPage.parameters.namefield)}Display" );
+     var idElement = winMain.document.getElementById( "{!JSENCODE($CurrentPage.parameters.idfield)}" );
+     
+     nameElement.value = name; 
+     nameDisplayElement.value = name; 
+     idElement.value = id;   
+     
+     if( winMain.onChange{!JSENCODE($CurrentPage.parameters.fieldId)} ) {
+       winMain.onChange{!JSENCODE($CurrentPage.parameters.fieldId)}();
+     }
+     
+     if( winMain.change{!JSENCODE($CurrentPage.parameters.fieldId)} ) {
+       winMain.change{!JSENCODE($CurrentPage.parameters.fieldId)}();
+     }
+     
+     CloseWindow();
+   }
+   
+   function CloseWindow()
+   {
+     window.close();
+   }
+</script>
+
+  <apex:messages />
+  <apex:form id="form">
+
+    <div style="width: 100%">
+      <apex:pageBlock title="{!injectedController.lookupPageTitle}" id="block">
+        <apex:outputText value="{!$Label.LOOKUP_BROWSE_SEARCH_LABEL}" />
+        <apex:inputText title="{!$Label.LOOKUP_BROWSE_SEARCH}" value="{!injectedController.searchString}" id="query" />
+        <apex:commandButton value="{!$Label.LOOKUP_BROWSE_BUTTON_GO}" action="{!injectedController.executeQuery}" />
+        <apex:commandButton value="{!$Label.LOOKUP_BROWSE_BUTTON_CLEAR}" action="{!injectedController.clearState}" />
+      </apex:pageBlock>
+
+      <apex:outputPanel id="results">
+        <apex:pageBlock title="{!$Label.LOOKUP_BROWSE_SEARCH_RESULT}">
+        <apex:panelGrid columns="2">
+          <apex:commandLink action="{!injectedController.lookupSetController.previous}"
+            rendered="{!injectedController.lookupSetController.hasPrevious}">{!$Label.LOOKUP_BROWSE_PAGING_PREVIOUS}</apex:commandlink>
+            <apex:commandLink action="{!injectedController.lookupSetController.next}"
+              rendered="{!injectedController.lookupSetController.hasNext}">{!$Label.LOOKUP_BROWSE_PAGING_NEXT}</apex:commandlink>
+        </apex:panelGrid>
+          <apex:pageBlockSection columns="1">
+            <apex:pageBlockTable value="{!injectedController.lookupRecords}" var="rec">
+              <apex:repeat value="{!injectedController.displayFields}" var="field">
+                <apex:column headerValue="{!injectedController.fieldLabelMap[field]}">
+                  <apex:outputLink rendered="{!(field == injectedController.lookupNameField)}" value="#"
+                    onclick="fillIn('{!JSENCODE(rec[injectedController.lookupNameField])}', '{!JSENCODE(rec[injectedController.lookupIdField])}')">{!rec[injectedController.lookupNameField]}</apex:outputLink>
+                  <apex:outputField rendered="{!NOT(field == injectedController.lookupNameField)}" 
+                    value="{!rec[field]}" />
+                </apex:column>
+              </apex:repeat>
+            </apex:pageBlockTable>
+          </apex:pageBlockSection>
+
+          <apex:panelGrid columns="2">
+            <apex:commandLink action="{!injectedController.lookupSetController.previous}"
+              rendered="{!injectedController.lookupSetController.hasPrevious}">{!$Label.LOOKUP_BROWSE_PAGING_PREVIOUS}</apex:commandlink>
+              <apex:commandLink action="{!injectedController.lookupSetController.next}"
+                rendered="{!injectedController.lookupSetController.hasNext}">{!$Label.LOOKUP_BROWSE_PAGING_NEXT}</apex:commandlink>
+          </apex:panelGrid>
+        </apex:pageBlock>
+      </apex:outputPanel>
+    </div>
+  </apex:form>
+</apex:page>

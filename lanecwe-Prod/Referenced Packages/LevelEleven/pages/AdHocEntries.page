@@ -1,0 +1,85 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.AdHocEntriesController"
+           tabStyle="Contests__tab">
+	
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+
+    <apex:define name="head">
+      
+    </apex:define>
+
+    <apex:define name="contentHeader">
+      <h1 class="lb-title">Ad Hoc Points</h1>
+      <h2 class="lb-subtitle">{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}</h2>
+    </apex:define>
+
+    <apex:define name="contentMain">
+    	<div class="zemzu">
+	      <apex:form >
+	        <apex:outputPanel rendered="{!IF(fullContest.contestEntity.Id != null && !fullContest.IsEnded, true, false)}">
+	          <apex:pageBlock title="{!adHocTitle}" mode="edit">
+	            <apex:pageMessages />
+	            <apex:pageBlockButtons >
+	              <apex:commandButton action="{!saveAdHocEntries}"
+	                value="{!adHocButtonText}"
+	                onclick="return confirmAdd('{!adHocEntryType}')" />
+	            </apex:pageBlockButtons>
+
+	            <apex:pageBlockSection rendered="{!fullContest.IsEntryRanked}" columns="1">
+	              Ad Hoc Points allows you to add points to an eligible participant's leaderboard. Points are not tied to any specific record in Salesforce, they are just added to the participant's total point value. Make sure you are selecting a user that is a participant in your contest. The lookup icon below will access all users in your Salesforce org, not just contest participants.
+	            </apex:pageBlockSection>
+	            <apex:pageBlockSection rendered="{!fullContest.IsEntryRanked}" columns="1">
+	              <b>LEGAL NOTE:</b> Points will be added to a participant's leaderboard independent of if a qualifying activity was tracked within the contest. Please make sure that you are awarding points fairly across your eligible participants as failing to do so could be considered an illegal contest.
+	            </apex:pageBlockSection>
+	            <apex:pageBlockSection rendered="{!(fullContest.IsPercentToGoal || fullContest.IsDollarRanked) && !fullContest.IsDynamicPoints}" columns="1">
+	              Ad Hoc Entries allows you to add any Opportunity to an eligible participant's leaderboard. This would be used if for some reason you want to add an Opportunity to be included into the contest, even if it doesn't match the specific criteria you established in your contest details.
+	            </apex:pageBlockSection>
+	            <apex:pageBlockSection rendered="{!(fullContest.IsPercentToGoal || fullContest.IsDollarRanked)  && !fullContest.IsDynamicPoints}" columns="1">
+	              <b>LEGAL NOTE:</b> Opportunities will get included regardless of if they match your contest criteria. Please make sure that you are adding entries fairly across your eligible participants as failing to do so could be considered an illegal contest.       
+	            </apex:pageBlockSection>
+	            
+	            <apex:pageBlockSection title="{!adHocTitle}" columns="1">
+	                <apex:inputField id="adHocActionUser" required="true"
+	                  value="{!adHocAction.ePrize_Zemzu__User__c}" />
+	                <apex:inputField id="adHocActionQuantity" required="true"
+	                  rendered="{!fullContest.IsEntryRanked && !fullContest.IsDynamicPoints}"
+	                  value="{!adHocAction.ePrize_Zemzu__Quantity__c}" />
+	                <apex:inputField id="adHocActionOpportunity" required="true"
+	                  rendered="{!(fullContest.IsPercentToGoal || fullContest.IsDollarRanked) && !fullContest.IsDynamicPoints}"
+	                  value="{!adHocAction.ePrize_Zemzu__Opportunity__c}" />
+	                  <apex:inputCheckbox id="adHocActionCustomCheckbox" required="true" disabled="true" selected="true"
+	                  rendered="{!fullContest.IsDynamicPoints}"
+	                  value="{!adHocAction.ePrize_Zemzu__ActionCustom__c}" />
+	                  <apex:inputField id="adHocActionCustom" required="true"
+	                  rendered="{!fullContest.IsDynamicPoints}"
+	                  value="{!adHocAction.ePrize_Zemzu__ActionCustomId__c}" />
+	                <apex:inputField id="adHocActionName" required="true"
+	                  value="{!adHocAction.ePrize_Zemzu__Name__c}" />
+	            </apex:pageBlockSection>
+	          </apex:pageBlock>
+	        </apex:outputPanel>
+	        <apex:outputPanel rendered="{!IF(fullContest.contestEntity.Id == null, true, false)}">
+	          <br />
+	          <br />Oops! The contest you are looking for doesn't appear to exist!  Please double check your link and try again!<br />
+	          <br />
+	        </apex:outputPanel>
+	        <apex:outputPanel rendered="{!IF(fullContest.contestEntity.Id != null && fullContest.IsEnded, true, false)}">
+	          <apex:outputPanel rendered="{!fullContest.IsEntryRanked}">
+	            <br />
+	            <br />Oops! The contest you are trying to assign Ad Hoc Points for has ended already!<br />
+	            <br />
+	          </apex:outputPanel>
+	          <apex:outputPanel rendered="{!(fullContest.IsPercentToGoal || fullContest.IsDollarRanked)}">
+	            <br />
+	            <br />Oops! The contest you are trying to assign Ad Hoc Entries for has ended already!<br />
+	            <br />
+	          </apex:outputPanel>
+	        </apex:outputPanel>
+	      </apex:form>
+	    </div>
+    </apex:define>
+
+  </apex:composition>
+
+
+</apex:page>

@@ -1,0 +1,450 @@
+<apex:page sidebar="false"
+           controller="ePrize_Zemzu.LeaderboardController"
+           tabStyle="Contests__tab"
+           readonly="true"
+           action="{!checkContestId}">
+
+
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+    <apex:define name="head" >
+
+      <apex:includeScript value="{!URLFOR($Resource.ePrize_Zemzu__compete, 'javascripts/highcharts.js')}"/>
+      <script type="text/javascript">
+
+        (function($) {
+
+          var initialParticipantId = '{!JSENCODE(displayedUserLeaderInfo.idOfRecordDisplayed)}';
+
+          window.Compete.isPercentToGoal = {!fullContest.isPercentToGoal};
+
+          window.Compete.chartData = {
+            pieChartPlotData: {!pieChartPlotData},
+            barChartCategories: {!barChartCategories},
+            barChartPlotData: {!barChartPlotData}
+          }
+
+          var xhr;
+          var count = 1;
+
+          var controller = (window.ePrize_Zemzu)
+            ? window.ePrize_Zemzu.LeaderboardController
+            : window.LeaderboardController;
+
+          function getParticipantDetails(id, type, cb) {
+            controller.getLeaderRemote(
+              '{!JSENCODE(fullContest.contestEntity.Id)}', id,
+              function(results, event) {
+                cb(null, results);
+              }
+            );
+          }
+
+          function renderRightPane(id, ptype) {
+            getParticipantDetails(id, ptype, function(err, data){
+              $('#content-right').html(window.Compete.template['lb-user-detail'](data));
+              formatPlaced();
+            });
+          }
+
+          function formatPlaced() {
+            if($.fn.jplaced) {
+              $('.place').jplaced({
+                outputType : 'digits',
+                outputClass : 'superscript'
+              });
+            }
+          }
+
+          function renderBarChart() {
+            var chart1 = new Highcharts.Chart({
+              chart: {
+                 renderTo: 'chartwrapper',
+                 defaultSeriesType: 'column',
+                 plotBackgroundColor: {
+                    linearGradient: [0, 0, 500, 500],
+                    stops: [
+                        [0, 'rgb(255, 255, 255)'],
+                        [1, 'rgb(220, 220, 220)']
+                    ]
+                 },
+                 spacingTop: 3,
+                 spacingRight: 3,
+                 spacingBottom: 3,
+                 spacingLeft: 3,
+                 zoomType: 'xy'
+              },
+              title: {
+                 text: 'Percent of Goal Reached'
+              },
+              credits: {
+                enabled: false
+              },
+              xAxis: {
+                 categories: {!barChartCategories},
+                 title: {
+                    text: 'Participant'
+                 },
+                 labels: {
+                    //rotation: 315,
+                    style: {
+                        fontSize: '.8em'
+                    }
+                 }
+              },
+              yAxis: {
+                 min: 0,
+                 title: {
+                    text: '%'
+                 },
+                 plotBands : [{
+                    from : 99.0,
+                    to : 101.0,
+                    //color : 'rgba(68, 170, 213, 0.2)',
+                    color : '#00CC33',
+                    label : {
+                        text : ''
+                    }
+                 }]
+              },
+              tooltip: {
+                 formatter: function() {
+                    return ''+
+                       this.x +': '+ this.y +'%';
+                 }
+              },
+              plotOptions: {
+                 column: {
+                    stacking: 'normal'
+                 },
+                 showInLegend: true
+              },
+              legend: {
+                enabled: true,
+                align: 'center'
+              },
+              series: [{
+                 name: '% of Goal Reached',
+                 data: {!barChartPlotData}
+              }]
+            });
+          }
+
+          function renderPieChart() {
+            var chart1 = new Highcharts.Chart({
+              chart: {
+                 renderTo: 'chartwrapper',
+                 plotBackgroundColor: {
+                    linearGradient: [0, 0, 500, 500],
+                    stops: [
+                        [0, 'rgb(255, 255, 255)'],
+                        [1, 'rgb(220, 220, 220)']
+                    ]
+                 },
+                 spacingTop: 0,
+                 spacingRight: 3,
+                 spacingBottom: 0,
+                 spacingLeft: 3,
+                 zoomType: 'xy'
+              },
+              title: {
+                 text: 'Value Earned Comparison'
+              },
+              credits: {
+                enabled: false
+              },
+              //legend: {
+              //  layout: 'vertical'
+              //},
+              legend: {
+                enabled: true,
+                align: 'center'
+              },
+              tooltip: {
+                 formatter: function() {
+                    //return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %';
+                    return '<b>'+ this.point.name +'</b> <br/>' +
+                           'Value: '+ this.y;
+                 }
+              },
+              plotOptions: {
+                 pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                       enabled: false
+                       /*
+                       enabled: true,
+                       color: '#000000',
+                       connectorColor: '#000000',
+                       formatter: function() {
+                          //return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %';
+                          return '<span style="font-size: .8em;">' + this.point.name + '</span>';
+                       }
+                       */
+                    },
+                    showInLegend: true
+                 }
+              },
+              series: [{
+                 type: 'pie',
+                 name: '',
+                 data: {!pieChartPlotData}
+              }]
+            });
+
+          }
+
+          window.Compete.renderChart = function() {
+            if({!fullContest.isPercentToGoal}) {
+              renderBarChart();
+            } else {
+              renderPieChart();
+            }
+          }
+
+          $(document).ready(function() {
+
+            var hoverConfig = {
+              interval: 200,
+              over: function() {
+                var pid = $(this).find('input[id*="participantId"]').val();
+                var tid = $(this).find('input[id*="teamId"]').val();
+                var ptype = (pid) ? 'participant' : 'team';
+                var id = pid || tid;
+
+                $('#content-right').html('<div class="loader"><img src="{!URLFOR($Resource.ePrize_Zemzu__compete, 'images/arrow_loader_64.gif')}" /></div>');
+
+
+                renderRightPane(id, ptype);
+
+              } ,
+              out: function() {}
+            };
+
+            //$('#content-right').html(window.Compete.template['lb-user-detail'](initialParticipant));
+
+            formatPlaced();
+
+            $('#leaderboard-table-wrapper tbody tr').hoverIntent(hoverConfig);
+
+            $('#leaderboard-table-wrapper table').dataTable({
+              bPaginate: true,
+              bLengthChange: false,
+              bFilter: true,
+              bSort: false,
+              bSortClasses: false,
+              bAutoWidth: false,
+              bInfo: true,
+              sPaginationType: 'full_numbers',
+              bProcessing: true
+            });
+
+            // Initialize the right pane
+            renderRightPane(initialParticipantId, 'participant');
+
+            if({!isChatterEnabled}){
+              var competeTab = '{!CompeteTabURL}';
+              $('.userName').each(function(i, elm){
+                var href = $(this).find("a").attr('href');
+                href+=competeTab;
+                $(this).find("a").attr('href', href);
+              });
+            }
+
+          });
+
+        }(jQuery));
+
+      </script>
+    </apex:define>
+
+    <apex:define name="contentHeader">
+      <apex:outputPanel layout="none" rendered="{!isChatterEnabled && !fullContest.isTeamBased}">
+        <div id="header-chatter-pic">
+          <apex:image styleClass="current-user-photo" value="{!currentUserLeaderInfo.smallPhotoUrl}" />
+        </div>
+      </apex:outputPanel>
+      <div id="header-stats">
+        <table class="table">
+          <tr>
+            <td>&nbsp;</td>
+            <td>
+              <span class="header-stats-label">Your Ranking</span>
+            </td>
+            <td>
+              <span class="header-stats-label">{!currentUserLeaderInfo.rankingMethodDisplayText}</span>
+            </td>
+            <td>
+              <span class="header-stats-label">{!contestTimeRemainingDisplayText}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="header-stats-value">Hello, <br />{!currentUserLeaderInfo.displayName}</span>
+            </td>
+            <td>
+              <apex:outputPanel layout="none" rendered="{!fullContest.isCurrentUserParticipant}">
+                <span class="header-stats-value">
+                  <span class="big">{!currentUserLeaderInfo.displayRank}</span> out of
+                  <span class="big">{!currentUserLeaderInfo.displayRankOutOf}</span>
+                </span>
+              </apex:outputPanel>
+              <apex:outputPanel layout="none" rendered="{!!fullContest.isCurrentUserParticipant}">
+                <span class="header-stats-info">You are not a participant</span>
+              </apex:outputPanel>
+            </td>
+            <td>
+              <apex:outputPanel layout="none" rendered="{!fullContest.isCurrentUserParticipant}">
+                <span class="header-stats-value">
+                  <span class="big">{!currentUserLeaderInfo.rankedByValueFormatted}</span>
+                </span>
+              </apex:outputPanel>
+            </td>
+            <td>
+              <span class="header-stats-value">
+                <apex:outputPanel layout="none" rendered="{!contestIsLive}">
+                  <span class="big">{!contestTimeRemainingDisplayValue}</span>
+                </apex:outputPanel>
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </apex:define>
+
+    <apex:define name="contentMain" >
+       <!-- start content-left -->
+      <div id="content-left" class="sfdc-reset">
+        <div class="inner">
+          <apex:form >
+            <div id="leaderboard-table-wrapper" class="dataTables_wrapper">
+
+              <table id="leaderboardTable" class="table">
+
+                <thead>
+                  <tr>
+                    <th class="lb-left-column"></th>
+                    <th class="lb-position">Pos</th>
+                    <th class="lb-avatar"></th>
+                    <th class="lb-participant">{!participantHeader}</th>
+                    <apex:outputPanel layout="none" rendered="{!showGoalColumn}">
+                      <th class="lb-goal">Goal</th>
+                    </apex:outputPanel>
+                    <th class="lb-value">{!valueHeader}</th>
+                    <th class="lb-right-column"></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <apex:variable var="count" value="{!1}" />
+
+                  <apex:repeat value="{!leaders}" var="leader">
+                    <tr>
+                      <td class="lb-left-column" width="10">
+                        <div class="inner"></div>
+                      </td>
+                      <td class="lb-position" width="10">
+                        <div class="inner">
+                          <span class="place">{!count}</span>
+                        </div>
+                      </td>
+                      <td class="lb-avatar" width="36">
+                        <div class="inner">
+                          <apex:image styleClass="profile-pic" height="36" width="36" value="{!leader.smallPhotoURL}" rendered="{!isChatterEnabled && !fullContest.isTeamBased}"/>
+                           <apex:image styleClass="profile-pic" height="36" width="36" value="{!leader.TeamPhoto}" rendered="{!fullContest.isTeamBased}"/>
+                        </div>
+                      </td>
+                      <td class="lb-participant">
+                        <div class="inner">
+                          <apex:outputPanel layout="none" rendered="{!fullContest.isTeamBased}">
+                            <span>{!leader.team.name}</span>
+                            <apex:inputHidden id="teamId" value="{!leader.team.Id}" />
+                          </apex:outputPanel>
+                          <apex:outputPanel layout="none" rendered="{!!fullContest.isTeamBased}" >
+                            <span class="userName">
+                              <apex:outputField value="{!leader.contestUser.ePrize_Zemzu__User__c}" />
+                              <apex:inputHidden id="participantId" value="{!leader.contestUser.ePrize_Zemzu__User__c}" />
+                            </span>
+                          </apex:outputPanel>
+                        </div>
+                      </td>
+                      <apex:outputPanel layout="none" rendered="{!showGoalColumn}">
+                        <td class="lb-goal">
+                          <div class="inner">
+                            <span>{!leader.goalFormatted}</span>
+                          </div>
+                        </td>
+                      </apex:outputPanel>
+                      <td class="lb-value" width="100">
+                        <div class="inner">
+                          <apex:outputPanel layout="none" rendered="{!fullContest.isDollarRanked}">
+                            <span>
+                              <apex:outputText value="{!leader.rankByValueFormatted}"/>
+                            </span>
+                          </apex:outputPanel>
+                          <apex:outputPanel layout="none" rendered="{!fullContest.isPercentToGoal}">
+                            <span>
+                              <apex:outputText value="{0,number,###%}">
+                                <apex:param value="{!leader.value}" />
+                              </apex:outputText>
+                            </span>
+                          </apex:outputPanel>
+                          <apex:outputPanel layout="none" rendered="{!fullContest.isEntryRanked}">
+                            <span>
+                              <apex:outputText value="{!leader.entriesFormatted}"/>
+                            </span>
+                          </apex:outputPanel>
+                        </div>
+                      </td>
+                      <td class="lb-right-column" width="34">
+                        <div class="inner"></div>
+                      </td>
+                    </tr>
+                    <apex:variable var="count" value="{!count + 1}" />
+                  </apex:repeat>
+
+                </tbody>
+
+              </table>
+
+            </div>
+          </apex:form>
+        </div>
+
+      </div>
+    </apex:define>
+
+    <apex:define name="contentRight">
+      <div id="content-right" class="sfdc-reset">
+        <div class="loader"><img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" /></div>
+      </div>
+    </apex:define>
+
+    <apex:define name="bottom">
+
+      <script type="text/javascript">
+        (function() {
+          if(window.Keen) {
+            var data = {
+              contestId: '{!JSENCODE(fullContest.contestEntity.Id)}',
+              contestName: '{!JSENCODE(fullContest.contestEntity.ePrize_Zemzu__ContestName__c)}',
+              rankingStyle: '{!JSENCODE(fullContest.contestEntity.ePrize_Zemzu__RankingStyle__c)}',
+              startDate: '{!JSENCODE(TEXT(fullContest.contestEntity.ePrize_Zemzu__StartDate__c))}',
+              endDate: '{!JSENCODE(TEXT(fullContest.contestEntity.ePrize_Zemzu__EndDate__c))}',
+              interface: 'Leaderboard'
+            }
+
+            try {
+              if(data.startDate) data.startDate = new Date(data.startDate);
+              if(data.endDate) data.endDate = new Date(data.endDate);
+            } catch (e) {}
+
+            Keen.addEvent('view-leaderboard', data );
+          }
+        }());
+      </script>
+    </apex:define>
+
+  </apex:composition>
+
+</apex:page>

@@ -1,0 +1,288 @@
+<apex:page controller="TIMBASURVEYS.timbaSurveysTemplateController" sidebar="false">
+    <!-- Timba Surveys Template  -->
+    <!-- Application Styles -->
+    <!-- Common Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/common.css')}" />
+    <!-- Section Specific styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/list.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/surveyDialogs.css')}" />
+    <!-- Dojo Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Toaster/Toaster.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Standby/Standby.css')}" />
+    <style type="text/css">
+        #configurationDialog{
+            height:160px;
+            width:460px;
+        }
+
+        #configurationDialog .dijitDialogTitleBar .dijitDialogCloseIcon{
+            display: none;
+        }
+    </style>
+
+    <!-- Dojo Framework v1.7.2 -->
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad:true, isDebug:false"></script> 
+	<script type="text/javascript">
+		// Load libraries for Dojo 1.7.2
+		dojo.require("dojox.widget.Standby");
+		dojo.require("dijit.Dialog");
+		
+        var globalConfigurations_backupOptions = {};
+        var parse = function() {
+            dojo.query('body').addClass('timbaSurveys');
+        }
+
+        dojo.addOnLoad(parse);
+        function isUrl(s) {
+            var regexp = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/
+            return regexp.test(s);
+        }
+
+        function setSitesUrl(isConf, sitesUrl){
+            var logOn = document.getElementById('logEnabled').checked;
+            if(!isConf){
+                var urlAll = document.URL ;
+                var end = urlAll.indexOf('/apex/');
+                var url = urlAll.substring(0,end);
+
+                var sitesUrl = url + '/apex'; //dojo.byId('sitesUrl').value;
+                //console.info(sitesUrl);
+            } else {
+                var sitesUrl = dojo.byId('sitesURLOverlay').value;
+            }
+            if(sitesUrl.length > 0 && isUrl(sitesUrl)){
+                sitesUrl = dojo.trim(sitesUrl);
+                // check the final bar
+                if(sitesUrl.substring(sitesUrl.length - 1, sitesUrl.length) == '/'){
+                    sitesUrl = sitesUrl.substring(0, sitesUrl.length - 1);
+                }
+                configurationDialog.hide();
+                try {
+                    listOverlay.show();
+                } catch (exception) {
+                }
+                setupSitesOperation(sitesUrl, isConf, logOn);
+            }else {
+                alert('{!$Label.timbasurveys_template_the_site_url}.');
+                if(!isConf){
+                    return false;
+                }
+            }
+        }
+
+        function setupSitesCompleted(success){
+            if(success == 'true'){
+                window.location.reload();
+            }else{
+                alert('{!$Label.timbasurvey_surveylist_Error_foun_try_again}');
+                try {
+                    listOverlay.hide();
+                }catch (exception){
+                }
+            }
+        }
+
+        String.prototype.trim = function() {
+            return this.replace(/^\s+|\s+$/g,"");
+        }
+
+        function globalConfiguration_openDialog(){
+            dijit.byId('configurationDialog').show();
+            globalConfigurations_backupOptions['hasSites'] = dojo.byId('hasSites').checked;
+            globalConfigurations_backupOptions['sitesURLOverlay'] = dojo.byId('sitesURLOverlay').value;
+        }
+
+        function globalConfiguration_cancelDialog(){
+            if(globalConfigurations_backupOptions['hasSites'] == false || globalConfigurations_backupOptions['hasSites'] == 'false' ){
+                dojo.removeClass(dojo.byId('siteUrlWrapper'),'displayBlock');
+            }
+            if(globalConfigurations_backupOptions['hasSites'] == true || globalConfigurations_backupOptions['hasSites'] == 'true' ){
+                dojo.addClass(dojo.byId('siteUrlWrapper'),'displayBlock');
+            }
+            dojo.byId('hasSites').checked = globalConfigurations_backupOptions['hasSites'];
+            dojo.byId('sitesURLOverlay').value = globalConfigurations_backupOptions['sitesURLOverlay'];
+            configurationDialog.hide();
+        }
+
+        function showHelp(){
+            var currentPage = window.location['href'];
+            currentPage = currentPage.toLowerCase();
+            var windowW = 1000;
+            var windowH = 640;
+            switch(true){
+                case (currentPage.indexOf('/surveylist') > -1):
+                    window.open('http://survey.timbasoftware.com/survey-list','','scrollbars=yes,menubar=no,height=' + windowH + ',width=' + windowW + ',resizable=yes,toolbar=no,location=no,status=no');
+                    break;
+                case (currentPage.indexOf('/surveycollect') > -1):
+                    window.open('http://survey.timbasoftware.com/modules/survey-collect','','scrollbars=yes,menubar=no,height=' + windowH + ',width=' + windowW + ',resizable=yes,toolbar=no,location=no,status=no');
+                    break;
+
+            case ( currentPage.indexOf('/surveypreview') > -1 || currentPage.indexOf('/designsurvey') > -1 ):
+                window.open('http://survey.timbasoftware.com/modules/drag-drop-designer','','scrollbars=yes,menubar=no,height=' + windowH + ',width=' + windowW + ',resizable=yes,toolbar=no,location=no,status=no');
+                break;
+
+            case ( currentPage.indexOf('/surveyanalyze') > -1 || currentPage.indexOf('/surveybrowser') > -1 || currentPage.indexOf('/surveysummary') > -1 ):
+                window.open('http://survey.timbasoftware.com/modules/survey-analyzer','','scrollbars=yes,menubar=no,height=' + windowH + ',width=' + windowW + ',resizable=yes,toolbar=no,location=no,status=no');
+                break;
+
+            default:
+                window.open('http://survey.timbasoftware.com/','','scrollbars=yes,menubar=no,height='+windowH+',width=' + windowW + ',resizable=yes,toolbar=no,location=no,status=no');
+                break;
+        }
+
+    }
+
+        function replaceAllCustom(str, replaceS, withS) {
+            var str2 = str + '';
+            var intIndexOfMatch = str2.indexOf(replaceS);
+
+            // Loop over the string value replacing out each matching
+            // substring.
+            while (intIndexOfMatch != -1){
+            // Relace out the current instance.
+                str2 = str2.replace(replaceS, withS);
+
+                // Get the index of any next matching substring.
+                intIndexOfMatch = str2.indexOf(replaceS);
+            }
+            return str2;
+        }
+
+        /**
+        *
+        *  URL encode / decode
+        *  http://www.webtoolkit.info/
+        *
+        **/
+
+        var UrlUtil = {
+
+            // public method for url encoding
+            encode : function (string) {
+                return escape(this._utf8_encode(string));
+            },
+
+            // public method for url decoding
+            decode : function (string) {
+                return this._utf8_decode(unescape(replaceAllCustom(string, '+', ' ')));
+            },
+
+            // private method for UTF-8 encoding
+            _utf8_encode : function (string) {
+                string = string.replace(/\r\n/g,"\n");
+                var utftext = "";
+
+                for (var n = 0; n < string.length; n++) {
+
+                    var c = string.charCodeAt(n);
+
+                    if (c < 128) {
+                        utftext += String.fromCharCode(c);
+                    }
+                    else if((c > 127) && (c < 2048)) {
+                        utftext += String.fromCharCode((c >> 6) | 192);
+                        utftext += String.fromCharCode((c & 63) | 128);
+                    }
+                    else {
+                        utftext += String.fromCharCode((c >> 12) | 224);
+                        utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+                        utftext += String.fromCharCode((c & 63) | 128);
+                    }
+
+                }
+                return utftext;
+            },
+
+            // private method for UTF-8 decoding
+            _utf8_decode : function (utftext) {
+                var string = "";
+                var i = 0;
+                var c = c1 = c2 = 0;
+
+                while ( i < utftext.length ) {
+
+                    c = utftext.charCodeAt(i);
+
+                    if (c < 128) {
+                        string += String.fromCharCode(c);
+                        i++;
+                    }
+                    else if((c > 191) && (c < 224)) {
+                        c2 = utftext.charCodeAt(i+1);
+                        string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
+                        i += 2;
+                    }
+                    else {
+                        c2 = utftext.charCodeAt(i+1);
+                        c3 = utftext.charCodeAt(i+2);
+                        string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+                        i += 3;
+                    }
+
+                }
+
+                return string;
+            }
+
+        }
+
+    </script>
+    <apex:insert name="customJs" />
+    <!-- Section Header -->
+    <div id="surveyToolbar">
+        <div class="leftContainer">
+            <img alt="TimbaSurveys!" src="{!URLFOR($Resource.SurveyResources2, 'img/shared/surveylogo.gif')}" />
+        </div>
+        <div class="rightContainer">
+	        <apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__TimbaSurveyData__c.updateable && $ObjectType.TIMBASURVEYS__TimbaSurveyData__c.deletable}">
+	        	<a id="config" onClick="globalConfiguration_openDialog()" href="javascript:;">&nbsp;</a>
+	        </apex:outputPanel>
+            <a id="help" href="javascript:;" onClick="showHelp();" >&nbsp;</a>
+        </div>
+        <div class="clear">&nbsp;</div>
+    </div>
+
+    <apex:insert name="breadCrumb" />
+
+    <apex:outputPanel layout="block" styleClass="pageContainer">
+        <apex:insert name="body" />
+    </apex:outputPanel>
+    <div id="configurationDialog" data-dojo-id="configurationDialog" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurvey_Template_Timba_Configuration}" style="display:none;">
+        <apex:outputLabel for="logEnabled" value="{!$Label.timbasurveys__timbasurveys_template_Enable_Log}" />
+        <apex:outputPanel layout="none" rendered="{!tsData.TIMBASURVEYS__LogEnabled__c}">
+            <input id="logEnabled" checked="checked" name="logEnabled" type="checkbox" />
+        </apex:outputPanel>
+        <apex:outputPanel layout="none" rendered="{!NOT(tsdata.TIMBASURVEYS__LogEnabled__c)}">
+            <input id="logEnabled" name="logEnabled" type="checkbox" />
+        </apex:outputPanel>
+        <br />
+        <label for="hasSites"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_template_Site_Available}" /></label>
+        <apex:outputPanel layout="none" rendered="{!tsdata.TIMBASURVEYS__HasSites__c}">
+            <input id="hasSites" name="hasSites" type="checkbox" checked="checked" onClick="dojo.toggleClass(dojo.byId('siteUrlWrapper'),'displayBlock')" />
+        </apex:outputPanel>
+        <apex:outputPanel layout="none" rendered="{!NOT(tsdata.TIMBASURVEYS__HasSites__c)}">
+            <input id="hasSites" name="hasSites" type="checkbox" onClick="dojo.toggleClass(dojo.byId('siteUrlWrapper'),'displayBlock')" />
+        </apex:outputPanel>
+        <br/>
+        <div id="siteUrlWrapper" class="{!IF(tsdata.HasSites__c, 'displayBlock','')}" style="display:none">
+            <br />
+            <apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_template_Site_URL}:" />
+            <input type="text" id="sitesURLOverlay" value="{!IF(tsdata.HasSites__c, tsdata.SiteUrl__c,'')}" style="width:430px;" />
+        </div>
+        <div style="clear:both;"></div>
+        <button id="cancelConfiguration" class="surveyButton leftContainer" style="margin-top:5px;color:#A8211B;" onClick="globalConfiguration_cancelDialog()"><img alt="check" src="{!URLFOR($Resource.SurveyResources2, 'img/surveylist/delete.png')}" /> {!$Label.timbasurveys_surveycollect_Cancel}</button>
+        <button id="saveConfiguration"  class="surveyButton rightContainer" style="height: 32px; margin-top: 5px;" onClick="setSitesUrl(dojo.byId('hasSites').checked,dojo.byId('sitesURLOverlay').value);"><img src="{!URLFOR($Resource.SurveyResources2, 'img/overlay/okicon.png')}" />{!$Label.timbasurveys_002surveyDesigner_Save}</button>
+    </div>
+
+    <apex:outputPanel id="myStateTimbaSurveysTemplate" rendered="false" />
+    <apex:form id="timbaSurveysTemplate">
+        <apex:actionFunction name="setupSitesOperation" action="{!setupSites}" rerender="myStateTimbaSurveysTemplate" oncomplete="setupSitesCompleted('{!success}')">
+            <apex:param name="siteUrl" value="" assignTo="{!siteUrl}" />
+            <apex:param name="isON" value="" assignTo="{!isON}" />
+            <apex:param name="logOn" value="" assignTo="{!logOn}" />
+        </apex:actionFunction>
+    </apex:form>
+</apex:page>

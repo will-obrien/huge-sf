@@ -1,0 +1,241 @@
+<!DOCTYPE HTML PUBLIC
+	"-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>Campaign - Timeline</title>
+<link href="/sCSS/Theme2/default/common.css" type="text/css" media="handheld,print,projection,screen,tty,tv" rel="stylesheet" >
+<link href="/sCSS/Theme2/{!$Organization.Id}/{!$User.Id}/dCustom.css" type="text/css" media="handheld,print,projection,screen,tty,tv" rel="stylesheet" >
+{!INCLUDE($SControl.Timeline_CSS)} 
+{!INCLUDE($SControl.Timeline_JS)}
+<script type="text/javascript" src="/soap/ajax/8.0/connection.js"></script>
+<script type="text/javascript" src="/js/functions.js"></script>
+<script type="text/javascript">
+
+var theTimeLine; 
+var eventSource;
+var baseURL = window.location.protocol + '//' + window.location.hostname;
+var user_lang;
+var currentYear;
+
+function isSupported(str) {
+	var reg = new RegExp(/en|de|fr|es|it|se/);
+	return reg.test(str);   
+}
+
+//function getLocalText(str) {
+//	return textMap[user_lang][str];
+//}
+
+function createBands() {
+	eventSource = new Timeline.DefaultEventSource();
+	Timeline.Platform.serverLocale = (isSupported(user_lang)?user_lang:"en");
+    Timeline.Platform.clientLocale = (isSupported(user_lang)?user_lang:"en");
+
+	var theme = Timeline.ClassicTheme.create();
+	// theme.event.label.width = 250;
+
+	var bandInfos = [
+		Timeline.createBandInfo({
+		    showEventText: true,
+			eventSource: eventSource, 
+			date: Date(),
+			width: "60%", 
+			intervalUnit: Timeline.DateTime.WEEK,
+			intervalPixels: 70, theme: theme
+		}),
+		Timeline.createBandInfo({
+		    showEventText: false,
+			eventSource: eventSource, 
+			date: Date(),
+			width: "30%", 
+			intervalUnit: Timeline.DateTime.MONTH,
+			intervalPixels: 100, theme: theme
+		}),
+		Timeline.createBandInfo({
+			showEventText: false,
+			trackHeight: 0.6, 
+			trackGap: 0.2,
+			eventSource: eventSource, 
+			date: Date(),
+			width: "10%", 
+			intervalUnit: Timeline.DateTime.YEAR,
+			intervalPixels: 200
+		})
+	];
+	bandInfos[0].highlight = false;
+	bandInfos[1].syncWith = 0;
+	bandInfos[1].highlight = true;
+	bandInfos[1].eventPainter.setLayout(bandInfos[0].eventPainter.getLayout());
+	bandInfos[2].syncWith = 1;
+	bandInfos[2].highlight = true;
+	bandInfos[2].eventPainter.setLayout(bandInfos[1].eventPainter.getLayout());
+	theTimeLine = Timeline.create(document.getElementById("campaign-timeline"), bandInfos);
+}
+
+function initPage() {
+ 
+	var user = sforce.connection.getUserInfo();
+	user_lang = user.userLanguage.substring(0,2);
+	//sforce.debug.log(user);
+	
+	var today = new Date();
+	currentYear = today.getFullYear();	
+	
+	createBands();
+
+    sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL AND StartDate >= " + currentYear + "-01-01 ORDER BY StartDate", layoutCampaigns );
+}
+
+function layoutCampaigns(qr) {
+    loadJSON ( map ( qr.getArray('records'), function(rec,idx,ary) {
+
+        return {
+            start: rec.getDate('StartDate'),
+			end: (rec.getDate('EndDate') == null?rec.getDate('StartDate'):rec.getDate('EndDate')),
+			isDuration: true,
+			title: rec.Name +' ('+ rec.Type +')',
+			link: "/" + rec.Id,
+			target: "_top",
+            description: "Owner: " + rec.Owner.Name + "<br>" + (rec.Description == null?"":rec.Description + "<br>") + "Responses: " + rec.NumberOfResponses + "<br>Opportunities: " + rec.NumberOfOpportunities,
+            image: "/img/icon/campaigns16.gif",
+            icon: "/img/icon/campaigns16.gif",
+        	color: "#cc9933", 
+			textColor: "#000000" }
+    } ) );
+}
+
+// some helper functions
+// take an array of events, load them into a data object and pass to loadJSON
+function loadJSON (events) {
+if (!events || events.length <1) return;
+var data = {};
+data.events = events;
+eventSource.loadJSON(data,baseURL); // eventSource is part of the Timeline API
+}
+// call a function on each member of the array, return an array
+// of the results of the callbacks
+function map(anArray, callback){
+    var outArr = [];
+    for(var i=0,l=anArray.length; i<l; i++){
+        var topush = callback(anArray[i], i, anArray);
+        if (topush != null) {
+            outArr.push( topush );
+        }
+    }
+    return outArr;
+}
+
+var resizeTimerID = null;
+function onResize() {
+	if (resizeTimerID == null) {
+	resizeTimerID = window.setTimeout( function() { resizeTimerID = null; theTimeLine.layout();}, 500 );
+	}
+}
+
+function refreshTimeline(str) {
+	
+	theTimeLine.dispose();
+	createBands();
+	switch (str) {
+		case "this_year_on": 
+			document.getElementById("timelineHeadline").innerHTML = "All Campaigns From This Year On";
+			sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL AND StartDate >= " + currentYear + "-01-01 ORDER BY StartDate", layoutCampaigns );
+			break;
+		case "last_year_on": 
+			document.getElementById("timelineHeadline").innerHTML = "All Campaigns From Last Year On";
+			sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL AND StartDate >= " + (currentYear-1) + "-01-01 ORDER BY StartDate", layoutCampaigns );
+			break;
+		case "this_year": 
+			document.getElementById("timelineHeadline").innerHTML = "All Campaigns During This Year";
+			sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL AND StartDate >= " + currentYear + "-01-01 AND StartDate <= " + currentYear + "-12-31 ORDER BY StartDate", layoutCampaigns );
+			break;
+		case "last_year":
+			document.getElementById("timelineHeadline").innerHTML = "All Campaigns During Last Year";
+			sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL AND StartDate >= " + (currentYear-1) + "-01-01 AND StartDate <= " + (currentYear-1) + "-12-31 ORDER BY StartDate", layoutCampaigns );
+			break;
+		case "all":
+			document.getElementById("timelineHeadline").innerHTML = "All Campaigns";
+			sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL ORDER BY StartDate", layoutCampaigns );
+			break;
+		default: 
+			document.getElementById("timelineHeadline").innerHTML = "All Campaigns From This Year On";
+			sforce.connection.query( "SELECT Id, Name, Type, Status, StartDate, EndDate, IsActive, Description, NumberOfLeads, NumberOfConvertedLeads, NumberOfContacts, NumberOfResponses, NumberOfOpportunities, NumberOfWonOpportunities, AmountAllOpportunities, AmountWonOpportunities, Owner.Name FROM Campaign WHERE StartDate != NULL AND StartDate >= " + currentYear + "-01-01 ORDER BY StartDate", layoutCampaigns );
+	}
+}
+</script>
+</head>
+<body class="custom customTab3 overviewPage" onload="javascript:initPage();" onresize="javascript:onResize();" > 
+<div class="bodyDiv"> <a name="skiplink"><img src="/s.gif" height='1' width='1' alt="Content Starts Here" class="skiplink"></a> 
+  <div id="divErrorMsg"></div> 
+  <div class="bPageTitle"> 
+    <div class="ptBody secondaryPalette"> 
+      <div class="content"><img src="/s.gif" alt="Campaign Timeline Overview"  class="pageTitleIcon" title="Campaign Timeline Overview"> 
+        <h1 class="pageType">Campaign Timeline<span  class="titleSeparatingColon">:</span></h1> 
+        <h2 class="pageDescription"> Overview</h2> 
+        <div class="blank">&nbsp;</div> 
+      </div> 
+      <div class="links"><a href="javascript:openPopupFocusEscapePounds('/servlet/servlet.Integration?lid=01N50000000D45F&enc=UTF-8&ic=1', 'Help', 700, 600, 'width=700,height=600,resizable=yes,toolbar=no,status=no,scrollbars=yes,menubar=yes,directories=no,location=no,dependant=no', false, false);" title="Help for this Page (New Window)"><span  class="helpLink">Help for this Page</span><img src="/s.gif" alt=""  class="helpImage"></a></div> 
+    </div> 
+    <div class="ptBreadcrumb">&nbsp;</div> 
+  </div> 
+  <div class="filterOverview"> 
+    <form action="" id="filter_element" name="filter_element" method="get"> 
+      <div class="bFilterView"><span class="bFilter">
+        <h2>View:</h2> 
+      <span class="fBody"> 
+      <!--<select title="Show:" onchange="javascript:refreshTimeline(this.value);" id="fcf" name="fcf"> 
+        <option value="all_campaigns" selected="selected">All Campaigns</option> 
+        <option value="all_active">All Active Campaigns</option> 
+        <option value="my_active">My Active Campaigns</option> 
+        <option value="all_planned">All Planned Campaigns</option> 
+        <option value="my_planned">My Planned Campaigns</option> 
+      </select> -->
+      <select title="Show:" onchange="javascript:refreshTimeline(this.value);" id="fcf" name="fcf"> 
+        <option value="this_year_on" selected="selected">All Campaigns From This Year On</option> 
+        <option value="last_year_on">All Campaigns From Last Year On</option> 
+        <option value="this_year">All Campaigns During This Year</option> 
+        <option value="last_year">All Campaigns During Last Year</option> 
+        <option value="all">All Campaigns</option> 
+      </select> 
+      <input value=" Go! " class="btn" title="Go!" onclick="javascript:refreshTimeline(this.form.fcf.value);" name="go" type="button"> 
+      </span> 
+        </span></div> 
+    </form> 
+  </div> 
+  <div class="bRelatedList"> 
+    <div class="bNext"> 
+      <div class="withFilter"> 
+        <div class="clearingBox"></div> 
+      </div> 
+    </div> 
+    <div class="hotListElement"> 
+      <div class="bPageBlock secondaryPalette"> 
+        <div class="pbHeader"> 
+          <form action="" id="hotlist" name="hotlist" method="get"> 
+            <table border="0" cellpadding="0" cellspacing="0"> 
+              <tbody> 
+                <tr> 
+                  <td class="pbTitle"><img src="/s.gif" alt="" title="" class="minWidth" height="1" width="1"> 
+                    <h3><div id="timelineHeadline">All Campaigns From This Year On</div></h3></td> 
+                  <td class="pbButton"><input value=" New Campaign "  class="btn" name="new" onclick="javascript:window.top.location='/701/e?retURL=%2F701%2Fo';" title="Create New Campaign" type="button" /></td> 
+                  <td class="pbHelp">&nbsp;</td> 
+                </tr> 
+              </tbody> 
+            </table> 
+          </form> 
+        </div> 
+        <div class="pbBody"> 
+          <div id="campaign-timeline" style="height:450px; border: 0px"></div> 
+        </div> 
+        <div class="pbFooter secondaryPalette"> 
+          <div class="bg"></div> 
+        </div> 
+      </div> 
+    </div> 
+    <div class="listElementBottomNav"></div> 
+  </div> 
+  <!-- End page content --> 
+</div> 
+</body>
+</html>

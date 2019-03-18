@@ -1,0 +1,74 @@
+<apex:page language="en" controller="zisf.page_ListLoadSearch" standardStylesheets="true" extensions="zisf.StartupExtension" action="{!appInit}">
+    <c:coreJS />
+    <script type="text/javascript">
+    	zi.ui.disableTextSelect();
+    </script>
+   <script type="text/javascript">
+		(function() {
+			window.checkAll = function(cb) {
+				if(inputElem = document.getElementsByTagName("input")) {
+					for(var i=0, len = inputElem.length; i < len; i++)
+						(checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1) && (checkbox.checked = cb.checked);
+				}
+			}
+		})();
+		(function() {
+			window.uncheckAll = function(cb) {
+				if(inputElem = document.getElementsByTagName("input")) {
+					for(var i=0, len = inputElem.length; i < len; i++)
+						(checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1) && (checkbox.checked = false);
+				}
+			}
+		})();
+	</script>
+	<c:listLoadCSS />
+	<apex:actionStatus id="workingStatus">
+		<apex:facet name="start">
+               <div class="waitingSearchDiv" id="el_loading" style="background-color: #fbfbfb;
+                      height: 100%;opacity:0.80;width:100%;"> 
+                   <div class="waitingHolder" style="top: 74.2px; width: 91px;">
+                       <img class="waitingImage" src="/img/loading.gif" title="Please Wait...." />
+                       <span id="statusText" style="font-size: 16px" class="waitingDescription">Please Wait....</span>
+                   </div>
+               </div>
+           </apex:facet>
+	</apex:actionStatus>
+	<div id="divHeader" class="divHeader">
+		<c:ZoomHeader />
+	</div>
+	<apex:form >
+		<apex:actionFunction name="clearPerson" action="{!clearPerson}" rerender="search_results_table"/>
+		<apex:actionFunction name="clearCompany" action="{!clearCompany}" rerender="companySearch_results_table"/>
+	</apex:form>
+	<apex:outputPanel id="tabPanelContainer">
+        <script type="text/javascript">
+        	document.getElementById('statusText').innerHTML = 'Loading data from ZoomInfo....';
+        </script>
+		<apex:tabPanel switchType="client" activeTabClass="activeTab" inactiveTabClass="inactiveTab" 
+					   value="{!selectedTab}" 
+					   id="tabPanel" styleClass="tabPanel" rendered="{!NOT(isImport)}">
+			<apex:tab label="People" name="findLeads" id="tabFindLeads" ontableave="clearPerson()">
+				<div>
+					<apex:outputPanel id="messagePanelPeople">
+						<apex:pagemessages id="personMessages"/>
+					</apex:outputPanel>
+					<c:PersonSearch basePageAttr="{!me}"/>
+					<c:PersonSearchResults basePageAttr="{!me}"/>
+				</div>
+			</apex:tab>
+			<apex:tab label="Companies" name="findAccounts" id="tabFindAccounts" ontableave="clearCompany()">
+				<div>
+					<apex:outputPanel id="messagePanelCompanies">
+						<apex:pagemessages id="companyMessages"/>
+					</apex:outputPanel>
+					<c:CompanySearchPanel basePageAttr="{!me}"/>
+					<c:CompanySearchResults basePageAttr="{!me}"/>
+				</div>
+			</apex:tab>
+		</apex:tabPanel>
+	</apex:outputPanel>
+	<apex:outputPanel id="importWizardContainer">
+		<c:ListLoadImportWizard id="importWizard" rendered="{!isImport}" basePageAttr="{!me}"/>
+	</apex:outputPanel>
+
+</apex:page>

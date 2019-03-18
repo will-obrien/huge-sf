@@ -1,0 +1,128 @@
+<apex:page controller="GameController" action="{!gameInitialization}" showHeader="false" tabStyle="Account">
+    <style>
+    .customClass
+    {
+        font-weight:bold;
+        width:70%;
+        background-color:#F6F9FF;
+        padding:20px;border-radius: 5px 5px 5px 5px; 
+        border: 2px #99B0F5 solid;
+    }
+    </style>
+    <apex:form > 
+    <apex:pageBlock title="Units Management">     
+        <apex:outputPanel id="UnitsTable">
+    		<apex:pageBlockTable value="{!allUnits}" var="u" style="text-align:center;">
+                <apex:column headerValue="Action" >                    
+  					<apex:commandLink action="{!editUnit}" value="Edit" rerender="CreateEditUnit">
+              			<apex:param name="unitID" value="{!u.id}"/>
+             		</apex:commandLink> &nbsp;|&nbsp;   
+                    <apex:commandLink action="{!deleteUnit}" onclick="if(!confirm('Are you sure want to delete {!u.Name}?')){return false};"  
+                                    rerender="UnitsTable" value="Delete">
+              			<apex:param name="unitID" value="{!u.id}"/>
+             		</apex:commandLink>     					
+                </apex:column>
+                <apex:column value="{!u.Name}" style="text-align:center;"/>
+                <apex:column value="{!u.HP__c}"/>
+                <apex:column value="{!u.minDMG__c}"/>
+                <apex:column value="{!u.maxDMG__c}"/>
+                <apex:column value="{!u.Stamina__c}"/>
+            	<apex:column value="{!u.Number_of_Victories__c}"/>
+                <apex:column value="{!u.Number_of_Games__c}"/>
+                <apex:column value="{!u.Percent_of_Victories__c}"/>
+                <apex:column value="{!u.Position_in_top__c}"/>
+            	<apex:column value="{!u.Active__c}"/>
+                <apex:column value="{!u.Deactivation_Time__c}"/>
+       		</apex:pageBlockTable>                
+    	</apex:outputPanel>
+        <p></p>
+        <center>
+            <apex:commandButton action="{!createEditUnit}" value="Create new unit" rerender="CreateEditUnit"/>&nbsp;&nbsp; 
+            <apex:commandButton action="{!activateAllUnits}" onclick="if(!confirm('Activate all units?')){return false};"
+                                    value="Activate all units" rerender="CreateEditUnit, firstUnit, secondUnit, 
+                                                                         firstChosenUnit, secondChosenUnit, start_game, UnitsTable"/>
+        </center>
+        <p></p>
+        <apex:outputPanel id="CreateEditUnit">
+            <apex:pageBlock rendered="{!showCreateEditUnit}"> 
+                <apex:pageMessages />
+                <center>
+                    <apex:panelGrid columns="6" styleClass="customClass">
+                        <apex:outputText value="Name:"/><apex:inputText value="{!newUnit.Name}" label="Name:"/>
+                        <apex:outputText value="HP:"/><apex:inputText value="{!newUnit.HP__c}" label="HP:"/>
+                        <apex:outputText value="Stamina:"/><apex:inputText value="{!newUnit.Stamina__c}" label="Stamina:"/>
+                        <apex:outputText value="Minimum damage:"/><apex:inputText value="{!newUnit.minDMG__c}" label="Min damage:"/>
+                        <apex:outputText value="Maximum damage:"/><apex:inputText value="{!newUnit.maxDMG__c}" label="Max damage:"/>
+                        <apex:outputText value="Active:"/><apex:inputCheckbox value="{!newUnit.Active__c}" label="Active:"/>
+                    </apex:panelGrid>
+                    <p></p>
+                    <apex:commandButton action="{!saveUnit}" value="Save"  rerender="CreateEditUnit, UnitSelectList, firstUnit, secondUnit,
+                                                                                        firstChosenUnit, secondChosenUnit, UnitsTable" rendered="{!isCreating}"/>
+                                                                                        &nbsp;&nbsp;
+                    <apex:commandButton action="{!updateUnit}" value="Update"  rerender="CreateEditUnit, UnitSelectList, firstUnit, secondUnit, 
+                                                                                        firstChosenUnit, secondChosenUnit, UnitsTable" rendered="{!isUpdating}"/>
+                                                                                        &nbsp;&nbsp;
+                    <apex:commandButton action="{!closeCreationEditing}" value="Close"  rerender="CreateEditUnit"/>
+                </center>
+            </apex:pageBlock>   
+        </apex:outputPanel>
+    </apex:pageBlock>
+    <apex:pageBlock title="Specify the enemies">
+        <apex:outputPanel id="firstUnit" style="font-weight:bold;width:49%;float:left;margin: 5px">
+            <apex:pageBlock title="First player">
+                <apex:actionFunction name="selectFirstUnitFromList" action="{!chooseFirstUnit}"
+                                     rerender="firstChosenUnit, firstUnit, secondUnit, start_game"/>
+                <apex:pageBlockSection >
+                    <apex:selectList value="{!firstChosedUnit}" id="UnitSelectList"  size="1"
+                                     onChange="selectFirstUnitFromList()" onSelect="selectFirstUnitFromList()">
+                        <apex:selectOptions value="{!UnitSelectList}"/>
+                    </apex:selectList>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection title="Chosen unit:" id="firstChosenUnit" rendered="{!showFirstChosenUnit}" columns="2">
+                    <apex:outputField value="{!firstUnit.Name}" label="Name:"/>
+                    <apex:outputField value="{!firstUnit.minDMG__c}" label="Min damage:"/>
+                    <apex:outputField value="{!firstUnit.HP__c}" label="Health Points:"/>
+                    <apex:outputField value="{!firstUnit.maxDMG__c}" label="Max damage:"/>
+                    <apex:outputField value="{!firstUnit.Stamina__c}" label="Stamina:"/>
+                    <apex:outputField value="{!firstUnit.Percent_of_Victories__c}" label="Percent of victories:"/>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </apex:outputPanel>
+        <apex:outputPanel id="secondUnit" style="font-weight:bold;width:49%;float:right;margin: 5px">
+            <apex:pageBlock title="Second player">
+                <apex:actionFunction name="selectSecondUnitFromList" action="{!chooseSecondUnit}"
+                                     rerender="secondChosenUnit, firstUnit, secondUnit, start_game"/>
+                <apex:pageBlockSection >
+                    <apex:selectList value="{!secondChosedUnit}" id="UnitSelectList"  size="1"
+                                     onChange="selectSecondUnitFromList()" onSelect="selectSecondUnitFromList()">
+                        <apex:selectOptions value="{!UnitSelectList}"/>
+                    </apex:selectList>
+                </apex:pageBlockSection>
+                <apex:pageBlockSection title="Chosen unit:" id="secondChosenUnit" rendered="{!showSecondChosenUnit}" columns="2">
+                    <apex:outputField value="{!secondUnit.Name}" label="Name:"/>
+                    <apex:outputField value="{!secondUnit.minDMG__c}" label="Min damage:"/>
+                    <apex:outputField value="{!secondUnit.HP__c}" label="Health Points:"/>
+                    <apex:outputField value="{!secondUnit.maxDMG__c}" label="Max damage:"/>
+                    <apex:outputField value="{!secondUnit.Stamina__c}" label="Stamina:"/>
+                    <apex:outputField value="{!secondUnit.Percent_of_Victories__c}" label="Percent of victories:"/>
+                </apex:pageBlockSection>
+            </apex:pageBlock>
+        </apex:outputPanel>
+        <apex:pageBlock id="start_game" >
+            <center>
+                <apex:commandButton action="{!fight}"  value="Start Game"
+                                    rerender="Results, UnitsTable, firstUnit, secondUnit, UnitSelectList, firstChosenUnit, secondChosenUnit, start_game"
+                                    rendered="{!(showFirstChosenUnit && showSecondChosenUnit)}"/>
+            </center>
+                    </apex:pageBlock>
+        </apex:pageBlock>
+        <apex:outputPanel id="Results">
+            &nbsp;
+            <apex:pageBlock title="Game results" rendered="{!showResult}">
+                <apex:pageBlockTable value="{!game.gameLog}" var="gamelog">
+                    <apex:column value="{!gamelog}"/>
+                </apex:pageBlockTable>
+            </apex:pageBlock>
+        </apex:outputPanel>
+    </apex:form>
+</apex:page>

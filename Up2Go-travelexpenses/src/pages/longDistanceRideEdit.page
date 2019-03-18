@@ -1,0 +1,135 @@
+<apex:page standardController="LongDistanceRide__c" extensions="LocationFinder,LongDistanceRideCtrlExt" id="longDistanceRideEditPage" title="Long Distance Ride Edit" >
+    
+    <apex:sectionHeader title="Long Distance Ride Edit" subtitle="Long Distance Ride"/>
+    
+    <apex:form id="f1">
+    
+        <apex:pageBlock id="pb1" mode="edit" title="Long Distance Ride Edit">
+                             
+            <apex:pageMessages />
+            
+            <apex:pageBlockButtons >
+                <apex:commandButton value="Save" action="{!save}"/>
+                <apex:commandButton value="Cancel" action="{!cancel}"/>                
+            </apex:pageBlockButtons>
+            
+            <apex:pageBlockSection rendered="true" id="pbsHidden">
+                <apex:inputHidden value="{!LongDistanceRide__c.lkp_LocationTo__c}" id="locationTo"/>
+                <apex:inputHidden value="{!LongDistanceRide__c.lkp_LocationFrom__c}" id="locationFrom"/>
+            </apex:pageBlockSection>
+                        
+            <apex:pageBlockSection columns="2" id="pbs1">
+                <apex:outputField value="{!LongDistanceRide__c.mdr_RentalVehicle__c}"/>
+                <apex:pageBlockSectionItem /><apex:pageBlockSectionItem /><apex:pageBlockSectionItem />
+                <apex:inputField value="{!LongDistanceRide__c.txt_From__c}" style="width:80%" id="from" required="true"/>
+                <apex:inputField value="{!LongDistanceRide__c.txt_To__c}" style="width:80%" id="to" required="true"/>
+                    <apex:pageBlockSectionItem /><apex:pageBlockSectionItem />                             
+                <apex:inputField value="{!LongDistanceRide__c.dtm_DepartureTime__c}" required="true"/>               
+                <apex:inputField value="{!LongDistanceRide__c.dtm_ArrivalTime__c}" required="true"/>
+            </apex:pageBlockSection>
+            <apex:actionRegion >
+                <apex:pageBlockSection columns="2" id="pbs2" title="Round Trip" >
+                    <apex:pageBlockSectionItem /><apex:pageBlockSectionItem />
+                    <apex:inputCheckbox value="{!LongDistanceRide__c.chk_RoundTrip__c}" required="true">
+                        <apex:actionSupport event="onchange" rerender="pbs2"/>
+                    </apex:inputCheckbox>
+                    <apex:pageBlockSectionItem />               
+                    <apex:inputField value="{!LongDistanceRide__c.dtm_ReturnDeparture__c}" rendered="{!(LongDistanceRide__c.chk_RoundTrip__c == true)}" />
+                    <apex:inputField value="{!LongDistanceRide__c.dtm_ReturnArrival__c}" rendered="{!(LongDistanceRide__c.chk_RoundTrip__c == true)}" />
+                </apex:pageBlockSection>
+            </apex:actionRegion>     
+            
+            
+        </apex:pageBlock>
+        
+    </apex:form>
+    
+    <script src="https://maps.googleapis.com/maps/api/js?language=en&sensor=false&libraries=places" type="text/javascript"></script>  
+    <script type="text/javascript"> 
+        
+        google.maps.event.addDomListener(window, 'load', initialize);
+        
+         function initialize() {    
+            var from;
+            var to;
+            var options = { types: ['(cities)'] };
+            
+            //LongDistanceRide               
+            if(document.getElementById('longDistanceRideEditPage:f1:pb1:pbs1:from') != null) {
+                from = new google.maps.places.Autocomplete(document.getElementById('longDistanceRideEditPage:f1:pb1:pbs1:from'), options);
+                to = new google.maps.places.Autocomplete(document.getElementById('longDistanceRideEditPage:f1:pb1:pbs1:to'), options);
+            }
+            google.maps.event.addListener(from, 'place_changed', findLocationFrom);
+            google.maps.event.addListener(to, 'place_changed', findLocationTo);
+        }
+        
+        
+        function findLocationFrom() {
+            var components = this.getPlace().address_components,
+            city = 'n/a';
+            country = 'n/a';
+            if (components) {
+                for (var c = 0; c < components.length; ++c) {
+                console.log(components[c])
+                    if(city == 'n/a') {                  
+                        if (components[c].types.indexOf('postal_town') > -1) {
+                            city = components[c].long_name;
+                        }
+                        if (components[c].types.indexOf('administrative_area_level_1') > -1) {
+                            city = components[c].long_name;
+                        }
+                    } 
+                    if (components[c].types.indexOf('locality') > -1) {
+                        city = components[c].long_name;
+                    }
+                    if(components[c].types.indexOf('country') > -1 && components[c].types.indexOf('political') > -1 ) {                      
+                        country = components[c].short_name; 
+                    }
+                }
+            }
+            console.log('From: ' + city + ' - ' + country)        
+            UP2GO_ITE.LocationFinder.findLocation(city, country, function(result, event) { 
+                document.getElementById('longDistanceRideEditPage:f1:pb1:pbsHidden:locationFrom').value = result;  
+            });
+        }
+        
+        function findLocationTo() {
+            var components = this.getPlace().address_components,
+            city = 'n/a';
+            country = 'n/a';
+            if (components) {
+                for (var c = 0; c < components.length; ++c) {
+                console.log(components[c])
+                    if(city == 'n/a') {                  
+                        if (components[c].types.indexOf('postal_town') > -1) {
+                            city = components[c].long_name;
+                        }
+                        if (components[c].types.indexOf('administrative_area_level_1') > -1) {
+                            city = components[c].long_name;
+                        }
+                    }              
+                    if (components[c].types.indexOf('locality') > -1) {
+                        city = components[c].long_name;
+                    }
+                    if(components[c].types.indexOf('country') > -1 && components[c].types.indexOf('political') > -1 ) {
+                        country = components[c].short_name;
+                    }
+                }
+            }
+            console.log('To: ' + city + ' - ' + country)
+            UP2GO_ITE.LocationFinder.findLocation(city, country, function(result, event) {
+                document.getElementById('longDistanceRideEditPage:f1:pb1:pbsHidden:locationTo').value = result; 
+            });
+        }
+    
+
+        document.onkeypress = stopRKey;
+        function stopRKey(evt) { 
+          var evt = (evt) ? evt : ((event) ? event : null); 
+          var node = (evt.target) ? evt.target : ((evt.srcElement) ? evt.srcElement : null); 
+          if ((evt.keyCode == 13) && (node.type=="text"))  {return false;} 
+        } 
+        
+    </script>
+    
+</apex:page>

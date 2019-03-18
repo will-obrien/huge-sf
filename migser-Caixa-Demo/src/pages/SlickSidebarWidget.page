@@ -1,0 +1,192 @@
+<apex:page showHeader="false" sidebar="false" cache="false" controller="SlickSidebarWidgetController">
+    <script src="{!$Resource.SlickSidebar_jQuery}"></script>
+    <apex:includeScript value="/support/console/29.0/integration.js"/> 
+        
+    <style>
+        body {
+            margin-left: 5px;
+            margin-right: 5px;
+            margin-top: 10px;
+        }
+
+        .Container {
+            font-family: Verdana, Arial, Helvetica, sans-serif;
+        }
+
+        .Component {
+            border: 1px solid #DCDCDC;
+            background-color: #FFFFFF;
+            border-bottom-color: #DCDCDC;
+            margin: 0 0 10px;
+        }
+
+        .ComponentHeader {
+            padding-left: 6px;
+            padding-top: 6px;
+            padding-right: 6px;
+            padding-bottom: 0px;
+            border-bottom: 1px solid #DCDCDC;
+            font-weight: bold;
+            font-size: 13px;
+            height: 25px;
+        }
+
+        .ComponentHeader img {
+            float: left;
+            margin-top: 2px;
+            margin-right: 6px;
+        }       
+
+        .ComponentHeader .icon {
+            float: left;
+            margin-top: 2px;
+            margin-right: 6px;
+        }
+
+        .ComponentHeader .headerTitle {
+            position: relative;
+            font-size: 13px;
+            display: inline-block;
+            top: -5px;
+        }
+
+        .Component table {
+            width:100%;
+            border-spacing: 0px;
+            padding: 0px;
+        }
+
+        .Component table th {
+            border-bottom:1px solid #dcdcdc;
+            padding:4px 8px;
+            background:#F5F5F6;
+            color:#333333;
+            font-size:9px;
+            text-align: left;
+        }
+
+        .Component table td {   
+            font-size:9px;  
+            padding: 0px;
+        }
+
+        .Component relatedtable {
+            width:100%;
+            border-spacing: 0px;
+            padding: 0px;
+        }
+
+        .Component relatedtable th {
+            border-bottom:1px solid #dcdcdc;
+            padding:4px 8px;
+            background:#F5F5F6;
+            color:#333333;
+            font-size:9px;
+            text-align: left;
+        }
+
+        .Component .relatedtable tr td {    
+            font-size:9px;  
+            padding: 8px;
+        }
+
+        .Component .relatedtable tr:hover  {    
+            background-color: {!config.Row_Hover_Colour__c};
+        }       
+
+        .arrow {
+            width: 0; 
+            height: 0; 
+            display:inline-block;   
+        }
+
+        .arrow-down {       
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;           
+            border-top: 10px solid {!config.Accordion_Arrow_Colour__c};
+            padding-bottom: 10px;
+        }
+
+        .arrow-right {
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;          
+            border-left: 10px solid {!config.Accordion_Arrow_Colour__c};
+            padding-right: 10px;
+        }
+
+        .widgetDataRow td {
+            padding-left: 8px;
+        }
+
+        .widgetDataField {
+            padding-left: 8px;
+        }
+
+        .widgetDataField a, a:hover {
+            text-decoration: none;
+        }
+
+        .widgetDataField a:hover {
+            text-decoration: none;
+        }   
+
+        .titleColumn {
+            background:#F5F5F6;
+        }   
+    </style>    
+    <div class="Container">
+        <div class="Component">
+<!--            
+				<div class="ComponentHeader">
+            	<div class="arrow arrow-right"/>
+                <div class="headerTitle"><apex:insert name="headerTitle"/></div>
+            </div>
+-->    
+            <table class="relatedtable opened">
+                <tr>
+					<apex:insert name="tableHeader"/>
+                </tr>
+               	<apex:insert name="tableData"/>
+            </table>
+         </div>
+      </div> 
+
+	<apex:insert name="objectModels"/>
+	<apex:insert name="viewModels"/>
+        
+    <script>
+        j$ = jQuery.noConflict();
+
+        var clickAction = function(event) {
+            targetUrl = j$(this).attr('href');
+            tabActive = j$(this).attr('tabactive');
+            tabLabel = j$(this).attr('tablabel');
+            if (tabActive == undefined) {
+                // no data-tabActive attribute defined on the link so default it
+                tabActive = false;
+            }
+
+            if (tabLabel == undefined) {
+                // no data-tabLabel attribute defined on the link so default it
+                tabLabel = 'Console Subtab';
+            }
+
+            if ( targetUrl != undefined) {
+                if (sforce.console.isInConsole()) {
+                    event.preventDefault();
+                    sforce.console.getEnclosingPrimaryTabId(function(result){
+                        primaryTabId = result.id;
+                        sforce.console.openSubtab(primaryTabId, targetUrl, tabActive, tabLabel, null);
+                    });  // END getEnclosingPrimaryTabId
+                } else {
+                    console.log('Not in Service Cloud console so just do what you usually do...');
+                }
+            }
+        }
+  
+        j$(document).ready(function() {     
+            j$('a').on('click', clickAction);
+            j$(document).on('click', 'a', clickAction);
+        }); // END document).ready
+    </script>           
+</apex:page>

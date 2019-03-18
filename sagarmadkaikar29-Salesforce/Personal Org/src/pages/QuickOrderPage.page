@@ -1,0 +1,231 @@
+<apex:page standardController="Account" extensions="QuickOrderController" docType="html-5.0" standardStylesheets="false" showheader="false" sidebar="false">
+      
+      <!--Include Stylesheets for the Mobile look and feel -->
+      <apex:stylesheet value="{!URLFOR($Resource.Mobile_Design_Templates, 
+                'Mobile-Design-Templates-master/common/css/app.min.css')}"/>
+      <apex:includeScript value="{!URLFOR($Resource.Mobile_Design_Templates, 
+                'Mobile-Design-Templates-master/common/js/jQuery2.0.2.min.js')}"/>
+      <apex:includeScript value="{!URLFOR($Resource.Mobile_Design_Templates, 
+                'Mobile-Design-Templates-master/common/js/jquery.touchwipe.min.js')}"/>
+      <apex:includeScript value="{!URLFOR($Resource.Mobile_Design_Templates, 
+                'Mobile-Design-Templates-master/common/js/main.min.js')}"/>
+                
+      <script type='text/javascript' src='/canvas/sdk/js/publisher.js'></script>
+      
+      <style>
+          /* default S1 color styles */
+          .list-view-header, .data-capture-buttons a {
+                background: -webkit-linear-gradient(#2a93d5,#107abb);
+                background: linear-gradient(#2a93d5,#107abb);
+                box-shadow: 0 1px 3px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.21);
+                color: white;
+                font-weight: bold;
+          }
+          
+          #resultPage, #searchPage {
+              padding-bottom: 50px;
+          }
+      </style>
+                
+     <script>
+        $(document).ready(function(){
+            $("#resultPage").hide();
+        });
+        
+        var quickOrder;
+        var invoiceId;
+        var aId;
+        
+        //This function will run a query on all warehouses containing the merchandise specified at the distance specified
+        function findWarehouses(){
+             aId = '<apex:outputText value="{!Account.Id}"/>';
+             
+             //Use this method in your findWarehouses Apex class based off of the parameters in the form
+             Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.QuickOrderController.findWarehouses}', aId, $('#merchName_searchInput').val(), $('#warehouseDist').val(),
+                 function(result, event){
+                     if (event.status) {
+                         console.log(result);
+                         $("#searchResults").empty();
+                         
+                         //Build the list of merchandise based off of the result set returned from the query
+                         $.each(result, function(){
+                             console.log(this.Warehouse__r.Name);
+                             
+                             //this creates a list item based off of the warehouse/merchandise information
+                             var newLi = $('<li></li>');     
+                             var newLink = $('<a href="#" class="content"><h2>'+this.Name+'</h2><p><strong>Quantity on hand:'+this.Quantity__c+'<br/>'
+                             +'</strong>'+this.Warehouse__r.Name+'<br/>'+this.Warehouse__r.City__c+'</p>'
+                             +'<div class="list-view-icons"><span class="icon-right-arrow">'
+                             +'&nbsp;</span></div></a>');
+                             var mId = this.Id;
+                             var mName = this.Name;
+                             
+                            //When merchandise is selected for the quick order, you first need to create an invoice to relate the line item to
+                            newLink.click(function(e) {
+                                e.preventDefault();
+                                //uses Visualforce remoting to create the invoice for the quick order
+                                Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.QuickOrderController.createQuickOrder}', aId, mId,
+                                    function(result, event){
+                                        if(event.status){
+                                            //once the invoice is created, show the final part of the form to insert line item information
+                                            quickOrder = JSON.stringify(result);
+                                            invoiceId = result.Invoice__c;
+
+                                            //This method will activate the publish button so the form can be submitted 
+                                            Sfdc.canvas.publisher.publish({name: "publisher.setValidForSubmit", payload:"true"});
+                                            
+                                            $("#merchName_quickOrder").text(mName);
+                                            $("#searchPage").hide();
+                                            $("#resultPage").show();
+                                        } else if (event.type === 'exception'){
+                                            console.log(result);
+                                        } else {
+                                        
+                                        }
+                                 });
+                            });
+                            
+                            newLi.append(newLink);            
+                            newLi.appendTo('#searchResults');
+                         });      
+                     } else if (event.type === 'exception') {
+                         //exception case code  
+                         console.log(result);        
+                     } else {
+                                            
+                     }
+                 }, 
+                 {escape: true}
+              );
+          }
+          
+          //The final step is to insert the line item based off of all the information provided
+          function insertQuickOrder(){
+              console.log(quickOrder);
+              Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.QuickOrderController.insertQuickOrder}', quickOrder, $('#quantity').val(), aId,
+                  function(result, event){;
+                      if(event.status){
+                         // Success - close the publisher and refresh the feed.
+                         Sfdc.canvas.publisher.publish({name: "publisher.close", payload:{ refresh:"true"}});  
+                      } else if (event.type === 'exception'){
+                          console.log(result);
+                      } else {
+                                        
+                      }
+              });
+          }
+          
+          //If the user wants to go back to the search without inserting the line item, the invoice with 0 line items needs to be deleted
+          function goBack(){
+              console.log(invoiceId);
+              
+              //This method in the controller will remove the empty invoice before routing back to the initial search page
+              Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.QuickOrderController.goBack}', invoiceId,
+                  function(result, event){
+                      if(event.status){
+                          Sfdc.canvas.publisher.publish({name: "publisher.setValidForSubmit", payload:"false"});
+                          $("#searchPage").show();
+                          $("#resultPage").hide();    
+                      } else if (event.type === 'exception'){
+                          console.log(result);
+                      } else {
+                                        
+                      }
+              });
+          }
+     </script>
+        
+        <apex:form id="form">
+        <!-- this is the view for the inital search page -->
+        <div id="searchPage">
+            <div id="searchInputSection">
+            <div class="list-view-header">Enter Search</div>
+            <div>
+                <!-- this is the section of the view to enter the search criteria -->
+                <section class="border-bottom">
+                 <div class="content">
+                  <h3>Merchandise Name</h3>
+                  <div class="form-control-group">
+                   <div class="form-control form-control-text">
+                    <input type="text" id="merchName_searchInput" />
+                   </div>
+                  </div>
+                 </div>
+                </section>
+                
+                <!-- this is the section of the view to specify the distance radius -->
+                <section class="border-bottom">
+                 <div class="content">
+                  <h3>Max Delivery Distance (miles)</h3>
+                  <div class="form-control-group">
+                   <div class="form-control form-control-text">
+                     <input type="text" id="warehouseDist" />
+                   </div>
+                  </div>
+                 </div>
+                </section>
+                <section class="data-capture-buttons one-buttons">
+                    <div class="content">
+                        <section class="data-capture-buttons one-buttons">
+                             <a href="#" id="findWarehouses" onClick="findWarehouses();" style="text-transform: none;" >Submit</a>
+                        </section>
+                    </div>
+                </section>
+          </div> 
+          </div> <!-- end searchInputSection --> 
+          
+          
+          <!-- this section of the page displays the results of the search given the search criteria 
+          It looks like a list beneath the search and you can click a list item to view the create 
+          quick order form
+          -->
+          <div id="searchResultsSection">   
+            <div class="list-view-header">Search Results</div>
+                <ul id="searchResults" class="list-view right-one-icons">
+                </ul>
+          </div> <!-- end searchResults -->
+        </div> <!-- end search page -->
+        
+        <!-- this page displays the form to add order criteria -->
+        <div id="resultPage">
+        <div class="list-view-header">Create Quick Order</div>
+            <div>
+                <section class="border-bottom">
+                 <div class="content">
+                  <h3>Merchandise Name</h3>
+                  <div class="form-control-group">
+                   <div class="form-control form-control-text">
+                    <h1 id="merchName_quickOrder" />
+                   </div>
+                  </div>
+                 </div>
+                </section>
+                
+                <section class="border-bottom">
+                 <div class="content">
+                  <h3><apex:outputLabel value="Quantity" /></h3>
+                  <div class="form-control-group">
+                   <div class="form-control form-control-text">
+                      <input type="text" id="quantity" />
+                   </div>
+                  </div>
+                 </div>
+                </section>
+                <section class="data-capture-buttons one-buttons">
+                    <div class="content">
+                        <section class="data-capture-buttons one-buttons">
+                             <a href="#" id="goBack" onClick="goBack();" >back</a>
+                        </section>
+                    </div>
+                </section>
+          </div> 
+        </div> <!-- end result page -->
+        </apex:form>
+        
+        <script type='text/javascript'>  
+            Sfdc.canvas.publisher.subscribe({name: "publisher.post", onData:function(e) {
+                // This subscribe fires when the user hits 'Submit' in the publisher
+                insertQuickOrder();
+             }});                                           
+         </script>
+</apex:page>

@@ -1,0 +1,476 @@
+<apex:page sidebar="false" standardController="zqu__Quote__c"
+	extensions="zqu.ZuoraProductSelectorController" id="productSelectPage">
+
+	<apex:sectionHeader title="{!$Label.QUOTE_ENHANCEMENT_TITLE}"
+		subtitle="{!$Label.SUBTITLE_SELECT_PRODUCTS}" id="quoteTitle" />
+
+	<apex:includeScript value="{!$Resource.zqu__JQuery142}" />
+	<script>
+    var j$ = jQuery.noConflict();
+    
+    var prevProductIcon = null;
+    var prevRatePlanIcon = null;
+    
+    function foldRatePlan() {
+        j$('span[id$="panRatePlanSelector"]').hide();
+    }
+    
+    function foldQuoteCharge() {
+        j$('span[id$="panQuoteChargeSelector"]').hide();
+    }
+    
+    // Redraw the radio button to uncheck if it was check already.               
+    function onProductSelect(radioIcon) {
+        var radioIconId = radioIcon.id.replace(/:/g, "\\\:");    
+        if (null != prevProductIcon) {
+            var prevRadioIcon = j$('#' + prevProductIcon.replace(/:/g, "\\\:")).children();       
+            var prevRadioIconId = prevRadioIcon.attr('id');
+            if (null != prevRadioIconId.match('imgRadioBtnChk')) {
+                prevRadioIcon.replaceWith(j$('#' + radioIconId).clone());
+                // NOTE, the replaceWith will return the original object which could not be use for following steps.
+                j$('#' + prevProductIcon.replace(/:/g, "\\\:")).children().attr('id', prevRadioIconId);         
+            }
+        }
+        prevProductIcon = j$('#' + radioIconId).parent().attr('id');
+        
+        var options = j$('span[id$="stsGetRatePlan"]');
+        for(var i = 0; i < options.size(); i++){
+            if(radioIcon.parentNode.parentNode.parentNode.id != options.eq(i).attr("id"))
+                options.eq(i).find('[onclick]').removeAttr('onclick');
+        }
+        
+        foldRatePlan();
+        foldQuoteCharge();
+    }
+    
+    function onRatePlanSelect(radioIcon) {
+        var radioIconId = radioIcon.id.replace(/:/g, "\\\:");    
+        if (null != prevRatePlanIcon) {
+            var prevRadioIcon = j$('#' + prevRatePlanIcon.replace(/:/g, "\\\:")).children();       
+            var prevRadioIconId = prevRadioIcon.attr('id');
+            if (null != prevRadioIconId.match('imgRadioBtnChk')) {
+                prevRadioIcon.replaceWith(j$('#' + radioIconId).clone());
+                // NOTE, the replaceWith will return the original object which could not be use for following steps.
+                j$('#' + prevRatePlanIcon.replace(/:/g, "\\\:")).children().attr('id', prevRadioIconId);         
+            }
+        }
+        prevRatePlanIcon = j$('#' + radioIconId).parent().attr('id'); 
+        
+        var options = j$('span[id$="stsGetQuoteCharge"]');
+        for(var i = 0; i < options.size(); i++){
+            if(radioIcon.parentNode.parentNode.parentNode.id != options.eq(i).attr("id"))
+                options.eq(i).find('[onclick]').removeAttr('onclick');
+        }
+               
+        foldQuoteCharge();
+    }
+    
+    function disableInput4QuoteCharge() {
+        j$('span[id$="panQuoteChargeSelector"] input[type$="text"]').attr('disabled', 'disabled');
+    }
+    
+    function disableAdd4QuoteCharge(type) {
+        j$('span[id$="panQuoteChargeSelector"] input[id$="btnSave"]').hide();
+        j$('span[id$="panQuoteChargeSelector"] input[id$="btnSaveAndNew"]').hide();
+        j$('span[id$="panQuoteChargeSelector"] input[id$="btnCancel"]').attr('disabled', 'disabled');
+        if ("Saving" == type) {
+            j$('span[id$="panQuoteChargeSelector"] input[id$="btnCancel"]').attr('value', '{!$Label.ACTION_STATUS_SAVING}');
+        } else if ("Calculating" == type) {
+            j$('span[id$="panQuoteChargeSelector"] input[id$="btnCancel"]').attr('value', '{!$Label.ACTION_STATUS_CALCULATING}');
+        }
+    }
+    
+</script>
+
+	<style>
+.notice {
+	border: 1px outset red;
+	_margin-right: 10px; /* Fix alignment to IE6*/
+	padding: 2px 2px 2px 25px;
+	background: yellow url({!$Resource.zqu__notice}) no-repeat scroll 5px 3px;
+	color: red;
+	right: 0px;
+	top: 0px;
+}
+</style>
+
+	<style>
+.tabletitle {
+	font-size: 18px;
+	font-weight: bold;
+	top: 0px;
+	right: 0px;
+}
+</style>
+	<c:ZQExistingChargeComp id="compZQExistingCharge"
+		quoteID="{!zqu__Quote__c.Id}" from="AddProductPage" />
+	<apex:form >
+		<apex:outputPanel id="panProductSelector">
+			<apex:pageBlock title="{!SUBSTITUTE($Label.PRODUCT_SUMMARY_FILTERED_BY, '{0}', zqu__Quote__c.zqu__Currency__c)}">
+				<apex:pageMessage rendered="{!isProductSearchError}"
+					summary="{!productSearchError}" severity="error" strength="1" />
+				<apex:pageBlockButtons style="text-align:right" location="top">
+					<apex:actionRegion >
+						<apex:inputText id="itProductSearch"
+							value="{!productSearchString}" />
+					</apex:actionRegion>
+					<apex:actionStatus id="stsProductSearch">
+						<apex:facet name="start">
+							<apex:commandButton value="{!$Label.ACTION_STATUS_SEARCHING}" disabled="true" />
+						</apex:facet>
+						<apex:facet name="stop">
+							<apex:commandButton id="btnSearchProducts"
+								action="{!refreshProducts}" value="{!$Label.LOOKUP_BROWSE_SEARCH}"
+								reRender="panProductSelector, panRatePlanSelector, panQuoteChargeSelector"
+								status="stsProductSearch">
+								<apex:param assignTo="{!resetProducts}" value="true" />
+							</apex:commandButton>
+						</apex:facet>
+					</apex:actionStatus>
+				</apex:pageBlockButtons>
+				<apex:outputText rendered="{!products.size ==0}">{!$Label.PRODUCT_NO_PRODUCTS_FOUND}</apex:outputText>
+
+				<apex:outputPanel rendered="{!products.size > 0}">
+					<apex:pageBlockSection columns="1" showHeader="false">
+						<apex:pageBlockTable id="tblProduct" title="products"
+							var="product" value="{!products}" columns="4" cellpadding="3%"
+							cellspacing="3%" style="width:100%" styleClass="list">
+							<apex:column width="3%">
+								<apex:facet name="header"></apex:facet>
+								<apex:actionStatus id="stsGetRatePlan">
+									<apex:facet name="start">
+										<apex:outputPanel id="panProductSelectStart">
+											<apex:image url="{!$Resource.zqu__ajaxLoading}" width="18"
+												height="18" />
+										</apex:outputPanel>
+									</apex:facet>
+									<apex:facet name="stop">
+										<apex:outputPanel id="panProductSelectComplete">
+											<apex:image id="imgRadioBtnChk"
+												rendered="{!product.id == selProductId}"
+												url="{!$Resource.zqu__radioBtnChk}" width="18" height="18" />
+											<apex:image id="imgRadioBtnUnchk"
+												rendered="{!NOT(product.id == selProductId)}"
+												url="{!$Resource.zqu__radioBtnUnChk}" width="18" height="18"
+												onclick="{onProductSelect(this);}" />
+											<apex:actionSupport status="stsGetRatePlan" event="onclick"
+												reRender="panProductSelector, panRatePlanSelector, panQuoteChargeSelector"
+												action="{!refreshRatePlans}">
+												<apex:param assignTo="{!selProductId}" name="selProduct"
+													value="{!product.id}" />
+												<apex:param assignTo="{!resetRatePlans}"
+													name="resetRatePlans" value="true" />
+												<apex:param assignTo="{!ratePlanSearchString}"
+													name="ratePlanSearchString" value="" />
+											</apex:actionSupport>
+										</apex:outputPanel>
+									</apex:facet>
+								</apex:actionStatus>
+							</apex:column>
+							<apex:column width="30%">
+								<apex:facet name="header">{!$ObjectType.zqu__ZProduct__c.fields.Name.Label}</apex:facet>
+								<apex:outputText value="{!product.Name}" />
+							</apex:column>
+							<apex:column width="15%">
+								<apex:facet name="header">{!$ObjectType.zqu__ZProduct__c.fields.zqu__SKU__c.Label}</apex:facet>
+								<apex:outputText value="{!product.zqu__SKU__c}" />
+							</apex:column>
+							<apex:column width="57%">
+								<apex:facet name="header">{!$ObjectType.zqu__ZProduct__c.fields.zqu__Description__c.Label}</apex:facet>
+								<apex:outputText value="{!product.zqu__Description__c}" />
+							</apex:column>
+						</apex:pageBlockTable>
+					</apex:pageBlockSection>
+				</apex:outputPanel>
+				<table width="100%" style="text-align: right">
+					<tbody>
+						<tr>
+							<td>
+							<table style="text-align: left">
+								<tbody>
+									<tr>
+										<td>
+										<div><apex:outputLabel rendered="{!products.size !=0}"
+											id="lblProductSectionInfo" value="{!productsectioninfo}" /></div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+							</td>
+							<td colspan="6">
+							<div><span> <apex:commandLink action="{!prevProductPage}"
+								rendered="{!AND(productHasPrevious, NOT(productNavFlagDisabled))}"
+								reRender="panProductSelector,panRatePlanSelector,panQuoteChargeSelector"
+								onclick="{foldRatePlan();foldQuoteCharge();}">
+								<apex:image value="{!$Resource.zqu__back_enabled}" />
+								</apex:commandlink>
+								<apex:image value="{!$Resource.zqu__back_disabled}"
+									rendered="{!OR(NOT(productHasPrevious), productNavFlagDisabled)}" /></span>
+							<span><apex:commandLink action="{!nextProductPage}"
+								rendered="{!AND(productHasNext, NOT(productNavFlagDisabled))}"
+								reRender="panProductSelector,panRatePlanSelector,panQuoteChargeSelector"
+								onclick="{foldRatePlan();foldQuoteCharge();}">
+								<apex:image value="{!$Resource.zqu__forward_enabled}" />
+								</apex:commandlink>
+								<apex:image value="{!$Resource.zqu__forward_disabled}"
+									rendered="{!OR(NOT(productHasNext), productNavFlagDisabled)}" /></span></div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</apex:pageBlock>
+		</apex:outputPanel>
+
+		<apex:outputPanel id="panRatePlanSelector">
+			<apex:pageBlock title="{!$Label.RATE_PLAN_SUMMARY}" rendered="{!showRatePlan}">
+				<apex:pageMessage rendered="{!isRatePlanSearchError}"
+					summary="{!ratePlanSearchError}" severity="error" strength="1" />
+				<apex:pageBlockButtons style="text-align:right" location="top">
+					<apex:actionRegion >
+						<apex:inputText id="ratePlanSearch" styleclass="tableitem"
+							style="left:80%" value="{!ratePlanSearchString}" />
+					</apex:actionRegion>
+					<apex:actionStatus id="ratePlanSearchStatus">
+						<apex:facet name="start">
+							<apex:commandButton styleclass="tableitem" style="left:60%"
+								value="{!$Label.ACTION_STATUS_SEARCHING}" disabled="true">
+							</apex:commandButton>
+						</apex:facet>
+						<apex:facet name="stop">
+							<apex:commandButton id="btnSearchRatePlans"
+								action="{!refreshRatePlans}" styleclass="tableitem"
+								style="left:60%" value="{!$Label.LOOKUP_BROWSE_SEARCH}"
+								reRender="panRatePlanSelector, panQuoteChargeSelector"
+								status="ratePlanSearchStatus">
+								<apex:param assignTo="{!resetRatePlans}" value="true" />
+							</apex:commandButton>
+						</apex:facet>
+					</apex:actionStatus>
+				</apex:pageBlockButtons>
+				<apex:outputText rendered="{!rateplans.size ==0}">{!$Label.RATE_PLAN_NO_RATE_PLAN_FOUND}</apex:outputText>
+				<apex:outputPanel rendered="{!rateplans.size > 0}">
+					<apex:pageBlockSection columns="1" showHeader="false">
+						<apex:pageBlockTable id="tblRatePlan" title="ratePlans"
+							var="ratePlan" value="{!ratePlans}" columns="3" cellpadding="3%"
+							cellspacing="3%" style="width:100%" styleClass="list">
+							<apex:column width="3%">
+								<apex:facet name="header"></apex:facet>
+								<apex:actionStatus id="stsGetQuoteCharge">
+									<apex:facet name="start">
+										<apex:outputPanel id="ratePlanSelectStart">
+											<apex:image url="{!$Resource.zqu__ajaxLoading}" width="18"
+												height="18" />
+										</apex:outputPanel>
+									</apex:facet>
+									<apex:facet name="stop">
+										<apex:outputPanel id="ratePlanSelectComplete">
+											<apex:image id="imgRadioBtnChk"
+												rendered="{!ratePlan.id == selRatePlanId}"
+												url="{!$Resource.zqu__radioBtnChk}" width="18" height="18" />
+											<apex:image id="imgRadioBtnUnchk"
+												rendered="{!NOT(ratePlan.id == selRatePlanId)}"
+												url="{!$Resource.zqu__radioBtnUnChk}" width="18" height="18"
+												onclick="{onRatePlanSelect(this);}" />
+											<apex:actionSupport status="stsGetQuoteCharge"
+												event="onclick"
+												reRender="panRatePlanSelector, panQuoteChargeSelector"
+												action="{!refreshQuoteCharges}">
+												<apex:param assignTo="{!selRatePlanId}" name="selRatePlan"
+													value="{!ratePlan.id}" />
+												<apex:param assignTo="{!resetQuoteCharges}"
+													name="resetQuoteCharges" value="true" />
+											</apex:actionSupport>
+										</apex:outputPanel>
+									</apex:facet>
+								</apex:actionStatus>
+							</apex:column>
+							<apex:column width="30%">
+								<apex:facet name="header">{!$ObjectType.zqu__ProductRatePlan__c.fields.Name.Label}</apex:facet>
+								<apex:outputLabel value="{!ratePlan.Name}" />
+							</apex:column>
+							<apex:column width="67%">
+								<apex:facet name="header">{!$ObjectType.zqu__ProductRatePlan__c.fields.zqu__Description__c.Label}</apex:facet>
+								<apex:outputText value="{!ratePlan.zqu__Description__c}" />
+							</apex:column>
+						</apex:pageBlockTable>
+					</apex:pageBlockSection>
+				</apex:outputPanel>
+				<table width="100%" style="text-align: right">
+					<tbody>
+						<tr>
+							<td>
+							<table style="text-align: left">
+								<tbody>
+									<tr>
+										<td>
+										<div><apex:outputLabel rendered="{!rateplans.size !=0}"
+											value="{!ratePlanSectionInfo}"></apex:outputLabel></div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+							</td>
+							<td colspan="6">
+							<div><span> <apex:commandLink action="{!prevRatePlanPage}"
+								rendered="{!AND(ratePlanHasPrevious, NOT(ratePlanNavFlagDisabled))}"
+								reRender="panRatePlanSelector,panQuoteChargeSelector"
+								onclick="foldQuoteCharge()">
+								<apex:image value="{!$Resource.zqu__back_enabled}" />
+								</apex:commandlink>
+								<apex:image value="{!$Resource.zqu__back_disabled}"
+									rendered="{!OR(NOT(ratePlanHasPrevious), ratePlanNavFlagDisabled)}" /></span>
+							<span><apex:commandLink action="{!nextRatePlanPage}"
+								rendered="{!AND(ratePlanHasNext, NOT(ratePlanNavFlagDisabled))}"
+								reRender="panRatePlanSelector,panQuoteChargeSelector"
+								onclick="foldQuoteCharge()">
+								<apex:image value="{!$Resource.zqu__forward_enabled}" />
+								</apex:commandlink>
+								<apex:image value="{!$Resource.zqu__forward_disabled}"
+									rendered="{!OR(NOT(ratePlanHasNext), ratePlanNavFlagDisabled)}" /></span></div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</apex:pageBlock>
+		</apex:outputPanel>
+
+		<apex:outputPanel id="panQuoteChargeSelector">
+			<apex:pageBlock title="{!$Label.RATE_PLAN_CHARGE_SUMMARY}"
+				rendered="{!showquoteCharge}">
+				<apex:pageMessage rendered="{!isQuoteChargeError}" summary="{!quoteChargeError}" severity="error" strength="1" />
+				<apex:pageBlockButtons location="both">
+					<table width="100%" style="text-align: left">
+						<tbody>
+							<tr>
+								<td><span> <apex:commandButton id="btnSave"
+									value="{!$Label.BUTTON_SAVE}"
+									onclick="disableInput4QuoteCharge(); disableAdd4QuoteCharge('Saving');"
+									action="{!saveQuoteCharges}" rerender="panQuoteChargeSelector" /></span>
+								<span> <apex:commandButton onclick="disableInput4QuoteCharge(); disableAdd4QuoteCharge('Saving');"
+									id="btnSaveAndNew" value="{!$Label.BUTTON_SAVE_AND_NEW}"
+									action="{!saveQuoteChargesAndAddNew}"
+									rerender="compZQExistingCharge, panProductSelector, panRatePlanSelector, panQuoteChargeSelector">
+									<apex:param assignTo="{!resetProducts}" value="true" />
+								</apex:commandButton></span> <span><apex:commandButton id="btnCancel" value="{!$Label.BUTTON_CANCEL}" immediate="true"
+									action="{!onDone}" /></span></td>
+								<td colspan="2"></td>
+							</tr>
+						</tbody>
+					</table>
+					<apex:actionStatus id="changeAddingChargeStatus"
+						onstart="disableInput4QuoteCharge();disableAdd4QuoteCharge('Calculating');">
+					</apex:actionStatus>
+				</apex:pageBlockButtons>
+				<apex:pageBlockTable var="quoteCharge" value="{!quoteCharges}"
+					rules="rows" columns="12" cellpadding="3%" id="tblAddCharges"
+					style="width:100%" styleClass="list" cellspacing="3%">
+					<apex:column width="12%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.Name.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.qcharge.Name}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__ChargeType__c.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.qcharge.zqu__ChargeType__c}" />
+					</apex:column>
+					<apex:column width="9%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__Model__c.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.qcharge.zqu__Model__c}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__ListPrice__c.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.DisplayListPrice}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__Discount__c.Label}</apex:facet>
+						<apex:inputField value="{!quoteCharge.qcharge.zqu__Discount__c}"
+							style="width:70%;font-weight:bold"
+							rendered="{!quoteCharge.DiscountEditable}">
+							<apex:actionSupport action="{!onDiscountChange}" event="onchange"
+								status="changeAddingChargeStatus"
+								reRender="panQuoteChargeSelector">
+								<apex:param name="changingQuoteChargeId"
+									assignTo="{!changingQuoteChargeId}" value="{!quoteCharge.id}" />
+							</apex:actionSupport>
+						</apex:inputField>
+						<apex:outputText value="{!quoteCharge.DisplayDiscount}"
+							rendered="{!!quoteCharge.DiscountEditable}" />
+						<apex:outputText value="%"
+							rendered="{!quoteCharge.DiscountEditable}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__EffectivePrice__c.Label}</apex:facet>
+						<apex:inputField value="{!quoteCharge.qcharge.zqu__EffectivePrice__c}"
+							style="width:80%;font-weight:bold"
+							rendered="{!quoteCharge.EffectivePriceEditable}">
+							<apex:actionSupport action="{!onEffectivePriceChange}"
+								event="onchange" status="changeAddingChargeStatus"
+								reRender="panQuoteChargeSelector">
+								<apex:param name="changingQuoteChargeId"
+									assignTo="{!changingQuoteChargeId}" value="{!quoteCharge.id}" />
+							</apex:actionSupport>
+						</apex:inputField>
+						<apex:outputText value="{!quoteCharge.DisplayEffectivePrice}"
+							rendered="{!!quoteCharge.EffectivePriceEditable }" />
+						<apex:outputText value="%" rendered="{!( quoteCharge.zcharge.zqu__Model__c == 'Discount-Percentage')}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__Quantity__c.Label}</apex:facet>
+						<apex:inputField value="{!quoteCharge.qcharge.zqu__Quantity__c}"
+							style="width:80%;font-weight:bold"
+							rendered="{!quoteCharge.QuantityEditable}">
+							<apex:actionSupport action="{!onQuantityChange}" event="onchange"
+								status="changeAddingChargeStatus"
+								reRender="panQuoteChargeSelector">
+								<apex:param name="changingQuoteChargeId"
+									assignTo="{!changingQuoteChargeId}" value="{!quoteCharge.id}" />
+							</apex:actionSupport>
+						</apex:inputField>
+						<apex:outputText value="{!quoteCharge.DisplayQuantity}"
+							rendered="{!!quoteCharge.QuantityEditable }" />
+					</apex:column>
+					<apex:column width="6%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__IncludedUnits__c.Label}</apex:facet>
+						<apex:inputField value="{!quoteCharge.qcharge.zqu__IncludedUnits__c}"
+							style="width:80%;font-weight:bold"
+							rendered="{!quoteCharge.IncludedUnitsEditable}">
+							<apex:actionSupport action="{!onIncludedUnitsChange}" event="onchange"
+								status="changeAddingChargeStatus"
+								reRender="panQuoteChargeSelector">
+								<apex:param name="changingQuoteChargeId"
+									assignTo="{!changingQuoteChargeId}" value="{!quoteCharge.id}" />
+							</apex:actionSupport>
+						</apex:inputField>
+						<apex:outputText value="{!quoteCharge.DisplayIncludedUnits}"
+							rendered="{!!quoteCharge.IncludedUnitsEditable}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__UOM__c.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.DisplayUOM}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__Period__c.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.DisplayRecurringPeriod}" />
+					</apex:column>
+					<apex:column width="8%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__ListTotal__c.Label}</apex:facet>
+						<apex:outputText value="{!quoteCharge.DisplayListTotal}" />
+					</apex:column>
+					<apex:column width="9%">
+						<apex:facet name="header">{!$ObjectType.zqu__QuoteCharge__c.fields.zqu__Total__c.Label}</apex:facet>
+						<apex:inputField value="{!quoteCharge.qcharge.zqu__Total__c}"
+							style="width:80%;font-weight:bold"
+							rendered="{!quoteCharge.TotalEditable}">
+							<apex:actionSupport action="{!onTotalChange}" event="onchange"
+								status="changeAddingChargeStatus"
+								reRender="panQuoteChargeSelector">
+								<apex:param name="changingQuoteChargeId"
+									assignTo="{!changingQuoteChargeId}" value="{!quoteCharge.id}" />
+							</apex:actionSupport>
+						</apex:inputField>
+						<apex:outputText value="{!quoteCharge.DisplayTotal}" rendered="{!NOT(quoteCharge.TotalEditable)}"/>
+					</apex:column>
+				</apex:pageBlockTable>
+			</apex:pageBlock>
+		</apex:outputPanel>
+	</apex:form>
+</apex:page>

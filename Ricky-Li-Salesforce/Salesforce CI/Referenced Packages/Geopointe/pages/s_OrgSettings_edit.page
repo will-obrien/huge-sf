@@ -1,0 +1,169 @@
+<apex:page tabStyle="Geopointe_Setup__tab" controller="geopointe.s_Main" sidebar="false" title="Geopointe - Org Settings">
+	<!-- Custom CSS -->
+	<apex:stylesheet value="{!URLFOR($Resource.geopointe__jquery, '/css/common/common.css')}"/><!-- Geopointe common css -->
+	
+	<!-- JavaScript -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/jquery-1.8.3.min.js')}" /> <!-- core jQuery -->
+	<apex:includeScript value="{!URLFOR($Resource.geopointe__jquery, '/ui/js/jquery-ui-1.9.2.custom.min.js')}" /> <!-- jQuery UI -->
+	<apex:includeScript value="{!$Resource.geopointe__GeopointeJS}" /> <!-- Geopointe universal functions -->
+	<apex:includeScript value="{!$Page.geopointe__js_GA}" /> <!-- Google Analytics -->
+
+<apex:sectionHeader title="Geopointe" subtitle="Edit Organization Settings"/>
+<apex:pageMessages id="pageMessages"></apex:pageMessages>
+<apex:form >
+	<apex:pageBlock title="Organization Preferences" mode="edit">
+		<apex:pageBlockButtons >
+			<apex:commandButton action="{!saveOrgSettings}" rerender="pageMessages" value="Save" onclick="geopointeAjaxStart('body','Saving...');" oncomplete="geopointeAjaxEnd();"/>
+			<apex:commandButton action="{!cancelOrgSettings}" value="Cancel" immediate="true"/>
+		</apex:pageBlockButtons>
+		<apex:pageBlockSection title="Organization Information">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Organization_Name__c.label}" for="orgName"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.organizationName}" id="orgame"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Primary_Contact_Name__c.label}" for="primaryName"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.primaryContactName}" id="primaryName"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Street__c.label}" for="street"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputTextArea cols="27" value="{!orgSettings.street}" id="street"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Primary_Contact_Phone__c.label}" for="phone"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+	        		<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.primaryContactPhone}" id="phone" onblur="formatPhone(this);" onkeydown="formatPhoneOnEnter(this, event);"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__City__c.label}" for="city"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.city}" id="city"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Primary_Contact_Email__c.label}" for="email"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.primaryContactEmail}" id="email"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__State_Province__c.label}" for="state"/>
+				<apex:inputText value="{!orgSettings.stateProvince}" id="state"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputText value=""/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Postal_Code__c.label}" for="zip"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.postalCode}" id="zip"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputText value=""/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Country__c.label}" for="country"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.country}" id="country"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection title="Mapping Preferences">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Mapping Provider" for="mapProvider"/>
+				<!-- Set required to false so a nicer message can be displayed via the controller -->
+				<apex:outputPanel >
+					<apex:selectRadio id="mapProvider" required="false" value="{!orgSettings.mappingProvider}" rendered="{!orgSettings.permChangeProvider || orgSettings.licenseStatus != 'Active'}"> 
+						<apex:selectOption itemValue="MapQuest" itemLabel="MapQuest"/>
+						<apex:selectOption itemValue="Google" itemLabel="Google"/>
+					</apex:selectRadio>
+					<apex:outputText value="{!orgSettings.mappingProvider}" rendered="{!NOT(orgSettings.permChangeProvider) && orgSettings.licenseStatus == 'Active'}" />
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Disable_Entire_Dataset_Search__c.label}" for="entire"/>
+				<apex:inputCheckBox value="{!orgSettings.disableEntireDatasetSearch}" id="entire"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="Default Country Code"/>
+				<apex:outputPanel >
+					<apex:outputPanel layout="block" styleClass="requiredInput">
+        				<div class = "requiredBlock"></div>
+						<apex:inputText value="{!orgSettings.defaultCountryCode}" maxlength="2"/>
+					</apex:outputPanel>
+					<apex:panelGrid columns="2">
+			        	<apex:image url="{!URLFOR($Resource.geopointe__images, '/info.png')}"/>
+		        		<apex:outputText >
+		        			To determine the ISO Country Code for your home country,
+		        			<br/>
+		        			visit the&nbsp;<apex:outputLink value="http://www.iso.org/iso/country_codes/iso_3166_code_lists/country_names_and_code_elements.htm" target="_blank">ISO Website</apex:outputLink>.
+		        		</apex:outputText>
+		        	</apex:panelGrid>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Minimum_Zoom_search_map_bounds__c.label}" for="minZoom"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+	        		<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.minimumZoomsearchmapbounds}" id="minZoom"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Maximum_Search_Nearby_Radius__c.label}" for="maxNearby"/>
+				<apex:outputPanel layout="block" styleClass="requiredInput">
+        			<div class = "requiredBlock"></div>
+					<apex:inputText value="{!orgSettings.maximumSearchNearbyRadius}" id="maxNearby"/>
+				</apex:outputPanel>
+			</apex:pageBlockSectionItem>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection title="Check-In Preferences">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Check_In_Creates_Task__c.label}" for="checkinTask"/>
+            	<apex:inputCheckBox value="{!orgSettings.checkInCreatesTask}" id="checkinTask"/>
+            </apex:pageBlockSectionItem>
+            <apex:pageBlockSectionItem >
+            	<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Check_In_Task_Subject_Prefix__c.label}" for="checkinPrefix"/>
+            	<apex:inputText value="{!orgSettings.checkInTaskSubjectPrefix}" id="checkinPrefix"/>
+            </apex:pageBlockSectionItem>
+        </apex:pageBlockSection>
+		<apex:pageBlockSection title="Batch Geocode Preferences">
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Log_Batch_Geocode_Results__c.label}" for="logResults"/>
+				<apex:inputCheckBox value="{!orgSettings.logBatchGeocodeResults}" id="logResults"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Email_Batch_Geocode_Results__c.label}" for="emailBatch"/>
+				<apex:inputCheckBox value="{!orgSettings.emailBatchGeocodeResults}" id="emailBatch"/>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:outputLabel value="{!$ObjectType.geopointe__Settings__c.fields.geopointe__Notify_If_No_Records_To_Process__c.label}" for="notify"/>
+				<apex:inputCheckBox value="{!orgSettings.notifyIfNoRecordsToProcess}" id="notify"/>
+			</apex:pageBlockSectionItem>
+		</apex:pageBlockSection>
+	</apex:pageBlock>
+</apex:form>
+
+	<!-- Event Listeners -->
+	<script type="text/javascript">
+		//Set JS vars that require merge fields
+		gp_orgSettings = new Object();
+		gp_orgSettings.folderPrefix = '{!orgFolderPrefix}';   
+	</script>
+
+</apex:page>

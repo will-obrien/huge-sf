@@ -1,0 +1,195 @@
+<apex:page sidebar="false" showHeader="false" controller="PgiQuoteDetailsController">
+<apex:pagemessages />
+<script>
+        function onlyNumbers(evt){
+             var e = event || evt; // for trans-browser compatibility  
+             var charCode = e.which || e.keyCode;    
+             if (charCode > 31 && (charCode < 48 || charCode > 57))        
+             {
+             alert('Please enter only Number!');
+              return false;
+             }
+            
+             else
+            return true;
+        }
+       
+        
+         function validateTermChange(e)
+        {
+            var mintermCtrl = e.substring(0,e.length -1) + '0';
+            mintermCtrl = document.getElementById(mintermCtrl);
+            var minVal = mintermCtrl.innerHTML;
+            var estTermCtrl = document.getElementById(e);
+            var estTermVal = estTermCtrl.value;
+            var fBoxQuantity = 12;
+            
+            if( parseFloat(minVal) > parseFloat(estTermVal) )
+            {
+                estTermCtrl.style.backgroundColor = '#FF0000';
+                alert("Please enter a value greater or equal to Initial Term");
+                estTermCtrl.value='';
+                estTermCtrl.focus();
+            } else if((estTermVal % fBoxQuantity) !== 0){
+                    alert('This product Term  is only available in multiples of '+fBoxQuantity);
+                    estTermCtrl.style.backgroundColor = '#FF0000';
+                    estTermCtrl.value='';
+                    estTermCtrl.focus();
+            }
+            else
+            {
+               estTermCtrl.style.backgroundColor = '#FFFFFF';
+
+            }
+            
+        }
+        
+        function validateQuantityChange(e)
+        {
+            var minQuantityCtrl = e.substring(0,e.length -1) + '0';
+            minQuantityCtrl = document.getElementById(minQuantityCtrl);
+            var minQuantity = minQuantityCtrl.innerHTML;
+            var estQuantityCtrl = document.getElementById(e);
+            var estQuantityVal = estQuantityCtrl.value;
+            if( parseFloat(minQuantity) > parseFloat(estQuantityVal) )
+            {
+                estQuantityCtrl.style.backgroundColor = '#FF0000';
+                alert("Please enter a Quantity greater than or equal to Initial Quantity");
+                estQuantityCtrl.value='';
+                estQuantityCtrl.focus();
+            }
+            else
+            {
+               estQuantityCtrl.style.backgroundColor = '#FFFFFF';
+            }
+        }
+        
+         
+        
+        
+        
+        
+    </script>
+     <apex:form > 
+     <apex:pageBlock title="{!$Label.pgiTitleConfigureService}"  id="Usage">
+       <c:QuoteAccInfo ></c:QuoteAccInfo>
+                    <br/>
+                    <table align="Center" style="padding-right: 30px;">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td> <apex:commandButton value="{!$Label.pgiUpdateService}" Action="{!updateServices}"  /></td>
+                    <td></td>
+                </tr>
+                 </table> 
+                
+                <apex:repeat value="{!ProdConfigDetails}" var="prod" id="reptProductSelection">
+               
+                <apex:pageBlockSection columns="1" >
+                <apex:pageBlockSectionItem >
+                <apex:outputlabel ><b><p style="font-size: 120%;"> {!$Label.pgiService} : {!prod.serviceName}</p></b></apex:outputlabel>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                
+                <apex:pageBlockTable value="{!prod.productLst}" var="pu" >            
+                  <apex:column ><apex:commandButton value="{!$Label.pgiDelete}" action="{!deletelineItem}" rerender="reptProductSelection,Usage" rendered="{!not(pu.isDefaultProduct)||pu.isserviceProduct}">
+                    <apex:param assignTo="{!selectedRowId}" value="{!pu.customRowId}"  name="rowId"  /> 
+                    <apex:param assignTo="{!deleteQuoteLineId}" value="{!pu.quoteLineItemId}"  name="DeleteId"  />
+                  </apex:commandButton> 
+                  </apex:column>                      
+                <apex:column headerValue="{!$Label.pgiProduct}" value="{!pu.productName}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" title="{!pu.Description}"/>
+                <apex:column headerValue="{!$Label.pgiUnitType}" value="{!pu.unit}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                 <apex:column headerValue="{!$Label.pgiListPrice}"   id="price2" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                 <apex:outputText value="{0, Number, #0.000}" ><apex:param value="{!pu.ListRate}"/></apex:outputText> 
+                 </apex:column>
+                 <apex:column headerValue="{!$Label.pgiMinimumQuantity}" id="value1" value="{!pu.minQuantity}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" />
+                <apex:column headerValue="{!$Label.pgiMaximumQuantity}"  id="value2" value="{!pu.maxQuantity}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}" />
+                <apex:column headerValue="{!$Label.pgiBillingFrequency}"  value="{!pu.billingFrequency}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                
+                <apex:column headerValue="Original Term"   id="term0" value="{!pu.oldtermLength}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}"/>
+                
+                <apex:column headerValue="{!$Label.pgiTerm}"   style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                <apex:InputText style="width:80px;" value="{!pu.termLength}" rendered="{!pu.isServiceProduct}" id="term1" onblur="validateTermChange(this.id)" />
+                </apex:column>
+                
+                 <apex:column headerValue="Original Quanitity"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                <apex:outputText id="quantity0" value="{!pu.oldQuantity}"/> 
+                </apex:column>
+                 
+                <apex:column headerValue="{!$Label.pgiQuantities}"  style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                <apex:InputText id="quantity1" style="width:80px;" value="{!pu.quantity}" rendered="{!pu.isServiceProduct}" onblur="validateQuantityChange(this.id)" /> 
+                </apex:column> 
+                
+                <apex:column headerValue="Original Sell Price" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                <apex:OutPutText id="price0" value="{0, Number, #0.000}" >
+                  <apex:param value="{!pu.oldbidPrice}"/></apex:outputText>   
+                </apex:column> 
+                
+                <apex:column headerValue="{!$Label.pgiUnitPrice}" style="{!If(pu.isServiceProduct,'background-color: #ff9f3b','')}">
+                <apex:InputText id="price1" value="{!pu.BidPrice}" />
+                </apex:column> 
+                
+                
+                </apex:pageBlockTable>
+                 </apex:pageBlockSectionItem>
+                 </apex:pageBlockSection> 
+                 
+                
+                <table width="100%" style="margin-left:8px" >
+               <tr>
+               <td>
+                <apex:outputLabel ><b style="vertical-align:top"> {!$Label.pgiAdditionalProducts}<font color='red'> </font></b></apex:outputLabel>
+                <apex:selectList value="{!prod.addedProducts}" multiselect="true" size="3" style="width:300px;" >
+                <apex:selectOptions value="{!prod.productOptions}">
+                </apex:selectOptions>
+                </apex:selectList>
+                 </td>
+                 <td>
+                <apex:outputLabel ><b style="vertical-align:top"> {!$Label.pgiAncillaryProducts}<font color='red'> </font></b></apex:outputLabel>
+                <apex:selectList value="{!prod.ancillaryProducts}" multiselect="true" size="3" style="width:300px;" required="false" >
+                <apex:selectOptions value="{!prod.ancillaryOptions}">
+                </apex:selectOptions>
+                </apex:selectList>
+              </td>
+                </tr>
+                <tr>
+                <td style="padding-left: 95px;">
+                  <apex:commandButton value="{!$Label.pgiAddNewProducts}" action="{!AddAditionalProducts}" rerender="reptProductSelection,Usage" >
+                  <apex:param assignTo="{!selectedQuoteLineItemId}" value="{!prod.quoteLineItemId}"  name="AddProducts"  /> 
+                  </apex:commandButton> 
+                  </td>
+                    
+                  <td style="padding-left: 100px;">              
+                 <apex:commandButton value="{!$Label.pgiAddAncillaryProducts}" action="{!AddAncillaryProducts}" rerender="reptProductSelection,Usage" >
+                  <apex:param assignTo="{!selectedQuoteLineItemId}" value="{!prod.quoteLineItemId}"  name="AddProducts"  /> 
+                  </apex:commandButton> 
+                  </td> 
+                </tr>
+              </table>
+                 
+              </apex:repeat>
+              <br/>
+               <br/>
+                
+                <table align="Center" style="padding-right: 30px;">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td> <apex:commandButton value="{!$Label.pgiUpdateService}" Action="{!updateServices}"  /></td>
+                    <td></td>
+                </tr>
+                 </table> 
+                
+                <br/>
+                 <br/>
+               <apex:pageBlockSection rendered="{!isCancelled}">
+                    <script>
+                     window.top.close();
+                    </script>
+                </apex:pageBlockSection>
+
+              </apex:pageBlock>
+             
+     
+     </apex:form>
+</apex:page>

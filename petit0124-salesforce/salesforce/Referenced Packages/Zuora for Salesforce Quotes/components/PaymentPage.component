@@ -1,0 +1,266 @@
+<apex:component controller="zqu.PaymentPageController" allowDML="true" access="global" >
+
+  <apex:attribute access="global" required="true" type="String" name="zuoraPageId" assignTo="{!instancePageId}" description="The id of the hosted page" /> 
+  <apex:attribute access="global" required="false" type="String" name="style" assignTo="{!instanceStyle}" description="The styling of the hosted page. Available values: overlay, inline. Defaults to inline." />
+  <apex:attribute access="global" required="false" type="Boolean" name="submitEnabled" default="true" assignTo="{!instanceSubmitEnabled}" description="If true, the submit button is included in the iFrame." /> 
+
+  <!-- Include Zuora public js library -->
+  <script type="text/javascript" src="{!zuoraJsUrl}"/>
+
+  <apex:includeScript value="{!$Resource.zqu__jquery_1_9_1}" />
+  <apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/ZNotify-compressed.js')}" />
+  <apex:stylesheet value="{!$Resource.zqu__zforcecss}" />
+
+  <!-- Include status modal -->
+  <c:StatusModal />
+
+	<!-- pidcrypt -->
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/pidcrypt.js')}" />
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/pidcrypt_util.js')}" />
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/jsbn.js')}" />
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/rng.js')}" />
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/prng4.js')}" />
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/asn1.js')}" />
+	<apex:includeScript value="{!URLFOR($Resource.zqu__ImagesAndJavascriptZip, '/js/pidcrypt/javascripts/rsa.js')}" />
+
+  <script>
+    var errorMsgPanel;
+
+    // List of fields that require encryption
+    var encryptionRequiredFields = {
+    	'creditCardNumber' : true,
+    	'cardSecurityCode' : true,
+    	'creditCardExpirationYear' : true,
+    	'creditCardExpirationMonth' : true
+    }
+
+	  function loadHostedPage() {
+	  	// Initialize the notification panel
+	  	errorMsgPanel = new ZNotify({
+	  		eleId : 'error-msg-panel'
+	  	});
+
+	  	// If the CORS call was not successful, display the error message and return
+	  	if({!NOT(rsaSigResult.success)}) {
+	  		errorMsgPanel.showErrorMessage('{!$Label.ERROR_PAGE_LOAD}', '{!JSENCODE(rsaSigResult.error)}');
+	  		return;
+	  	}
+
+		  // Optional JSON parameters for defaulting field values
+		  var prepopulatedFields = {};
+
+		  // Prepopulate the fields from server-side map
+		  <apex:repeat value="{!prepopulatedFieldValues}" var="field" >
+		  	prepopulatedFields['{!field}'] = encryptPCIField('{!field}', '{!JSENCODE(prepopulatedFieldValues[field])}');
+		  </apex:repeat>
+			 
+			// JSON Params for rendering iframe on client side
+			var params = {
+		    tenantId: "{!rsaSigResult.tenantId}",
+		    id: "{!JSENCODE(hostedPageSetting.PageId__c)}", // pageId
+		    token: "{!rsaSigResult.token}",
+		    signature: "{!rsaSigResult.signature}", // URLENCODE THE signature because + symbols will be rendered as spaces otherwise
+		    style: "{!instanceStyle}",
+		    key: "{!rsaSigResult.key}",
+		    submitEnabled: "{!submitEnabled}",
+		    url: "{!baseUrl}/apps/PublicHostedPageLite.do",
+		    paymentGateway: "{!URLENCODE(paymentGateway)}"//payment gateway name
+		  };
+
+		  // Add developer-provided params (this may override the values from above)
+		  <apex:repeat value="{!clientParamValues}" var="field" >
+		  	params['{!field}'] = '{!JSENCODE(clientParamValues[field])}';
+		  </apex:repeat>
+
+		  // Clear out any potential old iFrames
+		  var zuoraDiv = document.getElementById('zuora_payment');
+			zuoraDiv.innerHTML="";
+
+			// Render the hosted page with the above parameters
+		  Z.render(
+		  	params,
+		  	prepopulatedFields,
+		  	function(response) {
+		  		// This is only called if submitEnabled = true
+
+		  		// Show the status modal
+		  		renderStatusModal();
+
+		  		// If the response was not successful, display the error message to the user
+		  		if(!response.success) {
+		  			errorMsgPanel.showErrorMessage('{!$Label.ERROR_PAGE_LOAD}', response.errorMessage);
+		  			return;
+		  		}
+
+		  		var redirectUrl = response.redirectUrl;
+
+		  		// Generate a query string from all of the key-value pairs of the response
+		  		var paramString = '';
+		  		var paramFragments = [];
+		  		for(key in response) {
+		  			if(key !== 'redirectUrl') paramFragments.push(key + '=' + encodeURIComponent(response[key]));
+		  		}
+
+		  		// If the quote id is specified in the URL, add it to the redirect url
+		  		if('{!$CurrentPage.parameters.id}') paramFragments.push('quoteId={!$CurrentPage.parameters.id}');
+
+		  		// Join the param fragments. If the redirectURL does not have the query string marker, add it to the paramString
+		  		var concatChar = redirectUrl.indexOf('?') < 0 ? '?' : '&';
+          paramString = paramFragments.join('&');
+
+          // Construct the redirect url from the url in reponse and the generated query string
+		  		var redirectUrl = response.redirectUrl + concatChar + paramString;
+
+		  		// Redirect the iFrame to the callback page with the parameters appended
+		  		$jq('#z_hppm_iframe').attr('src', redirectUrl);
+		  	}
+		  );
+	  }
+
+	  // Reloads hosted page
+	  function reloadHostedPage() {
+			// JSON Params for rendering iframe on client side
+			var params = {
+		    tenantId: "{!rsaSigResult.tenantId}",
+		    id: "{!JSENCODE(hostedPageSetting.PageId__c)}", // pageId
+		    token: "{!rsaSigResult.token}",
+		    signature: "{!rsaSigResult.signature}", // URLENCODE THE signature because + symbols will be rendered as spaces otherwise
+		    style: "{!instanceStyle}",
+		    key: "{!rsaSigResult.key}",
+		    submitEnabled: "{!submitEnabled}",
+		    url: "{!baseUrl}/apps/PublicHostedPageLite.do",
+		    paymentGateway: "{!URLENCODE(paymentGateway)}",//payment gateway name
+		    retainValues: '{!retainValues}'
+		  };
+
+		  // Add developer-provided params (this may override the values from above)
+		  <apex:repeat value="{!clientParamValues}" var="field" >
+		  	params['{!field}'] = '{!JSENCODE(clientParamValues[field])}';
+		  </apex:repeat>
+
+		  // Clear out any potential old iFrames
+		  var zuoraDiv = document.getElementById('zuora_payment');
+			zuoraDiv.innerHTML="";
+
+			// Render the hosted page with the above parameters
+		  Z.render(params, {});
+	  }
+
+	  function encryptPCIField(fieldName, fieldValue) {
+	  	// If the field named fieldName does not require encryption, return the value with no changes
+	  	if(!encryptionRequiredFields[fieldName]) return fieldValue;
+
+	  	var key = "{!rsaSigResult.key}";
+	  	var decodedKey = pidCryptUtil.decodeBase64(key);
+
+	  	// Get RSA instance
+	  	var rsa = new pidCrypt.RSA();
+	  	var asn = pidCrypt.ASN1.decode(pidCryptUtil.toByteArray(decodedKey));
+	  	var tree = asn.toHexTree();
+
+	  	// Set the public key
+	  	rsa.setPublicKeyFromASN(tree);
+
+	  	// Encrypt
+	  	var encrypted = rsa.encrypt(fieldValue);
+	  	var fromHex = pidCryptUtil.encodeBase64(pidCryptUtil.convertFromHex(encrypted));
+	  	var ciphertext = pidCryptUtil.fragment(fromHex, 64);
+
+	  	return ciphertext;
+	  }
+	  
+
+	  // Call the initialization function once the document is loaded
+	  $jq(function() {
+	  	loadHostedPage();
+	  });
+
+	  function submitAction() {
+	  	// Display the status modal
+	  	renderStatusModal();
+
+	  	// Submit the form information
+	  	Z.submit();
+
+	  	closeStatusModal();
+	  }
+
+    // Called from callback page
+    function processCallback(paramString) {
+    	// Pass the callback parameter string to the controller
+    	$jq('input[data-id="callbackParamStringHiddenInput"]').val(paramString);
+
+    	// Call navigate next plugin
+    	navigateNext();
+    }
+
+	  // Default function used for cancelling the quote wizard
+	  function doCancel() {
+	  	displayStatusModal();
+	  	cancelQuoteWizard();
+	  }
+
+	  // Renders the status modal AND adjusts the z-indeces of the modal and iFrame so that the status modal is above the iFrame
+	  function renderStatusModal() {
+	  	// Display the status modal
+    	displayStatusModal();
+
+    	// Adjust the z-indeces so that the iFrame is behind the status modal
+    	$jq('iFrame#z_hppm_iframe').css('z-index', '9001');
+    	$jq('#simplemodal-overlay').css('z-index', '9996');
+    	$jq('#simplemodal-container').css('z-index', '9997');
+	  }
+  </script>
+
+  <!-- style for the dimensions of the iFrame -->
+  <style>
+    div#zuora_payment iFrame {
+    	position: absolute;
+    	width: {!NULLVALUE(hostedPageSetting.Width__c, '450px')};
+    	height: {!NULLVALUE(hostedPageSetting.Height__c, '650px')};
+    	overflow: scroll;
+    }
+
+    div#zuora_payment {
+    	width: {!NULLVALUE(hostedPageSetting.Width__c, '450px')};
+    	height: {!NULLVALUE(hostedPageSetting.Height__c, '650px')};
+    }
+
+    div#{!hostedPageSetting.Name}ButtonBar {
+    	margin-top: 5px;
+    }
+  </style>
+
+  <!-- Error message panel -->
+  <div id="error-msg-panel" />
+
+  <!-- popup notification for cancel warning -->
+  <c:Notification options="{!notificationOptions}" id="cancelMsgNotification" />
+
+  <!-- expected div tag in client page -->  
+  <div id="zuora_payment"></div>
+
+  <!-- Form for button bar -->
+	<apex:form >
+
+		<!-- actionFunction to cancel the quote wizard -->
+		<apex:actionFunction name="cancelQuoteWizard" action="{!cancelQuoteWizard}" />
+
+		<!-- actionFunction to navigate next (will call-->
+		<apex:actionFunction name="navigateNext" action="{!navigateNext}" oncomplete="closeStatusModal();reloadHostedPage();" rerender="cancelMsgNotification" />
+
+		<!-- hidden input for passing callback parameters to server side -->
+		<apex:inputHidden value="{!callbackParametersString}" html-data-id="callbackParamStringHiddenInput" />
+
+		<!-- Button bar rendered if there is not initialization error and submit is NOT enabled -->
+		<div id="{!hostedPageSetting.Name}ButtonBar" >
+			<apex:outputPanel rendered="{!AND(rsaSigResult.success, NOT(submitEnabled), NOT(instanceStyle=='overlay'))}" >
+				<apex:commandButton value="{!backButtonText}" disabled="{!backButtonDisabled}" onclick="render	StatusModal();" action="{!navigateBack}" />
+				<apex:commandButton value="{!nextButtonText}" onclick="submitAction();" reRender="cancelMsgNotification" />
+				<apex:commandButton value="{!$Label.BUTTON_CANCEL}" onclick="renderStatusModal();" oncomplete="closeStatusModal();" action="{!doCancel}" rendered="{!hasWizardContext}" reRender="cancelMsgNotification" />
+			</apex:outputPanel>
+		</div>
+
+	</apex:form>
+
+</apex:component>

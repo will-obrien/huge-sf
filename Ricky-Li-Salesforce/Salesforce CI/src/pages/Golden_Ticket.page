@@ -1,0 +1,333 @@
+<apex:page Controller="GoldenTicket_Controller" showHeader="true" sidebar="true" >
+
+    <!-- Space for Branding-->
+<apex:form >
+   <STYLE type="text/css">
+       body .x-btn button, body .btn, body .btnImportant, body .btnDisabled, body .btnCancel, body .menuButton .menuButtonButton, body .menuButton .menuButtonMenu a, body .menuButton .menuButtonMenu input.theOption, h1, h2, h3, h4, h5, h6, select, label { font-family: 'helvetica neue', arial;}
+       h1, h2, h3, h4, h5, h6 { display: block;}
+       h1 { display: block; font-size: 4em; text-transform: uppercase; color: #5a4099;}
+       h2.gold {font-size: 3em; color: #e1bf00; margin-bottom: 40px; font-weight: 400; text-transform: uppercase}
+       h3 { color: #5a4099; font-weight: 400; font-size: 1.6em;}
+       div.goleft {text-align:left}
+       div.gocenter {text-align:center}
+       span.important {color:red; font-size:15px}
+       span.padding {padding-left:30px; font-style:normal;font-size:12px;font-weight:bold;}
+       span.paddingright {padding-right:300px;font-style:Italic;font-size:12px;}
+       span.gobold {font-weight:700;}
+       span.question { font-size: 1.2em; color: #5C5C5C; font-weight: bold; }
+       label {color: #5c5c5c; font-size: 1.1em;}
+       .mainTitle { font-size: 2.2em!important; text-transform: uppercase; color: #5a4099!important; text-shadow: 0px -1px 0px rgba(0, 0, 0, .4);}
+       select { color: #5c5c5c; font-size: 1.1em; width: 200px; padding: 10px;}
+       .apexp .bPageBlock.apexDefaultPageBlock .pbBody { text-align: center;}
+       .apexp .bPageBlock.apexDefaultPageBlock .pbBody img { margin: 20px 0;}
+       .apexp .bPageBlock.apexDefaultPageBlock .pbBody table { margin: 0 auto;}
+       .apexp .bPageBlock.apexDefaultPageBlock .pbBody table td { padding-left: 40px;}
+   </STYLE>
+    
+ <script type="text/javascript"> 
+    window.onload = function(){
+         var myradios = document.getElementById('j_id0:j_id1:j_id48:j_id49:j_id51:1');
+         if(myradios.checked){
+            document.getElementById('DifferentDates').style.display = 'block';      
+         }  
+    };
+    
+    function displayAll(){
+       redirect();
+    }
+        
+    function Clear(variable){
+        if(variable.value == "Any special requests you might have..."){ 
+            variable.value = ''; 
+        }
+        if(variable.value == "Your reason for the Date Change..."){
+            variable.value = '';
+        }
+        
+        if(variable.value == "dd/MM/YYYY"){
+            variable.value = '';
+        }
+    }
+    
+    function ShowRoomies(variable){
+        var bool = variable.value;
+        if(bool == 'true'){
+          document.getElementById('ShowRoomies').style.display = 'block';
+        }
+        else
+          document.getElementById('ShowRoomies').style.display = 'none';   
+    }
+       
+    function CopyDepartureCity(variable){
+      var departureCity = variable.value;
+      document.getElementById('j_id0:j_id1:j_id69:j_id86:ReturnCity').value= departureCity;   
+    }
+        
+    function ShowDifferentDates(variable){
+        var bool = variable.value;
+        if(bool == 'false'){
+            document.getElementById('DifferentDates').style.display = 'block';
+        }
+        else
+            document.getElementById('DifferentDates').style.display = 'none';   
+    } 
+        
+        <!-- Lookup for Roomie -->
+    var newWin=null;
+    function openLookupPopup(name, id)
+    {
+        var url="/apex/RoomieLookUp?namefield=" + name + "&idfield=" + id;
+        newWin=window.open(url, 'Popup','height=500,width=600,left=100,top=100,resizable=no,scrollbars=yes,toolbar=no,status=no');
+        if (window.focus) 
+        {
+            newWin.focus();
+        }
+            
+        return false;
+    }
+                  
+    function closeLookupPopup()
+    {
+       if (null!=newWin)
+       {
+          newWin.close();
+       }  
+    }
+    </script>
+     
+<apex:pageMessages />
+
+<apex:pageBlock rendered="{!NotFilled}"> 
+    <Span class="important">*</span> Indicates required fields<br/><br/>
+
+    <h1>Congratulations {!User}!</h1> 
+       <apex:image id="theImage" value="{!$Resource.GoldenTicket}" />
+    <h2 class="gold">You've gotten a Golden Ticket to GStock 2013!</h2>
+    
+    <!-- Important Stuff -->
+    <span class="question">First, the most important question: Will you be joining us for G Stock 2013?</span><span class="important">*</span><br />
+        <apex:selectRadio value="{!Criteria}" layout="lineDirection" immediate="false" onclick="displayAll();">
+            <apex:selectOptions value="{!SelectItemsComing}" rendered="True">
+            </apex:selectOptions><br/>
+        </apex:selectRadio><br/>
+
+    <apex:actionFunction action="{!MainRenderer}" name="redirect" />
+</apex:pageBlock> 
+ 
+         <!-- Base Campers Questions -->
+         <apex:pageBlock title="Base Camper Deets" rendered="{!hideShowToronto}">   
+            <apex:pageBlockSection > 
+                <span class="question">Which nights are you saying in Niagara? <span class="important">*</span></span>
+                  <div class="goleft">
+                      <apex:SelectList value="{!NightsStaying}">
+                        <apex:selectOptions value="{!NightsInNiagara}" >
+                      </apex:selectOptions>
+                    </apex:SelectList>
+                  </div>
+            </apex:pageBlockSection>  
+            
+            <apex:pageBlockSection >
+                <span class="question">How are you getting to Niagara? <span class="important">*</span></span>
+                  <div class="goleft">
+                      <apex:SelectList value="{!GettingToNiagara}" >
+                        <apex:selectOptions value="{!Transportation}">
+                      </apex:selectOptions>
+                    </apex:SelectList>
+                  </div>
+            </apex:pageBlockSection>
+         </apex:pageBlock>   
+                <!-- Out of Base Camp Questions --> 
+    <apex:pageBlock title="Out Of Towner Deets" rendered="{!HideshowOutsiders}">
+        <apex:pageBlockSection columns="20" rendered="{!HideshowOutsiders}">
+               <div class="goleft">
+                  <span class="question">You've been pre-approved to arrive on {!Display_StartDate} and depart on {!Display_EndDate}. Does that work for you? <span class="important">*</span></span>
+                  <apex:selectRadio value="{!StandardDates}" layout="lineDirection" immediate="false" onclick="ShowDifferentDates(this);">
+                     <apex:selectOption itemValue="true" itemLabel="You bet!" /> 
+                     <apex:selectOption itemValue="false" itemLabel="No, I'd like to request a change."/> 
+                  </apex:selectRadio><br/>   
+               </div>
+        </apex:pageBlockSection>
+    
+    <span id="DifferentDates" style="display:none">    
+        <apex:pageBlockSection rendered="{!HideShowOutsiders}" >
+               <div class="goleft">
+                 <span class="question">Start Date: <span class="important">*</span></span>
+                         <apex:inputText value="{!Outsiders_StartDate}" maxlength="100" onclick="Clear(this);"/>
+               </div>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockSection rendered="{!HideShowOutsiders}">
+               <div class="goleft">
+                 <span class="question">End Date: <span class="important">*</span></span>
+                        <apex:inputText value="{!Outsiders_EndDate}" maxlength="100" onclick="Clear(this);"/>
+               </div>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockSection rendered="{!HideShowOutsiders}" >
+               <div class="goleft">
+                 <span class="question">Reason: <span class="important">*</span></span>
+                     <apex:inputTextArea value="{!Outsiders_DateChangeReason}" onclick="Clear(this);" style="width:75%; height:100%" rows="4"/>
+               </div>
+       </apex:pageBlockSection>
+      </span> 
+    </apex:pageBlock>  
+        
+        <apex:pageBlock title="Flight Booking Details" rendered="{!HideshowOutsiders}">
+            <span class="question">Please list the following information <b><u>EXACTLY</u></b> as it appears on your <b>PASSPORT</b> photo page:</span><br/>
+            <br/>
+            <apex:pageBlockSection >
+               <div class="goleft">
+                 <span class="question">Full Name (including <b><u>ALL MIDDLE NAMES</u></b>): <span class="important">*</span></span>
+                     <apex:inputText value="{!Passport_FullName}" title="Full Name" maxlength="100"/>
+               </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+               <div class="goleft">
+                 <span class="question">Date of Birth (as it appears on your PASSPORT): <span class="important">*</span></span>
+                     <apex:inputText id="DOB" value="{!Passport_DOB}" title="=Date Of Birth" maxlength="100" onclick="Clear(this);"/>
+               </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+               <div class="goleft">
+                 <span class="question">Nationality: <span class="important">*</span></span>
+                     <apex:inputText value="{!Passport_Nationality}" title="=Nationality" maxlength="100"/>
+               </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+               <div class="goleft">
+                 <span class="question">What city are you departing from? <span class="important">*</span></span>
+                     <apex:inputText value="{!DepartureCity}" onkeyup="CopyDepartureCity(this);"/>
+               </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+               <div class="goleft">
+                 <span class="question">What city are you returning to? <span class="important">*</span></span>
+                     <apex:inputText id="ReturnCity" value="{!ReturnCity}"/>
+               </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+               <div class="goleft">
+                 <span class="question">Are you allowed to have a flight connection through USA? (Please check your travel visa requirements) <span class="important">*</span></span>
+                     <apex:selectRadio value="{!TravelThroughUs}" layout="lineDirection" immediate="false">
+                        <apex:selectOptions value="{!SelectItems}" rendered="True">
+                        </apex:selectOptions><br/>
+                     </apex:selectRadio><br/>
+               </div>
+            </apex:pageBlockSection>
+    </apex:pageBlock>  
+        
+        <!-- Common Questions -->
+    <apex:pageBlock title="Common Questions" rendered="{!ShowCommonQuestions}">      
+          <apex:pageBlockSection >
+                <span class="question">What are your dietary requirements, if any? <span class="important">*</span></span>
+                  <div class="goleft">
+                      <apex:SelectList value="{!DietRequests}">
+                        <apex:selectOptions value="{!Diet}">
+                      </apex:selectOptions>
+                    </apex:SelectList>
+                  </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+                <span class="question">Do you have any other special requirements for your stay that we should know about?</span>
+                  <div class="goleft">
+                      <apex:inputTextarea value="{!SpecialRequests}" onclick="Clear(this);" style="width:75%; height:100%" rows="4"/>
+                  </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+                <span class="question">Are you a smoker? <span class="important">*</span></span>
+                  <div class="goleft">
+                      <apex:selectRadio value="{!Smoker}" layout="lineDirection" >
+                          <apex:selectOption itemValue="true" itemLabel="Yes" />
+                          <apex:selectOption itemValue="false" itemLabel="No" />
+                      </apex:selectRadio><br/>
+                  </div>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection >
+                <span class="question">Do you have a specific roommate you'd like to request? <span class="important">*</span></span>
+                  <div class="goleft">
+                      <apex:selectRadio value="{!RoomiePreference}" layout="lineDirection" immediate="false" onclick="ShowRoomies(this);" >
+                          <apex:selectOption itemValue="true" itemLabel="Yes" />
+                          <apex:selectOption itemValue="false" itemLabel="No" />
+                      </apex:selectRadio><br/>
+                  </div>
+            </apex:pageBlockSection>  
+          
+     <span id="ShowRoomies" style="display:none" >    
+                  <div class="gocenter"> 
+                   <span class="gobold">Great! Who would you like to room with?</span>
+                    <span class="padding">
+                        <apex:outputPanel >
+                           <apex:inputHidden value="{!UserId}" id="targetId" />
+                           <apex:inputText size="40" value="{!UserName}" id="targetName" onFocus="this.blur()" disabled="false"/> <a href="#" onclick="openLookupPopup('{!$Component.targetName}', '{!$Component.targetId}');">Search</a>
+                        </apex:outputPanel><br/>
+                    </span>
+                   <span class="paddingright">(Remember, it needs to be someone from another </span><br/>
+                   <span class="paddingright">region or office, and same gender please.)</span>
+                  </div>
+     </span>
+   </apex:pageBlock>
+   
+   <span id="ShowRoomies" style="display:none">   
+       <apex:pageBlock title="Choose Roomies"> 
+            <apex:pageBlockSection title="Test">
+                Choose your roomie!<br/>
+                NOTE: While we'll do our best accommodate your roomie requests, there are no guarantees and some changes may be required.
+                  <div class="goleft">
+                   <apex:actionFunction name="Align Left"/>
+                    <apex:pageBlockSectionitem >
+                     <apex:outputLabel value="Roomie"/>
+                      <apex:outputPanel >
+                        <apex:inputHidden value="{!UserId}" id="targetId" />
+                        <apex:inputText size="40" value="{!UserName}" id="targetName" onFocus="this.blur()" disabled="false"/> 
+                        <a href="#" onclick="openLookupPopup('{!$Component.targetName}', '{!$Component.targetId}');">Search for Roomie</a>
+                      </apex:outputPanel>
+                     </apex:pageBlockSectionitem>
+                  </div>
+            </apex:pageBlockSection>
+       </apex:pageBlock>
+     </span>
+
+                      <!-- Other Questions -->   
+     <apex:pageBlock title="Other" rendered="{!ShowCommonQuestions}" >
+           <apex:pageBlockSection >
+                  <span class="question">Do you plan on catching a later bus on Saturday to explore Niagara Falls? <span class="important">*</span></span>
+                      <apex:selectRadio value="{!ExploreNiagara}" layout="lineDirection" immediate="false" >
+                          <apex:selectOption itemValue="true" itemLabel="Yes, I want to see the sights, but I'm not a tourist!" />
+                          <apex:selectOption itemValue="false" itemLabel="No, I'll be too lazy or I've seen it already, so I'll head straight back to Toronto." />
+                     </apex:selectRadio><br/>     
+
+           </apex:pageBlockSection>
+           
+           <apex:pageBlockSection >
+                 <span class="question">What's your favourite rock song you're listening to today?</span>
+                      <div class="goleft">
+                      <apex:inputText size="40" value="{!FavouriteSongToday}" />
+                      <br/>
+                  </div>
+           </apex:pageBlockSection>
+           
+          <apex:pageBlockSection > 
+                 <span class="question">What's your favourite rock song of all time?</span>
+                      <div class="goleft">
+                      <apex:inputText size="40" value="{!FavouriteSongAllTime}" />
+                      <br/>
+                   </div> 
+          </apex:pageBlockSection>
+           
+     </apex:pageBlock>
+        <apex:commandButton title="Submit" value="Submit" action="{!UpdateModel}" rendered="{!NotFilled}"/>
+     
+         <apex:PageBlock rendered="{!AlreadyFilledOut}"> 
+             Thank you for your submission!
+         </apex:PageBlock>
+
+</apex:form> 
+</apex:page>

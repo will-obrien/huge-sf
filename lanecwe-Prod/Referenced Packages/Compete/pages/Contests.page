@@ -1,0 +1,217 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.ContestListingController" 
+           tabStyle="Contests__tab">
+
+  <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>
+  <apex:includeScript value="{!URLFOR($Resource.ePrize_Zemzu__compete, 'javascripts/compete-min.js')}"/>
+  <apex:stylesheet value="{!URLFOR($Resource.ePrize_Zemzu__compete, '/stylesheets/style.css')}"/>
+  <c:popups />
+  <head>
+    <script type="text/javascript">
+      (function($) {
+        function loadDataTable(id){
+          $(id).dataTable({          
+            bPaginate: true,
+            bLengthChange: false,
+            bFilter: true,
+            bSort: false,
+            bSortClasses: false,
+            bAutoWidth: false,                  
+            bInfo: true,                                        
+            sPaginationType: 'full_numbers',
+            bProcessing: true,
+            oLanguage: {
+                sEmptyTable: "There are no contests available for you to see at this time."
+              }
+          });
+        }
+        $(document).ready(function() {
+          loadDataTable('#current_contests');
+          loadDataTable('#past_contests');
+        });
+      }(jQuery));
+      
+    </script>
+  </head>
+
+  <body>
+    <div class="l11-main container l11-admin-page">
+      <div class="row-fluid l11">
+        <div class="span12">
+          <div class="l11-grey-header">
+            <h1>My Competitions</h1>
+          </div>
+          <div class="l11-content">
+            <div class="row">
+              <div class="l11-sidebar-325">
+                <div class="l11-panel">
+                  <div class="inner">
+                    <div class="row">
+                      <h2 class="name">{!CurrentUser.contestUser.Name}</h2>
+                    </div>
+                    <div class="row">
+                      <div class="divider"></div>
+                    </div>
+                    <div class="row-fluid">
+                      <div class="span6">
+                        <div class="user-image">
+                          <apex:image height="80" width="80" value="{!CurrentUser.smallPhotoUrl}" rendered="{!IF(isChatterEnabled, true, false)}"/>
+                        </div>
+                      </div>
+                      <div class="span6">
+                        <div class="user-contact-info">
+                          <ul>
+                              <li>{!CurrentUser.contestUser.Title}</li>
+                              <li>
+                                <a href="mailto:{!CurrentUser.contestUser.Email}">{!CurrentUser.contestUser.Email}</a>
+                              </li>
+                              <li>{!CurrentUser.contestUser.Phone}</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="divider"></div>
+                    </div>
+                    <div class="row-fluid">
+                      <div class="l11-stat-box">
+                        <div class="span4 stat border-right">
+                          <span class="stat-value">{!CurrentUser.totalContests}</span>
+                          <span class="term">Total Entered</span>
+                        </div>
+                        <div class="span4 stat">
+                          <span class="stat-value">{!CurrentUser.top10s}</span>
+                          <span class="term">Top 10'S</span>
+                        </div>
+                        <div class="span4 stat border-left">
+                          <span class="stat-value">{!CurrentUser.numOfWins}</span>
+                          <span class="term"># Of Wins</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="l11-fixed-fluid-325">
+                <div class="row-fluid">
+                  <div class="l11-panel">
+                    <div class="inner">
+                      <h2>Current Competitions</h2>
+                      <div class="">
+                        <div class="divider"></div>
+                      </div>
+                      <div class="row-fluid">
+                        <div class="span12">
+                          <div class="table-wrapper">
+                            <table class="l11-table" id="current_contests">
+                              <thead>
+                                <th class="first">NAME</th>
+                                <th>REMAINING</th>
+                                <th>PRIZES</th>
+                                <th class="last">BEHAVIORS</th>
+                              </thead>
+                              <tbody>
+                                <apex:repeat value="{!activecontests}" var="ac">
+                                  <tr>
+                                    <td>
+                                      <span class="inner">
+                                        <a href="/apex/Leaderboard?contestId={!ac.contest.id}">{!ac.contest.ePrize_Zemzu__ContestName__c}</a>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText escape="false" value="{!ac.timeRemaining}" />
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText escape="false" value="{!ac.contestPrizes}"/>                                      
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText escape="false" value="{!ac.contestBehaviors}"/>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                </apex:repeat>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row-fluid">
+                  <div class="l11-panel">
+                    <div class="inner">
+                      <h2>Past Competitions</h2>
+                      <div class="">
+                        <div class="divider"></div>
+                      </div>
+                      <div class="row-fluid">
+                        <div class="span12">
+                          <div class="table-wrapper">
+                            <table class="l11-table" id="past_contests">
+                              <thead>
+                                <th class="first">NAME</th>
+                                <th>ENDED</th>
+                                <th>BEHAVIORS</th>
+                                <th>POSITION</th>
+                                <th class="first">STATUS</th>
+                              </thead>
+                              <tbody>
+                                <apex:repeat value="{!pastcontests}" var="pastcontest">
+                                  <tr>
+                                    <td>
+                                      <span class="inner">
+                                        <a href="/apex/Leaderboard?contestId={!pastcontest.contest.id}">{!pastcontest.contest.ePrize_Zemzu__ContestName__c}</a>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+                                          <apex:param value="{!pastcontest.contest.ePrize_Zemzu__EndDate__c}"/>
+                                        </apex:outputText>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText escape="false" value="{!pastcontest.contestBehaviors}"/>                                      
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText value="#{0,number,#}" rendered="{!IF(pastcontest.contest.ContestUsers__r.size > 0 && pastcontest.contest.ContestUsers__r[0].CurrentRank__c > 0 && pastcontest.contest.ePrize_Zemzu__Status__c == 'Ended', true, false)}">
+                                          <apex:param value="{!pastcontest.contest.ContestUsers__r[0].CurrentRank__c}"/>
+                                        </apex:outputText>
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span class="inner">
+                                        <apex:outputText rendered="{!IF(pastcontest.contest.ePrize_Zemzu__StartDate__c > NOW(), true, false)}" value="Not started" />
+                                        <apex:outputText rendered="{!IF(pastcontest.contest.ePrize_Zemzu__StartDate__c <= NOW() && pastcontest.contest.ePrize_Zemzu__EndDate__c > NOW(), true, false)}" value="Running" />
+                                        <apex:outputText rendered="{!IF(pastcontest.contest.ePrize_Zemzu__EndDate__c <= NOW() && pastcontest.contest.ePrize_Zemzu__Status__c != null && pastcontest.contest.ePrize_Zemzu__Status__c != '' && pastcontest.contest.ePrize_Zemzu__Status__c != 'Ended', true, false)}" value="Winners Pending" />
+                                        <apex:outputText rendered="{!IF(pastcontest.contest.ePrize_Zemzu__EndDate__c <= NOW() && (pastcontest.contest.ePrize_Zemzu__Status__c == null || pastcontest.contest.ePrize_Zemzu__Status__c == '' || pastcontest.contest.ePrize_Zemzu__Status__c == 'Ended'), true, false)}" value="Ended" />
+                                      </span>
+                                    </td>
+                                  </tr>
+                                </apex:repeat>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <c:GA />
+</apex:page>

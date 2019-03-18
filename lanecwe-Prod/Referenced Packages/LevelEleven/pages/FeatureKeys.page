@@ -1,0 +1,77 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.FeatureKeysController" tabStyle="eprizesupport__tab" readonly="false">
+   <apex:composition template="ePrize_Zemzu__CompetePageTemplate">
+    <apex:define name="pageTitle">Manage Feature Keys</apex:define>
+    <apex:define name="contentMain">
+      <div id="theLoader" style="display: block; height: 300px; width: 100%">
+        <table border="0" width="100%" height="100%">
+          <tr>
+            <td valign="middle" align="center">
+              <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div id="thePage" style="display: none;">
+        <apex:form id="form">
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2>Enter Feature Keys</h2>
+              <div class="divider"/>
+              <apex:pageBlock id="keys">
+                <apex:pageBlockSection columns="1" collapsible="false">
+                  <apex:outputPanel >
+                    <apex:outputText escape="false" value="If you have received a key from LevelEleven Support, please enter that key in the box below and click <strong>Install Feature Key</strong>. If you are having trouble with a feature key you can contact LevelEleven support by emailing us at <a href='mailto:gethelp@leveleleven.com?subject={!$User.FirstName} {!$User.LastName} @ {!$Organization.Name} needs help with Feature Keys&body= Feature Key Info for {!$User.FirstName} {!$User.LastName} @ {!$Organization.Name}, OrgId: {!$Organization.Id}%0D'>gethelp@leveleleven.com</a>"> </apex:outputText>
+                    <br/>
+                    <br/>
+                    <p>Your Organization ID: <strong>{!orgId}</strong></p>
+                    <br />
+                  </apex:outputPanel>
+                  <apex:outputPanel id="keyEntry">
+                    <p><strong>Enter Key:</strong></p>
+                    <apex:inputTextarea value="{!keyInput}" style="width: 350px" /><br />
+                    <apex:commandButton action="{!addKey}" value="Install Feature Key" />
+
+                  </apex:outputPanel>
+                </apex:pageBlockSection>
+              </apex:pageBlock>
+            </div>
+          </div>
+          <div class="l11 l11-panel">
+            <div class="inner">
+              <h2>Available Features</h2>
+              <div class="divider"/>
+              <apex:pageBlock >
+                <apex:pageBlockSection id="feature-table"  columns="1"  collapsible="false">
+                  <apex:pageBlockTable value="{!features}" var="f">
+                      <apex:column width="75" headerValue="">
+                          <apex:commandLink action="{!removeKey}" onClick="if(!confirm('Are you sure you wish to delete this key? This operation cannot be undone.')) return false;" value="Delete Key" rendered="{!IF((f.keyData.featureName != null && f.removable), true, false)}">
+
+                              <apex:param name="keyToRemove" assignTo="{!keyToRemove}" value="{!f.keyData.featureName}" />
+                          </apex:commandLink>
+                      </apex:column>
+                      <apex:column width="180" headerValue="Feature Name" value="{!f.featureName}" />
+                      <apex:column width="120" headerValue="Edition" value="{!f.edition}" />
+                      <apex:column width="120" headerValue="Valid">
+                          <apex:outputText styleClass="{!IF(f.isValid, 'valid', 'invalid')}" value="{!IF(f.isValid, "Yes", "No")}" />
+                      </apex:column>
+                      <apex:column width="120" headerValue="Expires">
+                          <apex:outputText styleClass="{!IF(f.isDateValid, '', 'invalid')}" value="{0,date,MM'/'dd'/'yyyy}">
+                              <apex:param value="{!f.keyData.expDate}" />
+                          </apex:outputText>
+                      </apex:column>
+                      <apex:column headerValue="Info" value="{!f.message}" />
+                  </apex:pageBlockTable>
+                </apex:pageBlockSection>
+              </apex:pageBlock>
+            </div>
+          </div>
+        </apex:form>
+      </div>
+      <apex:includeScript value="{!$Resource.ePrize_Zemzu__app}"/>
+      <style>
+          .invalid { color: red; font-weight: bold }
+          .valid { color: green; font-weight: bold }
+      </style>
+    </apex:define>
+  </apex:composition>
+</apex:page>

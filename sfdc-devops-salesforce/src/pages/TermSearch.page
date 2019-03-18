@@ -1,0 +1,305 @@
+<apex:page controller="TermSearchController" sidebar="false">
+<apex:includeScript value="{!URLFOR($Resource.SearchText, 'jq/jQuery_v1.11.1.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.SearchText, 'highlight/highlight.js')}"/>
+<style type="text/css">
+.highlight {
+    background-color: #fff34d;
+    -moz-border-radius: 5px; /* FF1+ */
+    -webkit-border-radius: 5px; /* Saf3-4 */
+    border-radius: 5px; /* Opera 10.5, IE 9, Saf5, Chrome */
+    -moz-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); /* FF3.5+ */
+    -webkit-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); /* Saf3.0+, Chrome */
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); /* Opera 10.5+, IE 9.0 */
+}
+
+.highlight {
+    padding:1px 4px;
+    margin:0 -4px;
+}
+</style>
+
+
+<script type="text/javascript">
+
+
+$(function() {
+    $('#Asset_Name').on('focusout keydown keyup change click', function(ev) {
+
+        // pull in the new value
+        var searchTerm = $(this).val();
+
+        // remove any old highlighted terms
+        $('body').removeHighlight();
+
+        // disable highlighting if empty
+        if (searchTerm) {
+            // highlight the new term
+            $('body').highlight(searchTerm);
+        }
+    });
+});
+
+</script>
+  <apex:form >
+  
+  <apex:pageBlock title="Search Asset Details" mode="edit">
+  
+  <apex:pageMessages id="errors" />
+  <table width="100%" border="0">
+    <tr>  
+        <td width="200" valign="top">
+
+        <apex:pageBlock title="Search" mode="edit" id="criteria">
+        
+    <script type="text/javascript">
+
+    function checkBoxes(){
+        var result, vals = [], checkBoxName =  document.getElementsByName("checkBoxContentType[]");
+        
+        for(var i=0,elm;elm = checkBoxName[i];i++) {
+        
+            if(elm.checked) {
+                vals.push(encodeURIComponent("'"+elm.value+"'"));
+            }
+        }
+    result = vals.join(', ');
+    document.getElementById('Multiple_Content_Type_value').value = result;
+    doSearch();
+    }
+    
+    function checkBoxesT(){
+        var result, vals = [], checkBoxName =  document.getElementsByName("checkBoxTechnologyType[]");
+        
+        for(var i=0,elm;elm = checkBoxName[i];i++) {
+        
+            if(elm.checked) {
+                vals.push(encodeURIComponent("'"+elm.value+"'"));
+            }
+        }
+    result = vals.join(', ');
+    document.getElementById('Multiple_Technology_Type_value').value = result;
+    doSearch();
+    }
+    
+    function checkBoxesP(){
+        var result, vals = [], checkBoxName =  document.getElementsByName("checkBoxProjectPhase[]");
+        
+        for(var i=0,elm;elm = checkBoxName[i];i++) {
+        
+            if(elm.checked) {
+                vals.push(encodeURIComponent("'"+elm.value+"'"));
+            }
+        }
+    result = vals.join(', ');
+    document.getElementById('Multiple_Project_Phase_value').value = result;
+    doSearch();
+    }
+    
+    function search_keywords_checkBoxes(){
+        var result, vals = [], checkBoxName =  document.getElementsByName("checkBox_search_keywords[]");
+        
+        for(var i=0,elm;elm = checkBoxName[i];i++) {
+        
+            if(elm.checked) {
+                vals.push("Keywords_New__c INCLUDES ('"+elm.value+"')");
+
+            }
+        }
+        
+    result = vals.join(' OR ');    
+    
+    document.getElementById('Search_Keywords_value').value = result;
+    doSearch();
+    }
+    
+    function doSearch() {
+    
+        searchServer(
+          document.getElementById("Asset_Name").value,        
+          document.getElementById("Content_Type").value,
+          document.getElementById("Technology").value,
+          document.getElementById("Search_Keywords_value").value,
+          document.getElementById("Multiple_Content_Type_value").value,
+          document.getElementById("Multiple_Technology_Type_value").value,
+          document.getElementById("Multiple_Project_Phase_value").value
+          );
+    }
+   </script>
+
+<!-- Below CSS using to display scrollbar to Search Keywords & PagablockTable Result-->
+<style type="text/css">    
+
+div.tableContainer {
+    clear: both;
+    height: 360px;
+    overflow: auto;
+    width: 100%;
+}
+div.pageblktableContainer {
+    clear: both;
+    height: 800px;
+    overflow: auto;
+    width: 100%;
+}
+thead.fixedHeader th {
+    background: #C96;
+    border-left: 1px solid #EB8;
+    border-right: 1px solid #B74;
+    border-top: 1px solid #EB8;
+    font-weight: normal;
+    padding: 4px 3px;
+    text-align: left
+}
+</style>
+
+<!-- Action Function calling & passing value to controller method runSearch() -->
+      <apex:actionFunction name="searchServer" action="{!runSearch}" rerender="results,debug,errors" status="status">
+          <apex:param name="Asset_Name" value="" />
+          <apex:param name="Content_Type" value="" />
+          <apex:param name="Technology" value="" />          
+          <apex:param name="Search_Keywords_value" value="" />
+          <apex:param name="Multiple_Content_Type_value" value="" />
+          <apex:param name="Multiple_Technology_Type_value" value="" />
+          <apex:param name="Multiple_Project_Phase_value" value="" />
+         </apex:actionFunction>
+<!-- This is for Left side -->
+      <table cellpadding="2" cellspacing="2">
+
+      <tr>
+        <td style="font-weight:bold;">Keyword<br/>
+        <input type="text" id="Asset_Name" onkeyup="doSearch();"/>
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight:bold;">
+        <input type="hidden" id="Content_Type" onkeyup="doSearch();"/>
+        </td>
+      </tr>
+      <tr>
+        <td style="font-weight:bold;">
+        <input type="hidden" id="Technology" onkeyup="doSearch();"/>
+        </td>
+      </tr>
+    <!-- Displaying content type check box -->  
+      <tr>
+        <td style="font-weight:bold;">Content Type<br/>
+        <input type="hidden" id="Multiple_Content_Type_value"/>
+            <apex:repeat value="{!Content_Type_Picklist}" var="var_content_type">
+            &nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE="CHECKBOX" NAME="checkBoxContentType[]" onClick="checkBoxes()" value="{!var_content_type}"/>{!var_content_type}<BR/>
+            </apex:repeat>
+        </td>
+      </tr>
+      
+      <!-- Displaying Technology as checkbox -->
+      <tr>
+        <td style="font-weight:bold;">Technology<br/>
+        <input type="hidden" id="Multiple_Technology_Type_value"/>
+            <apex:repeat value="{!Technology_Type_Picklist}" var="var_Technology_type">
+            &nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE="CHECKBOX" NAME="checkBoxTechnologyType[]" onClick="checkBoxesT()" value="{!var_Technology_type}"/>{!var_Technology_type}<BR/>
+            </apex:repeat>
+        </td>
+      </tr>
+      
+      <!-- Displaying Project Phase as checkbox -->
+      <tr>
+        <td style="font-weight:bold;">Project Phase<br/>
+        <input type="hidden" id="Multiple_Project_Phase_value"/>
+            <apex:repeat value="{!Project_Phase_Picklist}" var="var_Project_Phase">
+            &nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE="CHECKBOX" NAME="checkBoxProjectPhase[]" onClick="checkBoxesP()" value="{!var_Project_Phase}"/>{!var_Project_Phase}<BR/>
+            </apex:repeat>
+        </td>
+      </tr>
+      
+      </table>
+     
+      <div id="tableContainer" class="tableContainer">
+      <table cellpadding="2" cellspacing="2">      
+      <!--<tbody styleClass="tbody"><tr><td> -->
+        <input type="hidden" id="Search_Keywords_value"/>
+            <apex:repeat value="{!Search_Keywords_Picklist}" var="var_search_keywords">
+             </apex:repeat>
+       <!-- </td></tr></tbody>-->
+     
+    </table>
+</div>
+ </apex:pageBlock>
+
+</td>
+<!-- End of Left side section -->
+<!-- Start of Right side section -->
+    <td valign="top">
+    <apex:pageBlock mode="edit" id="results">
+        <!-- Scroll bar to page block table -->            
+        <div id="pageblktableContainer" class="pageblktableContainer">
+    <!-- Progress bar -->
+    
+    <apex:outputpanel >
+        <apex:actionstatus id="status">
+            <apex:facet name="start">
+                <div class="waitingSearchDiv" id="el_loading" style="background-color: #fbfbfb;height: 100%;opacity:0.75;width:100%;"> 
+                    <div class="waitingHolder" style="align:center;">
+                        <img class="waitingImage" src="/img/loading.gif" title="Please Wait..." />
+                        <span class="waitingDescription">Please Wait...</span>
+                    </div>
+                </div>
+            </apex:facet>
+        </apex:actionstatus>
+    </apex:outputpanel> 
+    <!-- End of Progress bar -->
+    
+        <apex:pageBlockTable value="{!listTerm}" var="assetLib"  width="800px" columns="6">
+
+           <apex:column width="150px">
+             <apex:facet name="header">Asset Name</apex:facet>
+          <apex:outputLink target="_blank" value="https://artl.accenture.com/irj/servlet/prt/portal/prtroot/GAPSearchApp.SearchResult?tech=Saas&searchText={!assetLib.Name}">{!assetLib.Name}</apex:outputLink>                                    
+        </apex:column>       
+                     
+            
+            <apex:column style="text-align:justify;" width="400px">
+                <apex:facet name="header">Description</apex:facet>
+                <apex:outputText value="{!assetLib.Other_Details__c}" style="text-align:justify;"/>
+            </apex:column>
+            
+            <apex:column value="{!assetLib.Content_Type__c}" width="50px" style="text-align:center;">
+                <apex:facet name="header">
+                    <apex:commandLink value="Content Type" action="{!toggleSort}" rerender="results,debug">
+                        <apex:param name="sortField" value="Content_Type__c" assignTo="{!sortField}"/>
+                    </apex:commandLink>
+                </apex:facet>                
+            </apex:column>
+
+            <apex:column value="{!assetLib.Technology__c}" width="50px" style="text-align:center;">
+               <apex:facet name="header">
+                    <apex:commandLink value="Technology" action="{!toggleSort}" rerender="results,debug">
+                        <apex:param name="sortField" value="Technology__c" assignTo="{!sortField}"/>
+                    </apex:commandLink>
+                </apex:facet>                
+            </apex:column>
+                         
+           
+           <apex:column width="50px" style="text-align:left;">
+                <apex:facet name="header">Project Phase</apex:facet>
+                <apex:outputText value="{!assetLib.Project_Phase__c}"/>
+            </apex:column>
+            
+<!--            <apex:column style="text-align:left;" width="100px">
+                <apex:facet name="header">Keywords</apex:facet>
+                <apex:outputText value="{!assetLib.Keywords_New__c}"/>
+            </apex:column>-->
+           
+            
+        </apex:pageBlockTable>
+</div>
+
+    </apex:pageBlock>
+
+    </td>
+  </tr>
+  </table>
+   
+
+  </apex:pageBlock>
+
+  </apex:form>
+
+</apex:page>

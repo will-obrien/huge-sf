@@ -1,0 +1,164 @@
+<!-- Jonathan Hersh - jhersh@salesforce.com - 10/3/2010 -->
+<apex:page controller="ComboPack.chatterSearch" tabstyle="Chatter_Search__tab" showheader="{!!showAbout}" action="{!urlSearch}">
+
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterSearch, 'jquery.min.js' )}" />
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterSearch, 'scripts.js' )}" />
+<apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterSearch, 'styles.css' )}" />
+
+<apex:form id="searchForm" >
+	<apex:sectionheader title="Chatter Search" />
+	
+	<apex:actionFunction name="doSearchAF" action="{!doSearch}" rerender="searchForm" oncomplete="endSpinner();" />
+	<apex:actionFunction name="checkboxAF" action="{!filterSearch}" rerender="postBlock,commentBlock" status="filterStatus" />
+	
+	<apex:messages />
+
+    <apex:pageblock id="searchBlock" title="Filters">
+        <apex:pageblockbuttons location="top">
+            <apex:commandbutton value="Search" action="{!doSearch}" rerender="searchForm" onclick="startSpinner();" />
+            <apex:commandbutton value="Clear" action="{!doReset}" rerender="searchBlock,resultBlock" />
+        </apex:pageblockbuttons>
+        <apex:pageblocksection id="searchStrSection" showheader="false" columns="2">
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="searchStr" value="Search Term" />
+                <apex:inputtext value="{!settings.searchStr}" id="searchStr" styleclass="searchStr" onkeypress="return noenter(event);" />
+            </apex:pageblocksectionitem>    
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="startDT" value="Show Posts From" />
+                <apex:inputfield id="startDT" value="{!settings.startDT.activitydatetime}" onkeypress="return noenter(event);" />
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="hasatt" value="Has Attached File?" />
+                <apex:inputcheckbox id="hasatt" value="{!settings.hasAttached}" />
+            </apex:pageblocksectionitem>
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="endDT" value="To" />
+                <apex:inputfield id="endDT" value="{!settings.endDT.activitydatetime}" onkeypress="return noenter(event);" />
+            </apex:pageblocksectionitem> 
+            <apex:pageblocksectionitem >
+                <apex:outputlabel for="haslink" value="Has Attached Link?" />
+                <apex:inputcheckbox id="haslink" value="{!settings.hasLink}" />
+            </apex:pageblocksectionitem>
+        </apex:pageblocksection>
+    </apex:pageblock>
+    
+    <div style="clear:both;height:10px"></div>
+    
+    <div id="spinner" style="display:none;margin: 0 auto; width: 350px; height: 400px;">
+    	<apex:pageblock >
+    		<p style="font-size: 24px; font-weight: bold; text-align:center;">Searching...</p>
+    		<p style="font-size: 16px; font-weight: bold; text-align:center;" id="spinMsg"></p>
+    	</apex:pageblock>
+    </div>
+
+	<div id="resultBlock">
+	<apex:outputpanel id="resultBlock" >
+	<apex:pageblock rendered="{!searched}">
+		<apex:pageblocksection columns="1">
+		<apex:pageblocksectionitem >
+			<apex:outputlabel value="Share this Search" for="selflink" />
+			<apex:outputlink id="selflink" value="{!results.selfLink}" rendered="{!results.selfLink != ''}">Chatter Search: {!settings.searchStr}</apex:outputlink>
+		</apex:pageblocksectionitem>
+		<apex:pageblocksectionitem rendered="{!OR( results.posts.size > 0, results.comments.size > 0 )}">
+			<apex:outputlabel for="boxes" value="Filter by Object" />
+			<apex:selectcheckboxes id="boxes" value="{!results.selectedTypes}" onchange="checkboxAF();">
+				<apex:selectOptions value="{!results.oTypes}" />
+			</apex:selectcheckboxes>
+		</apex:pageblocksectionitem>
+		</apex:pageblocksection>
+		<div style="text-align:center; margin: 0 auto;">
+			<apex:actionStatus id="filterStatus" >
+				<apex:facet name="start"><apex:image value="{!URLFOR( $Resource.ComboPack__chatterSearch, 'spinner.gif' )}" title="Filtering search results..." height="16" width="16" /></apex:facet>
+			</apex:actionStatus>
+		</div>
+	</apex:pageblock>
+	
+    <div style="float:left;width:49%;">
+    <apex:pageblock id="postBlock" rendered="{!searched}" title="Posts">
+        <apex:pageblocksection rendered="{!AND( searched, results.posts.size = 0 )}" >
+        	No results.
+        </apex:pageblocksection>
+        	<div style="text-align:center;margin-bottom:10px;">
+                <apex:commandbutton value="Back" styleclass="btn nameLink" action="{!prevUpdates}" rerender="postBlock" rendered="{!results.firstPost > 0}" >
+                	<apex:param assignto="{!results.whichFirst}" value="posts" />
+                </apex:commandbutton>
+                <apex:outputpanel rendered="{!results.posts.size > 0}">
+                <apex:outputtext value=" Page {!1 + (results.firstPost / ROWS_PER_PAGE)} of {!FLOOR(results.posts.size / ROWS_PER_PAGE) + if(MOD(results.posts.size,ROWS_PER_PAGE)>0,1,0)} " />
+                </apex:outputpanel>
+                <apex:commandbutton value="Next" 
+                    styleclass="nameLink" action="{!nextUpdates}" rerender="postBlock" rendered="{!results.firstPost + ROWS_PER_PAGE < results.posts.size}" >
+                	<apex:param assignto="{!results.whichFirst}" value="posts" />
+                </apex:commandbutton>
+			</div>  
+            <apex:repeat value="{!results.posts}" var="s" rendered="{!AND( searched, results.posts.size > 0)}" first="{!results.firstPost}" rows="{!ROWS_PER_PAGE}">
+                <div >
+                	<div style="float:left; margin-right: 10px; width: 32px">                
+                    	<c:userPhoto uid="{!s.uid}" photoStr="{!s.photoURL}" height="32" width="32" linked="true" />
+                    </div>
+                    <div style="float:left; width: 85%">
+	                    <apex:outputlink value="/{!s.uid}" target="_top" styleclass="nameLink" style="color:#015BA7;">{!s.uname}</apex:outputlink>
+	                    <apex:outputpanel rendered="{!AND( s.pid != s.uid, s.pname != '')}">
+	                        &rarr;&nbsp;<apex:outputlink value="/{!s.pid}" target="_top" styleclass="nameLink" style="color:#015BA7;" title="{!s.typename}">{!s.pname}</apex:outputlink>&nbsp;
+	                    </apex:outputpanel>
+	                    <apex:outputtext value="{!s.msg}" escape="false" /><br/>
+	                    <apex:outputpanel rendered="{!s.hasLink}">
+		                    <span><img class="contentPublisherTitleImage  contentPublisherTitleImageFile" style="height:16px;width:16px;float:left;background-image:url(/img/feeds/publisher_icon16.png);" src="/s.gif"/>
+	                                <a style="margin-left:10px;" href="{!s.attUrl}" target="_blank" styleclass="nameLink">{!s.attName}</a>
+	                        </span><br/>
+	                    </apex:outputpanel>
+	                    <apex:outputpanel rendered="{!s.hasAtt}">
+		                    <span><img class="publisherattachfile publisherattach" style="height:16px;width:16px;float:left;background:url(/img/feeds/publisher_icon16.png) no-repeat scroll 0% -16px;" src="/s.gif"/>
+	                                <strong style="margin-left: 10px">{!s.attName}</strong>
+	                        </span><br/>
+	                    </apex:outputpanel>
+	                    <span class="timeAgo"><apex:outputlink value="{!s.statusURL}">{!s.reltime}</apex:outputlink></span>
+                    </div>
+                </div>
+                
+            	<div style="clear:both;height: 10px"></div>
+            </apex:repeat>
+    </apex:pageblock>
+    </div>
+    <div style="float:left;width:2%">&nbsp;</div>
+    
+    <div style="float:left;width:49%">
+    	<apex:pageblock id="commentBlock" title="Comments" rendered="{!AND( !settings.hasAttached, !settings.hasLink, searched )}">
+    		<apex:pageblocksection rendered="{!AND( searched, results.comments.size = 0 )}" >
+        		No results.
+        	</apex:pageblocksection>
+        	<div style="text-align:center;margin-bottom: 10px">
+                <apex:commandbutton value="Back" styleclass="btn nameLink" action="{!prevUpdates}" rerender="commentBlock" rendered="{!results.firstComment > 0}" >
+                	<apex:param assignto="{!results.whichFirst}" value="comments" />
+                </apex:commandbutton>
+                <apex:outputpanel rendered="{!results.comments.size > 0}">
+                <apex:outputtext value=" Page {!1 + (results.firstComment / ROWS_PER_PAGE)} of {!FLOOR(results.comments.size / ROWS_PER_PAGE) + if(MOD(results.comments.size,ROWS_PER_PAGE)>0,1,0)} " />
+                </apex:outputpanel>
+                <apex:commandbutton value="Next" 
+                    styleclass="nameLink" action="{!nextUpdates}" rerender="commentBlock" rendered="{!results.firstComment + ROWS_PER_PAGE < results.comments.size}" >
+                	<apex:param assignto="{!results.whichFirst}" value="comments" />
+                </apex:commandbutton>
+			</div>
+            <apex:repeat value="{!results.comments}" var="s" first="{!results.firstComment}" rendered="{!AND( searched, results.comments.size > 0)}" rows="{!ROWS_PER_PAGE}">
+                <div >
+                	<div style="float:left; width: 32px; margin-right: 10px">                
+                    	<c:userPhoto uid="{!s.uid}" photoStr="{!s.photoURL}" height="32" width="32" linked="true" />
+                    </div>
+                    <div style="float:left; width: 85%">
+	                    <apex:outputlink value="/{!s.uid}" target="_top" styleclass="nameLink" style="color:#015BA7;">{!s.uname}</apex:outputlink>
+	                    <apex:outputpanel rendered="{!AND( s.pid != s.uid, s.pname != '')}">
+	                        &rarr;&nbsp;<apex:outputlink value="/{!s.pid}" target="_top" styleclass="nameLink" style="color:#015BA7;">{!s.pname}</apex:outputlink>&nbsp;
+	                    </apex:outputpanel>
+	                    <apex:outputtext value="{!s.msg}" escape="false" /><br/>
+	                    <span class="timeAgo"><apex:outputlink value="{!s.statusURL}">{!s.reltime}</apex:outputlink></span>
+                    </div>
+                </div>
+
+            	<div style="clear:both;height: 10px"></div>
+            </apex:repeat>
+    	</apex:pageblock>
+    </div>
+    </apex:outputpanel>
+    </div>
+</apex:form>
+
+</apex:page>

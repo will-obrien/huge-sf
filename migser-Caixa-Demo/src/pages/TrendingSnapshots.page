@@ -1,0 +1,1750 @@
+<apex:page showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false" controller="TrendingSnapshotsController">
+    <head>
+        <title>Trending Snapshots</title>
+        
+        <link rel="stylesheet" href="//www.jumpstartwave.com/lib/ext_dep.bootstrap.css" type="text/css"/>
+        <link rel="stylesheet" href="//www.jumpstartwave.com/lib/toastr.min.css" type="text/css" />
+        <link rel="stylesheet" href="{!URLFOR($Resource.WaveLabsResources,'/styles/sfdc-core.css')}" type="text/css"/>
+        <link rel="stylesheet" href="{!URLFOR($Resource.WaveLabsResources,'/styles/sfdc-analytics.css')}" type="text/css"/>
+        <link rel="stylesheet" href="{!URLFOR($Resource.WaveLabsResources,'/styles/jsoneditor.min.css')}" type="text/css"/>     
+        <link rel="stylesheet" href="{!URLFOR($Resource.WaveLabsResources,'/styles/tools.css')}" type="text/css"/>
+        <link rel="stylesheet" href="{!URLFOR($Resource.WaveLabsResources,'/styles/fontawesome.css')}" type="text/css"/>
+        <link rel="stylesheet" href="//www.jumpstartwave.com/styles/Style.css" type="text/css" />
+        
+        <script src="//www.jumpstartwave.com/lib/ext_dep.utils.js"></script>        
+        <script src="//www.jumpstartwave.com/lib/ext_dep.bootstrap.js"></script>
+        <script src="//www.jumpstartwave.com/lib/toastr.min.js"></script>
+        <script src="//www.jumpstartwave.com/scripts/utils.js"></script>        
+        <script src="{!URLFOR($Resource.WaveLabsResources,'/scripts/ace.min.js')}"></script>
+        <script src="{!URLFOR($Resource.WaveLabsResources,'/mode-sql.js')}"></script>
+        
+        <script>
+        var orgURL = '{!orgURL}';
+        
+        $(function() {
+            getReports();
+            getDatasets();
+            populateSchedulerOptions();
+            
+            $("#inputSearch").on("keyup", applyFilters);
+            
+            editor = ace.edit("editor");
+            editor.getSession().setMode("ace/mode/sql");
+            editor.getSession().setUseWrapMode(true);
+            editor.setShowPrintMargin(false);
+            
+            $("#oDataContainer, #editorContainer, #btnBar").hide();                
+            $("#messageContainer").html("<div class='assetListing' style='padding:0px 0px 30px 0px'>Select a report on the left to extract</div>");
+        });   
+        
+        /*
+        function showMessage(msg, err) {
+            $(err ? "#noteError" : "#noteSuccess").html(msg);
+            $(err ? ".notification.error" : ".notification.success").addClass("fade-notification-ani");
+            setTimeout(function() {
+                $(err ? ".notification.error" : ".notification.success").removeClass("fade-notification-ani");
+            }, 3000);
+        }
+        */
+        
+        function toggleModal(id, show) {
+            $('#' + id).css({display: show ? "block" : "none"});
+            show ? $('#' + id).addClass('fade-modal-ani') : $('#' + id).removeClass('fade-modal-ani');
+            show ? $('#overlay').addClass('fade-overlay-ani') : $('#overlay').removeClass('fade-overlay-ani');
+            currModalId = id;
+        }
+        
+        function reset() {
+            editor.setValue(''); 
+            setBootstrapSelectValue("datasets", "", "Select a dataset");
+            setBootstrapSelectValue("scheduleDailyTime", "1:00 AM", "1:00 AM");
+            setBootstrapSelectValue("scheduleWeeklyTime", "1:00 AM", "1:00 AM");
+            setBootstrapSelectValue("scheduleWeeklyDay", "SUN", "SUN");
+            setBootstrapSelectValue("scheduleMonthlyTime", "1:00 AM", "1:00 AM");
+            setBootstrapSelectValue("scheduleMonthlyDay", "1", "1");
+            $("#radioScheduleDaily").prop("checked","checked");
+            
+            currExtractId = null; currReportId = null; currModalExtractId = null;
+            
+            $('#dwnldMetadata, #btnBar').hide();
+            $("#metadataDetails").html("");
+            $("#inputNewDataset").val("");               
+        }
+        
+        //extract.js start
+        var KEY_ASSET_ID = "asset_id";
+        var KEY_ASSET_TYPE = "asset_type";
+        var KEY_VERSION_ID = "version_id";
+        var KEY_DATASETS = "allDatasets";
+        var MODE_REPORT = "Report", MODE_SOQL = "SOQL", MODE_ODATA = "oData";
+        
+        var editor;
+        var currAssetId, currAssetType, currMode = MODE_REPORT, currMetadataFields, currExtractId, currReportId, currModalId, currModalExtractId;
+        var cachedReports, cachedSObjects, cachedoData, lastRun, selectedExtractId, cachedSObjectMap = {}, cachedExtracts = {}, cachedDatasets = {}, reportId;
+        
+        function applyFilters() {
+            applyNewFilters();
+        }
+        
+        function applyNewFilters() {
+            populateNewAssetList(
+                currMode == MODE_REPORT ? cachedReports : currMode == MODE_SOQL ? cachedSObjects : cachedoData, 
+                currMode, $("#inputSearch").val());
+        }
+        
+        function populateAssetList(assets, assetType, searchTerm) {
+            $("#assetList").html("");
+            
+            if (searchTerm == null) searchTerm = "";
+            for(var i=assets.length-1; i>=0; i--) if(!assets[i]) assets.splice(i,1) // Sometimes null being returned?
+            assets.sort(function (a,b) { 
+                if(a.name && b.name){
+                    var aName = a.Dataset_Name__c.toLowerCase();
+                    var bName = b.Dataset_Name__c.toLowerCase();
+                    if(aName == bName) {
+                        var aId = a.Dataset_Name__c.toLowerCase();
+                        var bId = b.Dataset_Name__c.toLowerCase();
+                        return (aId < bId) ? -1 : ((aId > bId) ? 1 : 0);    
+                    } else {
+                        return aName < bName ? -1 : 1;
+                    }
+                }
+            });
+            
+            $.each(assets, function(i, asset) {
+                if(searchTerm != "" 
+                   && asset.Dataset_Name__c.toLowerCase().indexOf(searchTerm.toLowerCase()) == -1
+                   && (asset.Id ? asset.Id.toLowerCase().indexOf(searchTerm.toLowerCase()) == -1 : true)) return true;
+                
+                var assetId = asset.Id;
+                var assetName = asset.Dataset_Name__c;
+                
+                $("#assetList").append("<div class='assetListing' onclick='getAsset(\"" + assetId + "\",\"" + assetType + "\")'>" + assetName + "&nbsp;&nbsp;<span class='noteText'>(ID: " + assetId + ")</span></div>");
+            });
+            
+            $('.assetListing').on('click', function(){
+                lastRun = '';
+            });
+            
+            $('#oDataObjects').on('change', function(){
+                lastRun = '';
+            });
+        }
+        
+        function populateNewAssetList(assets, assetType, searchTerm) {
+            
+            if(assetType == MODE_REPORT) {
+                $("#assetList").html("");
+                
+                if (searchTerm == null) searchTerm = "";
+                $("#messageContainer").html("<div class='assetListing' style='padding:0px 0px 10px 0px'>Select a report on the left to extract</div>");
+                
+                for(var i=assets.length-1; i>=0; i--) if(!assets[i]) assets.splice(i,1) // Sometimes null being returned?
+                assets.sort(function (a,b) { 
+                    if(a.Name && b.Name){
+                        var aName = a.Name.toLowerCase();
+                        var bName = b.Name.toLowerCase();
+                        if(aName == bName) {
+                            var aId = a.Name.toLowerCase();
+                            var bId = b.Name.toLowerCase();
+                            return (aId < bId) ? -1 : ((aId > bId) ? 1 : 0);    
+                        } else {
+                            return aName < bName ? -1 : 1;
+                        }
+                    }
+                });
+                
+                $.each(assets, function(i, asset) {
+                    if(searchTerm != "" 
+                       && asset.Name.toLowerCase().indexOf(searchTerm.toLowerCase()) == -1
+                       && (asset.Id ? asset.Id.toLowerCase().indexOf(searchTerm.toLowerCase()) == -1 : true)) return true;
+                    
+                    var assetId = asset.Id;
+                    var assetName = asset.Name;
+                    
+                    $("#assetList").append("<div class='assetListing' onclick='runQuery(\"" + assetId + "\",\"" + assetName + "\"); generateMetadata(\"" + assetId + "\",\"" + assetName + "\");'>" + assetName + "&nbsp;&nbsp;<span class='noteText'>(ID: " + assetId + ")</span></div>");
+                });
+            } else if(assetType == MODE_ODATA) {
+                
+            } else {
+                
+                $("#assetList").html("");
+                if (searchTerm == null) searchTerm = "";
+                $("#messageContainer").html("<div class='assetListing' style='padding:0px 0px 10px 0px'>Select a report on the left to extract</div>");
+                
+                for(var i=assets.length-1; i>=0; i--) if(!assets[i]) assets.splice(i,1) // Sometimes null being returned?
+                assets.sort(function (a,b) { 
+                    if(a.name && b.name){
+                        var aName = a.name.toLowerCase();
+                        var bName = b.name.toLowerCase();
+                        if(aName == bName) {
+                            var aId = a.name.toLowerCase();
+                            var bId = b.name.toLowerCase();
+                            return (aId < bId) ? -1 : ((aId > bId) ? 1 : 0);    
+                        } else {
+                            return aName < bName ? -1 : 1;
+                        }
+                    }
+                });
+                
+                $.each(assets, function(i, asset) {
+                    if(searchTerm != "" 
+                       && asset.name.toLowerCase().indexOf(searchTerm.toLowerCase()) == -1
+                       && (asset.id ? asset.id.toLowerCase().indexOf(searchTerm.toLowerCase()) == -1 : true)) return true;
+                    
+                    var assetId = asset.id;
+                    var assetName = asset.name;
+                    
+                    $("#assetList").append("<div class='assetListing' onclick='getMetadataDataAsset(\"" + assetId + "\",\"" + assetName + "\")'>" + assetName + "&nbsp;&nbsp;<span class='noteText'>(ID: " + assetId + ")</span></div>");
+                });
+            }
+            
+            $('.assetListing').on('click', function() { lastRun = ''; });
+            $('#oDataObjects').on('change', function(){ lastRun = ''; });
+        }
+        
+        function setBootstrapSelectValue(elId, id, text) {
+            $("#" + elId).val(id.replace(/&amp;/g, '&'));
+            $("[data-id=" + elId + "] > .filter-option").text(text.replace(/&amp;/g, '&') ? text.replace(/&amp;/g, '&') : id.replace(/&amp;/g, '&'));
+        }
+        
+        function getSObjects() {
+            if(cachedSObjects) {
+                applyNewFilters();
+            } else {
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#assetList").html(""); $("#assetList").append(loading);
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getSobjectList}',
+                    function(result, event) {
+                        
+                        if (event.status) { 
+                            cachedSObjects = result;
+                            populateNewAssetList(result, MODE_SOQL);
+                        } else if (event.type === 'exception') {
+                            console.log('Error retrieving SObjects.');
+                        } else {
+                            console.log(event.message);
+                        }
+                    }, 
+                    {escape: true}
+                );
+            }
+        }
+        
+        function getoDataDataExtract() {
+            if(cachedoData) {
+                applyNewFilters();
+            } else {
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#assetList").html(""); $("#assetList").append(loading);
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getDataExtract}',
+                    'oData', orgURL,
+                    function(result, event){
+                        if (event.status) { 
+                            cachedoData = result;
+                            if(result) {
+                                populateNewAssetList(result, MODE_ODATA);
+                            }
+                        } else if (event.type === 'exception') {
+                            console.log('Error retrieving oData.');
+                        } else {
+                            console.log(event.message);
+                        }
+                    }, 
+                    {escape: true}
+                );
+            }
+        }
+        
+        function getReports() {
+            if(cachedReports) {
+                applyNewFilters();
+            } else {
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#assetList").html(""); $("#assetList").append(loading);
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getReportList}',
+                    orgURL,
+                    function(result, event){
+                        
+                        if (event.status) { 
+                            cachedReports = result;
+                            populateNewAssetList(result, MODE_REPORT);
+                        } else if (event.type === 'exception') {
+                            console.log('Error retrieving reports.');
+                        } else {
+                            console.log(event.message);
+                        }
+                    }, 
+                    {escape: true}
+                );
+            }
+        }
+        
+        function switchMode(mode) {
+            reset();
+            currMode = mode;
+            
+            if(mode == MODE_REPORT) {
+                $("#btnReports").addClass('active'); $("#btnSOQL").removeClass('active');$("#btnoData").removeClass('active');
+                $("#scheduleConfig, #editorContainer, #oDataContainer, #btnBar, #btnRun, #scheduleConfig").hide();
+                $("#messageContainer, #btnMetadataTemp, .slds-form-element__control").show();
+                $("#assetList").html("");                    
+                getReports();
+                
+            } else if(mode == MODE_SOQL){
+                $("#btnSOQL").addClass('active'); $("#btnReports").removeClass('active'); $("#btnoData").removeClass('active');
+                $("#oDataContainer, #messageContainer").hide();
+                $("#editorContainer, #scheduleConfig, #btnRun, #btnMetadataTemp, #scheduleConfig, .slds-form-element__control").show();
+                $("#btnBar").css("display", "flex");
+                getSObjects();  
+                
+            } else{
+                $("#btnoData").addClass('active'); $("#btnReports").removeClass('active');$("#btnSOQL").removeClass('active');
+                $("#editorContainer, #messageContainer, #btnBar, #btnRun, #scheduleConfig, .slds-form-element__control").hide();
+                $("#oDataContainer, #scheduleConfig, #messageContainer, #btnMetadataTemp").show();
+                $("#assetList").html("");
+                $("#messageContainer").html("<div class='assetListing' style='padding:0px 0px 30px 0px'>Select an oData object on the left to extract</div>");
+            }
+            
+            $("#resultsContainer").hide();
+            $("#metadata, #tableContainer").html("");
+            $('.nav-tabs a[href="#configure"]').tab('show');
+        }
+        
+        function populateDatasetList(assets) {
+            
+            $("#datasets").html("");
+            
+            for(var i=assets.length-1; i>=0; i--) if(!assets[i]) assets.splice(i,1) // Sometimes null being returned?
+            assets.sort(function (a,b) { 
+                if(a.Dataset_Name__c && b.Dataset_Name__c){
+                    var aName = a.Dataset_Name__c.toLowerCase(), bName = b.Dataset_Name__c.toLowerCase();
+                    if(aName == bName) {
+                        var aId = a.Id, bId = b.Id;
+                        return (aId < bId) ? -1 : ((aId > bId) ? 1 : 0);    
+                    } else {
+                        return aName < bName ? -1 : 1;
+                    }
+                }
+            });
+            
+            for(var i=assets.length-1; i>0; i--) {
+                if(assets[i]._uid && assets[i-1]._uid && assets[i]._uid == assets[i-1]._uid ) assets.splice(i,1)
+                else if(assets[i].id && assets[i-1].id && assets[i].id == assets[i-1].id ) assets.splice(i,1)
+            }
+            
+            $('#datasets').append($('<option value="" data-content="Select a dataset" selected disabled>'));
+            $.each(assets, function(i, asset) {
+                var elOption = $('<option>', { value: asset.Id || asset.Id });
+                elOption.attr("data-content", asset.Dataset_Name__c || asset.label);
+                $('#datasets').append(elOption);
+                
+                cachedDatasets[asset.Id] = { name: asset.Id, label: asset.Dataset_Name__c };
+            }); 
+            $('#datasets, #datasetAction').selectpicker();
+            $('[data-id=datasets]').parent().css({width:"240px",marginLeft:"10px"});
+            $('[data-id=datasetAction]').parent().css({width:"105px"});
+        }
+        
+        function getDatasets() {
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.getDataExtract}',
+                'All', orgURL,
+                function(result, event){
+                    if (event.status) { 
+                        if(result) populateDatasetList(result);
+                    } else if (event.type === 'exception') {
+                        console.log('Error retrieving datasets.');
+                    } else {
+                        console.log(event.message);
+                    }
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function populateSchedulerOptions() {
+            
+            // Day of week dropdowns
+            var daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            for (var i=0; i<daysOfWeek.length; i++) {
+                var elOption = $('<option>', { value: daysOfWeek[i] });
+                elOption.attr("data-content", daysOfWeek[i]);
+                $('#scheduleWeeklyDay').append(elOption);
+            } 
+            
+            // Time dropdowns
+            for (var i=1; i<=24; i++) {
+                var elOption = $('<option>', { value: (i>12 ? i-12 : i) + (i>=12 && i<24 ? ":00 PM" : ":00 AM") });
+                elOption.attr("data-content", (i>12 ? i-12 : i) + (i>=12 && i<24 ? ":00 PM" : ":00 AM"));
+                $('#scheduleDailyTime').append(elOption);
+                $('#scheduleWeeklyTime').append(elOption.clone());
+                $('#scheduleMonthlyTime').append(elOption.clone());
+            }
+            
+            // Day of month
+            for (var i=1; i<=31; i++) {
+                var elOption = $('<option>', { value: i });
+                elOption.attr("data-content", i);
+                $('#scheduleMonthlyDay').append(elOption);
+            }
+            
+            $('#scheduleWeeklyDay, #scheduleDailyTime, #scheduleWeeklyTime, #scheduleMonthlyTime, #scheduleMonthlyDay').selectpicker();
+            $('[data-id=scheduleWeeklyTime], [data-id=scheduleDailyTime], [data-id=scheduleMonthlyTime], [data-id=scheduleMonthlyDay]').css({minWidth:"0px",borderColor:"#c5d3e0"});
+            $('[data-id=scheduleWeeklyTime], [data-id=scheduleMonthlyTime]').parent().css("width","100px");
+            $('[data-id=scheduleDailyTime]').parent().css({width:"100px", marginLeft:"10px"});
+            $('[data-id=scheduleWeeklyDay]').parent().css({width:"100px", marginLeft:"10px"});
+            $('[data-id=scheduleMonthlyDay]').parent().css({width:"100px", marginLeft:"10px"});
+        }
+        
+        function generateMetadata(tempReportId, reportName){
+            
+            if(tempReportId) {
+                reportId = tempReportId;
+            }
+
+            $("#dwnldMetadata").hide();
+            
+            var extractType = $('.button-group .active').text();
+            if(extractType == MODE_REPORT) {
+                var selectedReportId;
+                
+                if(reportId) {
+                    selectedReportId = reportId;
+                } else {
+                    showMessage('Please select a report', '#noteError');
+                    return false;
+                }
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#metadata").html(""); $("#metadata").append(loading);
+                $("#btnMetadata").html("Running...");
+                $("#btnMetadata").attr("disabled","disabled");
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getReportRowResponse}',
+                    selectedReportId, orgURL,
+                    function(result, event) {
+                        if (event.status) { 
+                            $("#metadata").html("");
+                            $("#metadata").append(result);
+                            
+                            var jsonStr = $("#metadata").text();
+                            var jsonObj = JSON.parse(jsonStr);
+                            var jsonPretty = JSON.stringify(jsonObj, null, '\t');
+                            
+                            $("#metadata").text(jsonPretty);
+                            
+                            //showMessage('Metadata JSON is generated', null);
+                            //$("#btnBar").css("display", "flex");
+                            
+                            $('#btnMetadataTemp, #dwnldMetadata, #scheduleConfig').show();
+                            $("#messageContainer").hide();                                    
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                            
+                        } else if (event.type === 'exception') {
+                            showMessage('Error retrieving report metadata JSON.', '#noteError');
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                            
+                        } else {
+                            console.log(event.message);
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                        }
+                    }, 
+                    {escape: true}
+                );
+                
+            } else if(extractType == MODE_SOQL) {
+                var query;
+                if(editor.getValue() != null && editor.getValue() != ''){
+                    query = editor.getValue();
+                } else {
+                    showMessage('Please enter a query', '#noteError');
+                    return false;
+                }
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#metadata").html(""); $("#metadata").append(loading);
+                $("#btnMetadata").html("Running...");
+                $("#btnMetadata").attr("disabled","disabled");
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getSOQLRowResponse}',
+                    query, orgURL,
+                    function(result, event){
+                        
+                        if (event.status) { 
+                            $("#metadata").html("");
+                            $("#metadata").append(result);
+                            
+                            var jsonStr = $("#metadata").text();
+                            var jsonObj = JSON.parse(jsonStr);
+                            var jsonPretty = JSON.stringify(jsonObj, null, '\t');
+                            
+                            $("#metadata").text(jsonPretty);
+                            showMessage('Metadata JSON is generated', null);
+                            $('#dwnldMetadata').show();
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                            
+                        } else if (event.type === 'exception') {
+                            showMessage('Error retrieving soql metadata JSON.', '#noteError');
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                        } else {
+                            console.log(event.message);
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                        }
+                    }, 
+                    {escape: true}
+                );
+                
+            } else if(extractType == MODE_ODATA) {
+                
+                var oDataURL;
+                if($('#oDataURL').val()){
+                    oDataURL = $('#oDataURL').val();
+                } else {
+                    showMessage('Please enter a oData URL', '#noteError');
+                    return false;
+                }
+                
+                var oDataObject;
+                var oDataHref;
+                
+                if($('#oDataObjects').val()){
+                    oDataObject = $('#oDataObjects :selected').attr('data-content');
+                    oDataHref = $('#oDataObjects').val();
+                } else {
+                    showMessage('Please select an oData object', '#noteError');
+                    return false;
+                }
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#metadata").html(""); $("#metadata").append(loading);
+                $("#btnMetadata").html("Running...");
+                $("#btnMetadata").attr("disabled","disabled");
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getExternalObjectMetaData}',
+                    oDataObject, oDataURL, oDataHref, 
+                    function(result, event){
+                        if (event.status) { 
+                            $("#metadata").html("");
+                            $("#metadata").append(result);
+                            
+                            var jsonStr = $("#metadata").text();
+                            var jsonObj = JSON.parse(jsonStr);
+                            var jsonPretty = JSON.stringify(jsonObj, null, '\t');
+                            
+                            $("#metadata").text(jsonPretty);
+                            
+                            showMessage('Metadata JSON is generated', null);
+                            
+                            //$("#btnBar").css("display", "flex");
+                            $('#btnMetadataTemp, #dwnldMetadata, #scheduleConfig').show();                                    
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                            $("#messageContainer").hide();
+                            
+                        } else if (event.type === 'exception') {
+                            showMessage('Error retrieving oData metadata JSON.', '#noteError');
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                            
+                        } else {
+                            console.log(event.message);
+                            $("#btnMetadata").removeAttr("disabled"); $("#btnMetadata").html("Generate Metadata");
+                        }
+                    }, 
+                    {escape: true}
+                );
+            }
+        }
+        
+        function addValuesTooDataObjectList(callback){
+            
+            var oDataURL;
+            if($('#oDataURL').val()){
+                oDataURL = $('#oDataURL').val();
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#assetList").html(""); $("#assetList").append(loading);                
+            } else {
+                showMessage('Please enter an oData URL', '#noteError');
+                return false;
+            }
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.addValuesTooDataObjectList}',
+                oDataURL,
+                function(result, event){
+                    if (event.status) { 
+                        $('#oDataObjects').append($('<option value="" data-content="Select an oData object" selected disabled>'));
+                        $.each(result, function(i, asset) {
+                            var elOption = $('<option>', { value: asset.id.replace(/&amp;/g, '&')});
+                            elOption.attr("data-content", asset.name.replace(/&amp;/g, '&'));
+                            $('#oDataObjects').append(elOption);
+                        }); 
+                        
+                        $('#oDataObjects').selectpicker();
+                        callback();
+                        
+                    } else if (event.type === 'exception') {
+                        console.log('Error retrieving oData object list.');
+                    } else {
+                        console.log(event.message);
+                    }
+                    $("#assetList").html("");
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function saveDataExtract() {
+            
+            var extractType = $('.button-group .active').text();
+            var selectedReportId = '';
+            var selectedReportName = '';
+            var oDataURL = '';
+            var oDataObject = '';
+            var oDataHref = '';
+            var query = '';
+            
+            if(extractType == MODE_REPORT) {
+                
+                if(curSelectedReportId) {                    
+                    selectedReportId = curSelectedReportId;
+                    selectedReportName = curSelectedReportName;
+                    
+                } else {
+                    showMessage('Please select a report', '#noteError');
+                    return false;
+                }
+                
+            } else if(extractType == MODE_SOQL) {
+                
+                if(editor.getValue() != null && editor.getValue() != '') {
+                    query = editor.getValue();
+                } else {
+                    showMessage('Please enter a query', '#noteError');
+                    return false;
+                }
+                
+            } else if(extractType == MODE_ODATA) {
+                
+                if($('#oDataURL').val()){
+                    oDataURL = $('#oDataURL').val();
+                }else{
+                    showMessage('Please enter an oData URL', '#noteError');
+                    return false;
+                }
+                
+                if($('#oDataObjects').val()) {    
+                    oDataObject = $('#oDataObjects :selected').attr('data-content');
+                    oDataHref = $('#oDataObjects').val();
+                } else {
+                    showMessage('Please select an oData object', '#noteError');                    
+                    return false;
+                }
+            }
+            
+            var schedule = $('#scheduleConfig .input-radio:checked').val();
+            var selectedDayDate = '';
+            var timeInterval = '';
+            
+            if(schedule == 'Daily') {
+                timeInterval =  $('#scheduleDailyTime :selected').attr('data-content');
+            } else if(schedule == 'Weekly') {
+                timeInterval =  $('#scheduleWeeklyTime :selected').attr('data-content');
+                selectedDayDate = $('#scheduleWeeklyDay :selected').attr('data-content');
+            } else {
+                selectedDayDate = $('#scheduleMonthlyDay :selected').attr('data-content');
+                timeInterval =  $('#scheduleMonthlyTime :selected').attr('data-content');
+            }
+            
+            var selectedDataset = $('#datasets').val();
+            var newDataset = $('#inputNewDataset').val();
+            
+            if(newDataset == null || typeof(newDataset) == 'undefined') {
+                newDataset ='';
+            }
+            if(selectedDataset == null || typeof(selectedDataset) == 'undefined') {
+                selectedDataset ='';
+            }
+            
+            var datasetAction;
+            if(newDataset == null || newDataset == '') {
+                datasetAction = $('#datasetAction').val();
+            } else {
+                datasetAction = $('#datasetAction').val();
+                selectedDataset = '';
+            }
+            
+            var metadata = $('#metadata').text();
+            if(metadata == null || metadata == '') {
+                showMessage('Please generate metadata JSON first', '#noteError');
+                return false;
+            }
+            
+            $("#btnSave").html("Saving..."); $("#btnSave").attr("disabled","disabled");
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.saveDataExtract}',
+                query, newDataset, metadata, schedule, selectedDayDate,
+                datasetAction, timeInterval, selectedReportName, selectedReportId,
+                oDataURL, oDataObject, oDataHref, extractType, selectedDataset,
+                
+                function(result, event){
+                    
+                    if (event.status) {  
+                        if(result.indexOf("Success,") != -1){
+                            
+                            result = result.replace('Success,', '');
+                            Visualforce.remoting.Manager.invokeAction(
+                                '{!$RemoteAction.TrendingSnapshotsController.scheduledBatch}',
+                                timeInterval, schedule, selectedDayDate,
+                                result, result,
+                                
+                                function(result1, event){
+                                    
+                                    if (event.status) { 
+                                        if(result1.indexOf('Data Extract Saved and Scheduled successfully') != -1){
+                                            showMessage(result1, null);
+                                        } else {
+                                            showMessage(result, '#noteError');
+                                        }
+                                    } else if (event.type === 'exception') {
+                                        showMessage('Error Scheduling data extract.', '#noteError');
+                                        console.log('Error Scheduling data extract.');
+                                    } else {
+                                        showMessage(event.message, '#noteError');
+                                        console.log(event.message);
+                                    }
+                                }, 
+                                {escape: true}
+                            );
+                        }else{
+                            showMessage(result, '#noteError');
+                        }
+                    } else if (event.type === 'exception') {
+                        console.log('Error Saving data extract.');
+                    } else {
+                        console.log(event.message);
+                    }
+                    
+                    $("#btnSave").removeAttr("disabled"); $("#btnSave").html("Save");
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function getAsset(assetId, assetType, cb) {
+            var loading = $("#loading").clone(); loading.css("display","block");
+            $("#metadata").html(""); 
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.getSelectedDataExtract}',
+                assetId,
+                function(result, event){
+                    
+                    if (event.status) { 
+                        if(result) {
+                            if(result.Timestamp__c){
+                                lastRun = result.Timestamp_String__c;
+                            } else {
+                                lastRun = '';
+                            }
+                            
+                            if(result.Type__c == MODE_REPORT){
+                                  
+                            } else if(result.Type__c == MODE_SOQL) {
+                                
+                                editor.setValue(result.SOQL_Query__c);
+                                
+                            }else if(result.Type__c == MODE_ODATA){
+                                
+                                $('#oDataURL').val(result.oData_URL__c);
+                                addValuesTooDataObjectList(function(){
+                                    setBootstrapSelectValue("oDataObjects", result.oData_Object_href__c, result.oData_Object__c);
+                                    $('#messageContainer').hide();
+                                    runQuery(); generateMetadata();
+                                });
+                            }
+                            
+                            $('#scheduleConfig .input-radio').each(function(){
+                                if($(this).attr('value') == result.Schedule__c){
+                                    $(this).prop('checked', true);
+                                }
+                            })
+                            
+                            if(result.Schedule__c == 'Daily'){
+                                setBootstrapSelectValue("scheduleDailyTime", result.Time_Interval__c, result.Time_Interval__c);
+                                
+                            }else if(result.Schedule__c == 'Weekly'){
+                                setBootstrapSelectValue("scheduleWeeklyTime", result.Time_Interval__c, result.Time_Interval__c);
+                                setBootstrapSelectValue("scheduleWeeklyDay", result.Day_Date_Selector__c, result.Day_Date_Selector__c);
+                                
+                            } else {
+                                setBootstrapSelectValue("scheduleMonthlyDay", result.Day_Date_Selector__c, result.Day_Date_Selector__c);
+                                setBootstrapSelectValue("scheduleMonthlyTime", result.Time_Interval__c, result.Time_Interval__c);
+                            }
+                            
+                            setBootstrapSelectValue("datasets", result.Id, result.Dataset_Name__c);
+                            setBootstrapSelectValue("datasetAction", result.Operation__c, result.Operation__c);
+                            
+                            $('#inputNewDataset').val("");
+                            $("#metadata").html("");
+                            $("#metadata").append(result.Metadata__c);
+                            
+                            var jsonStr = $("#metadata").text();
+                            var jsonObj = JSON.parse(jsonStr);
+                            var jsonPretty = JSON.stringify(jsonObj, null, '\t');
+                            
+                            $("#metadata").text(jsonPretty);
+                            $('#dwnldMetadata').show();
+                            
+                            if(result.Type__c == MODE_REPORT) {
+                                $('#messageContainer').hide();
+                                runQuery(result.Report_Id__c, result.Report_Name__c); 
+                                generateMetadata(result.Report_Id__c, result.Report_Name__c);
+                            }
+                            
+                            showMessage('Data Extract Retrieved', null);
+                        }else{
+                            showMessage('data Extract not found', '#noteError');
+                        }
+                    } else if (event.type === 'exception') {
+                        console.log('Error Saving data extract.');
+                    } else {
+                        console.log(event.message);
+                    }
+                }, 
+                {escape: true}
+            );
+            
+            $('.nav-tabs a[href="#configure"]').tab('show');
+        }
+        
+        function populateResultsTable(data, assetType, columns) {
+            
+            if(!data || data.length == 0) {
+                showMessage("Query returned no results","Query returned no results");
+                return;
+            }
+            
+            var cols = [], tableData = [];
+            var lastRunDate;
+            var lastRunDateTemp;
+            
+            if(lastRun != '' && lastRun != null && typeof(lastRun) != 'undefined'){
+                lastRunDate = lastRun;
+                var splittedTimeStamp = lastRun.split('~~~');
+                lastRunDateTemp = splittedTimeStamp[1] + '/' + splittedTimeStamp[2] + '/'  + splittedTimeStamp[0];
+            } else {
+                lastRunDate = '-';
+                lastRunDateTemp = '-';
+            }
+            
+            if(assetType == MODE_REPORT) {
+                
+                for(var i=0; i<data.length; i++) {
+                    var record = data[i].dataCells;
+                    var row = {};
+                    
+                    for(var j=0; j<record.length; j++) {
+                        row[columns[j]] = record[j].label
+                    }
+                    
+                    //row['Timestamp'] = lastRunDateTemp;
+                    //row['Timestamp String'] = lastRunDate;
+                    tableData.push(row);
+                }
+                
+                for(var i=0; i<columns.length; i++) {
+                    cols.push({ field: columns[i], title: columns[i] });
+                }
+                
+                //cols.push({ field: 'Timestamp', title: 'Timestamp' });
+                //cols.push({ field: 'Timestamp String', title: 'Timestamp String' });
+                
+            } else {
+                
+                var columns = Object.keys(data[0]);
+                for(var n=0; n<data.length; n++) {
+                    var row = {};
+                    for(var i=0; i<columns.length; i++) {
+                        if(columns[i] == "attributes") continue;
+                        if(typeof(data[0][columns[i]]) == "object" && data[0][columns[i]]) {
+                            var subCols = Object.keys(data[0][columns[i]]);
+                            for(var j=0; j<subCols.length; j++) {
+                                if(subCols[j] == "attributes") continue;
+                                if(n==0) cols.push({ field: columns[i] + "." + subCols[j], title: columns[i] + "." + subCols[j]});
+                                row[columns[i] + "." + subCols[j]] = data[n][columns[i]][subCols[j]];
+                            }
+                        } else {
+                            if(n==0) cols.push({ field: columns[i], title: columns[i] });
+                            row[columns[i]] = data[n][columns[i]]
+                        }
+                    }   
+                    
+                    //row['Timestamp'] = lastRunDateTemp;
+                    //row['Timestamp String'] = lastRunDate;
+                    tableData.push(row);
+                } 
+                
+                //cols.push({ field: 'Timestamp', title: 'Timestamp' });
+                //cols.push({ field: 'Timestamp String', title: 'Timestamp String' });
+            }
+            
+            var elTable = $("<table id='resultsTable'>");
+            elTable.bootstrapTable({ columns: cols, data: tableData });
+            elTable.bootstrapTable.columnDefaults.valign="top";
+            
+            $("#tableContainer").append(elTable);
+            $("#resultsContainer").show();
+        }
+        
+        function runQuery(tempReportId, reportName) {
+            
+            reportId = tempReportId;
+            
+            $("#tableContainer").html("");
+            $("#resultsContainer").hide();
+            $("#btnRun").html("Running...");
+            $("#btnRun").attr("disabled","disabled");
+            
+            var extractType = $('.button-group .active').text();
+            
+            if(extractType == MODE_SOQL){
+                if(editor.getValue().length == 0){
+                    showMessage('Please enter a query', '#noteError'); 
+                    $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    return;
+                }
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.testQuery}',
+                    editor.getValue(), orgURL,
+                    function(result, event){
+                        
+                        if (event.status) { 
+                            var jsonStr = $("<div/>").html(result).text();
+                            var jsonObj = JSON.parse(jsonStr);
+                            
+                            if(!jsonObj.records && jsonObj[0].errorCode) {
+                                showMessage(jsonObj[0].message, '#noteError');
+                            } else {
+                                populateResultsTable(jsonObj.records);
+                            }
+                            
+                        } else if (event.type === 'exception') {
+                            showMessage('Error running SOQL query', '#noteError');
+                        } else {
+                            console.log(event.message);
+                        }
+                        
+                        $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    }, 
+                    {escape: true}
+                );
+            } else if(extractType == MODE_REPORT) {
+                var selectedReportId;
+                
+                if(reportId) {
+                    selectedReportId = reportId;
+                    curSelectedReportId = reportId;
+                    curSelectedReportName = reportName;
+                    
+                } else {
+                    showMessage('Please select a report', '#noteError');
+                    $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    return false;
+                }
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#metadataDetails").html(""); 
+                $("#metadataDetails").append(loading);
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.testReportQuery}',
+                    selectedReportId, orgURL,
+                    function(result, event){
+                        
+                        if (event.status) { 
+                            try{
+                                var jsonStr = $("<div/>").html(result).text();
+                                var jsonObj = JSON.parse(jsonStr);
+                                var fields = jsonObj.reportExtendedMetadata.detailColumnInfo;
+                                var cols = [];
+                                
+                                currMetadataFields = []; 
+                                $("#metadataDetails").html(""); 
+                                $("#metadataDetails").append("<div class='assetListing' style='padding:0px 0px 10px 0px;display:flex;align-items:center'>" + reportName + " report metadata</div>");
+                                
+                                $.each( fields, function( key, value ) {
+                                    $("#metadataDetails").append("<div class='metadataListing'>" + fields[key].label + " <span class='noteText'>(Type: " + fields[key].dataType + ")</span></div>");
+                                    cols.push(fields[key].label);
+                                });
+                                
+                                if(jsonObj && jsonObj.factMap && jsonObj.factMap["T!T"] && jsonObj.factMap["T!T"].rows) {
+                                    populateResultsTable(jsonObj.factMap["T!T"].rows, MODE_REPORT, cols);
+                                }
+                                
+                            } catch(err) {
+                                $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                            }
+                            
+                        } else if (event.type === 'exception') {
+                            console.log('Error Run Query for Report.');
+                        } else {
+                            console.log(event.message);
+                        }
+                        
+                        $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    }, 
+                    {escape: true}
+                );
+                
+            } else if(extractType == MODE_ODATA) {
+                
+                var oDataURL;
+                if($('#oDataURL').val()) {
+                    oDataURL = $('#oDataURL').val();
+                } else {
+                    
+                    showMessage('Please enter a oData URL', '#noteError');
+                    $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    return false;
+                }
+                
+                var oDataHref;
+                if($('#oDataObjects').val()) {
+                    oDataHref = $('#oDataObjects').val();
+                } else {
+                    showMessage('Please select a oData object', '#noteError');
+                    $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    return false;
+                }
+                
+                var loading = $("#loading").clone(); loading.css("display","block");
+                $("#metadataDetails").html(""); 
+                $("#metadataDetails").append(loading);
+                
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.getoData}',
+                    oDataURL, oDataHref,
+                    function(result, event){
+                        
+                        if (event.status) { 
+                            try{
+                                if(result.length == 0){
+                                    showMessage("oData returned no results", '#noteError');
+                                    return false;
+                                }
+                                
+                                var lastRunDate;
+                                var lastRunDateTemp;
+                                if(lastRun != '' && lastRun != null && typeof(lastRun) != 'undefined') {
+                                    lastRunDate = lastRun;
+                                    var splittedTimeStamp = lastRun.split('~~~');
+                                    lastRunDateTemp = splittedTimeStamp[1] + '/' + splittedTimeStamp[2] + '/'  + splittedTimeStamp[0];
+                                } else {  
+                                    lastRunDate = '-';
+                                }
+                                
+                                var cols = [], tableData = [];
+                                var columns = result.columns;
+                                
+                                $.each(result.dataRows, function(i, field) {
+                                    //field['Timestamp'] = lastRunDateTemp;
+                                    //field['Timestamp String'] = lastRunDate;
+                                    tableData.push(field);
+                                });
+                                
+                                $("#metadataDetails").html(""); 
+                                $("#metadataDetails").append("<div class='assetListing' style='padding:0px 0px 10px 0px;display:flex;align-items:center'>" + $('#oDataObjects :selected').attr('data-content') + " oData object metadata</div>");
+                                
+                                for(var i=0; i<columns.length; i++) {
+                                    cols.push({ field: columns[i], title: columns[i] });
+                                    $("#metadataDetails").append("<div class='metadataListing'>" + columns[i] + "</div>");
+                                }
+                                
+                                //cols.push({ field: 'Timestamp', title: 'Timestamp' });
+                                //cols.push({ field: 'Timestamp String', title: 'Timestamp String' });
+                                
+                                var elTable = $("<table id='resultsTable'>");
+                                elTable.bootstrapTable({ columns: cols, data: tableData });
+                                elTable.bootstrapTable.columnDefaults.valign="top";
+                                
+                                $("#tableContainer").append(elTable);
+                                $("#resultsContainer").show();
+                            } catch(err) {
+                                $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                            }
+                            
+                        } else if (event.type === 'exception') {
+                            console.log('Error Run Query for oData.');
+                        } else {
+                            console.log(event.message);
+                        }
+                        
+                        $("#btnRun").removeAttr("disabled"); $("#btnRun").html("Preview");
+                    }, 
+                    {escape: true}
+                );
+            }
+            
+            $("#btnExport img").on('click', function (event) {
+                var table = $("#resultsTable")[0];
+                var rowLength = table.rows.length;
+                var colLength = table.rows[0].cells.length;
+                var tableString = "";
+                var colValue = "";
+                
+                for (var i = 0; i < colLength; i++) {
+                    colValue= table.rows[0].cells[i].innerHTML.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();}).split(",").join("") + ",";
+                    tableString += $('<div/>').html(colValue).text();
+                }
+                
+                tableString = tableString.substring(0, tableString.length - 1);
+                tableString += "\r\n";
+                
+                for (var j = 1; j < rowLength; j++) {
+                    for (var k = 0; k < colLength; k++) {
+                        
+                        var dataValue = table.rows[j].cells[k].innerHTML.split(",").join("");
+                        if(dataValue == '-') {
+                            dataValue = '';
+                        }
+                        
+                        if(k == colLength-1){     
+                            tableString += dataValue;
+                        } else {
+                            tableString += dataValue + ",";
+                        }
+                    }
+                    tableString += "\r\n";
+                }
+                
+                if (navigator.appName == "Microsoft Internet Explorer") {
+                    tableString = 'sep=,\r\n' + tableString;
+                    
+                    myFrame.document.open("text/html", "replace");
+                    myFrame.document.write(tableString);
+                    myFrame.document.close();
+                    myFrame.focus();
+                    myFrame.document.execCommand('SaveAs', true, 'data.csv');
+                } else {
+                    csvData = 'data:application/csv;charset=utf-8,' + encodeURIComponent(tableString);
+                    $($(this).parent()).attr({
+                        'href': csvData,
+                        'target': '_blank',
+                        'download': 'QueryResult.csv'
+                    });
+                }
+            });
+            
+        }
+        
+        function getExtracts() {
+            
+            var loading = $("#loading").clone(); loading.css("display","block");
+            $("#existing").html(""); $("#existing").append(loading);
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.getAllDataExtract}',
+                orgURL,
+                function(result, event){
+                    
+                    if (event.status) { 
+                        populateSavedExtracts(result);
+                    } else if (event.type === 'exception') {
+                        showMessage("Error retrieving saved extracts. Please see console for error details.", '#noteError');
+                    } else {
+                        console.log(event.message);
+                    }
+                    
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function populateSavedExtracts(extracts) {
+            
+            $("#existing").html("");
+            if(extracts.length == 0) $("#existing").append("<div class='assetListing' style='padding:0px 0px 10px 0px'>You do not have any saved extracts</div>");
+            
+            for(var i=0; i<extracts.length; i++) {
+                if(extracts[i].Type__c){
+                    var tileHtml = "<div class='assettile tile flag extracttile'>";
+                    tileHtml += "<div class='flag--body pll'>";     
+                    tileHtml += "<div style='float:left; margin-bottom:10px'><p class='title' style='max-width:50rem'>" + extracts[i].Type__c.toUpperCase() + " extract for dataset [" + extracts[i].Dataset_Name__c + "] </p></div>";
+                    tileHtml += "<div style='float:right'>";
+                    tileHtml += "<img title='Edit Extract' class='extractActionIcon' onclick='editExtract(\"" + extracts[i].Id + "\", \"" + extracts[i].Type__c +"\")' src=\"{!URLFOR($Resource.WaveLabsResources,'/images/edit.PNG')}\" />";
+                    tileHtml += "<img title='Delete Extract' class='extractActionIcon delete' onclick='showDeleteModal(\"" + extracts[i].Id + "\")' src=\"{!URLFOR($Resource.WaveLabsResources,'/images/cancel.PNG')}\" />";
+                    tileHtml += "</div>";       
+                    
+                    if(extracts[i].Type__c == MODE_SOQL)
+                        tileHtml += "<br/><div class='editorPreview' id='editorPreview" + extracts[i].Id + "'></div>";
+                    else
+                        tileHtml += "<br/><div style='height:60px'>&nbsp;</div>";
+                    
+                    isDisabled = !extracts[i].Active__c;
+                    var sel = extracts[i].Day_Date_Selector__c ? 'On ' + extracts[i].Day_Date_Selector__c + ' ' : '';
+                    tileHtml += "<div onclick='runExtractNow(\"" + extracts[i].Batch_Job_Id__c + "\")' style='padding:5px 10px;border:1px solid #5c7a99;border-radius:5px;color:#5c7a99;cursor:pointer;float:right'>Run Now</div>";                    
+                    tileHtml += "<p class='author'>Schedule: " + (isDisabled ? "DISABLED" : extracts[i].Schedule__c + ' ' + sel + ' at ' + extracts[i].Time_Interval__c) + "</p>";
+                    tileHtml += "<p class='date'>Created date: " + extracts[i].CreatedDate + "</p></div></div>";
+                    $("#existing").append($(tileHtml));
+                    
+                    if(extracts[i].Type__c == MODE_SOQL) {
+                        var editorPreview = ace.edit("editorPreview" + extracts[i].Id);
+                        editorPreview.setValue(extracts[i].SOQL_Query__c, 1);
+                        editorPreview.getSession().setMode("ace/mode/sql");
+                        editorPreview.getSession().setUseWrapMode(true);
+                        editorPreview.setReadOnly(true);
+                        editorPreview.setShowPrintMargin(false);
+                    }
+                    
+                    cachedExtracts[extracts[i].Id] = extracts[i];
+                }
+            }
+        }
+        
+        function editExtract(extractId, extractType) {
+            switchMode(extractType);
+            $('.nav-tabs a[href="#configure"]').tab('show');
+            $('#scheduleConfig').show();
+            selectedExtractId = extractId;
+            getAsset(extractId, extractType);
+        }
+        
+        function runExtractNow(jobId) {
+            if(confirm("Are you sure you want to run this extract now?\nNote that executing the same job multiple times may lead to duplicate rows with the same timestamp value.")) {
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.TrendingSnapshotsController.runExtractNow}',
+                    jobId,
+                    function(result, event){
+                        if (event.status) { 
+                            MODAL_MODE = true;
+                            showMessage("Extract initiated. Please check the Dataflow Monitor in the Wave UI to track the progress of the job.", null);
+                            MODAL_MODE = false;
+                        } else if (event.type === 'exception') {
+                            showMessage("Error details:\n" + event.message, 'Error initiating the extract');
+                        } else {
+                            console.log(event.message);
+                        }
+                    }, 
+                    {escape: true}
+                );
+            }
+        }
+        
+        function showDeleteModal(extractId) {
+            currModalExtractId = extractId;
+            toggleModal("deleteModal", true);
+        }
+        
+        function deleteExtract() {
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.deleteExtract}',
+                currModalExtractId,
+                function(result, event){
+                    $('#deleteModal').removeClass('fade-modal-ani');
+                    
+                    if (event.status) { 
+                        showMessage("Extract deleted", null);
+                        getExtracts();
+                        
+                    } else if (event.type === 'exception') {
+                        showMessage("Error processing the extract changes. Please see the console for details.", '#noteError');
+                    } else {
+                        console.log(event.message);
+                    }
+                    
+                    $('#overlay').removeClass('fade-overlay-ani');
+                    currModalExtractId = null;                          
+                    
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function disableExtract() {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.disableExtract}',
+                currModalExtractId,
+                function(result, event){
+                    $('#deleteModal').removeClass('fade-modal-ani');
+                    if (event.status) { 
+                        showMessage("Extract Disabled", null);
+                        getExtracts();
+                        
+                    } else if (event.type === 'exception') {
+                        showMessage("Error processing the extract changes. Please see the console for details.", '#noteError');
+                    } else {
+                        console.log(event.message);
+                    }
+                    
+                    $('#overlay').removeClass('fade-overlay-ani');
+                    currModalExtractId = null;                          
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function getMetadataDataAsset(assetId, assetName, cb) {
+            var loading = $("#loading").clone(); loading.css("display","block");
+            $("#metadataDetails").html(""); 
+            $("#metadataDetails").append(loading);
+            
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TrendingSnapshotsController.getSobjectDetail}',
+                assetId,
+                function(result, event){
+                    if (event.status) { 
+                        $("#metadataDetails").html("");
+                        result.sort(function (a,b) {
+                            var aName = a.name.toUpperCase(), bName = b.name.toUpperCase();
+                            return (aName < bName) ? -1 : ((aName > bName) ? 1 : 0);
+                        });
+                        
+                        $("#metadataDetails").append("<div class='assetListing' style='padding:0px 0px 10px 0px'>" + assetName + " object fields <span class='noteText'>(Label / Name)</span></div>");
+                        $.each(result, function(i, field) {
+                            $("#metadataDetails").append("<div class='metadataListing'>" + field.name + "&nbsp;&nbsp;<span class='noteText'>(" + field.id + ")</span></div>");
+                        });
+                        
+                    } else if (event.type === 'exception') {
+                        showMessage("Error retrieving metadata. Please see console for error details.", '#noteError')
+                    } else {
+                        console.log(event.message);
+                    }                    
+                }, 
+                {escape: true}
+            );
+        }
+        
+        function downloadInnerHtml() {
+            var elHtml = document.getElementById('metadata').innerHTML;
+            var link = document.createElement('a');
+            mimeType = 'text/plain';
+            
+            link.setAttribute('download', 'metadata.json');
+            link.setAttribute('href', 'data:' + mimeType  +  ';charset=utf-8,' + encodeURIComponent(elHtml));
+            link.click(); 
+        }     
+        
+        </script>
+        
+        <style>
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Light.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Light.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Light.woff2')}") format('woff2');
+                font-weight: 300; 
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-LightItalic.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-LightItalic.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-LightItalic.woff2')}") format('woff2');
+                font-style: italic;
+                font-weight: 300;
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Regular.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Regular.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Regular.woff2')}") format('woff2');
+                font-weight: 400; 
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Italic.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Italic.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Italic.woff2')}") format('woff2');
+                font-style: italic;
+                font-weight: 400;
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Bold.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Bold.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-Bold.woff2')}") format('woff2');
+                font-weight: 700;
+            }
+            
+            @font-face {
+                font-family: 'Salesforce Sans';
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-BoldItalic.eot')}?v=4.2.0");
+                src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-BoldItalic.woff')}?v=4.2.0") format('woff'), url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/SalesforceSans-BoldItalic.woff2')}") format('woff2');
+                font-style: italic;
+                font-weight: 700;            
+            }
+
+            @font-face {
+              font-family: 'FontAwesome';
+              src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/fontawesome-webfont.eot')}?v=4.2.0");
+              src: url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/fontawesome-webfont.woff')}?v=4.2.0") format('woff'), 
+                   url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/fontawesome-webfont.ttf')}?v=4.2.0") format('truetype'), 
+                   url("{!URLFOR($Resource.WaveLabsResources,'/assets/fonts/webfonts/fontawesome-webfont.svg')}?v=4.2.0#fontawesomeregular") format('svg');
+              font-weight: normal;
+              font-style: normal;
+            }
+
+            #header {
+                background-color: #F2F6FA;
+                height: 77px;
+                padding: 17px 15px 15px 17px;
+                border-bottom: 1px solid #e7e7e7;
+                margin-bottom: 15px;
+            }          
+            
+            #main {
+                padding: 10px;
+            }
+            
+            #leftConfig, #rightConfig{
+            height: 540px;
+            overflow-x: hidden;
+            }
+            
+            #btnReports, #btnSOQL, #btnoData {
+            width: 33.3%;
+            min-width: 0%;
+            }
+            
+            #btnBar{
+            width: 100%;
+            }
+            
+            #btnSave{
+            margin-right: 16px;
+            width: 120px;
+            margin-top: 0px !important;
+            }
+            
+            #resultsContainer {
+            height: 217px !important;
+            overflow: hidden !important;
+            }
+            
+            #btnExport{
+            cursor: pointer;
+            }
+            
+            #metadata{
+            display: none;
+            }
+            
+            #metadataDetails{
+            height: 100%;
+            overflow-y: scroll;
+            }
+            
+            #assetPane{
+            width: 25% !important;
+            margin-top: 0px !important;
+            }
+            
+            #middleConfig{
+            width: 70% !important;
+            float: right;
+            margin-right: 1%;
+            }
+            
+            #rightPane{
+            width: 80% !important;
+            }
+            
+            #leftConfig{
+            width: 78% !important;
+            }
+            
+            #rightConfig{
+            width: 22% !important;
+            }
+            
+            #btnMetadataTemp{
+            background-color: #2EC2BA;
+            border-color: #2EC2BA;
+            cursor: default;
+            float: right;
+            }
+            
+            #dwnldMetadata, #btnRun, #btnMetadataTemp, #scheduleConfig, #oDataContainer{
+            display: none;
+            }
+            
+            .bootstrap-select:not([class*="span"]):not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+            width: 99%;
+            }
+            
+            .navContainer, .tab-content {
+            width: 98% !important;
+            max-width: 100% !important;
+            }
+            
+            BUTTON {
+            min-width: 0% !important;
+            }
+            
+            .extractActionIcon{
+            height: 30px !important;
+            width: 30px !important;
+            border-radius: 0 !important;
+            }
+            
+            img.extractActionIcon.delete{
+            width: 26px !important;
+            height: 26px !important;
+            margin-left: -2px;
+            }
+            
+            BODY{
+            overflow: auto;
+            }
+            
+            html, body {
+            height: 97%;
+            }
+            
+            .tab-content {
+            height: 100%
+            }
+            
+            .navButton {
+                font-size: 14px;
+                border: 1px solid #c5d3e0;
+                background-color: white; 
+            }
+            
+            .navButton > a {
+                border: 0px !important;
+                color: #5c7a99 !important;
+                font-size: 14px;
+                font-weight: normal;
+                background-color: initial !important;
+                padding: 8px 15px !important;
+            }
+
+            .navButton.active { 
+                background-color: #7d98b3;
+            }
+
+            .navButton.active > a { 
+                font-weight: bold;
+                color: white !important;
+            }            
+            
+            #btnConfigure {
+                border-radius: 6px 0px 0px 6px; 
+                -webkit-border-radius: 6px 0px 0px 6px; 
+                -moz-border-radius: 6px 0px 0px 6px;
+            }
+
+            #btnExisting {
+                border-radius: 0px 6px 6px 0px; 
+                -webkit-border-radius: 0px 6px 6px 0px; 
+                -moz-border-radius: 0px 6px 6px 0px;
+                margin-left: -1px;
+            }
+            
+            .bootstrap-select.btn-group .dropdown-menu {
+                max-width: 100%;
+                max-height: 300px !important;
+            }
+            
+            #configure {
+            height: 100%
+            }
+            
+            #leftConfig, #rightConfig {
+            height: 95%
+            }
+            
+            #bottomBtnBar{
+            margin-bottom: 55px;
+            }
+        </style>
+    </head>
+    
+    <body>
+        
+        <div id="header" style="display:block">
+            <ul class="nav navbar-nav" id="headerInfo">
+                <li><img id="testTubeIcon" src="https://www.jumpstartwave.com/assets/images/lab.png" /></li>
+                <li id="oppContainer">
+                    <span class='navbarRegularText'>Trending Snapshots</span> 
+                    <span id="oppName"></span>
+                    <div class='navbarSmallText'>Create dataset snapshots for trending analysis. You can snapshot reports, objects, and oData sources.</div>                        
+                </li> 
+            </ul>     
+
+            <!-- Nav tabs -->
+            <div style="float:right;padding-top:2px">                
+                <ul class="nav nav-tabs" role="tablist" style="border:0px">
+                    <li id="btnConfigure" class="navButton active"><a href="#configure" role="tab" data-toggle="tab">Configure Extract</a></li>
+                    <li id="btnExisting" class="navButton"><a href="#existing" role="tab" data-toggle="tab" onclick="getExtracts()">Existing Extracts</a></li>
+                </ul>   
+            </div>            
+        </div>
+        
+        <div id="main">
+            
+            <div class="navContainer" style="display:none">
+                <!-- Nav tabs -->
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="active"><a href="#configure" role="tab" data-toggle="tab">CONFIGURE EXTRACT</a></li>
+                    <li><a href="#existing" role="tab" data-toggle="tab" onclick="getExtracts()">EXISTING EXTRACTS</a></li>
+                </ul>
+            </div>
+            
+            <!-- Tab panes -->
+            <div class="tab-content">
+                <div class="tab-pane fade active in" id="configure">
+                    
+                    <div id="leftConfig">
+                        <!-- Left pane //-->
+                        <div id="assetPane">
+                            
+                            <div class="button-group">
+                                <button class="active" id="btnReports" onclick="switchMode(MODE_REPORT)">Report</button>
+                                <button id="btnSOQL" onclick="switchMode(MODE_SOQL)">SOQL</button>
+                                <button id="btnoData" onclick="switchMode(MODE_ODATA)">oData</button>
+                            </div>
+                            
+                            <br/>
+                            <div id="assetSearch">
+                                <div class="slds-form-element">
+                                    <div class="slds-form-element__control">
+                                        <input id="inputSearch" class="slds-input" type="text" placeholder="Search" />
+                                    </div>
+                                    
+                                    <div id="oDataContainer">
+                                        <div id="selectoDataURL"><input type="text" onchange="addValuesTooDataObjectList(function(){}); return false;" class="input-text radio" id="oDataURL" value="" placeholder="oData URL" style="margin-left:0px; width: 100%; height:46px" /></div>
+                                        <div id="selectoDataObject" style="margin-left: 0px;"><select onchange="runQuery(); generateMetadata();" id="oDataObjects"></select></div>                            
+                                    </div>
+                                </div>  
+                            </div>
+                            
+                            <br/>
+                            <div id="assetList"></div>
+                            
+                        </div>
+                        
+                        <div id="middleConfig">
+                            <div id="messageContainer"></div>                   
+                            
+                            <div id="editorContainer">
+                                <div id="editor"></div>
+                            </div>
+                            
+                            <div id="btnBar">
+                                <button id="btnRun" onclick="runQuery()" class="slds-button slds-button--brand">Preview</button>
+                            </div>
+                            
+                            <div id="resultsContainer">
+                                <div id="resultsHeader">
+                                    <h6>Results <span class="noteText">(max 200 records shown)</span></h6>
+                                    
+                                    <div>
+                                        <a id="btnExport"><img src="{!URLFOR($Resource.WaveLabsResources,'/images/downloadCSV.PNG')}" style="width:30px; cursor: pointer; margin-top: -3px;" /></a>
+                                        <a onclick="$('#resultsContainer').hide()"><img src="{!URLFOR($Resource.WaveLabsResources,'/images/Cross.PNG')}" style="width:25px; cursor: pointer; margin-top: -5px;" /></a>
+                                    </div>
+                                </div>                          
+                                <div id="tableContainer"></div>
+                            </div>
+                            
+                            <div id="scheduleConfig">
+                                <h6>Schedule</h6>
+                                <input type="radio" class="input-radio" name="radioSchedule" id="radioScheduleDaily" value="Daily" placeholder="" checked="checked" />
+                                <label for="radioScheduleDaily" class="radio">Daily</label>
+                                <select id="scheduleDailyTime"></select>
+                                
+                                <br/>
+                                <input type="radio" class="input-radio" name="radioSchedule" id="radioScheduleWeekly" value="Weekly" placeholder="" />
+                                <label for="radioScheduleWeekly" class="radio">Weekly</label>
+                                <select id="scheduleWeeklyDay"></select>
+                                <select id="scheduleWeeklyTime"></select>
+                                
+                                <br/>       
+                                <input type="radio" class="input-radio" name="radioSchedule" id="radioScheduleMonthly" value="Monthly" placeholder="" />
+                                <label for="radioScheduleMonthly" class="radio">Monthly</label>
+                                <select id="scheduleMonthlyDay"></select>
+                                <select id="scheduleMonthlyTime"></select>
+                                
+                                <br/><br/>
+                                
+                                <h6>Target Dataset</h6>
+                                
+                                <label for="" class="radio" style="margin-left:34px">Existing</label>
+                                <select id="datasets"></select>
+                                <select id="datasetAction">
+                                    <option value="Append" data-content="Append"></option>
+                                    <option value="Overwrite" data-content="Overwrite"></option>
+                                </select>
+                                
+                                <br/>
+                                <label for="" class="radio" style="margin-left:34px">New</label>
+                                <input type="text" class="input-text radio" id="inputNewDataset" value="" placeholder="OR, enter a new dataset name" style="margin-left:10px" />
+                                <div id="metadata"></div>  
+                                
+                                <div id="bottomBtnBar">
+                                    <button id="btnSave" onclick="saveDataExtract()" class="slds-button slds-button--brand">Save</button>  
+                                    <button id="btnMetadataTemp" class="slds-button slds-button--brand">
+                                      <a id="btnMetadata" style="color: white; cursor: pointer;" onclick="generateMetadata()">Generate Metadata</a>
+                                      <i class="fa fa-download" style="color:white; cursor:pointer; padding-left:12px" id="dwnldMetadata" onclick="downloadInnerHtml(); return false;"></i>
+                                    </button> 
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    <div id="rightConfig">
+                        <div id="metadataDetails"></div>
+                    </div>
+                    
+                </div>
+                
+                <div class="tab-pane fade" id="existing">
+                    <div id="editorPreview"></div>
+                </div>    
+                
+            </div>
+        </div>
+        
+        <!-- Notifications //-->
+        <div class="notification error"><p class="notification--msg" id="noteError"></p></div>
+        <div class="notification success"><p class="notification--msg" id="noteSuccess"></p></div> 
+        
+        <!-- Spinner //-->
+        <svg id="loading" class="loading-circle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+            <circle class="circle-1" cx="91" cy="29" r="7.9"/><circle class="circle-2" cx="104" cy="60" r="7.9"/>
+            <circle class="circle-3" cx="91" cy="91" r="7.9"/><circle class="circle-4" cx="60" cy="104" r="7.9"/>
+            <circle class="circle-5" cx="29" cy="91" r="7.9"/><circle class="circle-6" cx="16" cy="60" r="7.9"/>
+            <circle class="circle-7" cx="29" cy="29" r="7.9"/><circle class="circle-8" cx="60" cy="16" r="16"/>
+        </svg>
+        
+        <!-- Modals //-->
+        <div class="modal app-name" id="deleteModal">
+            <div class="modal--body" style="text-align:center; overflow-y: hidden;">
+                <label for="app-name">Are you sure you want to delete this extract? You can also choose to disable it and re-enable later.</label>
+            </div>
+            <div class="modal--footer">
+                <button class="secondary" onclick="toggleModal('deleteModal', false)">Cancel</button>
+                <button class="primary" onclick="disableExtract()">Disable</button>
+                <button class="error" onclick="deleteExtract()">Delete</button>
+            </div>
+        </div> 
+        
+        <div class="overlay" id="overlay" onclick="toggleModal(currModalId, false)" style=""></div> 
+    </body>
+</apex:page>

@@ -1,0 +1,1046 @@
+<apex:page sidebar="false" 
+           controller="ePrize_Zemzu.ViewContestController" 
+           tabStyle="Contests__tab">
+
+  <apex:composition template="ePrize_Zemzu__LeaderboardTemplate">
+
+    <apex:define name="head">
+
+    </apex:define>
+
+    <apex:define name="contentHeader">
+      <h1 class="lb-title">View Contest Details</h1>
+      <h2 class="lb-subtitle">{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}</h2>
+    </apex:define>
+
+    <apex:define name="contentMain">
+      <div class="zemzu">
+        <apex:outputPanel rendered="{!IF(contestId != null, true, false)}">       
+          <apex:form >
+            <!-- Special instructions to display if the contest is ready to be finalized. -->
+            <apex:outputPanel rendered="{!fullContest.isReadyToBeFinalized}">
+                  <!-- Instructions to contest administrator -->
+                  <apex:outputPanel rendered="{!fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin}">
+                    <apex:pageBlock >                            
+                      <p>This contest period has ended which means entries are no longer being tallied onto the leaderboard. This contest is currently waiting your review prior to finalizing. Following are the suggested steps prior to finalizing a contest:</p>
+                      <ol>
+                        <li>Click View Leaderboard to see the final contest results.</li>
+                        <li>If anything doesn't look right for an individual user, click on their row in the leaderboard, and then click "View Entries".  This is in the right panel that includes individual user statistics.</li>
+                        <li>If necessary you can Reject any entries which will modify the users contest data and may change their ranking.</li>
+                        <li>If you feel anyone is missing entries, click on Ad Hoc Points to award a user more entries as necessary.</li>
+                        <li>Once you are confident the leaderboard is accurate and final, come back to this Contest Details page and click "This Contest is Final".</li>
+                      </ol>           
+                    </apex:pageBlock>
+                  </apex:outputPanel>
+                  <!-- Instructions to non-administrators -->
+                  <apex:outputPanel rendered="{!!fullContest.isCurrentUserAdmin && !isCurrentUserSalesContestBuilderAdmin}">
+                      <apex:pageBlock >                            
+                          <p>CONTEST WINNERS PENDING: This contest period has ended which means entries are no longer being tallied onto the leaderboard. The contest is currently being reviewed prior to announcing the final results and winners.</p>
+                      </apex:pageBlock>                    
+                  </apex:outputPanel>
+            </apex:outputPanel>
+                  
+            <apex:pageBlock title="Contest Review">
+              <apex:pageMessages />
+              <!-- The pageBlockButtons tag defines the buttons that appear at the top
+                   and bottom of the pageBlock. Like a facet, it can appear anywhere in
+                   a pageBlock, but always defines the button areas.  
+                   The Next button contained in this pageBlockButtons area
+                   calls the step2 controller method, which returns a pageReference to
+                   the next step of the wizard. -->  
+              <apex:pageBlockButtons >
+                <apex:commandButton action="{!editContest}" value="Edit Contest" rendered="{!(fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin) && IF(fullContest.contestEntity.ePrize_Zemzu__EndDate__c > NOW(), true, false) && !fullContest.isChanceToWin}">
+                   <apex:param name="contestId" value="{!contestId}"/>
+                </apex:commandButton>
+                                   
+                <apex:commandButton action="{!finalizeContest}" value="This Contest is Final" rendered="{!(fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin) && fullContest.isReadyToBeFinalized}">
+                   <apex:param name="contestId" value="{!contestId}"/>
+                </apex:commandButton> 
+
+                <apex:commandButton action="{!cloneContest}" value="Clone Contest" rendered="{!(fullContest.isCurrentUserAdmin && fullcontest.IsCurrentUserCreator || isCurrentUserSalesContestBuilderAdmin) && (!fullContest.isParentContest || (!fullContest.isParentContest && !fullContest.isReadyToBeFinalized))}">
+                   <apex:param name="contestId" value="{!contestId}"/>
+                </apex:commandButton>
+                
+                <apex:commandButton action="{!createChildContest}" value="Create Child Contest" rendered="{!((fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin) && fullContest.isParentContest) && (IF(fullContest.contestEntity.ePrize_Zemzu__EndDate__c > NOW(), true, false))}">
+                   <apex:param name="contestId" value="{!contestId}"/>
+                </apex:commandButton>                    
+                                   
+                <apex:commandButton action="{!deleteContest}" value="Delete Contest" onclick="return confirmDelete()" rendered="{!fullContest.isCurrentUserAdmin || isCurrentUserSalesContestBuilderAdmin}">
+                   <apex:param name="contestId" value="{!contestId}"/>
+                </apex:commandButton>                   
+
+              </apex:pageBlockButtons>
+               
+              <apex:pageBlockSection title="Contest Information">
+                <apex:pageBlockSectionItem rendered="{!fullContest.contestEntity.ParentContest__r.ePrize_Zemzu__ContestName__c != null}">
+                   <apex:outputLabel value="Parent Contest" rendered="{!fullContest.contestEntity.ParentContest__r.ePrize_Zemzu__ContestName__c != null}" />
+                   <apex:outputlink value="/apex/Leaderboard" rendered="{!fullContest.contestEntity.ParentContest__r.ePrize_Zemzu__ContestName__c != null}">
+                {!fullContest.contestEntity.ParentContest__r.ePrize_Zemzu__ContestName__c}
+                <apex:param name="contestId" value="{!fullContest.contestEntity.ParentContest__r.Id}"/>
+                <apex:param name="sfdc.tabName" value="{!$CurrentPage.parameters.sfdc.tabName}"/>
+               </apex:outputlink> 
+                   </apex:pageBlockSectionItem>
+                   <apex:pageBlockSectionItem rendered="{!fullContest.contestEntity.ParentContest__r.ePrize_Zemzu__ContestName__c != null}" />
+                <apex:pageBlockSectionItem >
+                  <apex:outputLabel value="Point of Contact" for="contactPerson"/>
+                  <apex:outputText id="contactPerson" value="{!fullContest.contestEntity.ContactPerson__r.FirstName} {!fullContest.contestEntity.ContactPerson__r.LastName} ({!fullContest.contestEntity.ContactPerson__r.Email})"/>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem />
+                <apex:outputField id="contestName" value="{!fullContest.contestEntity.ePrize_Zemzu__ContestName__c}"/>
+                <apex:pageBlockSectionItem />
+            <apex:pageBlockSectionItem >
+              <apex:outputLabel value="Contest Type"/>
+              <apex:outputText >{!fullContest.contestEntity.ePrize_Zemzu__Goal__c}
+              </apex:outputText>
+            </apex:pageBlockSectionItem>
+                <apex:outputField id="contestRankingStyle" value="{!fullContest.contestEntity.ePrize_Zemzu__RankingStyle__c}" />
+                <apex:outputText value="" rendered="{!fullContest.isChanceToWin}" />
+                <apex:outputField id="contestIWStatus" value="{!fullContest.contestEntity.ePrize_Zemzu__IWStatus__c}" rendered="{!fullContest.isChanceToWin}" />
+                <apex:outputField id="contestStartDate" value="{!fullContest.contestEntity.ePrize_Zemzu__StartDate__c}"/>
+                <apex:outputField id="contestEndDate" value="{!fullContest.contestEntity.ePrize_Zemzu__EndDate__c}"/>
+                <apex:outputField id="contestFinalizedBy" value="{!fullContest.contestEntity.ePrize_Zemzu__FinalizedBy__c}" rendered="{!fullContest.contestEntity.ePrize_Zemzu__Status__c == 'Ended'}"/>
+                <apex:outputField id="contestFinalizedDate" value="{!fullContest.contestEntity.ePrize_Zemzu__FinalizedOnDate__c}" rendered="{!fullContest.contestEntity.ePrize_Zemzu__Status__c == 'Ended'}"/>
+              </apex:pageBlockSection>
+              
+              <!-- ###########################
+                   ### - PARENT CONTESTS - ###
+                   ########################### -->
+              <apex:pageBlockSection rendered="{!fullContest.isParentContest}" title="Child Contests" columns="1">
+                Child Contests
+                <apex:pageBlockTable id="childContestsTable" value="{!childContests}" var="c" rowClasses="odd,even" >
+                  <apex:column >
+                <apex:facet name="header">NAME</apex:facet>
+                  <apex:outputlink target="blank" value="/apex/ViewContest">
+                    {!c.ePrize_Zemzu__ContestName__c}
+                    <apex:param name="contestId" value="{!c.id}"/>
+                  </apex:outputlink>
+                </apex:column>
+                <apex:column >
+                <apex:facet name="header">START DATE</apex:facet>
+                  <apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+                  <apex:param value="{!c.ePrize_Zemzu__StartDate__c}"/>
+            </apex:outputText>
+                </apex:column>
+                <apex:column >
+                <apex:facet name="header">END DATE</apex:facet>
+                  <apex:outputText value="{0,date,MM'/'dd'/'yyyy}">
+                  <apex:param value="{!c.ePrize_Zemzu__EndDate__c}"/>
+            </apex:outputText>
+                </apex:column>
+                <apex:column >
+                <apex:facet name="header">STATUS</apex:facet>
+                  <apex:outputText rendered="{!IF(c.ePrize_Zemzu__StartDate__c > NOW(), true, false)}" value="Not started" />
+                  <apex:outputText rendered="{!IF(c.ePrize_Zemzu__StartDate__c <= NOW() && c.ePrize_Zemzu__EndDate__c > NOW(), true, false)}" value="Running" />
+                  <apex:outputText rendered="{!IF(c.ePrize_Zemzu__EndDate__c <= NOW() && c.ePrize_Zemzu__Status__c != null && c.ePrize_Zemzu__Status__c != '' && c.ePrize_Zemzu__Status__c != 'Ended', true, false)}" value="Winners Pending" />
+                  <apex:outputText rendered="{!IF(c.ePrize_Zemzu__EndDate__c <= NOW() && (c.ePrize_Zemzu__Status__c == null || c.ePrize_Zemzu__Status__c == '' || c.ePrize_Zemzu__Status__c == 'Ended'), true, false)}" value="Ended" />
+                </apex:column>
+                <apex:column >
+                  <apex:outputlink target="blank" value="/apex/Leaderboard">
+                    Leaderboard
+                    <apex:param name="contestId" value="{!c.id}"/>
+                    <apex:param name="sfdc.tabName" value="{!$CurrentPage.parameters.sfdc.tabName}"/>
+                  </apex:outputlink>
+                </apex:column>
+                </apex:pageBlockTable> 
+              </apex:pageBlockSection>
+              
+              <apex:pageBlockSection rendered="{!!fullContest.isParentContest}" title="Behaviors to Motivate" columns="1">   
+              <apex:dataList value="{!fullContest.pipelineBehaviors}" var="pb" id="pipelineBehaviorList" type="1" styleClass="pipelineBehavior-list">             
+              <!--  <apex:repeat value="{!fullContest.pipelineBehaviors}" var="pb"> -->        
+                  <apex:outputPanel >
+                        <a href="#" onclick="jQuery('#{!pb.pipelineBehaviorEntity.Id}').toggle(); return false;">
+                            <b><apex:outputText value="{!pb.pipelineBehaviorEntity.Name}" />
+                            <apex:outputText value=" - {!Round(pb.pipelineBehaviorEntity.ePrize_Zemzu__Quantity__c,0)} Point" rendered="{!IF(fullContest.isEntryRanked, true, false)}" />
+                            <apex:outputText value="s" rendered="{!IF(fullContest.isEntryRanked && pb.pipelineBehaviorEntity.ePrize_Zemzu__Quantity__c > 1, true, false)}" /></b>
+                           </a>
+                           <br/>
+                        <apex:outputText styleClass="font-gray font-smaller font-italic" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Description__c}" />
+               
+                        <div id="{!pb.pipelineBehaviorEntity.Id}" style="">
+                        
+                        <!-- #########################
+                             ### - CASE CONTEST -  ###
+                             ######################### -->
+                        <apex:outputPanel rendered="{!fullContest.isCaseContest}">
+                          <apex:pageBlockSection columns="1">
+                            <apex:pageBlockSection columns="1">
+                            <apex:outputField value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CasesCreated__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CasesCreated__c}"/>
+                            <apex:pageBlockTable id="caseCreatedCustomFiltersTable" value="{!pb.caseCreatedCustomFieldValueFilters}" rendered="{!IF(pb.caseCreatedCustomFieldValueFilters.size > 0, true, false)}" var="t" rowClasses="odd,even" >
+                                <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>
+                                
+                              </apex:pageBlockTable>
+                              <apex:pageBlockTable id="caseCreatedRelatedAccountCustomFieldValueFiltersTable" value="{!pb.caseCreatedRelatedAccountCustomFieldValueFilters}" rendered="{!IF(pb.caseCreatedRelatedAccountCustomFieldValueFilters.size > 0, true, false)}" var="t" rowClasses="odd,even" >
+                                <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>
+                                
+                              </apex:pageBlockTable>
+                              <apex:pageBlockTable id="createdCustomFiltersTable" value="{!pb.otherCustomFieldValueFilters}" rendered="{!IF(pb.otherCustomFieldValueFilters.size > 0, true, false)}" var="t" rowClasses="odd,even" >
+                                <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>
+                                
+                              </apex:pageBlockTable>
+                            <apex:outputField value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CasesModified__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CasesModified__c}"/>
+                            <apex:pageBlockTable id="caseModifiedCustomFiltersTable" value="{!pb.caseModifiedCustomFieldValueFilters}" rendered="{!IF(pb.caseModifiedCustomFieldValueFilters.size > 0, true, false)}" var="t" rowClasses="odd,even" >
+                                <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>
+                                
+                              </apex:pageBlockTable>
+                              <apex:inputCheckbox disabled="true" selected="true" rendered="{!IF(pb.caseModifiedRelatedAccountCustomFieldValueFilters.size > 0, true, false)}"/>
+                              <apex:pageBlockTable id="caseModifiedRelatedAccountCustomFieldValueFiltersTable" value="{!pb.caseModifiedRelatedAccountCustomFieldValueFilters}" rendered="{!IF(pb.caseModifiedRelatedAccountCustomFieldValueFilters.size > 0, true, false)}" var="t" rowClasses="odd,even" >
+                                <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>
+                                
+                              </apex:pageBlockTable>
+                              <apex:pageBlockTable id="modifiedCustomFiltersTable" value="{!pb.otherCustomFieldValueFilters}" rendered="{!IF(pb.otherCustomFieldValueFilters.size > 0, true, false)}" var="t" rowClasses="odd,even" >
+                                <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>
+                                
+                              </apex:pageBlockTable>
+                              </apex:pageBlockSection>
+                              
+                          
+                          </apex:pageBlockSection>
+                        </apex:outputPanel>
+                             
+                             <!-- END OF CASE CONTEST -->
+                        
+                        <!-- #########################
+                             ### - CLOSING SALES - ###
+                             ######################### -->
+                        <apex:outputPanel rendered="{!fullContest.isClosingSales}">
+                          <apex:pageBlockSection columns="1">
+                            <apex:pageBlockSectionItem >
+                              <apex:outputLabel value="Sales Stage" for="opportunitiesModifiedClosingSalesStageValue"/>
+                              <apex:outputText id="opportunitiesModifiedClosingSalesStageValue" value="{!pb.salesStage.MasterLabel}"/>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem />
+                            <apex:outputField id="opportunitiesModifiedClosingMinAmount" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmount__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmount__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingMinAmountValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmountValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmount__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingMaxAmount" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmount__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmount__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingMaxAmountValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmountValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmount__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingCloseDateStart2" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingCloseDateStart2Value" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2Value__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingCloseDateEnd2" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2__c}"/>
+                            <apex:outputField id="opportunitiesModifiedClosingCloseDateEnd2Value" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2Value__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2__c}"/>
+                        <apex:outputField id="opportunitiesModifiedClosingCampaign" value="{!pb.opportunityFilterModified.ePrize_Zemzu__Campaign__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                        <apex:outputField id="opportunitiesModifiedClosingCampaignValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                            
+                            <apex:outputField id="opportunitiesModifiedAccount" value="{!pb.opportunityFilterModified.ePrize_Zemzu__Account__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Account__c}"/>
+                            <apex:pageBlockSection columns="2" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Account__c}">
+                              <apex:outputField id="opportunitiesModifiedClosingAccountName" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountName__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountName__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountNameValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountNameValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountName__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountRevenueMin" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMin__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountRevenueMinValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMinValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountRevenueMax" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMax__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountRevenueMaxValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMaxValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountIndustry" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustry__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustry__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountIndustryValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustryValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustry__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountRating" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRating__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRating__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountRatingValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRatingValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRating__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountType" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountType__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountType__c}"/>
+                              <apex:outputField id="opportunitiesModifiedClosingAccountTypeValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountTypeValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountType__c}"/>
+                              <apex:outputField id="opportunitiesModifiedAccountCustomFieldValueFilter" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}"/>
+                              <apex:pageBlockSectionItem >                              
+                                  <apex:outputPanel layout="block" style="padding-left: 90px;">                              
+                                    <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}">
+                                        <apex:dataList value="{!pb.opportunityModifiedRelatedAccountCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                            <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                        </apex:dataList>
+                                    </apex:pageBlockSection>
+                                  </apex:outputPanel>                                                                    
+                              </apex:pageBlockSectionItem>
+                            </apex:pageBlockSection>
+                            <apex:outputField id="opportunitiesModifiedCustomFieldValueFilter" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                            <apex:pageBlockSectionItem >                              
+                                <apex:outputPanel layout="block" style="padding-left: 150px;">                              
+                                    <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                        <apex:dataList value="{!pb.opportunityModifiedCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                            <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                        </apex:dataList>
+                                    </apex:pageBlockSection>
+                                </apex:outputPanel>                                                                    
+                            </apex:pageBlockSectionItem>
+                          
+                          
+                          <apex:outputField id="oppProduct" value="{!pb.opportunityFilterModified.ePrize_Zemzu__Product__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Product__c}"/>
+                          <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Product__c}">
+                            <apex:pageBlockSectionItem rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}">
+                              <apex:outputLabel value="Product Family" for="productFamilyName"/>
+                              <apex:outputField id="productFamilyName" value="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyNameValue__c}"/>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}">
+                              <apex:outputLabel value="Eligible Products" for="oppProductList"/>
+                                <apex:outputPanel layout="block" style="overflow:auto; max-height: 150px;">
+                                  <apex:dataTable value="{!pb.opportunityFilterProducts}" var="product" id="oppProductList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                  <apex:column >
+                                    <apex:outputText value="{!product.Product__r.Name}" />
+                                  </apex:column>
+                                </apex:dataTable>
+                              </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:outputField id="andOr" value="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductAndOr__c}" rendered="{!!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}"/>
+                            <apex:pageBlockSectionItem rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductAndOr__c == 'Any of the above products' && !pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}">
+                                <apex:outputLabel value="" for="oppProductList"/>
+                                <apex:outputPanel >(Limit 1 entry per opportunity)</apex:outputPanel>
+                          </apex:pageBlockSectionItem>
+                          </apex:pageBlockSection>
+                          </apex:pageBlockSection>
+                        </apex:outputPanel>
+      
+                        <!-- ####################
+                             ### - PIPELINE - ###
+                             #################### -->
+                        <apex:outputPanel rendered="{!fullContest.isPipeline}">
+                          <apex:pageBlockSection columns="1">
+                            <apex:outputField id="events" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Events__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Events__c}"/>
+                            <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Events__c}">
+                              <apex:outputField id="eventsCreated" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__EventsCreated__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Events__c}"/>
+                              <apex:pageBlockSection columns="2" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__EventsCreated__c}">
+                                <apex:outputField id="eventsCreatedDescription" value="{!pb.eventFilterCreated.ePrize_Zemzu__Description__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Description__c}"/>
+                                <apex:outputField id="eventsCreatedDescriptionValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__DescriptionValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Description__c}"/>
+                                <apex:outputField id="eventsCreatedLocation" value="{!pb.eventFilterCreated.ePrize_Zemzu__Location__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Location__c}"/>
+                                <apex:outputField id="eventsCreatedLocationValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__LocationValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Location__c}"/>
+                                <apex:outputField id="eventsCreatedSubject" value="{!pb.eventFilterCreated.ePrize_Zemzu__Subject__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Subject__c}"/>
+                                <apex:outputField id="eventsCreatedSubjectValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__SubjectValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Subject__c}"/>
+                                <apex:outputField id="eventsCreatedType" value="{!pb.eventFilterCreated.ePrize_Zemzu__Type__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Type__c}"/>
+                                <apex:outputField id="eventsCreatedTypeValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__TypeValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Type__c}"/>
+                                <apex:outputField id="eventsCreatedStartDateTime" value="{!pb.eventFilterCreated.ePrize_Zemzu__StartDateTime__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__StartDateTime__c}"/>
+                                <apex:outputField id="eventsCreatedStartDateTimeValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__StartDateTimeValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__StartDateTime__c}"/>
+                                <apex:outputField id="eventsCreatedEndDateTime" value="{!pb.eventFilterCreated.ePrize_Zemzu__EndDateTime__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__EndDateTime__c}"/>
+                                <apex:outputField id="eventsCreatedEndDateTimeValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__EndDateTimeValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__EndDateTime__c}"/>
+                                <apex:outputField id="eventsCreatedCampaign" value="{!pb.eventFilterCreated.ePrize_Zemzu__Campaign__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Campaign__c}"/>
+                                <apex:outputField id="eventsCreatedCampaignValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Campaign__c}"/>
+                                
+                                <apex:outputField id="eventsCreatedAccount" value="{!pb.eventFilterCreated.ePrize_Zemzu__Account__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Account__c}"/>
+                                <apex:pageBlockSection columns="2" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__Account__c}">
+                                  <apex:outputField id="eventsCreatedAccountName" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountName__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountNameValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountNameValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountRevenueMin" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMin__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountRevenueMinValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMinValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountRevenueMax" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMax__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountRevenueMaxValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMaxValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountIndustry" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountIndustry__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountIndustryValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountIndustryValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountRating" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRating__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountRatingValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRatingValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountType" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountType__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountType__c}"/>
+                                  <apex:outputField id="eventsCreatedAccountTypeValue" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountTypeValue__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountType__c}"/>
+
+                                    <apex:outputField id="eventsCreatedAccountCustomFieldValueFilter" value="{!pb.eventFilterCreated.ePrize_Zemzu__AccountCustomFieldValueFilter__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountCustomFieldValueFilter__c}"/>
+                                    <apex:pageBlockSection columns="1" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__AccountCustomFieldValueFilter__c}">
+                                        <apex:dataList value="{!pb.eventCreatedRelatedAccountCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                            <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                        </apex:dataList>                                  
+                                    </apex:pageBlockSection>
+
+                                </apex:pageBlockSection>
+                              
+                                <apex:outputField id="eventsCreatedCustomFieldValueFilter" value="{!pb.eventFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                                <apex:pageBlockSection columns="1" rendered="{!pb.eventFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                    <apex:dataList value="{!pb.eventCreatedCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                        <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                    </apex:dataList>                                  
+                                </apex:pageBlockSection>
+                              </apex:pageBlockSection>
+                              <apex:outputField id="eventsModified" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__EventsModified__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Events__c}"/>
+                              <apex:pageBlockSection columns="2" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__EventsModified__c}">
+                                <apex:outputField id="eventsModifiedDescription" value="{!pb.eventFilterModified.ePrize_Zemzu__Description__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Description__c}"/>
+                                <apex:outputField id="eventsModifiedDescriptionValue" value="{!pb.eventFilterModified.ePrize_Zemzu__DescriptionValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Description__c}"/>
+                                <apex:outputField id="eventsModifiedLocation" value="{!pb.eventFilterModified.ePrize_Zemzu__Location__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Location__c}"/>
+                                <apex:outputField id="eventsModifiedLocationValue" value="{!pb.eventFilterModified.ePrize_Zemzu__LocationValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Location__c}"/>
+                                <apex:outputField id="eventsModifiedSubject" value="{!pb.eventFilterModified.ePrize_Zemzu__Subject__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Subject__c}"/>
+                                <apex:outputField id="eventsModifiedSubjectValue" value="{!pb.eventFilterModified.ePrize_Zemzu__SubjectValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Subject__c}"/>
+                                <apex:outputField id="eventsModifiedType" value="{!pb.eventFilterModified.ePrize_Zemzu__Type__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Type__c}"/>
+                                <apex:outputField id="eventsModifiedTypeValue" value="{!pb.eventFilterModified.ePrize_Zemzu__TypeValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Type__c}"/>
+                                <apex:outputField id="eventsModifiedStartDateTime" value="{!pb.eventFilterModified.ePrize_Zemzu__StartDateTime__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__StartDateTime__c}"/>
+                                <apex:outputField id="eventsModifiedStartDateTimeValue" value="{!pb.eventFilterModified.ePrize_Zemzu__StartDateTimeValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__StartDateTime__c}"/>
+                                <apex:outputField id="eventsModifiedEndDateTime" value="{!pb.eventFilterModified.ePrize_Zemzu__EndDateTime__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__EndDateTime__c}"/>
+                                <apex:outputField id="eventsModifiedEndDateTimeValue" value="{!pb.eventFilterModified.ePrize_Zemzu__EndDateTimeValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__EndDateTime__c}"/>
+                              <apex:outputField id="eventsModifiedCampaign" value="{!pb.eventFilterModified.ePrize_Zemzu__Campaign__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                              <apex:outputField id="eventsModifiedCampaignValue" value="{!pb.eventFilterModified.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                                
+                                <apex:outputField id="eventsModifiedAccount" value="{!pb.eventFilterModified.ePrize_Zemzu__Account__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Account__c}"/>
+                                <apex:pageBlockSection columns="2" rendered="{!pb.eventFilterModified.ePrize_Zemzu__Account__c}">
+                                  <apex:outputField id="eventsModifiedAccountName" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountName__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountNameValue" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountNameValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountRevenueMin" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMin__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountRevenueMinValue" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMinValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountRevenueMax" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMax__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountRevenueMaxValue" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMaxValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountIndustry" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountIndustry__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountIndustryValue" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountIndustryValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountRating" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountRating__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountRatingValue" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountRatingValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountType" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountType__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountType__c}"/>
+                                  <apex:outputField id="eventsModifiedAccountTypeValue" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountTypeValue__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountType__c}"/>
+
+                                    <apex:outputField id="eventsModifiedAccountCustomFieldValueFilter" value="{!pb.eventFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}"/>
+                                    <apex:pageBlockSection columns="1" rendered="{!pb.eventFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}">
+                                        <apex:dataList value="{!pb.eventModifiedRelatedAccountCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                            <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                        </apex:dataList>
+                                    </apex:pageBlockSection>    
+
+                                </apex:pageBlockSection>
+                                
+                                <apex:outputField id="eventsModifiedCustomFieldValueFilter" value="{!pb.eventFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}" rendered="{!pb.eventFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                                <apex:pageBlockSection columns="1" rendered="{!pb.eventFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                    <apex:dataList value="{!pb.eventModifiedCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                        <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                    </apex:dataList>
+                                </apex:pageBlockSection>    
+                                
+                              </apex:pageBlockSection>
+                            </apex:pageBlockSection>
+                            
+                            
+                            <apex:outputField id="tasks" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Tasks__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Tasks__c}"/>
+                            <apex:pageBlockSection columns="2" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Tasks__c}">
+                              <apex:outputField id="tasksCallType" value="{!pb.taskFilter.ePrize_Zemzu__CallType__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__CallType__c}"/>
+                              <apex:outputField id="tasksCallTypeValue" value="{!pb.taskFilter.ePrize_Zemzu__CallTypeValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__CallType__c}"/>
+                              <apex:outputField id="tasksPriority" value="{!pb.taskFilter.ePrize_Zemzu__Priority__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Priority__c}"/>
+                              <apex:outputField id="tasksPriorityValue" value="{!pb.taskFilter.ePrize_Zemzu__PriorityValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Priority__c}"/>
+                              <apex:outputField id="tasksSubject" value="{!pb.taskFilter.ePrize_Zemzu__Subject__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Subject__c}"/>
+                              <apex:outputField id="tasksSubjectValue" value="{!pb.taskFilter.ePrize_Zemzu__SubjectValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Subject__c}"/>
+                              <apex:outputField id="tasksComments" value="{!pb.taskFilter.ePrize_Zemzu__Comments__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Comments__c}"/>
+                              <apex:outputField id="tasksCommentsValue" value="{!pb.taskFilter.ePrize_Zemzu__CommentsValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Comments__c}"/>
+                              <apex:outputField id="tasksCallResult" value="{!pb.taskFilter.ePrize_Zemzu__CallResult__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__CallResult__c}"/>
+                              <apex:outputField id="tasksCallResultValue" value="{!pb.taskFilter.ePrize_Zemzu__CallResultValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__CallResult__c}"/>
+                            <apex:outputField id="tasksCampaign" value="{!pb.taskFilter.ePrize_Zemzu__Campaign__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Campaign__c}"/>
+                            <apex:outputField id="tasksCampaignValue" value="{!pb.taskFilter.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Campaign__c}"/>
+                              
+                              <apex:outputField id="tasksAccount" value="{!pb.taskFilter.ePrize_Zemzu__Account__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__Account__c}"/>
+                              <apex:pageBlockSection columns="2" rendered="{!pb.taskFilter.ePrize_Zemzu__Account__c}">
+                                <apex:outputField id="tasksAccountName" value="{!pb.taskFilter.ePrize_Zemzu__AccountName__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountName__c}"/>
+                                <apex:outputField id="tasksAccountNameValue" value="{!pb.taskFilter.ePrize_Zemzu__AccountNameValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountName__c}"/>
+                                <apex:outputField id="tasksAccountRevenueMin" value="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMin__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                <apex:outputField id="tasksAccountRevenueMinValue" value="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMinValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                <apex:outputField id="tasksAccountRevenueMax" value="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMax__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                <apex:outputField id="tasksAccountRevenueMaxValue" value="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMaxValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                <apex:outputField id="tasksAccountIndustry" value="{!pb.taskFilter.ePrize_Zemzu__AccountIndustry__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountIndustry__c}"/>
+                                <apex:outputField id="tasksAccountIndustryValue" value="{!pb.taskFilter.ePrize_Zemzu__AccountIndustryValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountIndustry__c}"/>
+                                <apex:outputField id="tasksAccountRating" value="{!pb.taskFilter.ePrize_Zemzu__AccountRating__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountRating__c}"/>
+                                <apex:outputField id="tasksAccountRatingValue" value="{!pb.taskFilter.ePrize_Zemzu__AccountRatingValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountRating__c}"/>
+                                <apex:outputField id="tasksAccountType" value="{!pb.taskFilter.ePrize_Zemzu__AccountType__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountType__c}"/>
+                                <apex:outputField id="tasksAccountTypeValue" value="{!pb.taskFilter.ePrize_Zemzu__AccountTypeValue__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountType__c}"/>
+
+                                  <apex:outputField id="tasksAccountCustomFieldValueFilter" value="{!pb.taskFilter.ePrize_Zemzu__AccountCustomFieldValueFilter__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountCustomFieldValueFilter__c}"/>
+                                  <apex:pageBlockSection columns="1" rendered="{!pb.taskFilter.ePrize_Zemzu__AccountCustomFieldValueFilter__c}">
+                                      <apex:dataList value="{!pb.taskRelatedAccountCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                          <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                          <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                          <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                      </apex:dataList>
+                                  </apex:pageBlockSection>                                
+
+                              </apex:pageBlockSection>
+                              
+                              <apex:outputField id="tasksCustomFieldValueFilter" value="{!pb.taskFilter.ePrize_Zemzu__CustomFieldValueFilter__c}" rendered="{!pb.taskFilter.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                              <apex:pageBlockSection columns="1" rendered="{!pb.taskFilter.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                  <apex:dataList value="{!pb.taskCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                      <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                      <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                      <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                  </apex:dataList>
+                              </apex:pageBlockSection>                                
+                            </apex:pageBlockSection>
+                            
+                                                        
+                            <apex:outputField id="leads" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Leads__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Leads__c}"/>
+                            <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Leads__c}">
+                              <apex:outputField id="leadsCreated" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsCreated__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Leads__c}"/>
+                              
+                              <apex:pageBlockSection columns="2" rendered="{!pb.leadFilterCreated.ePrize_Zemzu__Campaign__c}">
+                                  <apex:outputField id="leadsCreatedCampaign" value="{!pb.leadFilterCreated.ePrize_Zemzu__Campaign__c}" rendered="{!pb.leadFilterCreated.ePrize_Zemzu__Campaign__c}"/>
+                                  <apex:outputField id="leadsCreatedCampaignValue" value="{!pb.leadFilterCreated.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.leadFilterCreated.ePrize_Zemzu__Campaign__c}"/>
+                              </apex:pageBlockSection>
+                              
+                              <apex:pageBlockSection columns="1" rendered="{!pb.leadFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                <apex:pageBlockSection columns="2" rendered="{!pb.leadFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                    <apex:outputField id="leadsCreatedCustomFieldValueFilter" value="{!pb.leadFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                                    <apex:dataList value="{!pb.leadCreatedCustomFieldValueFilters}" var="f" type="1"  styleClass="font-gray">
+                                          <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                          <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                          <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>
+                                    </apex:dataList>                              
+                                </apex:pageBlockSection>                                
+                              </apex:pageBlockSection>  
+
+                              <apex:outputField id="leadsUpdated" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsUpdated__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Leads__c}"/>
+                              <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsUpdated__c}">
+                                <apex:pageBlockSectionItem rendered="{!pb.leadFilterModified.ePrize_Zemzu__LeadStatus__c != null}">
+                                    <apex:outputLabel value="Where Lead Status Changes To:" for="leadStatus"/>
+                                    <apex:outputText id="leadStatus" value="{!pb.leadStatus.MasterLabel}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsUpdated__c}"/>
+                                </apex:pageBlockSectionItem>
+                                
+                              <apex:pageBlockSection columns="2" rendered="{!pb.leadFilterModified.ePrize_Zemzu__Campaign__c}">
+                                  <apex:outputField id="leadsModifiedCampaign" value="{!pb.leadFilterModified.ePrize_Zemzu__Campaign__c}" rendered="{!pb.leadFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                                  <apex:outputField id="leadsModifiedCampaignValue" value="{!pb.leadFilterModified.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.leadFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                              </apex:pageBlockSection>
+                                
+                                <apex:pageBlockSection columns="2" rendered="{!pb.leadFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                    <apex:outputField id="leadsModifiedCustomFieldValueFilter" value="{!pb.leadFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                                    <apex:dataList value="{!pb.leadModifiedCustomFieldValueFilters}" var="f" type="1"  styleClass="font-gray">
+                                          <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                          <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                          <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>
+                                    </apex:dataList>                              
+                                </apex:pageBlockSection>                                
+                              </apex:pageBlockSection>                                
+                            </apex:pageBlockSection>
+                            
+                            
+                            <apex:outputField id="opportunities" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Opportunities__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Opportunities__c}"/>
+                            <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Opportunities__c}">
+                              <apex:outputField id="opportunitiesCreated" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesCreated__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__Opportunities__c}"/>
+                              <apex:pageBlockSection rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesCreated__c}">
+                                <apex:outputField id="opportunitiesCreatedMinAmount" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__MinAmount__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__MinAmount__c}"/>
+                                <apex:outputField id="opportunitiesCreatedMinAmountValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__MinAmountValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__MinAmount__c}"/>
+                                <apex:outputField id="opportunitiesCreatedMaxAmount" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__MaxAmount__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__MaxAmount__c}"/>
+                                <apex:outputField id="opportunitiesCreatedMaxAmountValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__MaxAmountValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__MaxAmount__c}"/>
+                                <apex:outputField id="opportunitiesCreatedCloseDateStart2" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateStart2__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateStart2__c}"/>
+                                <apex:outputField id="opportunitiesCreatedCloseDateStart2Value" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateStart2Value__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateStart2__c}"/>
+                                <apex:outputField id="opportunitiesCreatedCloseDateEnd2" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateEnd2__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateEnd2__c}"/>
+                                <apex:outputField id="opportunitiesCreatedCloseDateEnd2Value" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateEnd2Value__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__CloseDateEnd2__c}"/>
+                                <apex:outputField id="opportunitiesCreatedCampaign" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__Campaign__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__Campaign__c}"/>
+                                <apex:outputField id="opportunitiesCreatedCampaignValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__Campaign__c}"/>
+                                
+                                <apex:outputField id="opportunitiesCreatedAccount" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__Account__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__Account__c}"/>
+                                <apex:pageBlockSection columns="2" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__Account__c}">
+                                  <apex:outputField id="opportunitiesCreatedAccountName" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountName__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountNameValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountNameValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountRevenueMin" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMin__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountRevenueMinValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMinValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountRevenueMax" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMax__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountRevenueMaxValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMaxValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountIndustry" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountIndustry__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountIndustryValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountIndustryValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountRating" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRating__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountRatingValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRatingValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountType" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountType__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountType__c}"/>
+                                  <apex:outputField id="opportunitiesCreatedAccountTypeValue" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountTypeValue__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountType__c}"/>
+
+                                    <apex:outputField id="opportunitiesCreatedAccountCustomFieldValueFilter" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountCustomFieldValueFilter__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountCustomFieldValueFilter__c}"/>
+                                    <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__AccountCustomFieldValueFilter__c}">
+                                        <apex:dataList value="{!pb.opportunityCreatedRelatedAccountCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                            <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                        </apex:dataList>
+                                    </apex:pageBlockSection>                                                                    
+
+                                </apex:pageBlockSection>
+                                <apex:outputField id="opportunitiesCreatedCustomFieldValueFilter" value="{!pb.opportunityFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                                <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterCreated.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                    <apex:dataList value="{!pb.opportunityCreatedCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                        <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                    </apex:dataList>
+                                </apex:pageBlockSection>                                                                    
+                              </apex:pageBlockSection>
+                              
+                              
+                              <apex:outputField id="opportunitiesModified" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesModified__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesModified__c}"/>
+                              <apex:pageBlockSection rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesModified__c}">
+                                <apex:outputField id="opportunitiesModifiedMinAmount" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmount__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmount__c}"/>
+                                <apex:outputField id="opportunitiesModifiedMinAmountValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmountValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MinAmount__c}"/>
+                                <apex:outputField id="opportunitiesModifiedMaxAmount" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmount__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmount__c}"/>
+                                <apex:outputField id="opportunitiesModifiedMaxAmountValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmountValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__MaxAmount__c}"/>
+                                <apex:outputField id="opportunitiesModifiedCloseDateStart2" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2__c}"/>
+                                <apex:outputField id="opportunitiesModifiedCloseDateStart2Value" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2Value__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateStart2__c}"/>
+                                <apex:outputField id="opportunitiesModifiedCloseDateEnd2" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2__c}"/>
+                                <apex:outputField id="opportunitiesModifiedCloseDateEnd2Value" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2Value__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CloseDateEnd2__c}"/>
+                                <apex:outputField id="opportunitiesModifiedCampaign" value="{!pb.opportunityFilterModified.ePrize_Zemzu__Campaign__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Campaign__c}"/>
+                                <apex:outputField id="opportunitiesModifiedCampaignValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CampaignValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Campaign__c}"/>                                  
+                                
+                                <apex:outputField id="opportunitiesModifiedSalesStage" value="{!pb.opportunityFilterModified.ePrize_Zemzu__SalesStage__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__SalesStage__c}"/>
+                                <apex:pageBlockSectionItem rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__SalesStage__c}">
+                                  <apex:outputLabel value="Sales Stage" for="opportunitiesModifiedSalesStageValue"/>
+                                  <apex:outputText id="opportunitiesModifiedSalesStageValue" value="{!pb.salesStage.MasterLabel}"/>
+                                </apex:pageBlockSectionItem>
+                                <apex:outputField id="opportunitiesModifiedAccount" value="{!pb.opportunityFilterModified.ePrize_Zemzu__Account__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Account__c}"/>
+                                <apex:pageBlockSection columns="2" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Account__c}">
+                                  <apex:outputField id="opportunitiesModifiedAccountName" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountName__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountNameValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountNameValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountName__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountRevenueMin" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMin__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountRevenueMinValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMinValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMin__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountRevenueMax" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMax__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountRevenueMaxValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMaxValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRevenueMax__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountIndustry" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustry__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountIndustryValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustryValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountIndustry__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountRating" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRating__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountRatingValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRatingValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountRating__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountType" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountType__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountType__c}"/>
+                                  <apex:outputField id="opportunitiesModifiedAccountTypeValue" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountTypeValue__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountType__c}"/>
+
+                                    <apex:outputField id="opportunitiesModifiedAccountCustomFieldValueFilter" value="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}"/>
+                                    <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__AccountCustomFieldValueFilter__c}">
+                                        <apex:dataList value="{!pb.opportunityModifiedRelatedAccountCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                            <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                            <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                        </apex:dataList>
+                                    </apex:pageBlockSection>                                                                    
+
+                                </apex:pageBlockSection>
+                                <apex:outputField id="opportunitiesModifiedCustomFieldValueFilter" value="{!pb.opportunityFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}"/>
+                                <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__CustomFieldValueFilter__c}">
+                                    <apex:dataList value="{!pb.opportunityModifiedCustomFieldValueFilters}" var="f" type="1" styleClass="font-gray">
+                                        <apex:outputField value="{!f.ePrize_Zemzu__FieldName__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__Comparator__c}"/> &nbsp;
+                                        <apex:outputField value="{!f.ePrize_Zemzu__CompareToValue__c}"/>                                      
+                                    </apex:dataList>
+                                </apex:pageBlockSection>                                                                    
+                              </apex:pageBlockSection>
+                            </apex:pageBlockSection>
+                            
+                            
+                              <apex:outputField id="product" value="{!pb.opportunityFilterModified.ePrize_Zemzu__Product__c}" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Product__c}"/>
+                          <apex:pageBlockSection columns="1" rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__Product__c}">
+                            <apex:pageBlockSectionItem rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}">
+                              <apex:outputLabel value="Product Family" for="productFamilyName"/>
+                              <apex:outputField id="productFamilyName" value="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}"/>
+                            </apex:pageBlockSectionItem>
+                            <apex:pageBlockSectionItem rendered="{!!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}">
+                              <apex:outputLabel value="Eligible Products" for="productList"/>
+                              <apex:outputPanel layout="block" style="overflow:auto; max-height: 150px;">
+                                <apex:dataTable value="{!pb.opportunityFilterProducts}" var="product" id="productList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                  <apex:column >
+                                      <apex:outputText value="{!product.Product__r.Name}" />
+                                  </apex:column>
+                                </apex:dataTable>
+                              </apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                            <apex:outputField id="andOr" value="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductAndOr__c}" rendered="{!!pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}"/>
+                            <apex:pageBlockSectionItem rendered="{!pb.opportunityFilterModified.ePrize_Zemzu__ProductAndOr__c == 'Any of the above products' && !pb.opportunityFilterModified.ePrize_Zemzu__ProductFamilyName__c}}">
+                              <apex:outputLabel value="" for="oppProductList"/>
+                              <apex:outputPanel >(Limit 1 entry per opportunity)</apex:outputPanel>
+                            </apex:pageBlockSectionItem>
+                          </apex:pageBlockSection>
+                          </apex:pageBlockSection> 
+                        </apex:outputPanel>
+                        
+                        <!-- ####################
+                             ###  - Custom -  ###
+                             #################### -->
+                        <apex:outputPanel rendered="{!fullContest.isCustom}">
+                          <apex:pageBlockSection columns="1">
+                          
+                            <apex:outputField value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__FilterObject__c}"/>
+                            <apex:outputField value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__FilterObjectNameField__c}"/>
+                            <apex:outputField value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__FilterObjectRecordOwnerField__c}"/>
+                            
+              <apex:pageBlockTable id="customFiltersTable" value="{!pb.otherCustomFieldValueFilters}" var="t" rowClasses="odd,even" >
+                                  
+                <!-- <apex:column >
+                  <apex:facet name="header">
+                  Index
+                  </apex:facet>
+                  <apex:outputText value="{!t.orderIndex}" rendered="{!t.orderIndex > 0}"/>
+                </apex:column> -->
+                                  
+                <apex:column >
+                  <apex:facet name="header">
+                  Field
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__FieldName__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Comparator
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__Comparator__c}" />
+                </apex:column>
+            
+                <apex:column >
+                  <apex:facet name="header">
+                    Value
+                  </apex:facet>
+                  <apex:outputText value="{!t.ePrize_Zemzu__CompareToValue__c}" />
+                </apex:column>                                                                                                      
+              </apex:pageBlockTable>
+            </apex:pageBlockSection>
+            </apex:outputPanel>
+
+                      <!-- ####################
+                           ### - ADOPTION - ###
+                           #################### -->
+                        <apex:outputPanel rendered="{!fullContest.isAdoption}">
+                          <apex:pageBlockSection columns="1">
+                            <apex:outputField id="addingNewRecords" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AddingNewRecords__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AddingNewRecords__c}"/>
+                          <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AddingNewRecords__c}">
+                            <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AccountsCreated__c}">
+                                <apex:outputLabel value="Accounts" for="accountsCreatedAdoption"/>
+                                <apex:outputField id="accountsCreatedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AccountsCreated__c}"/>
+                            </apex:pageBlockSectionItem>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ContactsCreated__c}">
+                                <apex:outputLabel value="Contacts" for="contactsCreatedAdoption"/>
+                                <apex:outputField id="contactsCreatedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ContactsCreated__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__EventsCreated__c}">
+                                <apex:outputLabel value="Events" for="eventsCreatedAdoption"/>
+                                <apex:outputField id="eventsCreatedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__EventsCreated__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsCreated__c}">
+                                <apex:outputLabel value="Leads" for="leadsCreatedAdoption"/>
+                                <apex:outputField id="leadsCreatedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsCreated__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__TasksCreated__c}">
+                                <apex:outputLabel value="Tasks" for="tasksCreatedAdoption"/>
+                                <apex:outputField id="tasksCreatedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__TasksCreated__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesCreated__c}">
+                                <apex:outputLabel value="Opportunities" for="opportunitiesCreatedAdoption"/>
+                                <apex:outputField id="opportunitiesCreatedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesCreated__c}"/>
+                              </apex:pageBlockSectionItem>
+                        </apex:pageBlockSection>
+                            <apex:outputField id="completingFields" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CompletingFields__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CompletingFields__c}"/>
+                            <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CompletingFields__c}">
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AccountsModified__c}">
+                                <apex:outputLabel value="Accounts" for="accountsModifiedAdoption"/>
+                                <apex:outputField id="accountsModifiedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AccountsModified__c}"/>
+                              </apex:pageBlockSectionItem>
+                          <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__AccountsModified__c}">
+                            <apex:pageBlockSectionItem >
+                              <apex:outputLabel value="Eligible Fields" for="accountFields"/>
+                              <apex:dataTable value="{!pb.accountFields}" var="field" id="accountFieldList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                <apex:column >
+                                  <apex:outputText value="{!field.ePrize_Zemzu__FieldName__c}" />
+                                </apex:column>
+                              </apex:dataTable>
+                            </apex:pageBlockSectionItem>
+                          </apex:pageBlockSection>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ContactsModified__c}">
+                                <apex:outputLabel value="Contacts" for="contactsModifiedAdoption"/>
+                                <apex:outputField id="contactsModifiedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ContactsModified__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ContactsModified__c}">
+                                <apex:pageBlockSectionItem >
+                                  <apex:outputLabel value="Eligible Fields" for="contactFields"/>
+                                  <apex:dataTable value="{!pb.contactFields}" var="field" id="contactFieldList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                    <apex:column >
+                                      <apex:outputText value="{!field.ePrize_Zemzu__FieldName__c}" />
+                                    </apex:column>
+                                  </apex:dataTable>
+                                </apex:pageBlockSectionItem>
+                              </apex:pageBlockSection>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsUpdated__c}">
+                                <apex:outputLabel value="Leads" for="leadsModifiedAdoption"/>
+                                <apex:outputField id="leadsModifiedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsUpdated__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__LeadsUpdated__c}">
+                                <apex:pageBlockSectionItem >
+                                  <apex:outputLabel value="Eligible Fields" for="leadFields"/>
+                                  <apex:dataTable value="{!pb.leadFields}" var="field" id="leadFieldList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                    <apex:column >
+                                      <apex:outputText value="{!field.ePrize_Zemzu__FieldName__c}" />
+                                    </apex:column>
+                                  </apex:dataTable>
+                                </apex:pageBlockSectionItem>
+                              </apex:pageBlockSection>
+                              <apex:pageBlockSectionItem rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesModified__c}">
+                                <apex:outputLabel value="Opportunities" for="opportunitiesModifiedAdoption"/>
+                                <apex:outputField id="opportunitiesModifiedAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesModified__c}"/>
+                              </apex:pageBlockSectionItem>
+                              <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__OpportunitiesModified__c}">
+                                <apex:pageBlockSectionItem >
+                                  <apex:outputLabel value="Eligible Fields" for="opportunityFields"/>
+                                  <apex:dataTable value="{!pb.opportunityFields}" var="field" id="opportunityFieldList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                    <apex:column >
+                                      <apex:outputText value="{!field.ePrize_Zemzu__FieldName__c}" />
+                                    </apex:column>
+                                  </apex:dataTable>
+                                </apex:pageBlockSectionItem>
+                              </apex:pageBlockSection>
+                            </apex:pageBlockSection>
+                            <apex:outputField id="chatterAdoption" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ChatterAdoption__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ChatterAdoption__c}"/>
+                            <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__ChatterAdoption__c}">
+                              <apex:outputField id="postToChatter" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__PostToChatter__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__PostToChatter__c}"/>
+                              <apex:outputField id="commentOnAChatterPost" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CommentOnAChatterPost__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__CommentOnAChatterPost__c}"/>
+                              <apex:outputField id="postToGroup" value="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__PostToGroup__c}" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__PostToGroup__c}"/>
+                              <apex:pageBlockSection columns="1" rendered="{!pb.pipelineBehaviorEntity.ePrize_Zemzu__PostToGroup__c}">
+                                <apex:pageBlockSectionItem >
+                                  <apex:outputLabel value="Eligible Groups" for="groupList"/>
+                                  <apex:dataTable value="{!pb.adoptionChatterGroupNames}" var="group" id="groupList" rowClasses="odd,even" styleClass="tableClass" width="90%">
+                                    <apex:column >
+                                      <apex:outputText value="{!group}" />
+                                    </apex:column>
+                                  </apex:dataTable>
+                                </apex:pageBlockSectionItem>
+                              </apex:pageBlockSection>
+                            </apex:pageBlockSection>
+                          </apex:pageBlockSection>
+                        </apex:outputPanel>
+
+
+                    </div>
+                  </apex:outputPanel>
+              <!-- </apex:repeat>  -->
+              </apex:dataList>
+              </apex:pageBlockSection>
+              
+              <apex:pageBlockSection title="Tie Breaker" columns="1" rendered="{!fullContest.isChanceToWin || fullContest.isEntryRanked}">
+                <apex:outPutText value="Winners are determined based on who has the highest values on the leaderboard (as a numeric value, dollar value, or percent to goal). In the event of a tie, the tie winner will be decided by the following criteria:"/>
+                  <apex:outputPanel styleClass="prize" layout="block">
+                      <apex:outPutText style="font-weight: bold;" value="{!fullContest.contestEntity.ePrize_Zemzu__TieBreakerValue__c}" />
+                  </apex:outputPanel>
+                </apex:pageBlockSection>     
+              
+              <apex:pageBlockSection title="{!IF(fullContest.isChanceToWin, 'Instant Win Prizes', 'Prizes')}" rendered="{!fullContest.isChanceToWin || fullContest.isEntryRanked}" columns="1">
+              
+              <apex:outputPanel rendered="{!!fullContest.contestEntity.ePrize_Zemzu__Prizes__c && fullContest.prizes.size <= 0}" >
+              	<apex:outputText value="No prizes will be awarded for this contest. It's all about the bragging rights!" />
+              </apex:outputPanel>
+              <apex:outputPanel rendered="{!fullContest.contestEntity.ePrize_Zemzu__Prizes__c || fullContest.prizes.size > 0}" >
+              <apex:outputText rendered="{!fullContest.isChanceToWin}" value="Prize winners are determined randomly." />
+              <apex:outputText rendered="{!fullContest.isPercentToGoal}" value="Prize winners are determined based on who has the highest % to goal as defined below.  " />
+              <apex:outputText rendered="{!!fullContest.isChanceToWin && !fullContest.isPercentToGoal}" value="Prize winners are determined based on who completes the highest value of behaviors defined above (based on points or dollars)."/>             
+                <apex:dataList value="{!fullContest.prizes}" var="prize" id="prizeList" type="1" styleClass="prize-list">
+                  <apex:outputPanel styleClass="prize" layout="block">
+                    <apex:outputText style="font-weight: bold;" value="{!prize.ePrize_Zemzu__PrizeName__c}" />
+                    <apex:outputPanel styleClass="prize-sub" layout="block">
+                      <p><apex:outputText value="{!prize.ePrize_Zemzu__Description__c}" /></p>
+                      <p><apex:outputField value="{!prize.ePrize_Zemzu__ARV__c}"/></p>
+                      <p>
+                        <apex:outputPanel rendered="{!prize.ePrize_Zemzu__PrizeReserve__c}">
+                          <apex:outputText value="Prize Reserve Value - "/>
+                            <apex:outputText value="{0,number,$###,###.00}" rendered="{!fullContest.isDollarRanked}"><apex:param value="{!prize.ePrize_Zemzu__ReserveAmount__c}" /></apex:outputText>
+                            <apex:outputText value="{0,number,###,### Points}" rendered="{!fullContest.isEntryRanked}"><apex:param value="{!prize.ePrize_Zemzu__ReserveAmount__c}" /></apex:outputText>
+                          <apex:outputText value="{0,number,###,###.##}%" rendered="{!fullContest.isPercentToGoal}"><apex:param value="{!prize.ePrize_Zemzu__ReserveAmount__c}" /></apex:outputText>
+                        </apex:outputPanel>
+                      </p>
+                      <p>
+                        <apex:outputField value="{!prize.ePrize_Zemzu__TotalQuantity__c}"  rendered="{!fullContest.isChanceToWin}"/>
+                        <apex:outputText value=" quantity" rendered="{!fullContest.isChanceToWin}" />
+                      </p>
+                    </apex:outputPanel>
+                  </apex:outputPanel>
+                </apex:dataList>
+                <apex:outputText value="For any prizes over $600, winners will need to work with the finance department to complete an affidavit and any necessary tax forms."/>
+                </apex:outputPanel>
+              </apex:pageBlockSection>
+             
+              <apex:pageBlockSection title="{!IF(fullContest.isChanceToWin || fullContest.isEntryRanked, 'Prizes', 'Leaderboard and Rewards')}" rendered="{!(!fullContest.isChanceToWin) && (!fullContest.isEntryRanked)}" columns="1">
+                  
+                <apex:pageBlockSection title="Leaderboard Ranking" columns="1" rendered="{!(!fullContest.isChanceToWin) && (!fullContest.isEntryRanked)}">
+                <apex:outPutText value="Winners are determined based on who has the highest values on the leaderboard (as a numeric value, dollar value, or percent to goal). The leaderboard values are calculated based on the following field:"/>
+                  <apex:outputPanel styleClass="prize" layout="block">
+                      <apex:outPutText style="font-weight: bold;" value="{!fullContest.contestEntity.ePrize_Zemzu__LeaderboardRankBy__c}" />
+                  </apex:outputPanel>
+                </apex:pageBlockSection>
+                
+                <apex:pageBlockSection title="Tie Breaker" columns="1" >
+                <apex:outPutText value="Winners are determined based on who has the highest values on the leaderboard (as a numeric value, dollar value, or percent to goal). In the event of a tie, the tie winner will be decided by the following criteria:"/>
+                  <apex:outputPanel styleClass="prize" layout="block">
+                      <apex:outPutText style="font-weight: bold;" value="{!fullContest.contestEntity.ePrize_Zemzu__TieBreakerValue__c}" />
+                  </apex:outputPanel>
+                </apex:pageBlockSection>                 
+              
+              <apex:pageBlockSection title="{!IF(fullContest.isChanceToWin, 'Instant Win Prizes', 'Prizes')}" columns="1">
+              <apex:outputPanel rendered="{!!fullContest.contestEntity.ePrize_Zemzu__Prizes__c && fullContest.prizes.size <= 0}" >
+              	<apex:outputText value="No prizes will be awarded for this contest. It's all about the bragging rights!" />
+              </apex:outputPanel>
+              <apex:outputPanel rendered="{!fullContest.contestEntity.ePrize_Zemzu__Prizes__c || fullContest.prizes.size > 0}" >
+	              <apex:outputText rendered="{!fullContest.isChanceToWin}" value="Prize winners are determined randomly." />
+	              <apex:outputText rendered="{!fullContest.isPercentToGoal}" value="Prize winners are determined based on who has the highest % to goal as defined below." />
+	              <apex:outputText rendered="{!!fullContest.isChanceToWin && !fullContest.isPercentToGoal}" value="Prize winners are determined based on who completes the highest value of behaviors defined above (based on points or dollars)."/>             
+	                <apex:dataList value="{!fullContest.prizes}" var="prize" id="prizeList" type="1" styleClass="prize-list">
+	                  <apex:outputPanel styleClass="prize" layout="block">
+	                    <apex:outputText style="font-weight: bold;" value="{!prize.ePrize_Zemzu__PrizeName__c}" />
+	                    <apex:outputPanel styleClass="prize-sub" layout="block">
+	                      <p><apex:outputText value="{!prize.ePrize_Zemzu__Description__c}" /></p>
+	                      <p><apex:outputField value="{!prize.ePrize_Zemzu__ARV__c}"/></p>
+	                      <p>
+	                        <apex:outputPanel rendered="{!prize.ePrize_Zemzu__PrizeReserve__c}">
+	                          <apex:outputText value="Prize Reserve Value - "/>
+	                            <apex:outputText value="{0,number,$###,###.00}" rendered="{!fullContest.isDollarRanked}"><apex:param value="{!prize.ePrize_Zemzu__ReserveAmount__c}" /></apex:outputText>
+	                            <apex:outputText value="{0,number,###,### Points}" rendered="{!fullContest.isEntryRanked}"><apex:param value="{!prize.ePrize_Zemzu__ReserveAmount__c}" /></apex:outputText>
+	                          <apex:outputText value="{0,number,###,###.##}%" rendered="{!fullContest.isPercentToGoal}"><apex:param value="{!prize.ePrize_Zemzu__ReserveAmount__c}" /></apex:outputText>
+	                        </apex:outputPanel>
+	                      </p>
+	                      <p>
+	                        <apex:outputField value="{!prize.ePrize_Zemzu__TotalQuantity__c}"  rendered="{!fullContest.isChanceToWin}"/>
+	                        <apex:outputText value=" quantity" rendered="{!fullContest.isChanceToWin}" />
+	                      </p>
+	                    </apex:outputPanel>
+	                  </apex:outputPanel>
+	                </apex:dataList>
+	                <apex:outputText value="For any prizes over $600, winners will need to work with the finance department to complete an affidavit and any necessary tax forms."/>
+               </apex:outputPanel>
+              </apex:pageBlockSection>
+              
+              </apex:pageBlockSection>
+              
+              <apex:pageBlockSection title="Participants and Observers" columns="1">
+                <!-- TODO, Enable links to see the details behind each of the counts. -->
+                <apex:outputText value="Counts of all teams, participants, and observers associated with the contest are listed below. Click on any of the items to see the details." />
+                                  
+                <apex:pageBlockSection columns="1">                                   
+                  <apex:outputPanel rendered="{!IF(fullContest.contestEntity.ePrize_Zemzu__Teams__c == true, true, false)}">
+                      <apex:outputlink value="/apex/ViewContestUsers" id="viewContestTeamsLink">
+                          <apex:outputText value="{!numberOfTeams}"/> Team<apex:outputText value="s" rendered="{!numberOfTeams > 1}"/>
+                          <apex:param name="contestId" value="{!fullContest.contestEntity.id}"/>
+                      </apex:outputlink>                                                                    
+                  </apex:outputPanel>
+
+                  <apex:outputPanel >
+                    <apex:outputlink value="/apex/ViewContestUsers" id="viewContestParticipantsLink">
+                        <apex:outputText value="{!numberOfParticipants}"/> Participant<apex:outputText value="s" rendered="{!numberOfParticipants > 1}"/>
+                        <apex:param name="contestId" value="{!fullContest.contestEntity.id}"/>
+                    </apex:outputlink>                        
+                  </apex:outputPanel>
+                  
+                  <apex:outputPanel >
+                      <apex:outputlink value="/apex/ViewContestUsers" id="viewContestAdminsLink">
+                          <apex:outputText value="{!numberOfAdministrators}"/> Observer<apex:outputText value="s" rendered="{!numberOfAdministrators > 1}"/>
+                          <apex:param name="contestId" value="{!fullContest.contestEntity.id}"/>
+                      </apex:outputlink>                                               
+                  </apex:outputPanel>                   
+                                      
+                </apex:pageBlockSection>
+              </apex:pageBlockSection>
+            </apex:pageBlock>
+          </apex:form>
+              
+        </apex:outputPanel>
+      
+        <apex:outputPanel rendered="{!IF(contestId == null, true, false)}">
+          <br /><br />Oops! The contest you are looking for doesn't appear to exist!  Please double check your link and try again!<br /><br />
+        </apex:outputPanel>
+      </div>
+    </apex:define>
+
+  </apex:composition>
+            
+
+  
+</apex:page>

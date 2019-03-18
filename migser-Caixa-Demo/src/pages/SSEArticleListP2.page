@@ -1,0 +1,105 @@
+<apex:page sidebar="false" standardController="KnowledgeArticleVersion" extensions="SSEAttachToCaseExt" showHeader="false" standardStylesheets="false" cache="false">
+
+    <link rel="stylesheet" href="{!URLFOR($Resource.jMobile,'jquery.mobile-1.4.2.min.css')}" />
+
+    <link rel="stylesheet" href="{!URLFOR($Resource.jMobile,'themes/custom.min.css')}" />
+    <link rel="stylesheet" href="{!URLFOR($Resource.jMobile,'themes/jquery.mobile.icons.min.css')}" />
+
+    <script src="{!URLFOR($Resource.jMobile,'jquery-1.11.1.min.js')}"></script>
+    <script src="{!URLFOR($Resource.jMobile,'jquery.mobile-1.4.2.min.js')}"></script>
+    <script type='text/javascript' src='/canvas/sdk/js/publisher.js'></script>
+
+    <script>
+        $j = jQuery.noConflict();
+
+        $j(document).ready(function(){
+
+            var param = getURLParameter('hasAttach');
+            if(param == 't') {
+                console.log('Is alrready atached')
+                $j('#attach').hide();
+            } else if(param == 'f') {
+                console.log('Is not attached');
+                $j('#unAttach').hide();
+            }else {
+                console.log('ERROR with Param');
+            }
+
+        });  
+
+        function getURLParameter(name) {
+            return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null
+        }   
+
+        /* Create Attach to Case method */
+        function attachToCase() {
+            console.log('Attach to Case');
+            SSEAttachToCaseExt.attachToCase('{!KnowledgeArticleVersion.KnowledgeArticleId}','{!CaseId}',function(result, event) {
+                if(event.status) {
+                    console.log('ATTACHED');
+                    nav();
+                } else {
+                    console.log('ERROR');
+                }
+            });
+        }
+        function unAttachToCase() {
+            console.log('Attach to Case');
+            SSEAttachToCaseExt.unAttachToCase('{!KnowledgeArticleVersion.KnowledgeArticleId}','{!CaseId}',function(result, event) {
+                if(event.status) {
+                    console.log('ATTACHED');
+                    nav();
+                } else {
+                    console.log('ERROR');
+                }
+            });
+        }
+
+        function nav() {
+            window.location.href = '/apex/SSEArticleList?id={!CaseId}';
+        }
+
+
+    </script>
+    <style>
+
+        span.bld {
+            font-weight: bold;
+        }
+        div#wrap {
+            width: 96%;
+            margin-left: 2%;
+            margin-right: 2%;
+            margin-top: 10px;
+            border-radius: 6px;
+            margin:0 auto;
+        }
+        div#sum {
+
+        }
+        button#attach {
+
+        }
+        .ui-content {
+            background: #fff;
+        }
+        .ui-btn {
+            font-size: 14px;
+        }
+    </style>
+
+
+    <div data-role="page" id="p2" data-theme="b">
+        <div id="wrap">
+            <div role="main" class="ui-content">
+                <span class="bld">Title: </span><apex:outputText value="{!KnowledgeArticleVersion.Title}"/><br/><br/>
+                <span class="bld">Summary: </span><br/>
+                <apex:outputText value="{!KnowledgeArticleVersion.Summary}"/>
+                <!--{!KnowledgeArticleVersion.KnowledgeArticleId}-->
+            </div> 
+            <button onclick="nav();" data-icon="arrow-l" class="ui-btn ui-btn-inline ui-btn-icon-left ui-icon-arrow-l" id="back">Back</button> 
+            <button onclick="attachToCase();" data-icon="action" class="ui-btn ui-btn-inline ui-icon-action ui-btn-icon-left" id="attach">Attach to Case</button>
+            <button onclick="unAttachToCase();" data-icon="action" class="ui-btn ui-btn-inline ui-icon-action ui-btn-icon-left" id="unAttach">Unattach</button>     
+        </div>    
+    </div>       
+</apex:page>

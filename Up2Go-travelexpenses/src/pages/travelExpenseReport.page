@@ -1,0 +1,105 @@
+<apex:page standardController="Travel__c" extensions="TravelCtrlExt" title="Travel Expense Report" showHeader="false" sidebar="false" renderAs="pdf" applyBodyTag="false" action="{!doInitializeLists}">
+    
+    <body>
+        <div style="font-family:'Arial Unicode MS';">
+            <div style="page-break-after:always;">
+            
+                <apex:image url="{!URLFOR($Resource.up2go_Logo)}" style="float:right" height="100px" />
+            
+                <br/><br/>
+                
+                <h2> <apex:outputText value="Reisekostenabrechnung"/> </h2>
+                
+                <br/><br/>
+                
+                <apex:panelGrid columns="2" width="100%" border="1" frame="void" rules="rows" cellspacing="0" cellpadding="5" >
+                    <apex:outputText value="Name des Reisenden"/>
+                    <apex:outputText value="{!owner}"/>
+                    
+                    <apex:outputText value="Reise"/>
+                    <apex:outputText value="{!Travel__c.Name}"/>
+                    
+                    <apex:outputText value="Grund der Reise"/>
+                    <apex:outputText value="{!Travel__c.txt_Reason__c}"/>
+                    
+                    <apex:outputText value="Reisebeginn"/> 
+                    <apex:outputText value="{!Travel__c.dtm_Start__c} Uhr"/>
+                    
+                    <apex:outputText value="Reiseende"/>
+                    <apex:outputText value="{!Travel__c.dtm_End__c} Uhr"/>
+                </apex:panelGrid>
+                
+                <br/><br/>
+                    
+                <apex:panelGrid columns="2" width="100%" border="1" frame="void" rules="rows" cellspacing="0" cellpadding="5" >
+                    <apex:outputText value="Gesamtausgaben"/>
+                    <apex:outputText value="{!totalexpenses} {!Travel__c.CurrencyIsoCode} " style="float:right;"/>
+                    
+                    <apex:outputText value="Ausgaben des Reisenden"/>
+                    <apex:outputText value="{!reimbursableexpenses} {!Travel__c.CurrencyIsoCode} " style="float:right;"/>
+                    
+                    <apex:outputText value="Betrag der Verpflegungspauschalen"/>
+                    <apex:outputText value="{!totalperdiems} {!Travel__c.CurrencyIsoCode} " style="float:right;"/>
+                    
+                    <apex:outputText value="Zu erstattender Betrag"/>
+                    <apex:outputText value="{!totalreimbursement} {!Travel__c.CurrencyIsoCode} " style="float:right;"/>
+                </apex:panelGrid>
+                
+                <br/><br/><br/><br/>
+                
+                <apex:panelGrid columns="2" width="100%" cellspacing="0" cellpadding="5" >
+                    <apex:outputText value="_____________________________"/>
+                    <apex:outputText value="_____________________________"/>
+                    
+                    <apex:outputText value="Ort/Datum"/>
+                    <apex:outputText value="Unterschrift"/>
+                </apex:panelGrid>
+                
+            </div>
+            
+            <div>
+            
+                <apex:image url="{!URLFOR($Resource.up2go_Logo)}" style="float:right" height="100px" />
+            
+                <br/><br/><br/>
+                
+                <h3> <apex:outputText value="Tagesübersicht"/> </h3>
+                
+                <br/>
+                    
+                <apex:dataTable value="{!dailySummaries}" var="day" border="1" rules="rows" width="100%" cellspacing="0" cellpadding="5" >
+                    
+                    <apex:column headervalue="Datum" style="vertical-align:top;text-align:left;">
+                        <apex:outputText value="{!day.day}"/>
+                    </apex:column>
+                    
+                    <apex:column headervalue="Ausgaben">
+                        <apex:dataTable value="{!day.expenses}" var="expense" border="0" width="100%" cellspacing="0" cellpadding="0" >
+                            <apex:column style="text-align:left;">
+                                <apex:outputText value="{!expense.name} {!IF(expense.isDeduction = TRUE,'',IF(expense.reimbursable = TRUE,'(E)','(N)'))}"/>
+                            </apex:column>
+                            <apex:column style="text-align:right;">
+                                <apex:outputText value="{!expense.amount} {!expense.elementCurrency}"/>
+                            </apex:column>
+                        </apex:dataTable>
+                    </apex:column>
+                    
+                    <apex:column headervalue="Betrag" style="vertical-align:bottom;text-align:right;" > 
+                        <apex:outputText value="{!day.amount} {!Travel__c.CurrencyIsoCode}"/>
+                    </apex:column>
+                    
+                    <apex:column headervalue="Zu erstattender Betrag" style="vertical-align:bottom;text-align:right;" > 
+                        <apex:outputText value="{!day.reimbursableAmount} {!Travel__c.CurrencyIsoCode}"/>
+                    </apex:column>
+                    
+                </apex:dataTable>
+                
+                <br/>
+                <apex:outputText value="(E) = zu erstatten" />
+                <br/>
+                <apex:outputText value="(N) = nicht zu erstatten" />
+                
+            </div>
+        </div>
+    </body>
+</apex:page>

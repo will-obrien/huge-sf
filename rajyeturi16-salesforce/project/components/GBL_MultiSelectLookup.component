@@ -1,0 +1,141 @@
+<apex:component controller="GBL_MultiSelectLookup_CTRL">
+    <apex:stylesheet value="{!URLFOR($Resource.Multi_Select_Projec, 'multiple-select-master/multiple-select.css')}" />
+    <apex:includeScript value="{!URLFOR($Resource.Jquery_Core_Plugin, 'jquery-1.9.1.min.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.Multi_Select_Projec, 'multiple-select-master/jquery.multiple.select.js')}"/>
+    <script type="text/javascript">
+    
+    $j=$.noConflict();
+    
+    $j(document).ready(function(){
+        $j('.customMultiSelect').each(function(){
+            var fieldID=$j(this).attr('id');
+            var fieldLabel=$j(this).attr('title');
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.GBL_MultiSelectLookup_CTRL.getItemsList}',
+                fieldLabel, 
+                function(result, event){
+                    
+                    if (event.status) {
+                        
+                        var existingVal=$j('[id$='+fieldLabel+'_back_Id]').val();
+                        var alreadySelectedValues={};
+                        
+                        if(existingVal!=undefined && existingVal!='')
+                        {
+                            alreadySelectedValues=existingVal.split(',');
+                        }
+                        
+                        $j(document.getElementById(fieldID)).empty();
+                   
+                        for(var i=0; i<result.length; i++)
+                        {
+                            var isSelected=false;
+                            
+                            for(var j=0; j<alreadySelectedValues.length; j++)
+                            {
+                                if(alreadySelectedValues[j]==result[i].Name)
+                                {
+                                    isSelected=true;
+                                }
+                            }
+                            
+                            var option = $j('<option></option>').attr("value", result[i].Name).text(result[i].Name);
+                            if(isSelected)
+                            {
+                                option.attr('selected','selected');
+                            }
+                            $(document.getElementById(fieldID)).append(option);
+                        }
+                      
+                        $j(document.getElementById(fieldID)).multipleSelect({
+                            filter: true
+                        });
+                        applyBackup($('[id$='+fieldID+']'));
+                    } 
+                    else 
+                    {
+                        alert('Something went Wrong' );
+                    }
+                }, 
+                {escape: true}
+            );
+            
+        });
+        
+      
+        $('.customSingleSelect').each(function(){
+            var fieldID=$j(this).attr('id');
+            var fieldLabel=$j(this).attr('title');
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.GBL_MultiSelectLookup_CTRL.getItemsList}',
+                fieldLabel, 
+                function(result, event){
+                    
+                    if (event.status) {
+                        
+                         var existingVal=$j('[id$='+fieldLabel+'_back_Id]').val();
+                        var alreadySelectedValues={};
+                        
+                        if(existingVal!=undefined && existingVal!='')
+                        {
+                            alreadySelectedValues=existingVal.split(',');
+                        }
+                        
+                        $j(document.getElementById(fieldID)).empty();
+                         var option = $j('<option></option>').attr("value", '').text('--Select--');
+                            $(document.getElementById(fieldID)).append(option);
+                        for(var i=0; i<result.length; i++)
+                        {
+                            
+                            var isSelected=false;
+                            
+                            for(var j=0; j<alreadySelectedValues.length; j++)
+                            {
+                                if(alreadySelectedValues[j]==result[i].Name)
+                                {
+                                    isSelected=true;
+                                }
+                            }
+                            
+                            var option = $j('<option ></option>').attr("value", result[i].Name).text(result[i].Name);
+                             if(isSelected)
+                            {
+                                option.attr('selected','selected');
+                            }
+                            $j(document.getElementById(fieldID)).append(option);
+                        }
+                        
+                        $j(document.getElementById(fieldID)).multipleSelect({
+                            filter: true,
+                            single:true
+                        });
+                        applyBackup($('[id$='+fieldID+']'));
+                    } 
+                    else 
+                    {
+                        alert('Something went Wrong' );
+                    }
+                }, 
+                {escape: true}
+            );
+            
+        });
+        
+    });  
+    
+    
+     function applyBackup(jQueryObject)
+    {
+          jQueryObject.on('change', 
+             function()
+                  {
+                      alert('HI');
+                      var title= $(this).attr('title');
+                      title=title+'_back_Id';
+                      $('[id$='+title+']').val($(this).val());
+                      alert('Index : '+title+'Value '+$('[id$='+title+']').val());
+                      
+                   });
+    }
+    </script>
+</apex:component>

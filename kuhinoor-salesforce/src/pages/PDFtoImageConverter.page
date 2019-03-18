@@ -1,0 +1,106 @@
+<apex:page standardstylesheets="false" sidebar="false"> 
+    <!-- Bootbox use for ui and alert box -->
+    <apex:stylesheet value="{!URLFOR($Resource.bootbox, 'bootbox/bootstrap.min.css')}">
+    <apex:includescript value="{!URLFOR($Resource.bootbox, 'bootbox/jquery.min.js')}">
+    <apex:includescript value="{!URLFOR($Resource.bootbox, 'bootbox/bootstrap.min.js')}">
+    <apex:includescript value="{!URLFOR($Resource.bootbox, 'bootbox/bootbox.js')}">
+    
+    <!-- Script use to convert and save image into pdf file -->
+    <apex:includescript value="{!URLFOR($Resource.pdfconverter, 'pdfconverter/newjspdf.js')}">
+    <apex:includescript value="{!URLFOR($Resource.pdfconverter, 'pdfconverter/filesever.js')}">
+    <apex:includescript value="{!URLFOR($Resource.pdfconverter, 'pdfconverter/jspdfplugin.js')}">
+    <apex:includescript value="{!URLFOR($Resource.pdfconverter, 'pdfconverter/jQueryMini.js')}">  
+ 
+     
+        <script type="text/javascript">
+            var $j = jQuery.noConflict();
+        </script>
+        <apex:stylesheet value="{!$Resource.Bootstrapss}">
+    
+    
+    <!-- Script to upload and convert images into pdf file -->
+    <script>
+    function uploadFile(){
+        var pdf = new jsPDF('p', 'mm', [270, 270]);
+        var images = [];
+        <!--Get image file in script for to convert-->
+        var files = document.getElementById('attachmentFile').files;
+        if(files.length == 0){
+            bootbox.alert("Please select at least one image to convert!");
+        }
+        var i = 0;
+        for(var j=0 ; j<files.length ; j++){
+            var fileToLoad = files[j];
+            var fileReader = new FileReader();
+            
+            fileReader.readAsDataURL(fileToLoad);
+            fileReader.onload = function(e){       
+                var image = new Image();
+                image.src = e.target.result; 
+                image.onload = function (){ 
+                    <!--Change all image in jpeg format--> 
+                    var canvas = document.createElement("canvas"),
+                    canvasContext = canvas.getContext("2d"); 
+                    <!--Compress large image file-->
+                    if(image.width > 1018 ){   
+                        canvas.width = 1018;
+                        image.width =1018;
+                    }
+                    else{
+                        canvas.width = image.width;
+                    }
+                    
+                    if(image.height > 1018 ){   
+                        canvas.height = 1018;
+                        image.height =1018;
+                    }
+                    else{
+                        canvas.height = image.height;
+                    }
+                    
+                    canvasContext.drawImage(image, 0, 0, image.width, image.height);
+                    var imgData = canvas.toDataURL("image/jpeg", 1.0);
+                    //var picFile = e.target.result;
+                    <!--Add image in pdf document-->
+                    pdf.addImage(imgData, 'JPEG', 0,11);   
+                    i++;
+                    if(i < files.length){
+                        pdf.addPage();   
+                    }
+                    if(i == files.length){
+                        pdf.save();
+                        bootbox.alert("Your image converted successfuly!");
+                    } 
+                };
+                <!--Show error message when any error occur-->
+                image.onerror = function(){
+                    bootbox.alert('Selected image not converted into pdf file');
+                };
+            };
+        
+            fileReader.onloadend = function(evt){
+            };
+        }
+    }
+    </script>
+ <!-- Page block to select pdf file -->
+<apex:pageblock title="Image to pdf converter">
+    
+
+
+     <apex:outputlabel value="Please select images to convert:" style="font-size: large;">
+       <input type="file" id="attachmentFile" multiple="multiple" accept="image/*" class="paginationButtons" />
+    <button onclick="uploadFile()" class="btn-primary"><b>Convert image files into pdf file</b></button>
+
+</apex:outputlabel>
+</apex:pageblock>
+</apex:stylesheet>
+</apex:includescript>
+</apex:includescript>
+</apex:includescript>
+</apex:includescript>
+</apex:includescript>
+</apex:includescript>
+</apex:includescript>
+</apex:stylesheet>
+</apex:page>

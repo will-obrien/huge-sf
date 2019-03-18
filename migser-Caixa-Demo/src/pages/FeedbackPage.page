@@ -1,0 +1,202 @@
+<apex:page showHeader="true" controller="ConvertFeedbackCtrl" standardStylesheets="false" cache="false">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css"/>
+    <link rel="stylesheet" href="{!$Resource.PerformAnalyticsToolCss}"/>
+    <!--<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.css"/>-->
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+
+    <!-- <link rel="stylesheet" href="{!URLFOR($Resource.S1Asset,'/plain/styles.css')}"/> -->
+    <!-- <link rel="stylesheet" href="{!URLFOR($Resource.S1Asset,'/plain/icons.css')}"/> -->
+    <style>
+        #wrapper
+        {
+            margin:5px;
+        }
+    	h4
+        {
+            font-size: 17px;
+        }
+    	h5
+        {
+            font-size: 15px;
+			margin: 5px 0;
+            display:block;
+        }
+        h6
+        {
+            font-size: 13px;
+        }
+        #buttonDiv
+        {
+            padding:20px 0;
+        }
+        .pvs
+        {
+            margin: 2px;
+        }
+        #scheduleLabel
+        {
+            width: 170px;
+            /*margin: 0 auto;*/
+            /*color: #a7b9c9;*/
+        }
+        .myLabel
+        {
+            padding-left:0;
+        }
+        #tableDiv
+        {
+            padding: 10px;
+            overflow:auto;
+        }
+        .mainTitle
+        {
+            color:#CF5C60;
+        }
+        .headerRow
+        {
+            color: #4AB471;
+        }
+        .dataCell a
+        {
+            font-size: 11px;
+        }
+        #trueFalse
+        {
+            font-weight: bold;
+            /*color:white;*/
+        }
+        .bg-secondary-btn
+        {
+            background: #CF5C60;
+        }
+        .myprimBtn
+        {
+            background: #4AB471;
+        }
+        .switch-wrapper
+        {
+            position: relative;
+            float: left;
+            top: 8px;
+            margin: 0 0 0 50px;
+        }
+        #slider
+        {
+            width: 40px;
+            height: 11px;
+            position: relative;
+            float: left;
+            margin: 2px 15px;
+        }
+        .ui-widget-header
+        {
+            background: #4AB471;
+        }
+	    /** bootstrap override**/
+    	.well
+        {
+            font-size: 14px;
+        }
+	    .panel-footer {
+        	font-size: 14px;
+            /*height: 35px;*/
+        }
+    	.numConvertPanel
+        {
+        	padding: 3px 10px;    
+        }
+    </style>
+    <script>
+        $(document).ready(function(){
+            initSlider();
+        });
+        function initSlider()
+        {
+            var sliderValue = 0;
+            if({!scheduleToRun} == true)
+                sliderValue = 1;
+            else
+                sliderValue = false;
+            $("#slider").slider({
+                min: 0,
+                max: 1,
+                range: "min",
+                value: sliderValue,
+                slide: function( event, ui ) {
+                    console.log(ui.value);
+                    sliderValue = ui.value;
+                    toggleDailyConvert();
+                }
+            });
+        }
+        function reload()
+        {
+            //window.location = '/apex/FeedbackPage';
+        }
+    </script>
+    <body>
+        <div id="wrapper">
+            <h5 style="text-shadow:1px 1px 2px rgba(76, 129, 175,0.4);" class="h5">Perform Analytics Tool</h5>
+            <div class="well well-sm">
+                <small>
+                    This tool will analyze the responses to all "submitted" performance summaries and feedback records. The tool will store any numerical answers in the "Numeric Value" field and will store the first 255 characters of a response in the "String Value" field  on the Feedback object. By using this tool, you'll have greater flexibility in reporting, dashboards, formula fields, and more.
+                </small>
+            </div>
+            <apex:form >
+                <apex:actionFunction name="convertNow" action="{!convert}" reRender="panel, myTable" oncomplete="initSlider()"/>
+                <apex:actionFunction name="toggleDailyConvert" action="{!toggleScheduleJob}" oncomplete="reload()"/> <!-- not sure wtf reRender doesn't work, so doing oncomplete -->
+                <apex:outputPanel id="panel">
+                    <h6 class="h6">
+                        <strong><i style="color:red;">{!feedsCount}</i></strong> record(s) ready for processing
+                    </h6>
+                    <div id="buttonDiv">
+                        <div class="clearfix">
+                            <apex:outputPanel rendered="{!!userClickedProcessNow}">
+                                <button class="btn bg-primary-btn btn--primary pvs size-full brm border border--1 wht f3 fw-semibold pull-left" onclick="convertNow();return false;">
+                                    Process Now
+                                </button>
+                                <apex:outputPanel id="numConvertPanel" rendered="{!IF(numRecConverted != -1,true,false)}" styleClass="pull-left numConvertPanel">
+                                    <h6 class="h6"> <strong><i style="color:green">{!numRecConverted}</i></strong> record(s) processed! </h6>
+                                </apex:outputPanel>
+                            </apex:outputPanel>
+                            <apex:outputPanel rendered="{!userClickedProcessNow}">
+                                <h6 class="h6"> Batch Job initated. Email will be sent to you when the job is finished. Thank you! </h6>
+                            </apex:outputPanel>
+                        </div>
+                        <br/>
+                        <br/>
+                        <div class="panel panel-default">
+                            <div class="panel-body">
+                                <div class="clearfix">
+                                    <h5 class="myLabel pull-left h5">Scheduled Processing Status:</h5>
+                                    <div class="switch-wrapper">
+                                        <span class="pull-left"><b>OFF</b></span>
+                                        <div id="slider"></div>
+                                        <span class="pull-left"><b>ON</b></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="panel-footer">
+                                <p>
+                                    <small>When enabled, the Perform Analytics Tool will automatically process all records daily at 12AM.</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </apex:outputPanel>
+            </apex:form>
+        </div>
+    </body>
+    <script type="text/javascript">
+        //google analytics
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+        ga('create', 'UA-48529596-1', 'work.com');
+        ga('send', 'pageview');
+    </script>
+</apex:page>

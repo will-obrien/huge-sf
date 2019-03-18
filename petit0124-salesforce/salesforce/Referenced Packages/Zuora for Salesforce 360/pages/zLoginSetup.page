@@ -1,0 +1,96 @@
+<apex:page controller="Zuora.zLoginSetupController" id="loginSetupPage" action="{!setPackageStatus}">
+    <apex:form id="loginSetupForm">
+        <apex:pageBlock id="loginSetupBlock" title="Zuora API Login Setup">            
+            <apex:pageBlockSection id="locationSection" columns="1" title="Location Selection" collapsible="false">
+                <apex:pageBlockSectionItem >
+                    <apex:selectList disabled="{!editMode}" value="{!selectedLocation}" size="1" >
+                        <apex:selectOptions value="{!locations}" />
+                        <apex:actionSupport event="onchange" action="{!invalidateSelectedLocation}" reRender="locationSection, readOnlyLoginSection, editableLoginSection, additionalControls, testSection" />
+                    </apex:selectList>
+                    <apex:outputPanel id="additionalControls" >
+                        <apex:selectList disabled="{!editMode}" value="{!selectedProfileId}" size="1" rendered="{!('Profile' == selectedLocation)}" >
+                            <apex:selectOptions value="{!profiles}" />
+                            <apex:actionSupport event="onchange" action="{!reloadLoginSetting}" reRender="readOnlyLoginSection, editableLoginSection, testSection" />
+                        </apex:selectList>
+                        <apex:inputField value="{!stub.Zuora__User__c}" rendered="{!('User' == selectedLocation)}">
+                            <apex:actionSupport event="onchange" action="{!reloadLoginSetting}" reRender="readOnlyLoginSection, editableLoginSection, testSection"/>
+                        </apex:inputField>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+            
+            <apex:pageBlockSection id="readOnlyLoginSection" title="Connection Settings" columns="1" collapsible="false" rendered="{!NOT(editMode)}" >
+                <apex:pageBlockSectionItem >
+                    <apex:outputPanel >
+                        <apex:commandButton value="Edit" rendered="{!NOT(editMode)}" action="{!doEdit}" style="margin-left:20%" reRender="loginSetupBlock" />
+                        <apex:commandButton value="Delete" rendered="{!NOT(editMode)}" action="{!doDelete}" reRender="loginSetupBlock"  disabled="{!loginSetting.Zuora__Username__c == null}"/>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:outputField value="{!loginSetting.Zuora__Endpoint__c}"  rendered="{!selectedLocation=='Organization'}" />
+                <apex:outputField value="{!orgLoginSetting.Zuora__Endpoint__c}" rendered="{!selectedLocation!='Organization' && loginSetting.Zuora__Username__c != null && orgLoginSetting.Zuora__Endpoint__c != null}" /> 
+                <apex:pageBlockSectionItem rendered="{!selectedLocation!='Organization' && loginSetting.Zuora__Username__c != null && orgLoginSetting.Zuora__Endpoint__c == null}">
+                    <apex:outputLabel value="Endpoint"/>
+                    <apex:outputPanel >                
+                        <apex:outputText value="{!EndpointErrorMsg }" style="color:red;"/>                               
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>                
+                <apex:outputField value="{!loginSetting.Zuora__Username__c}" />
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection id="testSection" rendered="{!NOT(editMode)}" columns="1" collapsible="false">
+                <apex:commandButton value="Test Connection" action="{!doConnect}" style="margin-left:20%" reRender="loginSetupBlock,testSection" disabled="{!loginSetting.Zuora__Username__c == null}"/>
+                <apex:outputText value="{!testConnectionResult}" rendered="{! null != testConnectionResult}" />
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection id="editableLoginSection" title="Connection Settings" columns="1" collapsible="false" rendered="{!editMode}" >
+                <apex:pageBlockSectionItem >
+                    <apex:outputPanel >
+                        <apex:commandButton value="Save" rendered="{!editMode}" action="{!doSave}" style="margin-left:20%" reRender="loginSetupBlock" />
+                        <apex:commandButton value="Cancel" rendered="{!editMode}" immediate="true" action="{!doCancel}" reRender="loginSetupBlock" />
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                <apex:inputField value="{!loginSetting.Zuora__Endpoint__c}" required="true" style="width:70%" rendered="{!selectedLocation=='Organization'}"/>
+                <apex:outputField value="{!orgLoginSetting.Zuora__Endpoint__c}" rendered="{!selectedLocation!='Organization' && loginSetting.Zuora__Username__c != null && orgLoginSetting.Zuora__Endpoint__c != null}" /> 
+                <apex:pageBlockSectionItem rendered="{!selectedLocation!='Organization' && loginSetting.Zuora__Username__c != null && orgLoginSetting.Zuora__Endpoint__c == null}">
+                    <apex:outputLabel value="Endpoint"/>
+                    <apex:outputPanel >                
+                        <apex:outputText value="{!EndpointErrorMsg }" style="color:red;"/>                               
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+                                
+                <apex:inputField value="{!loginSetting.Zuora__Username__c}" required="true" />
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Password"/>
+                    <apex:outputPanel >
+                        <apex:inputSecret value="{!loginSetting.Zuora__Password__c}" required="true" redisplay="true" />
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+
+			      <apex:pageBlockSection title="Zuora Package Installation Status" columns="1" collapsible="false" rendered="{!NOT(editMode)}">
+			        <apex:pageBlockSectionItem >
+			          <apex:outputLabel value="{!$ObjectType.Zuora__ZuoraConfig__c.Fields.Zuora__Z360Installed__c.Label}" />
+			          <apex:outputText >
+			            <apex:outputField value="{!config.Zuora__Z360Installed__c}" />
+			            <apex:outputText rendered="{!hasZ360Version}">
+			              (Version {!config.Zuora__Z360MajorVersion__c}.{!config.Zuora__Z360MinorVersion__c},
+			              Namespace: {!z360Namespace})
+			            </apex:outputText>
+			          </apex:outputText>
+			        </apex:pageBlockSectionItem>
+			
+			        <apex:pageBlockSectionItem >
+			          <apex:outputLabel value="{!$ObjectType.Zuora__ZuoraConfig__c.Fields.Zuora__ZQuotesInstalled__c.Label}" />
+			          <apex:outputText >
+			            <apex:outputField value="{!config.Zuora__ZQuotesInstalled__c}" />
+			            <apex:outputText rendered="{!hasZQuotesVersion}">
+			              (Version {!config.Zuora__ZQuotesMajorVersion__c}.{!config.Zuora__ZQuotesMinorVersion__c},
+			              Namespace: {!zQuotesNamespace})
+			            </apex:outputText>
+			          </apex:outputText>
+			        </apex:pageBlockSectionItem>
+			      </apex:pageBlockSection>
+            
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

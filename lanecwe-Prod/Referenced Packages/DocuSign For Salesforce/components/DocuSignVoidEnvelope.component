@@ -1,0 +1,112 @@
+<apex:component controller="dsfs.DocuSignVoidEnvelopeController"
+	id="DocuSignVoidEnvelopePage">
+	<style>
+.WarningError {
+	color: red;
+	font-weight: bold;
+}
+</style>
+	<script>
+function textCounter(field,cntfield,maxlimit) 
+{
+    if (field.value.length > maxlimit) {
+        field.value = field.value.substring(0, maxlimit);
+    }
+    if (cntfield) 
+    {
+        if (cntfield.value) cntfield.value = maxlimit - field.value.length;
+        else cntfield.innerHTML = "characters remaining " + (maxlimit - field.value.length);
+    }
+}
+
+function AllowVoidSubmit()
+{
+    var reason = document.getElementById('{!$Component.VoidEnvelopeReason}').value.replace(/^\s\s*/, '').replace(/\s\s*$/, '');;
+    
+    if (reason.length == 0)
+    {
+        alert("Please provide a reason for voiding the envelope.");
+        return false;
+    }
+    else
+    {
+        if (reason.length > 200)
+        {
+            alert("Please limit your reason to 200 characters.");
+            return false;
+        }
+    }
+    return true;
+}
+
+
+</script>
+
+	<apex:pageMessages />
+
+	<apex:sectionHeader title="Void Envelope" subtitle="{!DSStatus.name}"
+		id="PageTitleHeader" />
+	<div style="width: 550px">
+		<apex:pageBlock >
+			<apex:pageBlockSection columns="1" title="{!PanelTitle}"
+				collapsible="False" id="pnlEnvelopeInfo">
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel value="Envelope ID: " />
+					<apex:outputLabel value="{!DSEnvelope.dsfs__DocuSign_Envelope_ID__c}" />
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem >
+					<apex:outputLabel value="Envelope Subject: " />
+					<apex:outputLabel value="{!DSEnvelope.dsfs__DocuSign_Email_Subject__c}" />
+				</apex:pageBlockSectionItem>
+			</apex:pageBlockSection>
+		</apex:pageBlock>
+
+		<apex:outputPanel rendered="{!VoidComplete==false}">
+			<div style="padding-left: 10px">
+
+				<p style="width: 500px">Voiding an envelope will remove access
+					to the envelope for your recipients. Once voided, they will no
+					longer be able to view or sign it.</p>
+				<p style="width: 500px">To void this envelope, please provide a
+					reason for voiding below, and press 'Void Envelope'. An email will
+					be sent to recipients who have already signed, informing them this
+					envelope has been voided along with your comments.</p>
+
+				<apex:inputTextarea style="width:500px;height:100px"
+					id="VoidEnvelopeReason" value="{!myReason}"
+					onkeydown="textCounter(this,document.getElementById('txtCommentChars'),200)"
+					onkeyup="textCounter(this,document.getElementById('txtCommentChars'),200)" />
+				<br />
+				<div id="txtCommentChars">characters remaining 200</div>
+
+			</div>
+			<div style="text-align: center">
+				<apex:commandLink id="btnVoidEnvCancel" rendered="true"
+					value="Cancel" action="{!Cancel}" styleClass="btn"
+					style="padding:2px 5px 2px 5px; text-decoration:none;">
+				</apex:commandLink>
+				&nbsp;&nbsp;&nbsp;
+				<apex:commandLink id="btnVoidEnv" value="Void Envelope"
+					action="{!VoidEnvelope}" onclick="return AllowVoidSubmit();"
+					styleClass="btn"
+					style="padding:2px 5px 2px 5px; text-decoration:none;">
+				</apex:commandLink>
+			</div>
+		</apex:outputPanel>
+		<apex:outputPanel rendered="{!VoidComplete}">
+			<ul>
+				<li>Recipients will no longer have access to sign the envelope.</li>
+				<li>Recipients who have not signed will no longer have access
+					to view.</li>
+				<li>Recipients have been notified by email for any voided
+					envelope.</li>
+			</ul>
+			<div style="text-align: center">
+				<apex:commandLink id="btnVoidEnvReturn" rendered="true"
+					value="Return" action="{!Cancel}" styleClass="btn"
+					style="padding:2px 5px 2px 5px; text-decoration:none;">
+				</apex:commandLink>
+			</div>
+		</apex:outputPanel>
+	</div>
+</apex:component>

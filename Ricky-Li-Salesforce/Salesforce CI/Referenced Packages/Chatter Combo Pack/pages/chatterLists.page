@@ -1,0 +1,484 @@
+<!-- Jonathan Hersh & Helder Rocha - jhersh & hrocha @salesforce.com - 5/13/2010 -->
+<apex:page showheader="{!pageMode != EDITPHOTO}" standardcontroller="ComboPack__Chatter_List__c" extensions="ComboPack.chatterLists" tabstyle="Chatter_Lists__tab" action="{!doRefresh}">
+
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterLists, 'jquery_142.js' )}" />
+<script src="{!URLFOR( $Resource.chatterLists, 'jtools.js' )}" />
+<apex:includescript value="{!URLFOR( $Resource.ComboPack__chatterLists, 'scripts.js' )}" />
+<apex:stylesheet value="{!URLFOR( $Resource.ComboPack__chatterLists, 'styles.css' )}" />
+
+<style type="text/css">
+        .listDetails .close {
+            background:url({!URLFOR( $Resource.ComboPack__chatterLists, 'delete.png' )}) no-repeat;
+            position:absolute;
+            right:-15px;
+            top:-15px;
+            cursor:pointer;
+            height:35px;
+            width:35px;
+        }
+</style>
+
+<apex:form id="listForm">
+
+    <apex:actionfunction name="pageModeAF" action="{!doRefresh}" rerender="listForm" />
+    <apex:actionfunction name="incrementAF" action="{!incrementFollowers}" rerender="listForm" />
+    <apex:actionfunction name="decrementAF" action="{!decrementFollowers}" rerender="listForm" />
+    <apex:actionfunction name="deleteAF" action="{!deleteList}" rendered="{!mylist.clist.ownerid = $User.Id}" />
+    <apex:actionFunction name="doUnlockAF" action="{!unlock}" rerender="listForm" />
+    <apex:actionFunction name="searchRecordsAF" action="{!searchRecords}" rerender="editListMembers" />
+    <apex:actionFunction name="saveListAF" action="{!upsertList}" />
+
+        <script type="text/javascript">
+            function noenter(ev,type)  {
+            if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+                if( type == 'unlock' )
+                    doUnlockAF();
+                else if( type == 'search' )
+                    searchRecordsAF();
+                else if( type == 'saveList' )
+                    saveListAF();
+                return false;
+                }else{
+                  return true;
+             }
+           }
+           
+           // The standard component users 'followers' instead of 'subscribers'           
+           function follow2Sub() {
+           	jQuery("#followerPanel").find("h3").html("List Subscribers");
+           	jQuery(".panelEmptyContent").html("No subscribers.");
+           }
+        </script>
+    
+    <div id="pageMode">
+        <apex:inputhidden value="{!pageMode}" />
+    </div>
+
+<!-- List Edit Photo - Have to iframe it because inputfile doesn't support partial refreshes and is therefore a steaming pile of crap -->
+<apex:outputpanel layout="none" rendered="{!pageMode = EDITPHOTO}" >
+    <div style="width:100%;height:100%;background-color:#F8F8F8;">
+    <apex:inputfile value="{!att.body}" filename="{!att.name}" style="float:left" />        
+    <apex:commandbutton style="float: left" value="Upload" action="{!upsertAttachment}" />
+    </div>
+</apex:outputpanel>
+
+<apex:outputpanel id="mainPanel" layout="none" rendered="{!pageMode != EDITPHOTO}">
+
+    <apex:sectionheader title="Chatter Lists" />
+
+    <div id="accordion">
+        <h2 id="{!BROWSELISTSRESET}">Browse Lists...</h2>
+        <h2 id="{!USERLISTS}">My Lists ({!mylists})</h2>
+        <h2 id="{!SUBSCRIPTIONS}" >Subscriptions ({!wefollow})</h2>
+        <h2 id="{!MEMBERSHIPS}">Memberships ({!followsme})</h2>
+        <h2 id="{!NEWLIST}"><a href="{!$Page.chatterLists}?m=newlist">New List...</a></h2>
+        <div style="clear:both;height:40px"></div>
+                <apex:outputpanel id="memberPanel" rendered="{!pageMode = VIEWLIST}">
+                    <p style="margin: 5px 0; padding-bottom: 3px; border-bottom: 1px solid #D7DBDE"><strong>List Members</strong>
+                    <apex:selectList value="{!mType}" size="1" multiselect="false" style="float:right;margin-top: -6px" >
+                        <apex:selectOptions value="{!MemberTypes}" />
+                        <apex:actionsupport event="onchange" rerender="memberPanel" oncomplete="jQuery('#listDetailMembers').click();" />
+                    </apex:selectList></p>
+                    <!-- Users first, all other objects second -->
+                    <apex:repeat value="{!mylist.members}" var="m">
+                        <apex:outputpanel rendered="{!AND( m.memberType == 'User', OR( mType == 'all', mType == 'User'))}">
+                            <div style="margin:3px; border: 1px solid #D4DADC; width: 30px; height:30px; float: left;">
+                                <c:userPhoto uid="{!m.parentid}" photoStr="{!m.memberPhoto}" height="30" width="30" title="{!m.parentname}" linked="true" target="_top" />
+                            </div>
+                        </apex:outputpanel>
+                    </apex:repeat>
+                    <div style="clear:both"><br/></div>
+                    <apex:repeat value="{!mylist.members}" var="m">
+                        <apex:outputpanel rendered="{!AND( m.memberType != 'User', OR( m.memberType == mType, mType == 'all'))}">
+                            <apex:outputlink value="/{!m.parentid}" title="{!m.parentName}">{!m.parentName}</apex:outputlink>&nbsp;&nbsp;
+                        </apex:outputpanel>
+                    </apex:repeat>
+                    <div style="clear:both;"></div>
+                </apex:outputpanel>
+        <div style="clear:both;height:40px"></div>
+        <apex:outputpanel id="subscriberPanel" rendered="{!pageMode = VIEWLIST}">
+		   <chatter:followers entityid="{!mylist.clist.id}" />
+		</apex:outputpanel>
+    </div>
+    
+<script type="text/javascript"> 
+    jQuery(document).ready(function($) {        
+        
+        follow2Sub();
+        
+        $("a[rel]").overlay({speed:0});
+        
+        if( {!pageMode} > 0 ) {
+            $("#accordion h2").removeClass("current");
+            $("#accordion h2#{!pageMode}").addClass("current");     
+        }
+            
+        function pageNav( pageMode ) {
+            $('div#pageMode input').val( pageMode );
+            pageModeAF();
+        }
+        
+        $("#deleteButton").live( 'click', function() {
+            if( !confirm("Delete this List?") )
+                return;
+                
+            deleteAF();
+        });
+        
+        $("#accordion h2").live( 'click', function() {
+            var pageMode = $(this).attr('id');
+
+            if( pageMode == null || pageMode == '' || pageMode == {!NEWLIST} )
+                return;
+                
+            pageNav( pageMode );
+            
+            if( pageMode == {!BROWSELISTS} )
+                pageMode = {!BROWSELISTSRESET};
+            
+            $("#accordion h2").removeClass("current");
+            $("#accordion h2#"+ pageMode).addClass("current");
+        });
+        
+        $("#oTypeSelect").live( 'change', function() {
+            var curVal = 'user';
+            var newVal = $("#oTypeSelect").val();
+            
+            // current selection?
+            var types = ['user', 'who', 'what'];
+            for( var s = 0; s < types.length; s++ )
+                if( $('#'+ types[s] + 'Field').css('display') == 'block' ) {
+                    curVal = types[s];
+                    break;
+                }
+            
+            // Did we change?
+            if( curVal != newVal ) {
+                $( '#' + curVal + 'Field input' ).val('');
+                $( '#' + curVal + 'Field' ).hide( 300 );
+                $( '#' + newVal + 'Field' ).show( 300 );
+            }
+        });
+    });
+</script>
+
+    <apex:pageblock rendered="{!pageMode = NODEPLOY}">
+        Please have your administrator deploy the Chatter List and Chatter List Member objects to your profile before using the Chatter Lists app.
+    </apex:pageblock>
+    
+    <apex:pageblock rendered="{!pageMode = PRIVATELIST}">
+        Only the list owner can view this private list.
+    </apex:pageblock>
+    
+    <apex:outputpanel id="listPanel" layout="none" rendered="{!pageMode = VIEWLIST}">
+        <div style="width: 600px; float: left">
+        
+        <div class="listHeader">
+            
+            <p style="font-size: 20px; float: left; margin: 0; height:25px;">{!mylist.clist.name}</p>
+        
+            <div class="listHeaderContainer">
+                <div id="leftHeader" style="width: 64px; position: absolute; left: 10px;">
+                        <apex:image value="/servlet/servlet.FileDownload?file={!mylist.clist.ComboPack__Image_ID__c}" title="{!mylist.clist.name}" style="float:left" height="64" width="64" rendered="{!mylist.clist.Image_ID__c != null }"/>
+                        <apex:image value="{!URLFOR( $Resource.ComboPack__chatterLists, 'list_default.png' )}" title="{!mylist.clist.name}" height="64" width="64" rendered="{!mylist.clist.Image_ID__c = null }" style="float: left" />
+
+                </div>
+
+                <div style="clear:both"></div>
+                <p><apex:outputtext value="{!JSENCODE( mylist.clist.ComboPack__Description__c )}" escape="false" /></p>
+                
+                
+                <apex:outputpanel layout="none" rendered="{!mylist.clist.ownerid = $User.Id}">
+                    <div id="rightHeader" style="position: absolute; top: 10px; right: 10px;">
+                        <span style="height: 32px; padding-bottom: 4px; clear: both; display: block; text-align: center;">
+                            <div id="privatePulse">
+                                <apex:outputpanel rendered="{!!mylist.clist.ComboPack__Public__c}"><img src="{!URLFOR( $Resource.ComboPack__chatterLists, 'lists_private.png' )}" title="Private List"/><br /><span class="smallText">Private</span></apex:outputpanel>
+                                <apex:outputpanel rendered="{!mylist.clist.ComboPack__Public__c}"><img src="{!URLFOR( $Resource.chatterLists, 'lists_public.png' )}" title="Public List"/><br /><span class="smallText">Public</span></apex:outputpanel>
+                            </div>
+                        </span>
+                    </div>
+                </apex:outputpanel>
+            </div>
+            
+            <div style="position: relative; width: 580px; clear: both; ">
+                <div style="padding: 6px 10px 0 0; float: left;">
+                    <apex:outputpanel layout="none" rendered="{!mylist.clist.ownerid = $User.Id}">
+                        <!-- <apex:commandbutton id="sfEditList" value="Edit List" styleClass="btnPrimary"/>
+                        <a href="#" id="listAddRemove" rel="#listDetail2" class="btn btnPrimary" style="visibility: hidden; position: absolute;">&nbsp;</a> -->
+                        <a href="#" id="listAddRemove" rel="#listDetail2">
+                            <input type="button" value="Edit List" class="btn btnPrimary"></input>
+                        </a>
+                    </apex:outputpanel>
+                
+                    <span style="float: left;">
+                        <apex:commandbutton value="Clone List" action="{!cloneList}"  styleClass="btnPrimary"/>
+                    </span>
+                
+                    <div style="float: left; height: 26px; display: block; text-align: center; min-width: 90px;">
+                        <c:followObject oid="{!mylist.clist.id}" followverb="Subscribe" unfollowverb="Unsubscribe" rerender="subscriberPanel" oncomplete="follow2Sub();" />
+                    </div>
+                </div>
+                
+                <div class="createdBy">
+                    
+                    <span class="smallText">List created by</span>
+                    <div style="margin-left:4px; float: right;">
+                        <a href="/{!mylist.clist.ownerid}">{!mylist.clist.owner.name}</a>
+                        <c:userPhoto uid="{!mylist.clist.ownerid}" height="32" width="32" title="{!mylist.clist.owner.name}" linked="true" target="_top" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- List Details -->
+
+        <div id="listDetail2" class="listDetails">
+            <apex:pageblock title="Edit List" tabstyle="Chatter_Lists__tab">
+                    <apex:pageblockbuttons location="top">
+                        <apex:commandbutton value="Save" action="{!upsertList}" />
+                        <input id="deleteButton" type="button" class="btn" value="Delete" />
+                    </apex:pageblockbuttons>
+                    <apex:pageblocksection showheader="false" columns="1">
+                        <apex:inputfield value="{!mylist.clist.name}" style="width:250px" onkeypress="return noenter(event,'saveList');" />
+                        <apex:inputfield value="{!mylist.clist.ComboPack__Description__c}" style="width:250px;height:40px" />
+                        <apex:pageblocksectionitem >
+                            <apex:outputlabel value="Photo" />
+                            <apex:iframe src="{!$Page.ComboPack__chatterLists}?id={!mylist.clist.id}&m=edit" height="40" width="100%" />
+                        </apex:pageblocksectionitem>
+                        <apex:pageblocksectionitem >
+                            <apex:outputlabel for="vis" value="Visibility" />
+                            <apex:selectRadio id="vis" value="{!mylist.clist.ComboPack__Public__c}">
+                                <apex:selectoption itemvalue="true" itemlabel="Public - Anyone can discover and subscribe to this list." />
+                                <apex:selectoption itemvalue="false" itemlabel="Private - Only you may view this list." />
+                            </apex:selectRadio>
+                        </apex:pageblocksectionitem>
+                    </apex:pageblocksection>
+            </apex:pageblock>
+            <apex:pageblock title="List Members" tabstyle="Chatter_Lists__tab" id="editListMembers">
+                        
+                        <apex:outputPanel id="result">
+                            <apex:actionStatus >
+                                <apex:facet name="start">
+                                        start...
+                                    </apex:facet>
+                                <apex:facet name="stop">
+                                    <p style="font-size:14px;color:red">{!errMsg}</p>
+                                </apex:facet>
+                            </apex:actionstatus>
+                        </apex:outputPanel>
+                        
+                        <div class="section">
+                            <span class="floatLeft">Add List Member</span> 
+                            <br/>
+                            <apex:selectList value="{!objectName}" size="1" multiselect="false">
+                                <apex:selectOptions value="{!chatterObjects}" />
+                            </apex:selectList>
+                            <apex:inputtext value="{!searchterm}" onkeypress="return noenter(event,'search');" />
+                            <apex:commandbutton value="Search" action="{!searchRecords}" rerender="editListMembers" />
+                            <br/>
+                            
+                            <apex:pageblocktable value="{!searchresults}" var="sr" rendered="{!AND( LEN( searchterm ) > 0, searchresults.size > 0)}" >
+                                <apex:column headervalue="Name">
+                                    <apex:outputlink value="/{!sr.id}">{!sr.name}</apex:outputlink>
+                                </apex:column>
+                                <apex:column >
+                                    <apex:commandbutton value="Add" action="{!addToList}" rerender="editListMembers" >
+                                        <apex:param name="objectID" assignto="{!objectID}" value="{!sr.id}" />
+                                        <apex:param name="recordName" assignto="{!recordName}" value="{!sr.name}" />
+                                    </apex:commandbutton>
+                                </apex:column>
+                            </apex:pageblocktable>
+                            <apex:outputtext value="No results for {!JSENCODE(searchterm)}." rendered="{!AND( LEN( searchterm ) > 0, searchresults.size = 0)}" />
+                        </div>
+                        
+                        <apex:outputpanel layout="none" rendered="{!mylist.members.size > 0}">
+                        <div class="section">
+                            <span class="floatLeft">Remove List Member</span>
+                            <br />
+                            <apex:selectList value="{!toDelete}" size="1" multiselect="false">
+                                <apex:selectOptions value="{!listMemberSelect}" />
+                            </apex:selectList>
+                            <apex:commandbutton value="Remove" action="{!removeFromList}" rerender="editListMembers" />
+                        </div>
+                        </apex:outputpanel>
+            </apex:pageblock>
+        </div>
+
+        <div style="clear:both"></div>
+        
+        <div style="width:600px;">
+            <c:chatterFeed parentIDs="{!allIDs}" postImgSize="48" commentImgSize="24" feedWidth="100%" />
+        </div>
+        
+        </div>
+    </apex:outputpanel>
+    
+    <apex:outputpanel layout="none" rendered="{!pageMode = NEWLIST}">
+        <div style="float:left; width: 550px">
+        <apex:pageblock title="New Chatter List" tabstyle="Chatter_Lists__tab" >
+            <apex:pageblockbuttons >
+                <apex:commandbutton value="Save" action="{!upsertList}" />
+            </apex:pageblockbuttons>
+            <apex:pageblocksection columns="1" showheader="false">
+                <apex:pageblocksectionitem >
+                    <apex:outputlabel for="name" value="List Name" />
+                    <apex:inputfield value="{!clist.name}" style="width:200px" />
+                </apex:pageblocksectionitem>
+                <apex:inputfield value="{!clist.ComboPack__Description__c}" required="false" style="width:200px" />
+                <apex:pageblocksectionitem >
+                    <apex:outputlabel for="vis" value="Visibility" />
+                    <apex:selectRadio id="vis" value="{!clist.ComboPack__Public__c}">
+                        <apex:selectoption itemvalue="true" itemlabel="Public - Anyone can discover and subscribe to this list." />
+                        <apex:selectoption itemvalue="false" itemlabel="Private - Only you may view this list." />
+                    </apex:selectRadio>
+                </apex:pageblocksectionitem>
+            </apex:pageblocksection>
+        </apex:pageblock>
+        </div>
+    </apex:outputpanel>
+    
+    
+<!-- BROWSE LISTS -->
+    
+    <apex:outputpanel id="browsePanel" layout="none" rendered="{!OR( pageMode = BROWSELISTS, pageMode = USERLISTS, pageMode = SUBSCRIPTIONS, pageMode = MEMBERSHIPS)}">
+        <div id="form_filter" style="width: 650px; float: left">
+        <apex:pageblock tabstyle="Chatter_Lists__tab" title="Browse Lists" id="listFilters">
+            <apex:pageblockbuttons location="top">
+                <apex:commandbutton value="Search" action="{!unlock}" rerender="listForm" />
+                <apex:commandbutton value="Reset" action="{!doReset}" rerender="listForm" />
+            </apex:pageblockbuttons>
+        <table width="100%">
+            <tr>
+                <td style="text-align:right">
+                    Show
+                </td>
+                <td>
+                    <apex:selectList value="{!followType}" multiselect="false" size="1">
+                        <apex:selectOptions value="{!listFollows}" />
+                        <apex:actionsupport event="onchange" action="{!unlock}" rerender="listForm" />
+                    </apex:selectList>
+                </td>
+                <td style="text-align:right">
+                    per page
+                </td>
+                <td>
+                    <apex:selectList value="{!listLimit}" multiselect="false" size="1">
+                        <apex:selectOptions value="{!listLimits}" />
+                        <apex:actionsupport event="onchange" action="{!unlock}" rerender="listForm" />
+                    </apex:selectList>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right">
+                    in
+                </td>
+                <td>
+                    <apex:selectList value="{!listGroup}" multiselect="false" size="1">
+                        <apex:selectOptions value="{!listGroups}" />
+                        <apex:actionsupport event="onchange" action="{!unlock}" rerender="listForm" />
+                    </apex:selectList>
+                </td>
+                <td style="text-align:right">
+                    ordered 
+                </td>
+                <td>
+                    <apex:selectList value="{!listOrder}" multiselect="false" size="1">
+                        <apex:selectOptions value="{!listOrders}" />
+                        <apex:actionsupport event="onchange" action="{!unlock}" rerender="listForm" />
+                    </apex:selectList>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right">
+                    owned by
+                </td>
+                <td>
+                    <apex:inputfield value="{!clist.ownerid}" required="false" style="font-size:16px" onkeypress="return noenter(event,'unlock');" />
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:right">
+                    with 
+                </td>
+                <td colspan="3">
+                    <apex:inputtext value="{!sterm}" style="font-size:16px" onkeypress="return noenter(event,'unlock');" /> 
+                    in the name or description
+                </td>
+            </tr>
+        </table>    
+        </apex:pageblock>   
+
+            <div style="clear:both"></div>
+            
+            <div style="text-align:center; width: 650px; display: {!if( lists.size > 0, 'block', 'none' )}">
+                <input type="button" class="btn" value="Select All" onclick="selectAll();" />
+                <input type="button" class="btn" value="Select None" onclick="deselectAll();" />
+                <apex:commandbutton value="Subscribe to Selected" rendered="{!lists.size > 0}" action="{!massSubscribe}" rerender="listForm"/>
+                <apex:commandbutton value="Unsubscribe from Selected" rendered="{!lists.size > 0}" action="{!massUnsubscribe}" rerender="listForm"/>
+            </div>
+            
+            <div style="clear:both;margin-bottom:10px"></div>
+            
+            <div style="text-align:center; width: 650px; display: {!if( lists.size > 0, 'block', 'none' )}">
+                <apex:commandbutton value="{!prevLink}" styleclass="listLinkPrev" action="{!prevLists}" rerender="listForm" rendered="{!first > 0}" />
+                Viewing lists <span class="slightlyLessBigFont">{!first + 1}-{!if( first + listLimit > lists.size, lists.size, first + listLimit )}</span> of <span class="slightlyLessBigFont">{!lists.size}</span>
+                <apex:commandbutton value="{!nextLink}" styleclass="listLinkNext" action="{!nextLists}" rerender="listForm" rendered="{!first + listLimit < lists.size}"/>
+            </div>
+
+<!-- LIST CHICLETS -->
+            
+            <div style="width: 650px;">
+                <apex:outputpanel layout="none" rendered="{!lists.size = 0}">
+                    <div class="listChiclet" style="left: 221px">
+                        <div class="chicletContent">
+                        
+                            <span class="chicletTitle"><a href="#" title="No Lists">No Lists.</a></span>
+                        
+                            <div class="chicletLeft">
+                                    <apex:image value="{!URLFOR( $Resource.ComboPack__chatterLists, 'list_default.png' )}" height="64" width="64" />
+                            </div>
+
+                            <div class="chicletRight">
+                                Try a new search!
+                            </div>
+                        </div>
+                    </div>
+                </apex:outputpanel>
+                
+                <apex:repeat value="{!lists}" var="list" rows="{!listLimit}" first="{!first}" rendered="{!lists.size > 0}">
+                    <div class="listChiclet">
+                        <div class="chicletContent">
+                        
+                            <span class="chicletTitle"><a href="{!$Page.ComboPack__chatterLists}?id={!list.clist.id}" title="{!list.clist.name}">{!list.clist.name}</a></span>
+                        
+                            <div class="chicletLeft">
+                                <apex:outputlink value="{!$Page.ComboPack__chatterLists}?id={!list.clist.id}" title="{!list.clist.name}">
+                                    <apex:image value="/servlet/servlet.FileDownload?file={!list.clist.ComboPack__Image_ID__c}" height="64" width="64" rendered="{!list.clist.ComboPack__Image_ID__c != null}"/>
+                                    <apex:image value="{!URLFOR( $Resource.ComboPack__chatterLists, 'list_default.png' )}" height="64" width="64" rendered="{!list.clist.Image_ID__c = null }" />
+                                </apex:outputlink>
+                            </div>
+
+                            <div class="chicletRight">
+                                <span class="bigNumber"><apex:outputfield value="{!list.clist.ComboPack__Followers__c}"/></span> subscriber{!if( list.clist.ComboPack__Followers__c = 1, '', 's')} 
+                                    <apex:outputtext value=" &hearts;" rendered="{!list.wefollow}" escape="false"/> <br />
+                                <span class="bigNumber"><apex:outputfield value="{!list.clist.ComboPack__Following__c}"/></span> member{!if( list.clist.ComboPack__Following__c = 1, '', 's')}
+                                    <apex:outputtext value=" &hearts;" rendered="{!list.followsme}" escape="false" />
+                            </div>
+                            <apex:inputcheckbox value="{!list.selected}" />
+                            <div class="listCreator">
+                                <c:userPhoto uid="{!list.clist.ownerID}" photoStr="{!list.ownerPhoto}" height="28" width="28" styleclass="results_user_pic" title="List created by {!list.clist.owner.name}" linked="true" />
+                                <apex:outputpanel rendered="{!AND( list.clist.ownerid = $User.Id, !list.clist.ComboPack__Public__c)}">
+                                    <img src="{!URLFOR( $Resource.ComboPack__chatterLists, 'lists_private.png' )}" title="Private List"/>
+                                </apex:outputpanel>
+                            </div>
+                            
+                        </div>
+                    </div>
+
+                </apex:repeat>
+            </div>
+        </div>
+    </apex:outputpanel>
+</apex:outputpanel>
+</apex:form>
+</apex:page>

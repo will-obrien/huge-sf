@@ -1,0 +1,216 @@
+<apex:page showHeader="False" sidebar="False" standardController="Case" extensions="CaseLocationController" tabStyle="Contact">
+    <style>
+        div #map_canvas { height: 350px; width: 70%; float: left;}
+        ui #case-list {height:300px; overflow:hidden; overflow-y:scroll;}
+        
+        #relatedCaseList {
+            height:350px;
+            width:28%;
+            border:1px solid #ECECEC;
+            float:left;
+            margin-left:10px;
+            overflow:auto;
+        }
+        .shadow{
+            box-shadow: 4px 4px 8px #adadad;
+            -webkit-box-shadow: 4px 4px 8px #adadad;
+            -moz-box-shadow: 4px 4px 8px #adadad;
+            -o-box-shadow: 4px 4px 8px #adadad;
+        }  
+            
+        .roundedCorners{
+            -webkit-border-radius: 10px;
+            -moz-border-radius: 10px;
+            border-radius: 10px;
+        }
+    
+        ul {
+            padding:10px;
+        }
+        li {
+            background: none repeat scroll 0 0 #EDEDED;
+            border: 1px solid #BEB6B6;
+            border-radius: 5px 5px 5px 5px;
+            font-size: 12px;
+            margin-bottom: 10px;
+            padding: 10px;
+            overflow: hidden;
+            line-height: 14px;
+        }
+        
+        .x-left{
+            float:left;
+        }
+                
+        .x-right{
+            float:right;
+        }
+        
+        .button {
+            background:  #4F4F4F;
+            border-color: #8F8F8F #4F4F4F #1A1A1A;
+            border-radius: 3px 3px 3px 3px;
+            border-style: solid;
+            border-width: 2px;
+            color: #AAA7A7;
+            font-size: 11px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            padding-right:5px;
+            padding-left:5px;
+            cursor: pointer;
+        }
+        
+        .hr-line{
+            margin-bottom:2px;
+            color:#ECECEC;
+        }
+    </style>   
+    <apex:includeScript value="{!URLFOR($Resource.handlebars)}" /> 
+    <apex:includeScript value="{!URLFOR($Resource.jQuery)}" />    
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false&key=AIzaSyB4OXvx8iE-R0fC2gMdUfLCzERvV4wbImk"></script>
+    <apex:pageMessages />
+
+    <apex:form id="gmapForm">        
+        <apex:pageBlock id="mapBlock">    
+            <apex:pageBlockSection columns="1" id="mapSection">
+                <div id="map_canvas" />
+                <div id="relatedCaseList" class="roundedCorners">
+                    <ul id ="case-list"></ul>
+                </div>
+            </apex:pageBlockSection>
+        </apex:pageBlock>     
+    </apex:form> 
+    <script id="template" type="text/x-handlebars-template">
+        {{#each this}}  
+        <li>
+           <span class='x-left'><a href='/{{Id}}' target='_blank'>{{CaseNumber}}</a></span> <br />
+           <span class='x-left'>{{Service_Request_Type__c}}</span><span class='x-right'>  {{Status}}</span> <br />
+           <hr class='hr-line' />
+           Address: {{Street__c}} <br />
+           <span title='{{Subject}}'>{{Subject}}</span> <br />
+           <br />
+           <a class="button x-left" onclick="locate({{Location__Latitude__s}},{{Location__Longitude__s}})">Locate</a>
+           <a  class="button x-right" onclick="if(!confirm('Do you want to set the Primary Case field of the {!Case.casenumber} to the Case Number of the designated similar Case {{CaseNumber}}')){return false;}else{closeDupliacte('{{Id}}','{!Case.id}')}">Make this the parent</a>
+        </li>
+        
+        {{/each}}   
+    </script>
+                
+    <script type="text/javascript">
+        
+        function Case(Id, CaseNumber, Subject, Service_Request_Type__c, Location__Latitude__s, Location__Longitude__s, City__c, Street__c, State__c, Country__c, Zipcode__c, RecordTypeId) {
+            this.Id = Id;
+            this.CaseNumber = CaseNumber;
+            this.Subject = Subject;
+            this.Service_Request_Type__c = Service_Request_Type__c;
+            this.Location__Latitude__s = Location__Latitude__s;
+            this.Location__Longitude__s = Location__Longitude__s;
+            this.City__c = City__c;
+            this.Street__c = Street__c;
+            this.State__c = State__c;
+            this.Country__c = Country___c;
+            this.Zipcode__c = Zipcode__c;
+            this.RecordTypeId = RecordTypeId;
+        }
+        
+        var currentCase = {!CurrentCaseJson};
+        var relatedCase = {!RelatedCasesJson};   
+        var markers = [];                  
+        var map;
+        var currentCaseMarker;
+        
+        function redirect(url)    {
+            var win = window.open('/'+url, '_blank');
+            win.focus();
+        }
+        
+        function drawMap(){
+        
+            var bounds = new google.maps.LatLngBounds();
+            if(currentCase != null || currentCase != undefined)    {
+                var mapOptions = {
+                    center: { lat: currentCase.Location__Latitude__s, lng: currentCase.Location__Longitude__s},
+                    zoom: 15,
+                    mapTypeId: google.maps.MapTypeId.ROADMAP
+                };                
+            }    
+            
+            else {
+                var mapOptions = {
+                  center: { lat: 39.9529979, lng: -75.1624782},
+                  zoom: 12,
+                  mapTypeId: google.maps.MapTypeId.ROADMAP
+                };
+            }
+
+            map = new google.maps.Map(document.getElementById("map_canvas"),  mapOptions);
+            
+            if(currentCase != null || currentCase != undefined)    {
+                currentCaseMarker = new google.maps.Marker({map: map, position:  { lat: currentCase.Location__Latitude__s, lng: currentCase.Location__Longitude__s}, title:currentCase.CaseNumber});
+                
+                var balloon = new google.maps.InfoWindow({
+                    content: '<div>CaseNumber: ' + '<a onclick="redirect(\'' + currentCase.Id+ '\')">' +currentCase.CaseNumber + '</a><br />' + 'Subject: ' + currentCase.Subject + ' <br />Street: ' + currentCase.Street__c + '</div>'
+                });
+                
+                google.maps.event.addListener(currentCaseMarker , 'click', function() {
+                    balloon.open(map, currentCaseMarker);
+                });
+                markers.push(balloon);
+            }              
+            locateRelatedCase(bounds);
+        }
+        
+        function locateRelatedCase( bounds)    {
+            var relatedCaseMarker;
+            var infoWindow = new google.maps.InfoWindow(), marker, i;
+            var source = $("#template").html();
+            var template = Handlebars.compile(source);
+                
+            var infoWindowContent = [];
+            for(var i =0; i <relatedCase.length; i++)    {
+                infoWindowContent.push(['<div>CaseNumber: ' + '<a onclick="redirect(\'' + relatedCase[i].Id+ '\')">' +relatedCase[i].CaseNumber + '</a><br />' + 'Subject: ' + relatedCase[i].Subject + '<br/> Street: ' + relatedCase[i].Street__c + '</div>']);  
+            }
+            var caseListtoHtml = template(relatedCase);
+            document.getElementById('case-list').innerHTML = caseListtoHtml ;
+            
+            for(var i =0; i <relatedCase.length; i++)    {
+                var iconURL = 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+                if(relatedCase[i].Status == 'Open')
+                    iconURL = 'https://maps.google.com/mapfiles/ms/icons/purple-dot.png';
+                else if(relatedCase[i].Status == 'In-Progress')
+                    iconURL = 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png';
+                else if(relatedCase[i].Status == 'Closed')    
+                    iconURL = 'https://maps.google.com/mapfiles/ms/icons/green-dot.png';
+                    
+                var position = new google.maps.LatLng(relatedCase[i].Location__Latitude__s, relatedCase[i].Location__Longitude__s);
+                bounds.extend(position);
+                relatedCaseMarker = new google.maps.Marker({map: map, position: position, title: relatedCase[i].CaseNumber, icon: iconURL});
+                
+                google.maps.event.addListener(relatedCaseMarker, 'click', (function(relatedCaseMarker, i) {
+                    return function() {
+                         infoWindow.setContent(infoWindowContent[i][0]);
+                         infoWindow.open(map, relatedCaseMarker);
+                    }
+                })(relatedCaseMarker, i));
+                //map.fitBounds(bounds);
+            }
+            console.log(markers);
+        }
+        
+        function locate(x2,y2){                                   
+            var point = new google.maps.LatLng(x2,y2);
+            map.setCenter(point);                        
+        }
+        
+        drawMap(); 
+        
+        function closeDupliacte(parentId, childId){
+            CaseLocationController.RelateCaseAndClose(parentId, childId ,function(result,event){
+                alert(result);
+            });
+        }
+           
+    </script> 
+</apex:page>

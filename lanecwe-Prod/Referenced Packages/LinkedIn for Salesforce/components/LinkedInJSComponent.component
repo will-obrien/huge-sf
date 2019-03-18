@@ -1,0 +1,100 @@
+<apex:component id="LinkedInJSComponent" allowDML="true">
+    <!-- Component attributes that are used in the JS Remote functions -->
+    <apex:attribute type="String" name="ObjectType" id="ObjectType" description="If the object type is Lead (or) Account (or) Contact (or) Opportunity in context"/>
+    <apex:attribute type="String" name="SalesforceRecordId" id="SalesforceRecordId" description="Salesforce record Id of Lead (or) Account (or) Contact (or) Opportunity in context"/>
+
+    <!-- JS function(s) to support call back actions from LinkedIn -->
+    <script>
+        var me = window;
+        var r;
+        window.SFDC = window.SFDC || {
+            <!-- Function for member token, companyId association -->
+            associate: function(payload) {
+            	console.log("Associate");
+            	console.log(payload);            
+                <!-- If key is token, associates with the new member token -->
+                if (payload.token != null) {
+                    LID.LinkedInWidgetController.associateOrDisassociateWithRecord('associate', 'Member', decodeURIComponent(payload.token), '{!SalesforceRecordId}', '{!ObjectType}', '', handleRemoteActionResultMemberAssociate);
+                }
+                <!-- If key is companyId, associates with the new company Id -->
+                if (payload.companyId != null) {
+                    r = decodeURIComponent(payload.companyId);
+                    LID.LinkedInWidgetController.associateOrDisassociateWithRecord('associate', 'Company', decodeURIComponent(payload.companyId), '{!SalesforceRecordId}', '{!ObjectType}', '', handleRemoteActionResultAssociate);
+                } 
+            },
+            <!-- Function for member token, companyId disassociation -->
+            disassociate: function(payload) {
+            	console.log("Disassociate");
+            	console.log(payload);
+                <!-- If key is token, disassociates with the current member token -->
+                if (payload.token != null) {
+                    LID.LinkedInWidgetController.associateOrDisassociateWithRecord('disassociate', 'Member', decodeURIComponent(payload.token), '{!SalesforceRecordId}', '{!ObjectType}', '', handleRemoteActionResultDisassociate);
+                }
+                <!-- If key is companyId, disassociates with the current company Id -->
+                if (payload.companyId != null) {
+                    r = decodeURIComponent(payload.companyId);
+                    LID.LinkedInWidgetController.associateOrDisassociateWithRecord('disassociate', 'Company', decodeURIComponent(payload.companyId), '{!SalesforceRecordId}', '{!ObjectType}', '', handleRemoteActionResultDisassociate);
+                }
+            },
+            <!-- Function for creating the activity in salesforce -->
+            activity: function(payload) {
+                LID.LinkedInWidgetController.createActivity(decodeURIComponent(payload.updateType), decodeURIComponent(payload.subject), decodeURIComponent(payload.content), '{!SalesforceRecordId}', '{!ObjectType}', '', handleRemoteActionActivityResult);
+            }
+        };
+
+
+        <!-- Handles the remote action result for company associate -->
+        function handleRemoteActionResultAssociate(result, event) {
+            if(/An Unexpected error/i.test(result)){
+                console.log("Associate - Unable to associate the linkedin Id. Please check the permissions and validation rules.");
+            } else if (/Successfully/i.test(result)) {              
+                console.log("Associate - " + result);
+                me.document.location = "{!JSENCODE($CurrentPage.URL)}";
+            } else if (/Refresh/i.test(result)){
+                console.log("Associate - Fields not accessible. Refreshing the page with id from linkedin");
+                if(r != null) {
+                    console.log("Id/Token from LinkedIn: " +r);
+                    if(/comId/i.test("{!JSENCODE($CurrentPage.URL)}")) {                        
+                        me.document.location = "{!JSENCODE($CurrentPage.URL)}".replace(/comId=\d+/i, "comId=" + r);
+                    } else {
+                        me.document.location = "{!JSENCODE($CurrentPage.URL)}" + "&comId=" + r;
+                    }
+                } else {
+                    console.log("Associate - Unable to associate the linkedin Id. Please check the permissions and validation rules.");
+                }
+            } else {
+                console.log("Associate - Unable to associate the linkedin Id. Please check the permissions and validation rules.");
+            }
+        }
+
+        //Handles the remote action result for member associate. DO NOT RE-RENDER the iframe
+        function handleRemoteActionResultMemberAssociate(result, event) {
+            if((result != "") && (result != "An Unexpected error occured while updating the records")) {
+            } else {
+            }
+        }
+
+        <!-- Handles the remote action result for disassociate-->
+        function handleRemoteActionResultDisassociate(result, event) {
+            if(/An Unexpected error/i.test(result)){
+                console.log("Disassociate - Unable to dis-associate the linkedin Id. Please check the permissions and validation rules.");
+            } else if (/Successfully/i.test(result)) {              
+                console.log("Disassociate - " + result);
+            } else if (/Refresh/i.test(result)){
+                console.log("Disassociate - Fields not accessible. Refreshing the page with id from linkedin");
+                if(r != null) {
+                    console.log("Id from LinkedIn: " +r);
+                }
+            } else {
+                console.log("Disassociate - Unable to dis-associate the linkedin Id. Please check the permissions and validation rules.");
+            }
+        }
+
+        <!-- Handles the remote action result for activity creation-->
+        function handleRemoteActionActivityResult(result, event) {
+            if((result != "") && (result != "An Unexpected error occured while updating the records")) {
+            } else {
+            }
+        }
+    </script>
+</apex:component>

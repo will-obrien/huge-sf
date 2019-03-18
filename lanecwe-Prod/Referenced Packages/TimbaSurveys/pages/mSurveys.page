@@ -1,0 +1,1975 @@
+<apex:page docType="html-5.0" standardController="TIMBASURVEYS__Survey__c" extensions="TIMBASURVEYS.SurveyController" sidebar="false" showheader="false" standardStylesheets="false" cache="false">
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-sacable=yes" />
+   		<title><apex:outputText value="{!IF(ispreview, $Label.timbasurveys__timbasurvey_Survey_Previewing + ' ' + SurveyTitle + ' ' + $Label.timbasurveys__timbasurvey_Survey_Survey, SurveyTitle)}"/></title>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jqtransformplugin/jqtransform.css')}"/>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'datePicker.css')}"/>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__fancybox, 'jquery.fancybox-1.3.1.css')}"/>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, '/inc/css/common.css')}"/>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__tooltipStyles, 'tooltipStyles.css')}"/>
+	    <style>
+	    	.formContainer{
+	    		margin: 0!important;
+	    	}
+	    	#surveyTitle{
+	    		margin: 10px 10px 10px !important;
+	    	}
+	    	.navbuttonsContainer{
+	    		padding-left: 10px;
+	    	}
+	    	table.matrix{
+	    		width: 100%;
+	    	}
+	        {!Stylesheetbody}
+	        {!Util.CustomCSSContent}
+	    	select {max-width:700px;}
+        	.jqTransformInputInner{
+        		overflow: hidden!important;
+        	}
+	    </style>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, 'inc/css/survey.css')}"/>
+		<!-- Load jQuery Framework ver 1.4.2 -->
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'required/jquery-1.4.2.min.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jqtransformplugin/jquery.jqtransform.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'date.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'jquery.datePicker.min-2.1.2.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, '/inc/js/jquery.cookie.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, '/inc/js/jquery.scrollTo-min.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, 'inc/js/rte/jquery.rte.js')}"/>
+	    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, 'inc/js/rte/rte.css')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__fancybox, 'jquery.easing.1.3.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__fancybox, 'jquery.fancybox-1.3.1.pack.js')}"/>
+	    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jquery.numeric.js')}" />
+	    <script type="text/javascript" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, '/inc/js/jquery.cookie.js')}" ></script>
+		<!-- Load Dojo Framework ver 1.7.2 -->
+	    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad:true"></script>
+    	<script type="text/javascript">
+        	jQuery.noConflict();
+	        var IRFCwhere;
+	        var endSurvey = false;
+	        var firsth_position;
+	        var pageNumber;
+	        var pageNumberAction;
+			var recipientIdAction;
+			var modifyAction;
+			var previewParamAction;
+	        function imposeMaxLength(Object, MaxLen){
+	            if (Object.value.length > MaxLen) {
+	                Object.value = Object.value.substring(0, MaxLen);
+	            }
+	        }
+	        //-------- erase cookies to modify responses
+	        var modifyParam = '{!JSENCODE(modify)}';
+	        jQuery(function (){
+	            if (modifyParam == 'yes'){
+	                eraseCookie('TIMBALEADS{!JSENCODE(Survey__c.Id)}');
+	                eraseCookie('TIMBASURVEYS{!JSENCODE(Survey__c.Id)}')
+	            }
+
+	        });
+	        //--------
+			//Add title in tag a.
+			function addTitle(){
+				jQuery.each( jQuery('.jqTransformCheckboxWrapper input'), function(i, x){
+					jQuery.each(jQuery(x.previousSibling), function(i, e){
+				        e.title = x.title;
+				    });
+				});
+				jQuery.each( jQuery('.jqTransformRadioWrapper input'), function(i, x){
+					jQuery.each(jQuery(x.previousSibling), function(i, e){
+				        e.title = x.title;
+				    });
+				});
+				jQuery.each( jQuery('.jqTransformSelectWrapper select'), function(i, x){
+					jQuery.each( jQuery(x.previousSibling), function(d, e){
+					    jQuery.each(e.childNodes, function(q, c){
+						c.childNodes[0].title = x.childNodes[q].title;
+						});
+					});
+				});
+
+			}
+	        function replaceAllCustom(str, replaceS, withS) {
+	            var intIndexOfMatch = str.indexOf(replaceS);
+
+	            // Loop over the string value replacing out each matching
+	            // substring.
+	            while (intIndexOfMatch != -1){
+	            // Relace out the current instance.
+	                str = str.replace(replaceS, withS);
+
+	                // Get the index of any next matching substring.
+	                intIndexOfMatch = str.indexOf(replaceS);
+	            }
+	            return str;
+	        }
+	        /**
+	        *
+	        *  URL encode / decode
+	        *  http://www.webtoolkit.info/
+	        *
+	        **/
+	        var UrlUtil = {
+	            // public method for url encoding
+	            encode : function (string) {
+	                return escape(this._utf8_encode(string));
+	            },
+	            // public method for url decoding
+	            decode : function (string) {
+	                return this._utf8_decode(unescape(replaceAllCustom(string, '+', ' ')));
+	            },
+	            // private method for UTF-8 encoding
+	            _utf8_encode : function (string) {
+	                string = string.replace(/\r\n/g,"\n");
+	                var utftext = "";
+
+	                for (var n = 0; n < string.length; n++) {
+	                    var c = string.charCodeAt(n);
+	                    if (c < 128) {
+	                        utftext += String.fromCharCode(c);
+	                    }
+	                    else if((c > 127) && (c < 2048)) {
+	                        utftext += String.fromCharCode((c >> 6) | 192);
+	                        utftext += String.fromCharCode((c & 63) | 128);
+	                    }
+	                    else {
+	                        utftext += String.fromCharCode((c >> 12) | 224);
+	                        utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+	                        utftext += String.fromCharCode((c & 63) | 128);
+	                    }
+	                }
+	                return utftext;
+	            },
+	            // private method for UTF-8 decoding
+	            _utf8_decode : function (utftext) {
+	                var string = "";
+	                var i = 0;
+	                var c = c1 = c2 = 0;
+
+	                while ( i < utftext.length ) {
+	                    c = utftext.charCodeAt(i);
+	                    if (c < 128) {
+	                        string += String.fromCharCode(c);
+	                        i++;
+	                    }
+	                    else if((c > 191) && (c < 224)) {
+	                        c2 = utftext.charCodeAt(i+1);
+	                        string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
+	                        i += 2;
+	                    }
+	                    else {
+	                        c2 = utftext.charCodeAt(i+1);
+	                        c3 = utftext.charCodeAt(i+2);
+	                        string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+	                        i += 3;
+	                    }
+	                }
+	                return string;
+	            }
+	        }
+	        //----------------- cookie handling -----------------------
+	        function createCookie(name,value,days) {
+	            if (days) {
+	                var date = new Date();
+	                date.setTime(date.getTime()+(days*24*60*60*1000));
+	                var expires = "; expires=" + date.toGMTString();
+	            }
+	            else var expires = "";
+	            document.cookie = name + "=" + value + expires + "; path=/";
+	        }
+	        function readCookie(name) {
+	            var nameEQ = name + "=";
+	            var ca = document.cookie.split(';');
+	            for(var i=0;i < ca.length;i++) {
+	                var c = ca[i];
+	                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+	                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+	            }
+	            return null;
+	        }
+	        function eraseCookie(name) {
+	            createCookie(name,"",-1);
+	        }
+	        //----------------- cookie handling END -----------------------
+	        //This Var Keep Limited Range Fields
+	        var rangeFields;
+	        jQuery(document).ready(function(){
+	            rangeFields = eval( "(" + jQuery('#rangeFields').html() +')');
+	            if ( ({!NOT((AllowSurvey))}||((readCookie('TIMBASURVEYS{!JSENCODE(Survey__c.Id)}') != null) && {!NOT(IsMultiFillAlowed)} && {!NOT(thirdPartyFill)} && {!NOT(IsFromWorkflow)})) && {!NOT(ispreview)} ){
+	                jQuery('.surveyData').hide();
+	                jQuery('.errorMessage').show();
+	            }
+	            if( jQuery('.description').first().html() != null ){
+	                jQuery('.description').first().html(jQuery('.description').first().html().replace(new RegExp( "\\n", "g" ),"<br/>"));
+	            }
+	            jQuery(".allowNumbersOnly").numeric();
+	        });
+	        //Branching
+	        var question_rules = jQuery.parseJSON('{!JSENCODE(questionRulesJson)}');
+	        var page_branching_rules = jQuery.parseJSON('{!JSENCODE(pageBranchingRulesJson)}');
+	        //User Log
+	        var user_log = {};
+	        //Check required questions
+	        function validateSurvey(formId){
+	            //Reset Invalid Elements
+	            invalid = jQuery('.invalid');
+	            jQuery.each(invalid,function(i){
+	                jQuery(this).removeClass('invalid');
+	            });
+	            // Submit flag
+	            var canSubmit = true;
+	            //clean Notifications
+	            jQuery('#warning').hide();
+	            //Due to the difference of names when the user fills the survey, the required ids are given to check
+	            var requiredIds = jQuery('#requiredIds');
+	            var requiredIdsString = requiredIds.html();
+	            //If the survey have required inputs
+	            //Ignore them if is previewing
+	            if((requiredIdsString.length > 0) && ({!ispreview} == false)){
+	                //Put the ids on a id array
+	                requiredIdsString = requiredIdsString.substr(1);
+	                //An array of requried ids
+	                var requiredIdsArray = requiredIdsString.split('|');
+	                if(requiredIdsArray.length == 0){
+	                    requiredIdsArray.push(requiredIdsString);
+	                }
+	                //Create a object to associate responses with required ids
+	                var Answered = {};
+	                for(var i = 0; i < requiredIdsArray.length; i ++) {
+	                    // Check if the container is visible
+	                    var container_string = '#'+requiredIdsArray[i]+'-container';
+	                    if(jQuery(container_string).is(":visible")){
+	                        Answered[requiredIdsArray[i]] = false;
+	                    } else if(jQuery(container_string).size() != 0){
+	                        // if not visible avoid validation
+	                        var removeItem = requiredIdsArray[i];
+
+	                        requiredIdsArray = jQuery.grep(requiredIdsArray, function(value) {
+	                            return value != removeItem;
+	                        });
+	                    }
+	                }
+
+	                //Get form textareas
+	                var formTextareas = jQuery('textarea');
+	                //Iterate over form textareas
+	                formTextareas.each(function(i,e){
+	                    var qid = e.name;
+	                    //If the question are in the required array
+	                    if(jQuery.inArray(qid,requiredIdsArray) > -1){
+	                        if(jQuery(e).is(":visible")){
+	                            if(e.value != null && (e.value).length > 0){
+	                                Answered[qid] = true;
+	                            }
+	                            //set the classes to items with errors
+	                            if(!Answered[qid]){
+	                                var h2 = document.getElementById(qid+'-label');
+	                                if(h2 != null){
+	                                    jQuery(h2).addClass('invalid');
+	                                }else{
+	                                    var h2id = e.getAttribute('ParentQuestion')+'-label';
+	                                    var h2 = document.getElementById(h2id);
+
+	                                    if(h2 != null){
+	                                        jQuery(h2).addClass('invalid');
+	                                    }
+	                                }
+
+	                            }else {
+	                           		//set the classes to items without errors
+	                           		var h2 = document.getElementById(qid+'-label');
+	                                if(h2 != null){
+	                                    jQuery(h2).removeClass('invalid');
+	                                }else{
+	                                    var h2id = e.getAttribute('ParentQuestion')+'-label';
+	                                    var h2 = document.getElementById(h2id);
+	                                    if(h2 != null){
+	                                        jQuery(h2).removeClass('invalid');
+	                                    }
+	                                }
+	                            }
+	                        }
+
+
+	                    }
+	                });
+	                //Get form inputs
+	                var formElements = jQuery('input:visible, select');
+	                //Iterate over form inputs
+	                formElements.each(function(i,e){
+	                    var qid = e.name;
+	                    if((e.name).indexOf('-') > -1 && e.type == 'checkbox'){
+	                        qid = (e.name).split('-')[0];
+	                    }
+	                    if(e.getAttribute('rel') != null){
+	                        qid = e.getAttribute('rel');
+	                    }
+	                    //If the question are in the required array
+	                    if(jQuery.inArray(qid,requiredIdsArray) > -1){
+	                            //Based on the kind of control check the values
+	                            switch(e.type){
+	                                //checkbox and radio
+	                                case 'checkbox':
+	                                case 'radio':
+	                                    /*if(e.checked){
+	                                        Answered[qid] = true;
+	                                    }*/
+	                                break;
+	                                //if the input is a textbox..
+	                                case 'text':
+	                                    if(e.value != null && (e.value).length > 0){
+	                                        Answered[qid] = true;
+	                                    }
+	                                break;
+	                                case 'select-one':
+	                                    if(e.value != null && (e.value).length > 0 && e.value != '-1'){
+	                                        Answered[qid] = true;
+	                                    }
+	                                break;
+	                            }
+	                            var h2 = document.getElementById(qid+'-label');
+	                            if(h2 == null){
+	                                var h2id = e.getAttribute('ParentQuestion')+'-label';
+	                                var h2 = document.getElementById(h2id);
+	                            }
+	                            //set the classes to items with errors
+	                            if(!Answered[qid]){
+	                                if(h2 != null){
+	                                    jQuery(h2).addClass('invalid');
+	                                }
+	                            }else{
+	                                //set the classes to items without errors
+	                                if(h2 != null && jQuery(h2).hasClass('invalid')){
+	                                    jQuery(h2).removeClass('invalid');
+	                                }
+	                            }
+	                    }
+	                });
+	                var parentid_list = [];
+	                formElements = jQuery('input:radio');
+	                //__\/
+	                var alternatives_parents = {};
+	                formElements.each(function(i,e){
+	                    var qid = e.name;
+	                    if((e.name).indexOf('-') > -1 && e.type == 'checkbox'){
+	                        qid = (e.name).split('-')[0];
+	                    }
+	                    var parent_id = e.getAttribute('ParentQuestion');
+	                    if(jQuery.inArray(qid,requiredIdsArray) > -1 || ( parent_id == null && jQuery('#'+qid+'-check').is(':visible') ) ){
+	                        //___\/
+	                        var alternative_parent = null;
+
+	                        if(jQuery.inArray(parent_id, parentid_list) == -1 && parent_id != null){
+	                            parentid_list.push(parent_id);
+	                        }else if(parent_id == null){
+	                            var label = jQuery('#' + qid + '-label');
+	                            if(Answered[qid] == null){Answered[qid] = false;}
+
+	                            //___\/
+	                            if(Answered[parent_id] == null && parent_id == null ){
+	                                alternative_parent = jQuery('#'+qid+'-label').parents('div .question_main_container').filter(':first');
+	                                if(alternative_parent.length > 0){
+	                                    alternative_parent = alternative_parent[0];
+	                                }else{
+	                                    alternative_parent = null;
+	                                }
+	                            }
+	                            if(alternative_parent != null){
+	                                var alternative_parent_id = jQuery(alternative_parent).attr('id');
+	                                if( alternative_parent_id != null && alternative_parent_id.split('-').length > 0 ){
+	                                    alternative_parent_id = alternative_parent_id.split('-')[0];
+	                                    if(jQuery.inArray(alternative_parent_id,parentid_list) < 0){
+	                                        parentid_list.push( alternative_parent_id );
+	                                    }
+	                                }else{
+	                                    alternative_parent_id = null;
+	                                }
+	                            }
+	                            if(e.checked || !label.is(':visible')){
+	                                Answered[qid] = true;
+	                                label.removeClass('invalid');
+	                                //___\/
+	                                if(alternative_parent != null){
+	                                    if(jQuery('h2', alternative_parent).length > 0){
+	                                        jQuery(jQuery('h2', alternative_parent)[0]).removeClass('invalid');
+	                                    }
+	                                    if(alternative_parent_id != null){
+	                                        alternatives_parents[alternative_parent_id, qid] = true+'-'+alternative_parent_id+'-'+qid;
+	                                    }
+	                                }
+	                            }else{
+	                                if(!label.hasClass('invalid') && !Answered[qid]){
+	                                    if(alternative_parent == null){
+	                                        label.addClass('invalid');
+	                                    }
+	                                }
+	                                //___\/
+	                                if( !Answered[qid] ){
+	                                    if(alternative_parent != null){
+	                                        if(jQuery('h2', alternative_parent).length > 0){
+	                                            var question_title_h2 = jQuery('h2', alternative_parent)[0];
+	                                            if(!jQuery(question_title_h2).hasClass('invalid')){
+	                                                jQuery(question_title_h2).addClass('invalid');
+	                                            }
+	                                        }
+
+	                                        if(alternative_parent_id != null){
+	                                            alternatives_parents[alternative_parent_id, qid] = false+'-'+alternative_parent_id+'-'+qid;
+	                                        }
+	                                    }
+	                                }
+
+	                            }
+
+	                        }
+
+	                        if(Answered[parent_id] == null && parent_id != null ){
+	                            //If the question are in the required array
+	                            if(jQuery.inArray(qid,requiredIdsArray) > -1){
+	                                var label = jQuery('#' + parent_id + '-label');
+	                                if(e.checked || !label.is(':visible')){
+	                                    Answered[parent_id] = true;
+	                                }
+	                            }
+	                        }
+	                    }
+	                });
+
+	                for(var i = 0; i < parentid_list.length; i++){
+	                    var label = jQuery('#' + parentid_list[i] + '-label');
+	                    if(Answered[parentid_list[i]] == null ){
+	                        Answered[parentid_list[i]] = false;
+	                        label.addClass('invalid');
+	                    }else{
+	                        label.removeClass('invalid');
+	                    }
+	                }
+	                //___\/
+	                var askRequired = true;
+	                var actualParent = null;
+	                var alter_ = null;
+	                var alternatives_parent_reqQuestions_presents = false;
+	                for(alter_ in alternatives_parents){
+	                    var alter_splits = alternatives_parents[alter_].split('-');
+	                    if(alter_splits[1] != actualParent){
+	                        actualParent = alter_splits[1];
+	                        askRequired = true;
+	                        for(var alter_2 in alternatives_parents){
+	                            var alter_splits_2 = alternatives_parents[alter_2].split('-');
+	                            if( alter_splits_2[1] == actualParent){
+	                                if( alter_splits_2[0] == true || alter_splits_2[0] == 'true' ){
+	                                    alternative_parents_disableChildQuestions(actualParent, alternatives_parents, Answered);
+	                                    askRequired = false;
+	                                    break;
+	                                }
+	                            }
+	                        }
+	                        if(askRequired == true){
+	                            if( jQuery('#'+alter_splits[1]+'-label').length > 0 ){
+	                                jQuery(jQuery('#'+alter_splits[1]+'-label')[0]).addClass('invalid');
+	                                alternatives_parent_reqQuestions_presents = true;
+	                            }
+	                        }else{
+	                            if( jQuery('#'+alter_splits[1]+'-label').length > 0 ){
+	                                jQuery(jQuery('#'+alter_splits[1]+'-label')[0]).removeClass('invalid');
+	                            }
+	                        }
+	                    }
+	                }
+
+	                //___________________________________________
+	                //EXCLUSIVE CHECK FOR RichTextAreaQuestions:
+	                for(var ansProp in Answered){
+	                    var richtext_node = jQuery('#'+ansProp+'-container iframe');
+	                    if(richtext_node.length > 0){
+	                        richtext_node = richtext_node[0];
+	                        richtext_node = jQuery('body' , jQuery(richtext_node).contents() );
+	                        if(richtext_node.length > 0){
+	                            var richtext_text = jQuery.trim(jQuery(richtext_node).text());
+	                            if( richtext_text == null || richtext_text == ''){
+	                                if(jQuery('#'+ansProp+'-label').hasClass('invalid') == false){
+	                                    jQuery('#'+ansProp+'-label').addClass('invalid');
+	                                }
+	                                Answered[ansProp] = false;
+	                            }else{
+	                                jQuery('#'+ansProp+'-label').removeClass('invalid');
+	                                Answered[ansProp] = true;
+	                            }
+	                        }
+	                    }
+	                }
+	                //___________________________________________
+	            }
+	            var canSubmitMultipleChoiceMultipleAnswers = validateMultipleChoiceMultipleAnswers(requiredIdsArray,Answered);
+	            var canSubmitMultipleChoiceMultipleAnswersPerRow = validateMultipleChoiceMultipleAnswersPerRows(requiredIdsArray,Answered);
+	            var canSubmitMultipleChoiceOneAnswersPerRow = validateMultipleChoiceOneAnswerPerRow(requiredIdsArray,Answered);
+	            canSubmit = canSubmit && canSubmitMultipleChoiceMultipleAnswers && canSubmitMultipleChoiceMultipleAnswersPerRow && canSubmitMultipleChoiceOneAnswersPerRow;
+	            var log = '';
+	            for(var property in Answered){
+	                log += 'This id ' + property + ' are answered ? ' + Answered[property] + ' \n ';
+	                if(!Answered[property]){
+	                    canSubmit = false;
+	                }
+	            }
+	            var alermsg = '';
+	            if(!canSubmit){
+	                alermsg += '{!HTMLENCODE($Label.timbasurvey_Survey_Please_Complete_all_the_required)}.';
+	            }
+
+	            jQuery('.allowNumbersOnly').each(function() {
+	                var res = chkRange(this);
+	                if(res[0] == false){
+	                    if(alermsg != '') alermsg += "<br />" + res[1];
+	                    else alermsg += res[1];
+	                    canSubmit = false;
+	                }
+	            });
+
+	            if(!canSubmit){
+	                jQuery('#warning')[0].innerHTML = alermsg;
+	                jQuery('#warning').show();
+	                jQuery.scrollTo('#warning',400);
+	            }
+
+	            //canSubmit = false
+	            return canSubmit;
+	        }
+	        /*
+	         * Returns true if all required Multiple Choice Multiple Answers questions
+	         * have at least one selected checkbox.
+	         */
+	        function validateMultipleChoiceMultipleAnswers(requiredIds,ans) {
+	            if(typeof(requiredIds) === 'undefined') {
+	                //If there are no required questions
+	                //there is nothing to validate.
+	                return true;
+	            }
+	            var multipleChoiceCheckboxes = jQuery('li a.jqTransformCheckbox');
+	            var multipleChoiceCheckboxesIds = new Array();
+
+	            //Get all ids for checkboxes
+	            multipleChoiceCheckboxes.each(function(index, element) {
+	                optionsContainerId = element.parentNode.parentNode.parentNode.id;
+	                questionId = optionsContainerId.substring(0, 18);
+	                if(jQuery.inArray(questionId, requiredIds) > -1 && jQuery.inArray(questionId, multipleChoiceCheckboxesIds) == -1) {
+	                    multipleChoiceCheckboxesIds[multipleChoiceCheckboxesIds.length] = questionId;
+	                }
+	            })
+
+	            //Get the ones that belong to required Multiple
+	            //Choice Multiple Answers.
+	            /*var requiredMultipleChoiceMultipleAnswersIds = new Array();
+	            jQuery.each(requiredIds, function(index, id) {
+	                if(jQuery.inArray(id, multipleChoiceCheckboxesIds) > -1) {
+	                    requiredMultipleChoiceMultipleAnswersIds[index] = id;
+	                }
+	            });*/
+	            var containerId = '';
+	            var label = '';
+	            var checkboxes;
+	            var questionAnswered = false;
+	            var invalidH2 = '';
+	            var canSubmitLocal = true;
+	            //Check that all required Multiple Choice Multiple Answers questions
+	            //have at least one selected checkbox.
+	            jQuery.each(multipleChoiceCheckboxesIds, function(j, rQuestionId) {
+	                containerId = rQuestionId + '-container';
+	                checkboxes = jQuery('#' + containerId + ' a');
+	                checkboxes.each(function(index, domNode) {
+	                    if(jQuery(domNode).hasClass('jqTransformChecked')) {
+	                        questionAnswered = true;
+	                        ans[rQuestionId]=true;
+	                    }
+	                });
+	                if(!questionAnswered) {
+	                    label = rQuestionId + '-label';
+	                    invalidH2 = jQuery('#' + label);
+	                    if(!invalidH2.hasClass('invalid')) {
+	                        invalidH2.addClass('invalid');
+	                    }
+	                    ans[rQuestionId]=false;
+	                    canSubmitLocal = false;
+	                }
+
+	                //Reset for next iteration.
+	                questionAnswered = false;
+	            });
+	            return canSubmitLocal;
+	        }
+        function validateMultipleChoiceMultipleAnswersPerRows(requiredIds,ans) {
+            if(typeof(requiredIds) === 'undefined') {
+                //If there are no required questions
+                //there is nothing to validate.
+                return true;
+            }
+            var multipleChoiceCheckboxes = jQuery('td span a.jqTransformCheckbox');
+            var multipleChoiceCheckboxesIds = new Array();
+            //Get all ids for checkboxes
+            multipleChoiceCheckboxes.each(function(index, element) {
+                optionsContainerId = element.parentNode.parentNode.parentNode.id;
+                questionId = optionsContainerId.substring(0, 18);
+                if(jQuery.inArray(questionId, requiredIds) > -1 && jQuery.inArray(questionId, multipleChoiceCheckboxesIds) == -1) {
+                    multipleChoiceCheckboxesIds[multipleChoiceCheckboxesIds.length] = questionId;
+                }
+            })
+            var containerId = '';
+            var label = '';
+            var checkboxes;
+            var questionAnswered = false;
+            var invalidH2 = '';
+            var canSubmitLocal = true;
+            //Check that all required Multiple Choice Multiple Answers questions
+            //have at least one selected checkbox.
+            jQuery.each(multipleChoiceCheckboxesIds, function(j, rQuestionId) {
+                containerId = rQuestionId + '-row';
+                checkboxes = jQuery('#' + containerId + ' a');
+                checkboxes.each(function(index, domNode) {
+                    if(jQuery(domNode).hasClass('jqTransformChecked')) {
+                        questionAnswered = true;
+                        ans[rQuestionId]=true;
+                    }
+                });
+                if(!questionAnswered) {
+                    var idParent;
+                    if(checkboxes.length > 0) {
+                        var selId = checkboxes[0].id.split('-')[1];
+                        el = jQuery('#'+selId);
+                        idParent = el[0].getAttribute('parentquestion');
+                    }
+
+                    label = idParent + '-label';
+                    invalidH2 = jQuery('#' + label);
+                    if(!invalidH2.hasClass('invalid')) {
+                        invalidH2.addClass('invalid');
+                    }
+                    ans[rQuestionId]=false;
+                    canSubmitLocal = false;
+                }
+
+                //Reset for next iteration.
+                questionAnswered = false;
+            });
+            return canSubmitLocal;
+        }
+		/**
+		* @author : Rodrigo Herrera <rherrera @timbasoftware.com>
+		* @description : Return true if all required One Choice per row have at least one selected radiobutton
+		**/
+		function validateMultipleChoiceOneAnswerPerRow(requiredIds,ans){
+		   if(typeof(requiredIds) === 'undefined') {
+		          //If there are no required questions
+		          //there is nothing to validate.
+		          return true;
+		   }
+		   var multipleChoiceRadioButton = jQuery('td span a.jqTransformRadio');
+		   var multipleChoiceRadioButtonIds = new Array();
+		   //Get all ids for radiobutton
+		   multipleChoiceRadioButton.each(function(index, element) {
+		   		optionsContainerId = element.parentNode.parentNode.parentNode.id;
+		    	questionId = optionsContainerId.substring(0, 18);
+		    	if(jQuery.inArray(questionId, requiredIds) > -1 && jQuery.inArray(questionId, multipleChoiceRadioButtonIds) == -1) {
+		     		multipleChoiceRadioButtonIds[multipleChoiceRadioButtonIds.length] = questionId;
+		    	}
+		   })
+		   var containerId = '';
+		   var label = '';
+		   var radiobuttons;
+		   var questionAnswered = false;
+		   var invalidH2 = '';
+		   var canSubmitLocal = true;
+		   //Check that all required Multiple Choice One Answer Per Row questions
+		   //have at least one selected radiobutton.
+		   jQuery.each(multipleChoiceRadioButtonIds, function(j, rQuestionId) {
+		   containerId = rQuestionId + '-row';
+		   radiobuttons = jQuery('#' + containerId + ' a');
+		   radiobuttons.each(function(index, domNode) {
+		   if(jQuery(domNode).hasClass('jqTransformChecked')) {
+		   	questionAnswered = true;
+		    ans[rQuestionId]=true;
+		   }
+		   });
+		   if(!questionAnswered) {
+		   	var idParent;
+		    if(radiobuttons.length > 0) {
+		    	var selId = radiobuttons[0].id.split('-')[0];
+		        el = jQuery('#'+selId);
+		        idParent = el[0].getAttribute('parentquestion');
+		    }
+
+			label = idParent + '-label';
+		    invalidH2 = jQuery('#' + label);
+		    if(!invalidH2.hasClass('invalid')) {
+		    	invalidH2.addClass('invalid');
+		    }
+		    ans[rQuestionId]=false;
+		    canSubmitLocal = false;
+		   }
+		  //Reset for next iteration.
+		  questionAnswered = false;
+		 });
+		   return canSubmitLocal;
+		  }
+	        function alternative_parents_disableChildQuestions(parentId, alternative_parents_array, answered){
+	            for(var x in alternative_parents_array){
+	                var splits = alternative_parents_array[x].split('-');
+	                if( splits[1] == parentId ){
+	                    for( var y in answered ){
+	                        if( y == parentId || y == splits[2]){
+	                            answered[y] = true;
+	                        }
+	                    }
+	                }
+	            }
+	        }
+
+	        function chkRange(obj){
+	            var isValid = true;
+	            var range = rangeFields[obj.id];
+	            var objValue = parseInt(obj.value);
+	            var alertMsg = '';
+
+	            if(isNaN(objValue)){
+	                objValue=0;
+	            }
+	            if((((objValue > range.Max)&&(range.Max!=0))||(objValue < range.Min))&& obj.value !=''){
+	                isValid = false;
+	                if(range.Max!=0&&range.Min!=0){
+	                    alertMsg+= '{!$Label.timbasurvey_Survey_The_Number_Must_Be_Between} '+range.Min+' {!$Label.timbasurvey_Survey_and} '+range.Max;
+	                }
+	                else if(range.Max==0){
+	                    alertMsg+= '{!$Label.timbasurvey_Survey_The_Number_Greater_Than} '+range.Min;
+	                }
+	                else{
+	                    alertMsg+= '{!$Label.timbasurvey_Survey_The_Number_Smaller_Than} '+range.Max;
+	                }
+	                obj.value = '';
+
+	                var h2 = document.getElementById(obj.name +'-label');
+
+	                if(h2 != null){
+	                    jQuery(h2).addClass('invalid');
+	                    alertMsg = h2.innerHTML + ": " + alertMsg;
+	                }
+	            }
+	            return new Array(isValid,alertMsg);
+	        }
+	        function datePickerClear(input){
+	            input.value = '';
+	        }
+	        Date.firstDayOfWeek = 0;
+	        Date.format = 'mm/dd/yyyy';
+	        var CURRENT_PAGE = 1;
+	        var CURRENT_STEP = 1;
+	        var TOTAL_PAGES = {!IF(AllowSurvey,IF(ROUND(Survey__c.NumberOfPages__c,0)>0,ROUND(Survey__c.NumberOfPages__c,0),0),0)};
+	        var resetcollectOnBranches = [];
+	        var requiredIdsArray = [];
+	        //Check Recipient Id
+	        var RECIPIENT_ID = '';
+	        //Picklist Overflow Fix
+	        var selectedPickList_zindex = 10;
+	        //max line legth for tooltip
+	        varmaxLineLength = 24;
+	        //---
+	        function rnd(){
+	            return Math.floor(Math.random()*11111);
+	        }
+	        //RICHTEXT AND SIMPLE TEXTAREA VISUAL STYLES FIXING:
+	        function fix_textarea_styles(){
+	            jQuery(".rte-toolbar .link").css('display','none');
+	            jQuery('body', jQuery("iframe.rte-zone").contents()).css('overflow','auto');
+	            jQuery('body', jQuery("iframe.rte-zone").contents()).css('width','470px');
+	            jQuery('body', jQuery("iframe.rte-zone").contents()).css('height','275px');
+
+	            var allRTEs = jQuery("iframe.rte-zone");
+	            for(var i = 0; i < allRTEs.length; i++){
+	                var parent = jQuery( allRTEs[i] ).parents('td')[0];
+
+	                jQuery(parent).css('height','270px');
+	                jQuery('iframe', parent).css('height','270px');
+	                jQuery(parent).css('max-height','270px');
+	                jQuery('iframe', parent).css('max-height','270px');
+	                jQuery(parent).attr('height','270px');
+	                jQuery('iframe', parent).attr('height','270px');
+	                jQuery(parent).attr('max-height','270px');
+	                jQuery('iframe', parent).attr('max-height','270px');
+	            }
+	            jQuery('textarea.jqtransformdone').css('width',(screen.width/2)).css('height','110px').css('outline','none').css('top','0');
+	            //jQuery('textarea.jqtransformdone').css('width','80%').css('height','110px').css('outline','none').css('top','0');
+	            jQuery('table.jqTransformTextarea .jqTransformSafariTextarea textarea').css('left','0').css('padding','0').css('height','110px').css('width','100%');
+	            jQuery('table.jqTransformTextarea .jqTransformSafariTextarea textarea').css('left','0').css('padding','0');
+	            var safari_textAreas = jQuery('table.jqTransformTextarea .jqTransformSafariTextarea textarea');
+	            for(var i = 0; i < safari_textAreas.length; i++){
+	                if( jQuery( 'iframe' ,jQuery(safari_textAreas[i]).parents()[0] ).length > 0){
+	                    jQuery( jQuery(safari_textAreas[i]).parents()[0] ).css('height','300px');
+	                }else{
+	                    jQuery( jQuery(safari_textAreas[i]).parents()[0] ).css('height','115px');
+	                }
+	            }
+	        }
+	        //-----------
+	        jQuery(function(){
+	            jQuery('.datepicker').datePicker({clickInput:true,startDate:'01/01/1930'}).dpSetOffset(25, -5);
+	            if(!(jQuery.browser.msie && jQuery.browser.version == '6.0')){
+	               jQuery('#{!JSENCODE(Survey__c.Id)}').jqTransform({imgPath:'{!URLFOR($Resource.jqTransform, 'jqtransformplugin/img/')}'});
+	            }
+	            jQuery(".rte-zone").rte({
+	                content_css_url: "rte.css",
+	                media_url: "{!URLFOR($Resource.SurveyPublicResources, 'inc/js/rte/')}"
+	            });
+	            fix_textarea_styles();
+	            //Picklist Overflow Fix
+	            jQuery(".jqTransformSelectWrapper .jqTransformSelectOpen").click(function(){
+	                if (selectedPickList_zindex > 85){
+	                    //jQuery(this).parents("div.rowElem").css("z-index",10);
+	                    jQuery("div.rowElem").css("z-index",10);
+	                    selectedPickList_zindex = 10;
+	                }
+	                selectedPickList_zindex++;
+	                jQuery(this).parent().parent().parent().css("z-index",selectedPickList_zindex);
+	                //jQuery('div.rowElem').removeClass("overflow_visible");
+	                jQuery(this).parents("div.rowElem").addClass("overflow_visible");
+	            });
+	            jQuery('.datepicker').prev('div.jqTransformInputWrapper').css({'width' : '110px'});
+	            jQuery('.jqTransformInput').css({'width' : (screen.width/2)-10});
+	            jQuery('div .jqTransformInputWrapper .jqTransformInputInner').css({'width' : (screen.width/2)});
+	            jQuery('.jqTransformInputWrapper').css({'width' : (screen.width/2)});
+	            if ((readCookie('TIMBALEADS{!JSENCODE(Survey__c.Id)}') == null) || {!thirdPartyFill}){
+	                jQuery("a#trigger").fancybox({
+	                    'enableEscapeButton':false,
+	                    'hideOnContentClick': false,
+	                    'hideOnOverlayClick' : {!if(AND(requireLeadInfo,AND(!isPreview,AllowSurvey)),false,true)},
+	                    'frameWidth' : 360,
+	                    'frameHeight' : 940,
+	                    'zoomSpeedIn' : 600,
+	                    'zoomSpeedOut' : 500,
+	                    'easingIn' : 'easeOutBack',
+	                    'easingOut' : 'easeInBack',
+	                    'showCloseButton' : {!if(AND(requireLeadInfo,AND(!isPreview,AllowSurvey)),false,true)}
+	                 });
+	                 jQuery("a#trigger").click();
+	            }
+	            chrome_resizer();
+	            jQuery('.display_none').each(function(i,obj){
+	               obj.style.display = 'none';
+	            });
+	            option_branching();
+	            jQuery('#overlay').fadeOut("slow");
+	            toolTips();
+	        });
+	       function hide_questions_allowing_branching(qs_allowing_branching){
+	             // Get the questions that would be affected by active branching rules.
+	             var questions_allowing_branching = qs_allowing_branching;
+	             var questions_allowing_branching_array = [];
+	             if((questions_allowing_branching.length > 0) && ({!ispreview} == false)){
+	                // Put the ids on a id array
+	                questions_allowing_branching = questions_allowing_branching.substr(1);
+
+	                // An array of requried ids
+	                questions_allowing_branching_array = questions_allowing_branching.split('|');
+
+	                if(questions_allowing_branching_array.size == 0){
+	                    questions_allowing_branching_array.push(questions_allowing_branching);
+	                }
+				}
+				//Questions affected by branching rules start hidden.
+				for(var i=0; i < questions_allowing_branching_array.length ; i++){
+					if(questions_allowing_branching_array[i].length > 0){
+						jQuery('#'+questions_allowing_branching_array[i]+'-container').each(function(){
+							this.style.display = 'none';
+	                    });
+					}
+				}
+			}
+	       	//Function to hide all branched questions when page is loaded
+	        function hideAllBranchedQuestions(){
+	        	var visibleidscollection;
+	            visibleidscollection = '';
+	            for(property in question_rules){
+	            	var visibleids = question_rules[property].visible_questions;
+	                for(var rrr=0; rrr < visibleids.length ; rrr++){
+						jQuery('#'+visibleids[rrr]+'-container').each(function(a,obj2){
+	                    	if (!question_rules[property].parent_answered){
+	                           	if (visibleidscollection.indexOf(visibleids[rrr])==-1){
+									obj2.style.display = 'none';
+								}
+							}else{
+								obj2.style.display = 'block';
+								visibleidscollection = visibleidscollection + visibleids[rrr]+'-container' + '--';
+							}
+						});
+					}
+				}
+	        }
+	        //Keeps the parents of all options to hide branched questions
+	        //when an option that is not branched is selected
+	        var parentsAllOptions = new Array();
+
+	      	//Hides all branched questions to a certain option
+	        function hideAllBranchedQuestionsToAnswerOption(completeAoid, hideNested){
+	            if(completeAoid != null){
+	                 var aoid = completeAoid.split('-q-')[0];
+	                 for(property in question_rules){
+	                    if(((parentsAllOptions[completeAoid] != null) && (parentsAllOptions[completeAoid] == (question_rules[property].parent_question+'-container')))
+	                        || ((question_rules[aoid] != null) && (question_rules[aoid].parent_question == question_rules[property].parent_question))){
+	                        var visibleids = question_rules[property].visible_questions;
+	                        for(var r=0; r < visibleids.length ; r++){
+	                                    if(hideNested > 0){
+	                                        hideAllBranchedQuestionsToQuestion(visibleids[r], --hideNested);
+	                                    }
+	                                    jQuery('#'+visibleids[r]+'-container').each(function(a,obj2){
+	                                        //resetDraftOnBranched(obj2);
+	                                        obj2.style.display = 'none';
+	                                    });
+	                        }
+	                    }
+	                 }
+	             }
+	        }
+	       	//to hide the questions branched to options in questions that are branched (nested branching)
+	        function hideAllBranchedQuestionsToQuestion(questionId, hideNested){
+	            for(property in question_rules){
+	                 if(question_rules[property].parent_question == questionId){
+	                    hideAllBranchedQuestionsToAnswerOption(property, --hideNested);
+	                 }
+	            }
+	        }
+			function option_branching(){
+				// Add a onclick event for active Branching
+	            hideAllBranchedQuestions();
+	             var parent_questions = [];
+	             var branched_radios = [];
+
+	             //Get parent questions and branched options
+	             for(property in question_rules){
+	                var parent_question = question_rules[property].parent_question+'-container';
+	                parent_questions.push(parent_question);
+	                branched_radios.push(property+'-q-'+question_rules[property].parent_question+'-radio');
+	             }
+	             //Add behaviors to other options NOT BRANCHED and BRANCHED
+	             var current_parent = '';
+	             for(var i=0; i < parent_questions.length ; i++){
+	                current_parent = parent_questions[i];
+	                jQuery('#'+parent_questions[i]+' a').each(function(x,obj){
+	                    // If is not a radio with branching behavior
+	                    if(jQuery.inArray(jQuery(obj).attr('id'), branched_radios) == -1 ){
+	                       	var idOptionNotBranched = jQuery(obj).attr('id');
+	                        parentsAllOptions[idOptionNotBranched] = current_parent;
+	                        //Hide clicking other options.
+	                        for(aoid in question_rules){
+	                            // Search for the visible options for this parent question
+	                            if(question_rules[aoid].parent_question+'-container' == current_parent){
+	                                jQuery(obj).bind('click',function(){
+	                                    hideAllBranchedQuestionsToAnswerOption(this.id, 1000);
+	                                });
+	                            }
+	                        }
+	                    }else{
+	                        // Here goes the right behavior for the branched option.
+	                        for(aoid in question_rules){
+	                            // Search for the visible options for this parent question
+	                            if(question_rules[aoid].parent_question+'-container' == current_parent){
+	                                jQuery(obj).bind('click',function(){
+	                                    var currentAoid = this.id.split('-q-')[0];
+	                                    var visibleids = question_rules[currentAoid].visible_questions;
+	                                    hideAllBranchedQuestionsToAnswerOption(this.id, 1000);
+	                                    for(var r=0; r < visibleids.length ; r++){
+	                                        jQuery('#'+visibleids[r]+'-container').each(function(a,obj2){
+	                                            obj2.style.display = '';
+	                                            //resetDraftOnBranched(obj2);
+	                                        });
+	                                    }
+	                                });
+	                            }
+	                        }
+	                    }
+	                });
+	             }
+	       }
+	       //reset all hidden options when save the survey
+	       function resetCollectedDraftOnBranches(){
+	            for(property in question_rules){
+	                var visibleids = question_rules[property].visible_questions;
+	                for(var r=0; r < visibleids.length ; r++){
+	                    jQuery('#'+visibleids[r]+'-container').each(function(a,obj2){
+	                        if (obj2.style.display=='none'){
+	                            resetDraftOnBranched(obj2);
+	                        }
+	                    });
+	                }
+	            }
+	       }
+	       function resetDraftOnBranched(d) {
+	                jQuery('#' + d.id).find('input, textarea, select').each(
+	                    function(){
+	                        var name = jQuery(this).attr('name');
+	                        var id = jQuery(this).attr('id');
+	                        var type = jQuery(this).attr('type');
+
+	                        switch (type) {
+	                            case 'radio':
+	                                    this.checked = false;
+	                                    var checkTransformedId = id + '-q-' + name + '-radio';
+	                                    jQuery('#' + checkTransformedId).removeClass('jqTransformChecked');
+	                                    jQuery('#' + checkTransformedId).addClass('jqTransformRadio');
+	                            break;
+	                            case 'checkbox':
+	                                    this.checked = false;
+	                                    var checkTransformedId = id + '-check';
+	                                    jQuery('#' + checkTransformedId).removeClass('jqTransformChecked');
+	                                    jQuery('#' + checkTransformedId).addClass('jqTransformCheckbox');
+
+	                                    checkTransformedId = name + '-check';
+	                                    jQuery('#' + checkTransformedId).removeClass('jqTransformChecked');
+	                                    jQuery('#' + checkTransformedId).addClass('jqTransformCheckbox');
+	                            break;
+	                            case 'text':
+	                                if((name != "lastName")&&(name != "firstName")&&(name != "survey")&&(name != "company")&&(name != "email")&&(name != "phone")){
+	                                    jQuery(this).val('');
+	                                }
+	                            break;
+	                            case 'textarea':
+	                                var rich_text_area_id = '#'+id+'-rte';
+	                                if(jQuery(rich_text_area_id).length > 0){
+	                                    jQuery(rich_text_area_id)[0].contentWindow.document.body.innerHTML = '';
+	                                    jQuery(id).val('');
+	                                } else {
+	                                    jQuery(this).val('');
+	                                }
+	                            break;
+	                            case 'select-one':
+	                                this.value = '';
+	                                jQuery(this).val('');
+	                            break;
+	                        }
+	                    });
+
+	        }
+       		var PageAnswers = {};
+	        function saveDraft() {
+	            var currentPageAnswers = {};
+	            jQuery('input, textarea, select').each(
+	                function () {
+	                    var name = jQuery(this).attr('name');
+	                    var id = jQuery(this).attr('id');
+	                    var type = jQuery(this).attr('type');
+
+	                    switch (type) {
+	                        case 'text':
+	                            currentPageAnswers[name] = jQuery(this).val();
+	                        break;
+	                        case 'textarea':
+
+	                            var rich_text_area_id = '#'+id+'-rte';
+	                            var textarea_id = '#'+id;
+
+	                            if(jQuery(rich_text_area_id).length > 0){
+	                                currentPageAnswers[name] = jQuery(rich_text_area_id)[0].contentWindow.document.body.innerHTML;
+	                                jQuery(textarea_id).val(currentPageAnswers[name]);
+	                            } else {
+	                                currentPageAnswers[name] = jQuery(textarea_id).val();
+	                            }
+	                            /*
+	                            if()
+	                            jQuery('iframe').each(function(i,e){
+	                                if(id = e.id){
+	                                    currentPageAnswers[name] = e.contentWindow.document.body.innerHTML;
+	                                }
+	                            });
+	                            */
+
+	                        break;
+	                        case 'radio':
+	                            currentPageAnswers[name+'-'+id] = this.checked;
+	                        break;
+	                        case 'checkbox':
+	                            //currentPageAnswers[name] = this.checked;
+	                            currentPageAnswers[name+'-'+id] = this.checked;
+	                        break;
+	                        case 'select-one':
+
+	                            currentPageAnswers[name+'-'+id+'-sel'] = jQuery(this).val();
+	                        break;
+	                    }
+	            });
+
+	            PageAnswers[CURRENT_PAGE] = currentPageAnswers;
+	        }
+		    function indexOfElem(array, elem) {
+		        var i = 0;
+		        for(var property in array){
+		            if(array[property] == elem){
+		                return i;
+		            }
+		            i++;
+		        }
+		        return -1;
+		    }
+
+	        function reloadDraft() {
+	            if (PageAnswers[CURRENT_PAGE]) {
+
+	                var currentPageAnswers = {};
+
+	                jQuery('input, textarea, select').each(
+	                    function () {
+
+	                        var name = jQuery(this).attr('name');
+	                        var id = jQuery(this).attr('id');
+	                        var type = jQuery(this).attr('type');
+
+
+	                        switch (type) {
+	                            case 'text':
+	                                if((name != "lastName")&&(name != "firstName")&&(name != "survey")&&(name != "company")&&(name != "email")&&(name != "phone")){
+	                                    jQuery(this).val(PageAnswers[CURRENT_PAGE][name]);
+	                                }
+	                            break;
+	                            case 'textarea':
+	                                var rich_text_area_id = '#'+id+'-rte';
+	                                if(jQuery(rich_text_area_id).length > 0){
+	                                    jQuery(rich_text_area_id)[0].contentWindow.document.body.innerHTML = PageAnswers[CURRENT_PAGE][name];
+	                                    jQuery(id).val(currentPageAnswers[name]);
+	                                } else {
+	                                    jQuery(this).val(PageAnswers[CURRENT_PAGE][name]);
+	                                }
+	                            break;
+	                            case 'radio':
+	                                if (PageAnswers[CURRENT_PAGE][name+'-'+id]) {
+	                                        this.checked = true;
+	                                        //check the transformed radio-buton
+	                                        var radioTransformedId = id + '-q-' + name + '-radio';
+	                                        jQuery('#' + radioTransformedId).addClass('jqTransformChecked');
+
+	                                        jQuery('#' + radioTransformedId).trigger('click');
+	                                }
+	                            break;
+	                            case 'checkbox':
+	                                //if (PageAnswers[CURRENT_PAGE][name]) {
+	                                if (PageAnswers[CURRENT_PAGE][name+'-'+id]) {
+	                                    this.checked = true;
+	                                  	//check the transformed checkbox
+	                                    var checkTransformedId = name + '-check';
+	                                    jQuery('#' + checkTransformedId).addClass('jqTransformChecked');
+	                                }
+	                            break;
+	                            case 'select-one':
+	                                jQuery(this).val(PageAnswers[CURRENT_PAGE][name+'-'+id+'-sel']);
+	                            break;
+	                        }
+	                    });
+	            }
+	        }
+
+	       function resetDraft() {
+	                jQuery('input, textarea, select').each(
+	                    function(){
+	                        var name = jQuery(this).attr('name');
+	                        var id = jQuery(this).attr('id');
+	                        var type = jQuery(this).attr('type');
+	                        switch (type) {
+	                            case 'radio':
+	                                    this.checked = false;
+	                                    var checkTransformedId = id + '-q-' + name + '-radio';
+										jQuery('#' + checkTransformedId).removeClass('jqTransformChecked');
+	                                    jQuery('#' + checkTransformedId).addClass('jqTransformRadio');
+	                            break;
+	                            case 'checkbox':
+	                                    this.checked = false;
+	                                    var checkTransformedId = name + '-check';
+	                                    jQuery('#' + checkTransformedId).removeClass('jqTransformChecked');
+	                                    jQuery('#' + checkTransformedId).addClass('jqTransformCheckbox');
+	                            break;
+	                            case 'text':
+	                                if((name != "lastName")&&(name != "firstName")&&(name != "survey")&&(name != "company")&&(name != "email")&&(name != "phone")){
+	                                    jQuery(this).val('');
+	                                }
+	                            break;
+	                            case 'textarea':
+	                                var rich_text_area_id = '#'+id+'-rte';
+	                                if(jQuery(rich_text_area_id).length > 0){
+	                                    jQuery(rich_text_area_id)[0].contentWindow.document.body.innerHTML = '';
+	                                    jQuery(id).val('');
+	                                } else {
+	                                    jQuery(this).val('');
+	                                }
+	                            break;
+	                            case 'select-one':
+	                                this.value = '';
+	                                jQuery(this).val('');
+	                            break;
+	                        }
+	                    });
+
+	        }
+
+	        function saveAndGoTo(where){
+	            // Validate the form
+	            // Send to data collector
+	            // Show another page or end with fancy effects!
+	            resetCollectedDraftOnBranches();
+	            var survey_valid = validateSurvey();
+	            if(survey_valid){
+	            	 //Rules apply on next and previous...
+		             if(page_branching_rules != null){
+			         	var meet_else_condition = false;
+			            var formElements = jQuery('input, select');
+			            //Get ids of questions with rules
+			            var question_rules = [];
+
+			            var question_meet_condition = {};
+
+			            //Iterate to get rules
+			            for(property in page_branching_rules.rules){
+			              	question_rules.push(property);
+			               	question_meet_condition[property] = false;
+			            }
+			            Affected_questions = {};
+			            Answered_questions = [];
+			            //Iterate over form inputs
+			            formElements.each(function(i,e){
+			            //Get qid
+						var qid = e.name;
+			            if((e.name).indexOf('-') > -1 && e.type == 'checkbox'){ qid = (e.name).split('-')[0];}
+			            	if(e.getAttribute('rel') != null){ qid = e.getAttribute('rel');}
+
+			                //If the question are in the rules array get the control and build a value object
+			                if(jQuery.inArray(qid,question_rules) > -1 && jQuery.inArray(qid,Answered_questions) == -1){
+			                	var q_content = {};
+			                    q_content.id = qid;
+			                    q_content.answered = false;
+			                    q_content.operator = page_branching_rules.rules[qid].operator;
+
+			                    //Based on the kind of control check the values
+			                    switch(e.type){
+			                    	//checkbox and radio
+			                        case 'checkbox':
+			                        case 'radio':
+			                        	if(e.checked){
+			                             	q_content.type = 'option';
+			                               	q_content.answered = true;
+			                               	q_content.answer = e.value;
+			                               	Answered_questions.push(qid);
+			                            }
+			                            break;
+			                            //if the input is a textbox..
+			                            case 'text':
+			                            	if(e.value != null && (e.value).length > 0){
+			                            		q_content.type = 'textbox';
+			                                    q_content.answered = true;
+			                                    q_content.answer = e.value;
+			                                    Answered_questions.push(qid);
+			                                }
+			                            break;
+			                            case 'select-one':
+			                                if(e.value != null && (e.value).length > 0 && e.value != '-1'){
+			                                	q_content.type = 'option';
+			                                    q_content.answered = true;
+			                                    q_content.answer = e.value;
+			                                    Answered_questions.push(qid);
+			                                }
+			                            break;
+				                    }
+					                Affected_questions[qid] = q_content;
+				                }
+		                	});
+			               //Check Branching page Conditions
+		                   for(var propertyAQ in Affected_questions){
+		                    	var meet_conditions = false;
+
+		                    	//First Check
+		                    	//Check if the questions are answered , and match the specification from the rule
+		                     	if(page_branching_rules.rules[propertyAQ].answered == Affected_questions[propertyAQ].answered){
+		                    		meet_conditions = true;
+		                    	} else {
+	                    			meet_conditions = false;
+		                    	}
+		                    	//second Check
+		                    	//Check if the questions are answered , and match the specification from the rule
+		                    	if(Affected_questions[propertyAQ].type == 'textbox'){
+		                    		if(page_branching_rules.rules[propertyAQ].answer != 'null'){
+		                    			if(page_branching_rules.rules[propertyAQ].answer == Affected_questions[propertyAQ].answer){
+		                    				meet_conditions = true;
+		                    			} else {
+		                    				meet_conditions = false;
+		                    			}
+		                    		}
+		                    	}
+		                    	if(Affected_questions[propertyAQ].type == 'option'){
+		                    		if(page_branching_rules.rules[propertyAQ].branches != null){
+			                    		if(page_branching_rules.rules[propertyAQ].branches.length > 0){
+			                    			if( page_branching_rules.rules[propertyAQ].branches[0] == null || page_branching_rules.rules[propertyAQ].branches[0] == 'null' ){
+			                    				meet_conditions = true;
+			                    			}else{
+				                    			if(Affected_questions[propertyAQ].answer == page_branching_rules.rules[propertyAQ].branches[0]){
+				                    				meet_conditions = true;
+				                    			} else {
+				                    				meet_conditions = false;
+				                    			}
+			                    			}
+			                    		}
+		                    		}
+		                    	}
+
+		                    	question_meet_condition[propertyAQ] = meet_conditions;
+		                    }
+
+		                    //CHECK WITH AND AND OR
+		                    var all_conditions_met = false;
+		                    var and_conditions_met = false;
+		                    var or_conditions_met = false;
+		                    var or_conditions_count = 0;
+		                    var and_conditions_count = 0;
+
+		                    // check for OR first
+		                    for(property in Affected_questions){
+		                    	if(question_meet_condition[property]){
+		                    		if(Affected_questions[property].operator == 'or'){
+		                    			or_conditions_count++;
+		                    			or_conditions_met = true;
+		                    			break;
+		                    		}
+		                    	}
+		                    }
+		                    //check for AND later
+		                    for(property in Affected_questions){
+		                    	if(Affected_questions[property].operator == 'and'){
+		                    		and_conditions_count++;
+			                    	if(question_meet_condition[property]){
+			                    		and_conditions_met = true;
+			                    	} else {
+			                    		and_conditions_met = false;
+			                    		break;
+			                    	}
+		                    	}
+		                    }
+			                if(or_conditions_count > 0){
+			                	if(or_conditions_met){ all_conditions_met = true; }
+			                }
+			                if(and_conditions_count > 0){
+			                	if(and_conditions_met){ all_conditions_met = true; }
+			                }
+			                if(or_conditions_count > 0 &&  and_conditions_count > 0){
+			                	if(and_conditions_met && or_conditions_met){
+			                		all_conditions_met = true;
+			                	} else {
+			                		all_conditions_met = false;
+			                	}
+			                }
+
+		                    if(all_conditions_met){
+		                    	where = page_branching_rules.goto_page;
+		                    } else {
+		                    	where = page_branching_rules.else_go_to_page;
+		                    }
+		                }//END BRANCHING LOGIC
+	               	//Show the overlay
+	                jQuery('select').hide();
+	                jQuery('#overlay').fadeIn("slow", function() {
+						var myHeight = window.screen.height;
+						if((navigator.userAgent.match(/iPhone/i)) || (navigator.userAgent.match(/iPod/i))) {
+							// due iPad returns a fake values, its duplicated to overlay cover full screen
+							myHeight = myHeight *2;
+						}
+						jQuery('#overlay').css('filter',"alpha(opacity=85)");
+						jQuery('#overlay').css('height', myHeight);
+					});
+	                //Save draft!
+	                saveDraft();
+	                if(where == 'finish' || where == '0'){
+	                    endSurvey = true;
+	                }
+	                if({!isPreview}){
+	                	proccess_results(where);
+	                }else{
+	                	IRFCwhere = where;
+	                    insertRecipientForContactOperation();
+	                }
+	            }
+	        }
+
+	        function insertRecipientForContactCompleted(){
+	            var questionsForm = jQuery("form#{!JSENCODE(Survey__c.Id)}").serialize();
+	            // escape form before submit
+	            questionsForm = decodeURIComponent(questionsForm);
+	            questionsForm = escapeForm(questionsForm);
+				savePageResponsesOperation(IRFCwhere , endSurvey, '{!JSENCODE(customFill)}', questionsForm, CURRENT_PAGE);
+	        }
+
+	        function escapeForm(string){
+	            // replace all the plus sign with a blank space
+	            var patt = new RegExp('\\+', "g");
+	            string = string.replace(patt, ' ');
+	            // add break lines
+	            patt = new RegExp('%0A',"g");
+	            string = string.replace(patt, '\n');
+	            // replace the html code for plus sign with the real plus sign
+	            patt = new RegExp('%2B',"g");
+	            string = string.replace(patt, '+');
+	            // replace the html code for ? sign with the real ? sign
+	            patt = new RegExp('%3F',"g");
+	            string = string.replace(patt, '?');
+	            // replace the html code for [ sign with the real [ sign
+	            patt = new RegExp('%5B',"g");
+	            string = string.replace(patt, '[');
+	            // replace the html code for ] sign with the real ] sign
+	            patt = new RegExp('%5D',"g");
+	            string = string.replace(patt, ']');
+	            // replace the html code for { sign with the real { sign
+	            patt = new RegExp('%7B',"g");
+	            string = string.replace(patt, '{');
+	            // replace the html code for } sign with the real } sign
+	            patt = new RegExp('%7D',"g");
+	            string = string.replace(patt, '}');
+	            // replace the html code for @ sign with the real @ sign
+	            patt = new RegExp('%40',"g");
+	            string = string.replace(patt, '@');
+	            // replace the html code for # sign with the real # sign
+	            patt = new RegExp('%23',"g");
+	            string = string.replace(patt, '#');
+	            // replace the html code for $ sign with the real $ sign
+	            patt = new RegExp('%24',"g");
+	            string = string.replace(patt, '$');
+	            // replace the html code for % sign with the real % sign
+	            patt = new RegExp('%25',"g");
+	            string = string.replace(patt, '%');
+	            // replace the html code for : sign with the real : sign
+	            patt = new RegExp('%3A',"g");
+	            string = string.replace(patt, ':');
+	            // replace the html code for ; sign with the real ; sign
+	            patt = new RegExp('%3B',"g");
+	            string = string.replace(patt, ';');
+	            // replace the html code for " sign with the real " sign
+	            patt = new RegExp('%22',"g");
+	            string = string.replace(patt, '"');
+	            // replace the html code for < sign with the real < sign
+	            patt = new RegExp('%3C',"g");
+	            string = string.replace(patt, '<');
+	            // replace the html code for > sign with the real > sign
+	            patt = new RegExp('%3E',"g");
+	            string = string.replace(patt, '>');
+	            // replace the html code for , sign with the real , sign
+	            patt = new RegExp('%2C',"g");
+	            string = string.replace(patt, ',');
+	            // replace the html code for / sign with the real / sign
+	            patt = new RegExp('%2F',"g");
+	            string = string.replace(patt, '/');
+	            // replace the html code for \ sign with the real \ sign
+	            patt = new RegExp('%5C',"g");
+	            string = string.replace(patt, '\\');
+	            // replace the html code for | sign with the real | sign
+	            patt = new RegExp('%7C',"g");
+	            string = string.replace(patt, '|');
+	            // replace the html code for ^ sign with the real ^ sign
+	            patt = new RegExp('%5E',"g");
+	            string = string.replace(patt, '^');
+	            // replace the html code for ` sign with the real ` sign
+	            patt = new RegExp('%60',"g");
+	            string = string.replace(patt, '`');
+	            return string;
+	        }
+	        function savePageResponsesCompleted(success, where, RecipientId, errorMessage){
+	            if(success){
+	                //Add (or Replace ) Current Recipient
+	                RECIPIENT_ID = RecipientId;
+	                //execute
+	                proccess_results(where);
+	                //Set a cookie to remember that the user already filled the survey
+	                if({!NOT(thirdPartyFill)}){
+	                    createCookie('TIMBASURVEYS{!JSENCODE(Survey__c.Id)}','filled',365);
+	                }
+	            }else{
+	                fix_textarea_styles();
+	                alert('Error ' + errorMessage);
+	                jQuery('#overlay').fadeOut("slow");
+	            }
+	        }
+			function proccess_results(where){
+				var UrlToCall = '';
+				var finishAndClean = false;
+				pageNumberAction = '';
+				recipientIdAction = '';
+				modifyAction = 'no';
+				previewParamAction = 'false';
+	                //Save log to go back if needed
+	                ////////////////////////////////////
+	                user_log[CURRENT_STEP] = CURRENT_PAGE;
+	                //Where do we go
+	                switch(where){
+	                    case 'next':
+	                        if(CURRENT_PAGE <= TOTAL_PAGES){
+	                            CURRENT_PAGE++;
+	                            CURRENT_STEP++;
+	                            pageNumberAction = CURRENT_PAGE;
+	                            recipientIdAction = RECIPIENT_ID;
+	                        }
+	                    break;
+	                    case 'prev':
+	                        if(CURRENT_PAGE > 1){
+
+	                        	jQuery('#warning').hide();
+	                        	CURRENT_STEP--;
+	                        	if(user_log[CURRENT_STEP] != null){
+			                		CURRENT_PAGE = user_log[CURRENT_STEP];
+			                	} else {
+			                		CURRENT_PAGE--;
+			                	}
+								pageNumberAction = CURRENT_PAGE;
+								recipientIdAction = RECIPIENT_ID;
+	                        }
+	                    break;
+	                    case 'finish':
+	                    case '0':
+	                        finishAndClean = true;
+	                    break;
+	                    default:
+
+	                    	if(where > CURRENT_PAGE) {
+	                  			CURRENT_STEP++;
+	                    	}
+	                    	OLD_PAGE = CURRENT_PAGE;
+	                    	CURRENT_PAGE = where;
+
+							pageNumberAction = where;
+							recipientIdAction = RECIPIENT_ID;
+	                    break;
+	                }
+
+	                if({!isPreview}){
+	                	previewParamAction = 'true';
+	                    //UrlToCall += '&prev=true';
+	                }
+
+	                if(!finishAndClean){
+	                    nextPageOperation(pageNumberAction,recipientIdAction,previewParamAction);
+					}else{
+						finalize();
+	                }
+	                hideAllBranchedQuestions();
+	        }
+			function nextPageCompleted(pageBranchingRulesJson, questionRulesJson){
+				question_rules = jQuery.parseJSON(questionRulesJson);
+		        page_branching_rules = jQuery.parseJSON(pageBranchingRulesJson);
+				//Reload values again
+				reloadDraft();
+				if(!(jQuery.browser.msie && jQuery.browser.version == '6.0')){
+				    jQuery('#{!JSENCODE(Survey__c.Id)}').jqTransform({imgPath:'{!URLFOR($Resource.jqTransform, 'jqtransformplugin/img/')}'});
+				}
+
+				jQuery(".rte-zone").rte({
+					content_css_url: "rte.css",
+					media_url: "{!URLFOR($Resource.SurveyPublicResources, 'inc/js/rte/')}"
+				});
+				//Picklist Overflow Fix
+				jQuery(".jqTransformSelectWrapper .jqTransformSelectOpen").click(function(){
+					if (selectedPickList_zindex > 85){
+						jQuery("div.rowElem").css("z-index",10);
+						selectedPickList_zindex = 10;
+					}
+					selectedPickList_zindex++;
+					jQuery(this).parent().parent().parent().css("z-index",selectedPickList_zindex);
+
+					jQuery(this).parents("div.rowElem").addClass("overflow_visible");
+
+				});
+
+				jQuery('.display_none').each(function(i,obj){
+					obj.style.display = 'none';
+				});
+
+				chrome_resizer();
+				jQuery('.datepicker').datePicker({clickInput:true,startDate:'01/01/1930'}).dpSetOffset(25, 15);
+				option_branching();
+				fix_textarea_styles();
+				jQuery('#overlay').fadeOut("slow");
+				jQuery.scrollTo('#surveyTitle',400);
+				var new_range_fields = eval( "(" + jQuery('#rangeFields').html() + ')');
+				rangeFields = new_range_fields;
+				drawSureyName();
+				toolTips();
+			}
+			function finalize(){
+	            jQuery('#survey_saved').fadeIn("slow");
+	            jQuery('#loaderMessage').hide();
+	            jQuery.scrollTo('#survey_saved');
+	        }
+	        /**
+	        * Lead Creation Scripts
+	        * Bruno Fagundez @ TimbaSoftware 2009
+	        */
+	        function createLead(){
+	            if(validateLeadData()){
+	                var firstName = jQuery('#firstName').val();
+	                var lastName = jQuery('#lastName').val();
+	                var company = jQuery('#company').val();
+	                var email = jQuery('#email').val();
+	                var phone = jQuery('#phone').val();
+	                createLeadOperation(firstName, lastName, company, email, phone);
+	                return false;
+	            }
+	        }
+	        function createLeadCompleted(){
+	            jQuery.fancybox.close();
+	            if({!NOT(thirdPartyFill)}){
+	                createCookie('TIMBALEADS{!JSENCODE(Survey__c.Id)}','created',365);
+	            }
+	        }
+	        function imposeMaxLength(Object, MaxLen){
+	            if (Object.value.length >= MaxLen) {
+	                //Object.value = Object.value.substring(0, MaxLen);
+	                var st = '';
+	                st = jQuery(Object).attr('value');
+	                st = st.substr(0, MaxLen);
+	                jQuery(Object).attr('value', st);
+	            }
+	        }
+	        function preloadImg(image) {
+	            var img = new Image();
+	            img.src = image;
+	        }
+	        function validateLeadData(){
+	            var noErrorFound = true;
+	            jQuery('#errorLeadForm').hide();
+	            jQuery('#leadDataForm input').each(function(i,e){
+	                jQuery(e).parent().removeClass('leadErrorField')
+	                if(e.value != null && (e.value).length > 0){
+	                    // Check email format
+	                    if(e.name == 'email'){
+	                        var filter = /^(("[\w-\s]+")|([\w-]+(?:\.[\w-]+)*)|("[\w-\s]+")([\w-]+(?:\.[\w-]+)*))(@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$)|(@\[?((25[0-5]\.|2[0-4][0-9]\.|1[0-9]{2}\.|[0-9]{1,2}\.))((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\.){2}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\]?$)/i ;
+	                        if(!filter.test(e.value)){
+	                            noErrorFound = false;
+	                            jQuery(e).parent().addClass('leadErrorField')
+	                        }
+	                    }
+	                }else{
+	                    jQuery(e).parent().addClass('leadErrorField')
+	                    noErrorFound = false;
+	                }
+	            });
+	            if(!noErrorFound) {
+	                jQuery('#errorLeadForm').show();
+	            }
+	            return noErrorFound;
+	        }
+	        function chrome_resizer(){
+	            if((jQuery.browser.safari) && (jQuery.browser.version=='532.0')){
+	                var parent_width = jQuery('textarea').parent().width();
+	                var parent_height = jQuery('textarea').parent().height();
+	                var child_width = parent_width - 10;
+	                var child_height = parent_height - 20;
+	                jQuery('textarea').width(child_width);
+	                jQuery('textarea').css('top','2px');
+	                jQuery('textarea').height(child_height);
+	            }
+	        }
+	        jQuery(function(){
+	        	drawSureyName();
+	        });
+				//Tool Tips
+			    function toolTips(){
+			        jQuery(document).ready(function() {
+			            var tip;
+			            //Select all anchor tag with rel set to tooltip
+			            jQuery('span.showToolTip').mouseover(function(e) {
+			                //Grab the title attribute's value and assign it to a variable
+			                tip = jQuery(this).attr('title').replace('&apos;','&#39;');
+			                //Fix the length of the text in the tooltip
+			                if (tip.length > maxLineLength){
+			                    if (tip.indexOf(" ") == -1 || tip.indexOf(" ") > maxLineLength){
+			                        tip = tip.substr( 0 , ( maxLineLength - 3 ) ) + '...';
+			                    }else {
+			                        firsth_position = tip.indexOf(" ");
+			                        length = tip.length;
+			                        space_position = firsth_position;
+			                        cont = 0;
+			                        while (length > space_position ) {
+			                            cont++;
+			                            new_space_position = tip.indexOf(" ", (space_position + 1));
+			                            if (new_space_position == -1){
+			                                if (firsth_position == space_position){
+			                                    tip = tip.substr(0, ( maxLineLength - 3 + space_position + cont) ) + '...';
+			                                }
+			                                break;
+			                            }
+			                            if ((space_position - new_space_position + cont) > maxLineLength){
+			                                tip = tip.substr(0, ( maxLineLength - 3 + space_position + cont) ) + '...';
+			                                break;
+			                            }
+			                            space_position = new_space_position;
+			                        }
+			                    }
+			                }
+			                //empty the title for hide the standard tool tip of the navs
+			                jQuery(this).attr('title', '');
+			                var position = jQuery(this).position();
+			                var spanWidth = jQuery(this).width();
+			                var spanHeight = jQuery(this).height();
+
+			                var backColor = jQuery('body').css("background-color");
+			                var color = jQuery('body').css("color");
+
+			                jQuery(this).parent("h2").parent("div").css('overflow', 'visible');
+
+			                var append = '<div id="tooltip">';
+			                append += '     <div class="arrow">';
+			                append += '         <div class="line10"></div>';
+			                append += '         <div class="line9"></div>';
+			                append += '         <div class="line8"></div>';
+			                append += '         <div class="line7"></div>';
+			                append += '         <div class="line6"></div>';
+			                append += '         <div class="line5"></div>';
+			                append += '         <div class="line4"></div>';
+			                append += '         <div class="line3"></div>';
+			                append += '         <div class="line2"></div>';
+			                append += '         <div class="line1"></div>';
+			                append += '     </div>';
+			                append += '     <div id="tip">' + tip + '</div>';
+			                append += ' </div>';
+			                //Append the tooltip template and its value
+			                jQuery(this).parent("h2").parent("div").append(append);
+			                //Show the tooltip with faceIn effect
+			                jQuery('#tooltip').fadeTo(1500, 0.85);
+			                jQuery('#tooltip #tip').fadeTo(1500, 0.85);
+			                jQuery('#tooltip .arrow').fadeTo(1500, 0.85);
+			                //jQuery('#tooltip').css('display', 'block');
+			                var heightToolTip = jQuery('#tooltip').height();
+			                //center the arrow in the vertical styles
+			                var arrowHeight = jQuery('#tooltip .arrow').height();
+			                var topArrow = (heightToolTip - arrowHeight) / 2;
+			                jQuery('#tooltip .arrow').css('top', topArrow);
+			                //Set the start position of the tooltip
+			                jQuery('#tooltip').css('top', position.top - topArrow + (spanHeight / 4));
+			                jQuery('#tooltip').css('left', position.left + spanWidth + 20 );
+			                //invert the colors of the body for the tool tip respect the body
+			                jQuery('#tip').css('background-color', color);
+			                jQuery('#tip').css('color', backColor);
+			                jQuery('#tooltip .arrow .line10').css('background-color', color);
+			                jQuery('#tooltip .arrow .line9').css('background-color', color);
+			                jQuery('#tooltip .arrow .line8').css('background-color', color);
+			                jQuery('#tooltip .arrow .line7').css('background-color', color);
+			                jQuery('#tooltip .arrow .line6').css('background-color', color);
+			                jQuery('#tooltip .arrow .line5').css('background-color', color);
+			                jQuery('#tooltip .arrow .line4').css('background-color', color);
+			                jQuery('#tooltip .arrow .line3').css('background-color', color);
+			            }).mousemove(function(e) {
+			                //Keep changing the X and Y axis for the tooltip, thus, the tooltip move along with the mouse
+			                /////////jQuery('#tooltip').css('top', e.pageY - 360 );
+			                //not use in the vertical styles
+			                //jQuery('#tooltip').css('left', e.pageX - 44 );
+			            }).mouseout(function() {
+		                	//Remove the appended tooltip template
+			            	jQuery(this).parent("h2").parent("div").children('div#tooltip').remove();
+			                //set the title again
+			                jQuery(this).attr('title', tip);
+
+			            });
+			        });
+			        addTitle();
+			    }
+				//End Tool Tips
+			function drawSureyName(){
+				if (document.getElementById('desc01') != null){
+					var tempSurveyDescription = '{!JSENCODE(SurveyDescription)}';
+					tempSurveyDescription = tempSurveyDescription.replace(/onclick/gi, "");
+					tempSurveyDescription = tempSurveyDescription.replace(/onblur/gi, "");
+					tempSurveyDescription = tempSurveyDescription.replace(/onmouseover/gi, "");
+					tempSurveyDescription = tempSurveyDescription.replace(/&lt;/gi, "<");
+					tempSurveyDescription = tempSurveyDescription.replace(/&gt;/gi, ">");
+					tempSurveyDescription = tempSurveyDescription.replace('&lt;', "<");
+					document.getElementById('desc01').innerHTML = tempSurveyDescription;
+				}
+			}
+    	</script>
+    </head>
+	<!-- Starts Page Body -->
+    <div id="requiredData" style="display:none;">
+        <apex:outputpanel rendered="{!IF(AND(catchLeads,AND(!isPreview,AllowSurvey)),true,false)}">
+        <a id="trigger" href="#leadFormContainer"></a>
+        </apex:outputpanel>
+        <div id="leadFormContainer">
+            <p><apex:outputText value="{!$Label.timbasurveys__timbasurvey_Survey_Please_give_us_your_contact}"/></p>
+            <span id="errorLeadForm" style="display:none;">
+            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_Survey_Error_please_check_all_fields}"/>
+            </span>
+            <form id="leadDataForm" onsubmit="return false;" class="leadDataForm">
+                <input type="hidden" name="id" value="{!JSENCODE(Survey__c.Id)}"/>
+                <apex:outputPanel layout="block" styleClass="ffield">
+                    <apex:outputLabel value="{!$Label.timbasurveys__timbasurvey_Survey_First_Name}"/>
+                    <input type="text" name="firstName" id="firstName"/><br class="clear"/>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block" styleClass="ffield">
+                    <apex:outputLabel value="{!$Label.timbasurveys__timbasurvey_Survey_Last_Name}"/>
+                    <input type="text" name="lastName" id="lastName"/><br class="clear"/>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block" styleClass="ffield">
+                    <apex:outputLabel value="{!$Label.timbasurveys__timbasurvey_Survey_Company}"/>
+                    <input type="text" name="company" id="company"/><br class="clear"/>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block" styleClass="ffield">
+                    <apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_RecipientList_Email}"/>
+                    <input type="text" name="email" id="email"/><br class="clear"/>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block" styleClass="ffield">
+                    <apex:outputLabel value="{!$Label.timbasurveys__timbasurvey_Survey_Phone}"/>
+                    <input type="text" name="phone" id="phone"/><br class="clear"/>
+                </apex:outputPanel>
+                <apex:outputPanel layout="block" styleClass="ffield buttons">
+                    <button onclick="createLead();" class="positive">{!$Label.timbasurveys_002surveyDesigner_Save}</button>
+                    <apex:outputpanel rendered="{!if(AND(requireLeadInfo,AND(!isPreview,AllowSurvey)),false,true)}">
+                        <a href="javascript:;" onclick="jQuery.fancybox.close();" class="negative" >{!$Label.timbasurveys_surveycollect_Cancel}</a>
+                    </apex:outputpanel>
+                </apex:outputPanel>
+            </form>
+        </div>
+    </div>
+    <apex:outputPanel id="surveyDataWrapper" styleClass="surveyData" rendered="{!AllowSurvey && TIMBASURVEYS__Survey__c.Id != null && TIMBASURVEYS__Survey__c.Id !=''}" layout="block">
+        <h1 id="surveyTitle"><apex:outputText value="{!IF(ispreview,$Label.timbasurveys__timbasurvey_Survey_Previewing + ' ' + SurveyTitle + ' ' + $Label.timbasurveys__timbasurvey_Survey_Survey, SurveyTitle)}"/></h1>
+        <apex:outputpanel styleclass="{!if(customFill == 'true','theme_img_wrapper_with_custom_fill','theme_img_wrapper')}" rendered="{!Util.theme_has_img}" layout="block">
+            <img style="max-height:90px;max-width:300px;" src="{!URLFOR($Action.Attachment.Download, Util.theme_img_id)}" alt="{!TIMBASURVEYS__Survey__c.Name}"/>
+        </apex:outputpanel>
+        <div class="hr"></div>
+        <!-- Description -->
+        <apex:outputPanel rendered="{!IF(AND(LEN(SurveyDescription) > 0, SurveyDescription != 'undefined') ,true,false)}" layout="block" styleClass="description">
+            <span id="desc01"></span>
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!IF(LEN(SurveyDescription) > 0 ,true,false)}" layout="block" styleClass="hr"></apex:outputPanel>
+		<apex:outputPanel layout="block">
+			<!-- Page info -->
+			<apex:outputPanel rendered="{!IF(TIMBASURVEYS__Survey__c.TIMBASURVEYS__NumberOfPages__c > 0 ,true,false)}" layout="block" styleClass="description pageInformation">
+				<apex:outputText id="pageInformation" value="{!$Label.timbasurveys__timbasurveys_Survey_page} {!pageNumberNext} {!$Label.timbasurveys__timbasurveys_Survey_of} {!ROUND(TIMBASURVEYS__Survey__c.TIMBASURVEYS__NumberOfPages__c,0)}"/>
+        </apex:outputPanel>
+        <apex:outputPanel rendered="{!IF(TIMBASURVEYS__Survey__c.TIMBASURVEYS__NumberOfPages__c > 0 ,true,false)}" layout="block" styleClass="hr"></apex:outputPanel>
+        <div style="width:514; height:33px; display:block;" class="pleaseCompleteSurvey">
+            <div class="warning" id="warning" style="display:none;" >
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_Please_Complete}."/>
+            </div>
+        </div>
+        <div class="formContainer" id="formContainer">
+            <div id="requiredIds" style="display:none;"><apex:outputText value="{!RequiredQuestionIds}"/></div>
+            <div id="rangeFields" style="display:none;">{!JsonFieldRange}</div>
+            <form action="" method="post" id="{!JSENCODE(Survey__c.Id)}" onsubmit="return false" class="niceform">
+                <apex:repeat value="{!QuestionList}" var="sq">
+                    <div class="rowElem question_main_container {!IF(sq.sqData.QuestionType == 'QT_PL','overflow_visible','')} {!IF(sq.sqData.AllowActiveBranching,'display_none','')}" id="{!sq.Id}-container" >
+                        <apex:outputText value="{!sq.Markup}" escape="false"/>
+                    </div>
+                </apex:repeat>
+                <div class="hr"></div>
+		                 <apex:outputpanel layout="block" styleClass="navbuttonsContainer">
+		                    <apex:outputpanel styleClass="rowElem" style="height:35px;overflow:visible;position:relative;" layout="block">
+				    	 	<apex:outputPanel rendered="{!renderPrevPageBtn}" layout="block" styleClass="btnWrapper">
+							<a class="step_btn" onclick="saveAndGoTo('prev')" title="{!$Label.timbasurveys__timbasurvey_surveyFiller_Previous_Page}">
+								<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyFiller_Previous_Page}" id="prevBtn"/>
+							</a>
+		                 </apex:outputPanel>
+                        <apex:outputPanel rendered="{!renderNextPageBtn}" layout="block" styleClass="btnWrapper">
+                            <a class="step_btn" onclick="saveAndGoTo('next')" title="{!$Label.timbasurveys__timbasurvey_surveyFiller_Next_Page}">
+                            	<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyFiller_Next_Page}" id="nextBtn"/>
+                            </a>
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!NOT(isPreview)}" layout="block">
+                            <apex:outputPanel rendered="{!renderSubmit}" layout="block" styleClass="btnWrapper">
+                                <a class="step_btn" onclick="saveAndGoTo('finish')" title="{!$Label.timbasurveys__timbasurveys_Survey_Finish}">
+                                	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_Finish}" id="finishBtn"/>
+                                </a>
+                            </apex:outputPanel>
+                        </apex:outputpanel>
+                    </apex:outputpanel>
+                 </apex:outputpanel>
+                 <div class="hr"></div>
+            </form>
+        </div>
+        <div class="powered">
+            <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/timbasurveys_logo.gif')}" alt="{!$Label.timbasurvey_Survey_Powered_by}" title="{!$Label.timbasurvey_Survey_Powered_by}"/>
+        </div>
+    	</apex:outputPanel>
+    </apex:outputPanel>
+     <apex:outputPanel styleClass="errorMessage" style="{!if((AllowSurvey && TIMBASURVEYS__Survey__c.Id != null && TIMBASURVEYS__Survey__c.Id != '' ),'display:none','display:block')}" layout="block">
+        <div class="messageBox">
+            <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/not_allowed.png')}" alt="{!$Label.timbasurveys_Survey_You_not_fill_survey}" title="{!$Label.timbasurveys_Survey_You_not_fill_survey}" height="64" width="64"/>
+            <h1><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_You_not_fill_survey}."/></h1> <br/>
+            <h2>
+            	<apex:outputText rendered="{!NOT(TIMBASURVEYS__Survey__c.TIMBASURVEYS__CollectingData__c) && TIMBASURVEYS__Survey__c != null}" value="{!$Label.timbasurveys__timbasurveys_Survey_The_survey_not_collecting}. "/>
+				<apex:outputText rendered="{!TIMBASURVEYS__Survey__c.TIMBASURVEYS__Expiration_Date_Enabled__c && TIMBASURVEYS__Survey__c.TIMBASURVEYS__Expiration_Date__c > TODAY()}" value ="{!$Label.timbasurveys__timbasurveys_Survey_Expired_Date}"/>
+            	<apex:outputText rendered="{!TIMBASURVEYS__Survey__c.Id == null || TIMBASURVEYS__Survey__c.Id ==''}" value="{!$Label.timbasurveys__timbasurveys_Survey_No_Active_Survey}."/>
+            </h2>
+            <h2><apex:outputText value="{!errorMessage}"/></h2>
+            <h3 style="{!if((canModify == true && (Survey__c.Id != null || Survey__c.Id !='')),'display:block','display:none')}">
+                <apex:outputLink value="{!$Page.TIMBASURVEYS__mSurveys}">
+                    <apex:param name="id" value="{!TIMBASURVEYS__Survey__c.Id}{!urlToModify}"/>
+                    <apex:param name="back" value="{!back}"/>
+                    <apex:outputText value="{!$Label.timbasurveys__timbasurvey_Survey_Modify_Responses}"/>
+                </apex:outputLink>
+            </h3>
+            <img class="logo" src="{!URLFOR($Resource.SurveyPublicResources, '/img/timbasurveys_logo.gif')}" alt="{!$Label.timbasurvey_Survey_Powered_by}" title="{!$Label.timbasurvey_Survey_Powered_by}"/>
+        </div>
+    </apex:outputPanel>
+    <div class="messageBox" id="survey_saved" style="display:none;z-index:1000;">
+         <apex:pageBlock rendered="{!Util.theme_has_img}">
+            <img class="logo" alt="{!TIMBASURVEYS__Survey__c.Name}" src="{!URLFOR($Action.Attachment.Download, Util.theme_img_id)}"/>
+         </apex:pageBlock>
+         <apex:pageBlock rendered="{!NOT(Util.theme_has_img)}">
+            <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/saved.png')}" alt="{!$Label.timabasurveys_Survey_Saved}" title="{!$Label.timabasurveys_Survey_Saved}" height="64" width="64"/>
+         </apex:pageBlock>
+         <apex:pageBlock rendered="{!TIMBASURVEYS__Survey__c.SurveyTheme__r.TIMBASURVEYS__SuccessMsg__c != null}">
+            <h1><apex:outputText value="{!TIMBASURVEYS__Survey__c.SurveyTheme__r.TIMBASURVEYS__SuccessMsg__c}"/></h1><br/>
+         </apex:pageBlock>
+         <apex:pageBlock rendered="{!TIMBASURVEYS__Survey__c.SurveyTheme__r.TIMBASURVEYS__SuccessMsg__c == null}">
+             <h1><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_Survey_Saved}."/></h1> <br/>
+         </apex:pageBlock>
+        <h2 style="{!if(canModify == true,'display:block','display:none')}">
+            <apex:outputLink value="{!$Page.TIMBASURVEYS__mSurveys}">
+                <apex:param name="id" value="{!TIMBASURVEYS__Survey__c.Id}{!urlToModify}"/>
+                <apex:param name="portal_user" value="{!portalUser}"/>
+                <apex:param name="back" value="{!back}"/>
+                <apex:outputText value="{!$Label.timbasurveys__timbasurvey_Survey_Modify_Responses}"/>
+            </apex:outputLink>
+        </h2><br/>
+        <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_Thank_you}"/></h2><br/>
+        <apex:outputpanel layout="block" rendered="{!doRedirect}" styleClass="btnWrapper">
+            <apex:outputLink value="{!RedirectURL}" styleClass="step_btn">
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Done}" id="doneBtn"/>
+            </apex:outputLink><br/><br/>
+        </apex:outputpanel>
+        <apex:pageBlock rendered="true">
+            <img class="logo" src="{!URLFOR($Resource.SurveyPublicResources, '/img/timbasurveys_logo.gif')}" alt="{!$Label.timbasurvey_Survey_Powered_by}" title="{!$Label.timbasurvey_Survey_Powered_by}"/>
+        </apex:pageBlock>
+        <apex:outputPanel layout="block" styleClass="btnWrapper" rendered="{!renderBackToCustomerPortal}" style="margin:10px auto;">
+            <apex:outputLink value="{!$Page.TIMBASURVEYS__CustomerPortalSurveyList}" styleClass="step_btn">
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_Survey_Back_to_survey_list}" id="backToTxtLinkPortal"/>
+            </apex:outputLink>
+        </apex:outputPanel>
+    </div>
+   <div class="overlay" id="overlay" style="{!if(AllowSurvey,'display: block;','display: none;')}">
+        <div class="preloader" id="loaderMessage">
+            <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/preload.gif')}" title="{!$Label.timbasurveys_surveycollect_Loading}"  height="64" width="55" />
+            <p><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Loading}..."/></p>
+            <img src="{!URLFOR($Resource.SurveyPublicResources, '/img/timbasurveys_logo.gif')}" alt="{!$Label.timbasurvey_Survey_Powered_by}" title="{!$Label.timbasurvey_Survey_Powered_by}"/>
+        </div>
+    </div>
+	<apex:outputPanel id="showStateSurvey" rendered="false">
+		<apex:outputText value="{!TIMBASURVEYS__Survey__c.Name}"/>
+	</apex:outputPanel>
+    <apex:form id="surveyActions">
+    <!-- Define the JavaScript functions to send via Ajax to controller -->
+        <apex:actionFunction name="createLeadOperation" oncomplete="createLeadCompleted()" action="{!createLead}" rerender="showStateSurvey">
+            <apex:param name="leadFirstName" value="" assignTo="{!leadFirstName}"/>
+            <apex:param name="leadLastName" value="" assignTo="{!leadLastName}"/>
+            <apex:param name="leadCompany" value="" assignTo="{!leadCompany}"/>
+            <apex:param name="leadEmail" value="" assignTo="{!leadEmail}"/>
+            <apex:param name="leadPhone" value="" assignTo="{!leadPhone}"/>
+        </apex:actionFunction>
+        <apex:actionFunction name="savePageResponsesOperation" oncomplete="savePageResponsesCompleted({!success},'{!pageNumbernew}','{!RecipientId}','{!errorMessage}')" action="{!savePageResponses}" rerender="showStateSurvey">
+            <apex:param name="pageNumbernew" value="" assignTo="{!pageNumbernew}"/>
+            <apex:param name="endSurvey" value="" assignTo="{!endSurvey}"/>
+            <apex:param name="TScustomFill" value="" assignTo="{!TScustomFill}"/>
+            <apex:param name="questionsForm" value="" assignTo="{!questionsForm}"/>
+            <apex:param name="pageInformation" value="" assignTo="{!pageInformation}"/>
+        </apex:actionFunction>
+        <apex:actionFunction name="insertRecipientForContactOperation" oncomplete="insertRecipientForContactCompleted()" action="{!insertRecipientForContact}" rerender="showStateSurvey"/>
+		<apex:actionFunction name="nextPageOperation" oncomplete="nextPageCompleted('{!pageBranchingRulesJson}','{!questionRulesJson}')" action="{!nextPageOperation}" rerender="surveyDataWrapper">
+			<apex:param name="pageNumberNext" value="" assignTo="{!pageNumberNext}"/>
+			<apex:param name="RecipientId" value="" assignTo="{!RecipientId}"/>
+			<apex:param name="PreviewParamForNext" value="" assignTo="{!PreviewParamForNext}"/>
+		</apex:actionFunction>
+    </apex:form>
+</apex:page>

@@ -1,0 +1,325 @@
+<apex:page sidebar="false" controller="ePrize_Zemzu.PipelineBehaviorsController" extensions="ePrize_Zemzu.PipelineBehaviorsStep4cControllerExt" tabStyle="ContestBuilder__tab">
+  <!--
+    This page use to contain items that allowed the user to specify the contest teams.
+   -->
+    <apex:includeScript value="{!$Resource.ePrize_Zemzu__jquery}"/>
+    <apex:includeScript value="{!$Resource.ePrize_Zemzu__app}"/>
+    <apex:stylesheet value="{!$Resource.ePrize_Zemzu__zemzu_css}"/>
+    
+    <script type="text/javascript">
+      function confirmCancel() {
+        var isCancel = confirm("Are you sure you wish to cancel?");
+        if (isCancel) return true;
+
+        return false;
+      }
+
+      function checkAll(cb, ie)
+      {
+        var inputElem = document.getElementsByTagName("input");
+        for(var i=0; i<inputElem.length; i++)
+        {
+          if(inputElem[i].id.indexOf(ie)!=-1)
+            if(!inputElem[i].disabled)
+              inputElem[i].checked = cb.checked;
+        }
+      }
+
+      function noenter(ev)
+      {
+        if (window.event && window.event.keyCode == 13 || ev.which == 13) {
+          doSearchAF();
+          return false;
+        } else {
+          return true;
+        }
+      }
+    </script>
+    <div id="theLoader" style="display: block; height: 300px; width: 100%">
+      <table border="0" width="100%" height="100%">
+        <tr>
+          <td valign="middle" align="center">
+            <img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" />
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div id="thePage" style="display: none;">
+      <apex:form id="form">
+        <apex:pageBlock title="Contest Team Members" id="contestBuilderSelection">
+          <apex:pageMessages />
+          <apex:pageBlockButtons >
+          	<apex:commandButton action="{!save}" value="Save" />
+          	<apex:commandButton action="{!cancel}" value="Cancel" />
+      	  </apex:pageBlockButtons>
+          <apex:pageBlockSection title="Add Team Members" columns="1" collapsible="false">
+            <apex:outputPanel >
+              <apex:outputText value="Please assign team members."> </apex:outputText>
+              <br/>
+            </apex:outputPanel>
+          </apex:pageBlockSection>
+          
+          <apex:pageBlockSection title="{!currentTeamName}" columns="1"  collapsible="false">
+          <apex:outputText rendered="{!emptyTeam}" value="There are no team members assigned to this team." />
+		  <apex:outputPanel rendered="{!!emptyTeam}">
+          <apex:outputpanel id="teamSearchPanel">
+	          <apex:outputLabel value="Search"/>
+	          &nbsp;&nbsp;&nbsp;
+	          <apex:inputText value="{!teamSearchValue}" onkeypress="return noenter(event);"/>
+	          <apex:actionFunction name="doSearchAF" action="{!search}" rerender="teamSearchPanel, teamSelectUserPanel" status="userTableLoadingStatus">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	          </apex:actionFunction>
+	          <span style="margin-left: 5px;">
+		          <apex:selectList value="{!teamUsersTableSearchFilterOption}" multiselect="false" size="1">
+		              <apex:selectOptions value="{!teamUsersSearchFilterOptions}" />
+		          </apex:selectList>
+		      </span>
+	          &nbsp;&nbsp;&nbsp;
+	          <apex:commandButton action="{!search}" value="Search" rerender="teamSearchPanel, teamSelectUserPanel" status="teamTableLoadingStatus">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	          </apex:commandButton>        
+	        </apex:outputpanel>
+	        <apex:outputPanel id="teamSelectUserPanel">
+	          <apex:panelGrid columns="5" style="float:right">
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value="|<" action="{!firstPage}" disabled="{!!tubHasPreviousPage}" title="First Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value="<" action="{!previousPage}" disabled="{!!tubHasPreviousPage}" title="Previous Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value=">" action="{!nextPage}" disabled="{!!tubHasNextPage}" title="Next Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value=">|" action="{!lastPage}" disabled="{!!tubHasNextPage}" title="Last Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!tubUsersViewedDetail}"/>
+	          </apex:panelGrid>
+	          
+	          <!-- This clear is needed to appropriately finish off the floated section above-->
+	          <div class="clear"></div>
+	          
+            <apex:outputpanel id="teamTableDetailsPanel">
+              <apex:actionStatus id="teamTableLoadingStatus">
+                <apex:facet name="start">
+                  <div id="theLoader" style="display: block; height: 100px; width: 100%">
+                    <table border="0" width="100%" height="100%"><tr><td valign="middle" align="center"><img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" /></td></tr></table>
+                  </div>
+                </apex:facet>
+                <apex:facet name="stop">
+                    <apex:pageBlockTable id="selectedMembersTable" value="{!selectedTeamMembers}" var="x" rowClasses="odd,even">
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:inputCheckbox id="TeamMemberCheckAll" value="{!memberCheckAll}" onclick="checkAll(this,'membercheckedone')"/>
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!x.selected}" id="membercheckedone"/>
+                      </apex:column>
+                     <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Team Member Name" action="{!doSort}" reRender="teamSelectUserPanel" status="teamTableLoadingStatus">
+	                      <apex:param name="sortField" value="Name" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputField value="{!x.teamMember.Name}"/>
+	                </apex:column>
+	                <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Role" action="{!doSort}" reRender="teamSelectUserPanel" status="teamTableLoadingStatus">
+                            <apex:param name="sortField" value="UserRole.Name" assignTo="{!sortField}"/>
+                          </apex:commandLink>                                                  
+                        </apex:facet>
+                        <apex:outputText value="{!x.teamMember.UserRole.Name}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Profile" action="{!doSort}" reRender="teamSelectUserPanel" status="teamTableLoadingStatus">
+	                      <apex:param name="sortField" value="Profile.Name" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!x.teamMember.Profile.Name}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Division" action="{!doSort}" reRender="teamSelectUserPanel" status="teamTableLoadingStatus">
+	                      <apex:param name="sortField" value="Division" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!x.teamMember.Division}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Department" action="{!doSort}" reRender="teamSelectUserPanel" status="teamTableLoadingStatus">
+	                      <apex:param name="sortField" value="Department" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!x.teamMember.Department}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Title" action="{!doSort}" reRender="teamSelectUserPanel" status="teamTableLoadingStatus">
+	                      <apex:param name="sortField" value="Title" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!x.teamMember.Title}"/>
+	                </apex:column>
+                    </apex:pageBlockTable>
+                  </apex:facet>
+                </apex:actionStatus>
+                <apex:outputText rendered="{!IF(selectedTeamMembers.size == 0, true, false)}" value="No matching data found." />
+                <apex:panelGrid columns="5" style="float:right">
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value="|<" action="{!firstPage}" disabled="{!!tubHasPreviousPage}" title="First Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value="<" action="{!previousPage}" disabled="{!!tubHasPreviousPage}" title="Previous Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value=">" action="{!nextPage}" disabled="{!!tubHasNextPage}" title="Next Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="teamTableLoadingStatus" reRender="teamSelectUserPanel" value=">|" action="{!lastPage}" disabled="{!!tubHasNextPage}" title="Last Page">
+	            	<apex:param name="Browser" value="Team" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!tubUsersViewedDetail}"/>
+	          </apex:panelGrid>
+              </apex:outputPanel>
+            </apex:outputPanel>
+			</apex:outputPanel>
+          </apex:pageBlockSection>
+                    
+        <apex:pageBlockSection title="Available Contest Participants" columns="1"  collapsible="false">
+          <apex:outputText rendered="{!!emptyParticipants}" value="Below are Contest Participants who have not yet been assigned to a team. Select anyone you would like to add to the team above and press Save." />
+        	<apex:outputText rendered="{!emptyParticipants}" value="There are no available Contest Participants." />
+        	<apex:outputPanel rendered="{!!emptyParticipants}" >
+	        <apex:outputpanel id="searchPanel">
+	          <apex:outputLabel value="Search"/>
+	          &nbsp;&nbsp;&nbsp;
+	          <apex:inputText value="{!searchValue}" onkeypress="return noenter(event);"/>
+	          <apex:actionFunction name="doSearchAF" action="{!search}" rerender="searchPanel, selectUserPanel" status="userTableLoadingStatus">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	          </apex:actionFunction>
+	          <span style="margin-left: 5px;">
+		          <apex:selectList value="{!usersTableSearchFilterOption}" multiselect="false" size="1">
+		              <apex:selectOptions value="{!usersSearchFilterOptions}" />
+		          </apex:selectList>
+		      </span>
+	          &nbsp;&nbsp;&nbsp;
+	          <apex:commandButton action="{!search}" value="Search" rerender="searchPanel, selectUserPanel" status="userTableLoadingStatus">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	          </apex:commandButton>         
+	         <!-- <span style="margin-left: 45px;">
+		          <apex:selectList value="{!selectedUsersTableFilterOption}" multiselect="false" size="1">
+		              <apex:selectOptions value="{!usersTableFilterOptions}"/>
+		              <apex:actionSupport event="onchange" action="{!onUsersTableFilterOptionSelected}" rerender="searchPanel, selectUserPanel" status="userTableLoadingStatus"/>
+		          </apex:selectList>
+		      </span> -->         
+	        </apex:outputpanel>
+	        <apex:outputPanel id="selectUserPanel">
+	          <apex:panelGrid columns="5" style="float:right">
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="|<" action="{!firstPage}" disabled="{!!ubHasPreviousPage}" title="First Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="<" action="{!previousPage}" disabled="{!!ubHasPreviousPage}" title="Previous Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">" action="{!nextPage}" disabled="{!!ubHasNextPage}" title="Next Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">|" action="{!lastPage}" disabled="{!!ubHasNextPage}" title="Last Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!ubUsersViewedDetail}"/>
+	          </apex:panelGrid>
+	          
+	          <!-- This clear is needed to appropriately finish off the floated section above-->
+	          <div class="clear"></div>
+        
+            <apex:outputpanel id="userTableDetailsPanel">
+              <apex:actionStatus id="userTableLoadingStatus">
+                <apex:facet name="start">
+                  <div id="theLoader" style="display: block; height: 100px; width: 100%">
+                    <table border="0" width="100%" height="100%"><tr><td valign="middle" align="center"><img src="{!URLFOR($Resource.compete, 'images/arrow_loader_64.gif')}" /></td></tr></table>
+                  </div>
+                </apex:facet>
+                <apex:facet name="stop">
+                    <apex:pageBlockTable id="availableUsersTable" value="{!availableContestParticipants}" var="u" rowClasses="odd,even">
+                      <apex:column >
+                        <apex:facet name="header">
+                          <apex:inputCheckbox id="ParticipantCheckAll" value="{!participantCheckAll}" onclick="checkAll(this, 'participantcheckedone')"/>
+                        </apex:facet>
+                        <apex:inputCheckbox value="{!u.selected}" id="participantcheckedone"/>
+                      </apex:column>
+                     <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Name" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Name" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputField value="{!u.selectedUser.Name}"/>
+	                </apex:column>
+	                <apex:column >
+                        <apex:facet name="header">
+                          <apex:commandLink value="Role" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+                            <apex:param name="sortField" value="UserRole.Name" assignTo="{!sortField}"/>
+                          </apex:commandLink>                                                  
+                        </apex:facet>
+                        <apex:outputText value="{!u.selectedUser.UserRole.Name}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Profile" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Profile.Name" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.SelectedUser.Profile.Name}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Division" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Division" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.selectedUser.Division}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Department" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Department" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.selectedUser.Department}"/>
+	                </apex:column>
+	                <apex:column >
+	                  <apex:facet name="header">
+	                    <apex:commandLink value="Title" action="{!doSort}" reRender="selectUserPanel" status="userTableLoadingStatus">
+	                      <apex:param name="sortField" value="Title" assignTo="{!sortField}"/>
+	                    </apex:commandLink>
+	                  </apex:facet>
+	                  <apex:outputText value="{!u.selectedUser.Title}"/>
+	                </apex:column>
+                    </apex:pageBlockTable>
+                  </apex:facet>
+                </apex:actionStatus>
+                <apex:outputText rendered="{!IF(availableContestParticipants.size == 0, true, false)}" value="No matching data found." />
+                <apex:panelGrid columns="5" style="float:right">
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="|<" action="{!firstPage}" disabled="{!!ubHasPreviousPage}" title="First Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value="<" action="{!previousPage}" disabled="{!!ubHasPreviousPage}" title="Previous Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">" action="{!nextPage}" disabled="{!!ubHasNextPage}" title="Next Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:commandButton status="userTableLoadingStatus" reRender="selectUserPanel" value=">|" action="{!lastPage}" disabled="{!!ubHasNextPage}" title="Last Page">
+	            	<apex:param name="Browser" value="User" assignTo="{!browser}"/>
+	            </apex:commandButton>
+	            <apex:outputText style="display:inline-block;font-style:italic;padding:5px;" value="{!ubUsersViewedDetail}"/>
+	          </apex:panelGrid>
+              </apex:outputPanel>
+            </apex:outputPanel>
+            </apex:outputPanel>
+          </apex:pageBlockSection> 
+        </apex:pageBlock>
+      </apex:form>
+    </div>
+</apex:page>

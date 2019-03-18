@@ -1,0 +1,144 @@
+<apex:component id="companySearchResults" controller="zisf.comp_CompanySearchResults">
+	<apex:attribute name="basePageAttr"
+			        type="zisf.page_ListLoadSearch"
+			        assignTo="{!basePage}"
+			        required="true"
+			        description="The controller for the page." />
+	<apex:form id="searchResultsForm">
+		<apex:outputPanel layout="block" id="companySearch_results_table" styleClass="resultsPanel">
+			<apex:outputPanel id="search_results_table_wrap" 
+							  layout="block" 
+							  rendered="{!searchResults.size > 0}">
+				<apex:outputPanel id="pagePanel" styleClass="pagePanel">
+					<apex:outputPanel id="importButtonPanel" styleClass="importButtonPanel">
+						<apex:inputText value="{!importObjectTypeAsString}" style="display:none;"/>
+						<apex:commandButton action="{!import}" value="Import to Salesforce" id="import"  style="padding"  
+											disabled="{!disableImport}" reRender="messagePanelCompanies, tabPanelContainer, importWizardContainer"/>						
+					</apex:outputPanel>
+					<apex:outputPanel id="pageNumberPanel" styleClass="pageNumberPanel">			
+						<apex:outputText value="{!basePage.totalSearchResultsSize} Profile{!IF(basePage.totalSearchResultsSize > 1, 's', '')} Available | "/>
+						<apex:outputText id="selectedCountCompany" value="{!basePage.companySelectedCount} Selected "/>
+						<apex:commandLink value="Deselect All" action="{!basePage.clearSelectedCompanies}" onclick="uncheckAll();"
+										  reRender="messagePanelCompanies, selectedCountCompany"/>
+						<apex:outputText value=" | "/>
+						<apex:outputText id="pageText" value="Pages: " styleClass="currentPage" rendered="false"/>
+						<apex:outputPanel rendered="{!AND(FALSE,NOT(isLeftEdge))}">
+							<apex:outputText value="First" styleClass="otherPages"/>
+							<apex:actionSupport id="firstPageAction" event="onclick" action="{!search}" 
+												reRender="messagePanelCompanies, searchResultsForm" status="workingStatus">
+								<apex:param id="firstPageNumber" name="pageNumber" assignTo="{!newPage}" value="1"/>
+							</apex:actionSupport>
+							&nbsp;						
+						</apex:outputPanel>					
+						<apex:outputPanel rendered="{!basePage.companyPanel.options.page != 1}">
+							<apex:outputText value="Prev" styleClass="otherPages"/>
+							<apex:actionSupport id="prevPageAction" event="onclick" action="{!search}" 
+												reRender="messagePanelCompanies, searchResultsForm" status="workingStatus">
+								<apex:param id="prevPageNumber" name="pageNumber" assignTo="{!newPage}" value="{!basePage.companyPanel.options.page - 1}"/>
+							</apex:actionSupport>
+							&nbsp;						
+						</apex:outputPanel>					
+						<apex:repeat value="{!pageNumbers}" var="i">
+							<apex:outputLabel id="pageNonCommand" value="{!i}" rendered="{!i == basePage.companyPanel.options.page}" styleClass="currentPage"/>
+							<apex:outputPanel >
+								<apex:outputText value="{!i}" rendered="{!i != basePage.companyPanel.options.page}" styleClass="otherPages"/>
+								<apex:actionSupport id="newPageAction" event="onclick" action="{!search}" 
+													reRender="messagePanelCompanies, searchResultsForm" status="workingStatus">
+									<apex:param id="pageNumber" name="pageNumber" assignTo="{!newPage}" value="{!i}"/>
+								</apex:actionSupport>
+							</apex:outputPanel>
+							&nbsp;
+						</apex:repeat>
+						<apex:outputPanel rendered="{!basePage.companyPanel.options.page != maxPage}">
+							<apex:outputText value="Next" styleClass="otherPages"/>
+							<apex:actionSupport id="nextPageAction" event="onclick" action="{!search}" 
+												reRender="messagePanelCompanies, searchResultsForm" status="workingStatus">
+								<apex:param id="nextPageNumber" name="pageNumber" assignTo="{!newPage}" value="{!basePage.companyPanel.options.page + 1}"/>
+							</apex:actionSupport>
+							&nbsp;						
+						</apex:outputPanel>					
+						<apex:outputPanel rendered="{!AND(FALSE,NOT(isRightEdge))}">
+							<apex:outputText value="Last" styleClass="otherPages"/>
+							<apex:actionSupport id="lastPageAction" event="onclick" action="{!search}" 
+												reRender="messagePanelCompanies, searchResultsForm" status="workingStatus">
+								<apex:param id="lastPageNumber" name="pageNumber" assignTo="{!newPage}" value="{!maxPage}"/>
+							</apex:actionSupport>
+						</apex:outputPanel>		
+					</apex:outputPanel>				
+				</apex:outputPanel>
+
+				<div id="search_results_table" style="height: {!33.5*searchResults.size + 28}px};">
+					<div class="head zoom_gradient_gray">
+						<span class="checkboxColumn">
+							<apex:outputPanel id="toggleAllPanel" title="Toggle All Rows" layout="block">
+								<apex:inputCheckBox value="{!setAll}" onclick="checkAll(this);;setCheckAllBoxCompany();" id="checkAllBox"/>
+							</apex:outputPanel>
+						</span>
+						<span class="companyColumn">
+							Company
+						</span>
+						<span class="locationColumn">
+							Location
+						</span>
+						<span class="revenueColumn">
+							Revenue
+						</span>
+						<span class="employeeCountColumn">
+							Employee Count
+						</span>
+					</div>
+					<apex:repeat value="{!searchResults}" var="c">
+						<div class="row">
+							<span class="cell checkboxColumn">
+								<apex:inputCheckbox value="{!c.Selected}" title="Select" id="checkedone" onclick="setCheckAllBoxCompany();"/>
+							</span>
+							<span class="cell nameColumn">
+								<apex:outputPanel styleClass="content" layout="block">
+									<apex:outputLink target="_blank" value="{!c.ZoomCompanyUrl}">{!c.companyName}</apex:outputLink>
+									<span class="content" rendered="{!c.Website != NULL}">
+										(<apex:outputLink target="_blank" value="{!'http://' + c.Website}">{!c.Website}</apex:outputLink>)
+					        		</span>
+								</apex:outputPanel>
+							</span>
+							<span class="cell locationColumn">
+								{!c.SimplifiedLocation}
+							</span>
+							<span class="cell revenueColumn">
+								<apex:outputPanel styleClass="content" layout="block">
+									{!c.Revenue}
+								</apex:outputPanel>
+							</span>
+							<span class="cell employeeCountColumn">
+								<apex:outputPanel styleClass="content" layout="block">
+									{!c.prettyEmployeeCount}
+								</apex:outputPanel>
+							</span>
+						</div>
+						<apex:outputText id="dummy" value="" style="visibility:hidden;"/>
+					</apex:repeat>
+					<script type="text/JavaScript">
+						function setCheckAllBoxCompany() {
+							var checkAllBox = document.getElementById('{!$component.searchResultsForm.checkAllBox}');
+							var selectedCountCompany = document.getElementById('{!$component.searchResultsForm.selectedCountCompany}');
+							var checkedCount = 0;
+							var checked = true;
+							if(inputElem = document.getElementsByTagName("input")) {
+								for(var i=0, len = inputElem.length; i < len; i++) {
+									if ((checkbox = inputElem[i]) && (checkbox.id.indexOf("checkedone")!=-1)) {
+										if (checkbox.checked) {
+											checkedCount++;
+										} else {
+											checked = false;
+										}
+									}
+								}
+							}
+							checkAllBox.checked = checked;
+							selectedCountCompany.innerHTML = ({!selectedCountMinusCurrentPage} + checkedCount) + ' Selected';
+						}
+					</script>	
+				</div>
+			</apex:outputPanel>
+		</apex:outputPanel>
+	</apex:form>
+</apex:component>

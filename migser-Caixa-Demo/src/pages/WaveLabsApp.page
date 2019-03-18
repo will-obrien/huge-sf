@@ -1,0 +1,173 @@
+<apex:page showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false" controller="WaveLabsAppController">
+
+    <link rel="stylesheet" href="//www.jumpstartwave.com/lib/ladda.min.css" type="text/css"/>
+    <style>
+        BODY, .noSidebarCell, .bodyDiv .outerNoSidebar, .outerNoSidebar { padding: 0px !important; }
+        BODY { margin: 0px; font-size: 14px; }        
+        
+        #header {
+            width: 100%;
+            height: 10px;
+            background: white;
+            color: white;
+        }
+        #banner {
+            width: calc(100% - 300px);
+            height: 300px;
+            padding: 20px 0px 0px 300px;
+            font-family: Arial, Helvetica, sans-serif;
+	        background-image: url("https://www.jumpstartwave.com/home/assets/img/wavelabs_install_bg.jpg");
+            background-repeat: no-repeat;
+            background-color: #e5e5e5;
+        }
+        #btnCreateSettings {
+            background-color: white;
+            height: 46px;
+            padding: 5px 15px;
+            border: 1px solid #2ec2ba;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #2ec2ba;
+            cursor: pointer;
+        }
+        #btnCreateSettings:disabled {
+            cursor: initial;
+        }        
+        #divBtn {
+            color: red;
+            font-weight: bold;
+        }
+        #otherNotes {
+            color: #5C7A99;
+            font-size: 12px;
+        }
+    </style>
+    
+    <script src="//www.jumpstartwave.com/lib/spin.min.js"></script>    
+    <script src="//www.jumpstartwave.com/lib/ladda.min.js"></script>
+    
+    <script>
+        var org = "{!org}";
+        var instance = org.split(".")[0]; if(instance == "gs0") instance = "gus";
+        var vfPrefix = location.href.indexOf("wavelabs.") > -1 ? "wavelabs" : "c";
+    	var looksLikeSDO = location.href.indexOf(org) > -1;
+    
+    	var fullVFPath = 'https://' + vfPrefix + '.' + instance + '.visual.force.com';
+    	if(looksLikeSDO) {
+            fullVFPath = 'https://' + org; // SDOs have VF on same domain as org
+        }
+    
+    	var customDomain = false;
+    	if(org.indexOf('.my.salesforce.com') > -1) {
+            fullVFPath = org;
+            customDomain = true;
+        }
+    
+        function createSiteSettingsAPEX() {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.WaveLabsAppController.createRemoteSiteSettings}',
+                instance,
+                function(result, event) {
+                    if (event.status) { 
+                        setTimeout( function() { 
+                            var l = Ladda.create( document.querySelector( '.ladda-button' ) );                            
+                            l.stop(); 
+                            var elBtn = document.getElementById("btnCreateSettings");
+                            elBtn.disabled = true;
+                            elBtn.innerHTML = "Done! You can start using any of the tools now.";                            
+                        }, 1000 );                        
+                    } else {
+                        var elDivBtn = document.getElementById("divBtn");
+                        elDivBtn.innerHTML = "Error creating Remote Site Settings: " + event.message;
+                    }
+                }, 
+                {escape: true}
+            );            
+        }
+
+        // Create the VF Remote Site first using this AJAX call (e.g. https://wavelabs.[host].visual.force.com)
+        // Then use the controller to create the instance site (e.g. https://[host].salesforce.com)
+        // Why? Javascript can't create the latter, and Controller can't create the former (good times)
+        function createSiteSettings() {
+            var l = Ladda.create( document.querySelector( '.ladda-button' ) );
+            l.start();            
+            
+            var binding = new XMLHttpRequest();
+            var request =
+                '<?xml version="1.0" encoding="utf-8"?>' +
+                '<env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+
+                    '<env:Header>' +
+                        '<urn:SessionHeader xmlns:urn="http://soap.sforce.com/2006/04/metadata">' +
+                            '<urn:sessionId>{!$Api.Session_ID}</urn:sessionId>' +
+                        '</urn:SessionHeader>' +
+                    '</env:Header>' +
+                    '<env:Body>' +
+                        '<createMetadata xmlns="http://soap.sforce.com/2006/04/metadata">' +
+                            '<metadata xsi:type="RemoteSiteSetting">' +
+                                '<fullName>WaveLabsApp_OrgVF_URL</fullName>' +
+                                '<description></description>' +
+                                '<disableProtocolSecurity>false</disableProtocolSecurity>' +
+                                '<isActive>true</isActive>' +
+                                '<url>' + fullVFPath + '</url>' +
+                            '</metadata>' +
+                        '</createMetadata>' +
+                    '</env:Body>' +
+                '</env:Envelope>';
+            binding.open('POST', fullVFPath + '/services/Soap/m/31.0');
+            binding.setRequestHeader('SOAPAction','""');
+            binding.setRequestHeader('Content-Type', 'text/xml');
+            binding.onreadystatechange =
+                function() {
+                    if(this.readyState==4) {
+                        var parser = new DOMParser();
+                        var doc  = parser.parseFromString(this.response, 'application/xml');
+                        var errors = doc.getElementsByTagName('errors');
+                        var messageText = '';
+                        for(var errorIdx = 0; errorIdx < errors.length; errorIdx++)
+                            messageText += errors.item(errorIdx).getElementsByTagName('message').item(0).innerHTML + '\n';
+                        if(messageText.length > 0 && messageText.indexOf("already exists") == -1) {
+                            var elDivBtn = document.getElementById("divBtn");
+                            elDivBtn.innerHTML = "Error creating Remote Site Settings: " + messageText;
+                        } else {
+                            if(!customDomain && !looksLikeSDO & messageText.length == 0) {
+                                createSiteSettingsAPEX();
+                            } else {
+                                l.stop();
+                                var elBtn = document.getElementById("btnCreateSettings");
+                                elBtn.disabled = true;
+                                elBtn.innerHTML = "Done! You can start using any of the tools now.";                                
+                            }
+                        }
+                    }
+                }
+            binding.send(request);
+        }    
+    </script>
+    
+    <div id="header"></div>
+    
+    <div id="banner">
+        <h2>Installation Successful</h2>
+        
+        Thank you for installing the Wave Labs App.
+        
+        <br/><br/>
+        There's one last step needed: there are API calls to Salesforce endpoints, 
+        so we need to create a couple Remote Site Settings. Just click the button below and 
+        the settings will be created for you.
+        
+        <br/><br/>
+        <div id="divBtn">
+            <button id="btnCreateSettings" class="ladda-button" data-spinner-color="#2ec2ba" data-style="zoom-in" onclick="createSiteSettings()">Create Remote Site Settings</button>        
+        </div>
+        
+        <br/><br/>
+        <div id="otherNotes">
+            Other notes:<br/>
+            - Ensure the Wave Public API permission is enabled<br/>
+            - Ensure there is a public folder called 'Shared Documents' (this is where dashboard template images are created)
+        </div>
+    </div>
+    
+</apex:page>

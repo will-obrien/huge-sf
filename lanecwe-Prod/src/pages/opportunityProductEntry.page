@@ -1,0 +1,310 @@
+<apex:page standardController="Opportunity" extensions="opportunityProductEntryExtension" showHeader="true">
+<!--action="{!priceBookCheck}"-->
+
+    <apex:sectionHeader Title="Manage {!$ObjectType.Product2.LabelPlural}" subtitle="{!opportunity.Name}"/>
+    <apex:messages style="color:red"/>
+    
+    <style>
+    #spinner{
+        display: none;
+        width: 180px;
+        height: 60px;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        text-align:center;
+        padding:10px;
+        font:normal 16px Tahoma, Geneva, sans-serif;
+        margin-left: -100px;
+        margin-top: -100px;
+        z-index:2;
+        overflow: auto;
+        border:1px solid #CCC;
+        background-color:white;
+        z-index:100;
+        padding:5px;
+        line-height:20px;
+        border-style: outset;
+        border-width: medium;
+     }
+     #opaque {
+         position: fixed;
+         top: 0px;
+         left: 0px;
+         width: 100%;
+         height: 100%;
+         z-index: 1;
+         display: none;
+         background-color: gray;
+         filter: alpha(opacity=30);
+         opacity: 0.3;
+         -moz-opacity:0.3;
+         -khtml-opacity:0.3
+     }
+     * html #opaque {
+         position: absolute;
+     }
+        .search{
+            font-size:14pt;
+            margin-right: 20px;    
+        }
+        .fyi{
+            color:red;
+            font-style:italic;
+        }
+        .label{
+            margin-right:10px;
+            font-weight:bold;
+        }
+    </style>
+    
+    <script type='text/javascript'>
+    
+        // This script assists the search bar functionality
+        // It will execute a search only after the user has stopped typing for more than 1 second
+        // To raise the time between when the user stops typing and the search, edit the following variable:
+        
+        var waitTime = 0;
+        
+    
+        var countDown = waitTime+1;
+        var started = false;
+        
+        function resetTimer(){
+        
+            countDown=waitTime+1;
+            
+            if(started==false){
+                started=true;
+                runCountDown();
+            }
+        }
+        
+        function runCountDown(){
+        
+            countDown--;
+            
+            if(countDown<=0){
+                fetchResults();
+                started=false;
+            }
+            else{
+                window.setTimeout(runCountDown,1000);
+            }
+        }
+    
+    </script>
+   
+  
+    <apex:form >
+    
+        <apex:outputPanel id="mainBody">
+        
+            <!--<apex:outputLabel styleClass="label">PriceBook: </apex:outputLabel>
+            <apex:outputText value="{!theBook.Name}"/>&nbsp;
+            <apex:commandLink action="{!changePricebook}" value="change" immediate="true"/>
+            <br/>-->
+            <!-- not everyone is using multi-currency, so this section may or may not show -->
+            <apex:outputPanel rendered="{!multipleCurrencies}">
+                <apex:outputLabel styleClass="label">Currency: </apex:outputLabel>
+                <apex:outputText value="{!chosenCurrency}"/>
+                <br/>
+            </apex:outputPanel>
+            <br/>
+            
+<!-- this is the upper table... a.k.a. the "Shopping Cart"-->
+
+            <apex:pageBlock id="selected" title="Selected {!$ObjectType.Product2.LabelPlural}">
+            <apex:variable var="rowNumber" value="{!0}"/>           
+                <apex:pageblockTable value="{!shoppingCart}" var="s">
+
+                    <apex:column >
+                        <apex:commandLink value="Remove" action="{!removeFromShoppingCart}" reRender="selected,searchResults" immediate="true" onclick="showSpinner();" oncomplete="hideSpinner();">
+                            <!-- this param is how we send an argument to the controller, so it knows which row we clicked 'remove' on -->
+                            <!-- <apex:param value="{!s.PriceBookEntryId}" assignTo="{!toUnselect}" name="toUnselect"/> -->
+                            <apex:param name="rowIndex" value="{!rowNumber}" assignTo="{!rowIndex}"/>
+                        </apex:commandLink>
+                        <apex:variable var="rowNumber" value="{!rowNumber+1}"/>
+                    </apex:column>
+                    
+                    <apex:column headerValue="{!$ObjectType.Product2.LabelPlural}" value="{!s.PriceBookEntry.Product2.Name}" width="40%"/>
+                    
+                    
+                    <apex:column rendered="{!$ObjectType.OpportunityLineItem.Fields.Initial_Bill_Date__c.Accessible}">
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.Initial_Bill_Date__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.Initial_Bill_Date__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.Initial_Bill_Date__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:inputField value="{!s.Initial_Bill_Date__c}" style="width:70px" required="false" onkeyup="refreshTotals();"/>
+                    </apex:column>
+                    
+                    <apex:column rendered="{!$ObjectType.OpportunityLineItem.Fields.X100_Ramp_Date__c.Accessible}">
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.X100_Ramp_Date__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.X100_Ramp_Date__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.X100_Ramp_Date__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:inputField value="{!s.X100_Ramp_Date__c}" style="width:70px" required="false" onkeyup="refreshTotals();"/>
+                    </apex:column>
+                    
+                    <apex:column rendered="{!$ObjectType.OpportunityLineItem.Fields.Existing_Service__c.Updateable}">
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.Existing_Service__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.Existing_Service__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.Existing_Service__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:inputField value="{!s.Existing_Service__c}" style="width:70px" required="false" onkeyup="refreshTotals();"/>
+                    </apex:column>
+                    
+                    <apex:column rendered="{!$ObjectType.OpportunityLineItem.Fields.Min_Commit__c.Updateable}">
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.Min_Commit__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.Min_Commit__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.Min_Commit__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:inputField value="{!s.Min_Commit__c}" style="width:70px" required="false" onkeyup="refreshTotals();"/>
+                    </apex:column>
+                    
+                    <apex:column >
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.Billing_Frequency__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.Billing_Frequency__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.Billing_Frequency__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:outputPanel styleClass="requiredInput" layout="block">
+                            <div class="requiredBlock"></div>
+                            <apex:inputField value="{!s.Billing_Frequency__c}" style="width:124px" onkeyup="refreshTotals();"/>
+                        </apex:outputPanel>
+                    </apex:column>
+                    
+                    <apex:column >
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.New_Quantity__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.New_Quantity__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.New_Quantity__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:outputPanel styleClass="requiredInput" layout="block">
+                            <div class="requiredBlock"></div>
+                            <apex:inputField value="{!s.New_Quantity__c}" style="width:70px" onkeyup="refreshTotals();"/>
+                        </apex:outputPanel>  
+                    </apex:column>
+                    
+                    <apex:column >
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.Unit_Type__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.Unit_Type__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.Unit_Type__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:outputPanel styleClass="requiredInput" layout="block">
+                            <div class="requiredBlock"></div>
+                            <apex:inputField value="{!s.Unit_Type__c}" style="width:75px" onkeyup="refreshTotals();"/>
+                        </apex:outputPanel>
+                    </apex:column>
+                    
+                    <apex:column >
+                        <apex:facet name="header">
+                        {!$ObjectType.OpportunityLineItem.Fields.New_Sales_Price__c.Label}
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.New_Sales_Price__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.New_Sales_Price__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:outputPanel styleClass="requiredInput" layout="block">
+                            <div class="requiredBlock"></div>
+                            <apex:inputField value="{!s.New_Sales_Price__c}" style="width:75px" onkeyup="refreshTotals();"/>
+                        </apex:outputPanel>
+                    </apex:column>
+                    
+                    <apex:column >
+                        <apex:facet name="header">Contract Term<br/>(Months)
+                        <img src="/s.gif" class="{!IF($ObjectType.OpportunityLineItem.Fields.Contract_Term__c.inlineHelpText != '','helpOrb','')}" style="vertical-align:middle" title="{!$ObjectType.OpportunityLineItem.Fields.Contract_Term__c.inlineHelpText}"/>
+                        </apex:facet>
+                        <apex:outputPanel styleClass="requiredInput" layout="block">
+                            <div class="requiredBlock"></div>
+                            <apex:inputField value="{!s.Contract_Term__c}" style="width:70px"/>
+                        </apex:outputPanel>
+                    </apex:column>
+                    
+                </apex:pageblockTable>
+
+                <apex:pageBlockButtons >
+                    <apex:commandButton action="{!onSave}" value="Save"/>
+                    <apex:commandButton action="{!onCancel}" value="Cancel" immediate="true"/>
+                </apex:pageBlockButtons>
+            
+            </apex:pageBlock>
+    
+<!-- this is the lower table: search bar and search results -->
+    
+            <apex:pageBlock >
+            
+                <apex:outputPanel styleClass="search">
+                    Search for {!$ObjectType.Product2.LabelPlural}:
+                </apex:outputPanel>
+
+                <apex:actionRegion renderRegionOnly="false" immediate="true">
+                
+                    <apex:actionFunction name="fetchResults" action="{!updateAvailableList}" reRender="searchResults" status="searchStatus"/>
+                    
+                    <!-- here we invoke the scripting to get out fancy 'no button' search bar to work -->
+                    <apex:inputText value="{!searchString}" style="width:300px" onkeyup="if(event.keyCode==13){this.blur();}else{fetchResults();}"/>
+                    &nbsp;&nbsp;
+                    <i>
+                        <!-- actionStatus component makes it easy to let the user know when a search is underway -->
+                        <apex:actionStatus id="searchStatus" startText="searching..." stopText=" "/>
+                    </i>
+                    
+                </apex:actionRegion>
+            
+                <br/>
+                <br/>
+            
+                <apex:outputPanel id="searchResults">
+                	<!-- <apex:outputText value="{!query}" /> -->
+                    <apex:pageBlockTable value="{!AvailableProducts}" var="a">
+                    	<apex:column width="50px">
+                            <!-- command button in a column... neato -->
+                            <apex:commandButton value="Select" action="{!addToShoppingCart}" reRender="selected,searchResults" immediate="true" onclick="showSpinner();" oncomplete="hideSpinner();">
+                                <!-- again we use apex:param to be able to tell the controller which row we are working with -->
+                                <apex:param value="{!a.Id}" assignTo="{!toSelect}" name="toSelect"/>
+                            </apex:commandButton>
+                        </apex:column>
+                        
+                        <apex:column headerValue="{!$ObjectType.Product2.Fields.Name.Label}" value="{!a.Product2.Name}" width="310px"/>
+                        
+                        <apex:column headerValue="{!$ObjectType.Product2.Fields.Family.Label}" value="{!a.Product2.Family}" width="130px" rendered="{!isCurrentUserAdmin}"/>
+                        
+                        <apex:column headerValue="{!$ObjectType.Product2.Fields.Description.Label}" value="{!a.Product2.Description}"/>
+                        
+                    </apex:pageBlockTable>
+                    
+                    <!-- We put up a warning if results exceed 100 rows -->
+                    <apex:outputPanel styleClass="fyi" rendered="{!overLimit}">
+                        <br/>
+                        Your search returned over 100 results, use a more specific search string if you do not see the desired {!$ObjectType.Product2.Label}.
+                        <br/>
+                    </apex:outputPanel>
+                    
+                     <apex:outputPanel styleClass="fyi" rendered="{!error}">
+                        <br/>
+                        An error has occured while processing your request. Please contact your system administrator for more information.
+                        <br/>
+                    </apex:outputPanel>
+                    
+                </apex:outputPanel>
+            
+            </apex:pageBlock>
+            
+        </apex:outputPanel>
+
+    </apex:form>
+    <div id="opaque"/>
+   <div id="spinner">
+        <p align="center" style='{font-family:"Arial", Helvetica, sans-serif; font-size:50px;}'><apex:image value="/img/loading.gif"/>&nbsp;Product loading...</p>
+   </div>
+   
+   <script>
+    function showSpinner() {
+           document.getElementById('opaque').style.display='block';
+           var popUp = document.getElementById('spinner');
+           popUp.style.display = 'block';
+    }
+    function hideSpinner() {
+            document.getElementById('opaque').style.display='none';
+           var popUp = document.getElementById('spinner');
+           popUp.style.display = 'none';
+    }
+   </script>
+
+</apex:page>

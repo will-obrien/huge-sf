@@ -1,0 +1,401 @@
+<apex:page controller="SpreadsheetController">
+<head>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.9.1/themes/base/jquery-ui.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>    
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.9.1/jquery-ui.min.js"></script>
+<!--PQ Grid files-->
+    <link rel="stylesheet" href="{!URLFOR($Resource.paramQuery, 'pqgrid.min.css')}" />
+    <script src="{!URLFOR($Resource.paramQuery, 'pqgrid.min.js')}"></script>
+<!--PQ Grid Office theme-->
+    <link rel="stylesheet" href="{!URLFOR($Resource.paramQuery, 'themes/office/pqgrid.css')}" />
+    <apex:include pageName="SpreadsheetObj"/>
+    <apex:include pageName="SpreadsheetUtil"/>    
+    <style>
+        .real-data{
+            background: #FFC2CC;
+        }
+        .balance-data{
+            background: #ADADFF;        
+        }
+        .planned-data{
+            background: #F7FA9E;
+        }
+        #grid-array tr:hover td{
+            background: #ffffff; /* Old browsers */
+            background: -moz-linear-gradient(top,  #ffffff 0%, #f3f3f3 50%, #ededed 51%, #ffffff 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ffffff), color-stop(50%,#f3f3f3), color-stop(51%,#ededed), color-stop(100%,#ffffff)); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(top,  #ffffff 0%,#f3f3f3 50%,#ededed 51%,#ffffff 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(top,  #ffffff 0%,#f3f3f3 50%,#ededed 51%,#ffffff 100%); /* Opera 11.10+ */
+            background: -ms-linear-gradient(top,  #ffffff 0%,#f3f3f3 50%,#ededed 51%,#ffffff 100%); /* IE10+ */
+            background: linear-gradient(to bottom,  #ffffff 0%,#f3f3f3 50%,#ededed 51%,#ffffff 100%); /* W3C */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#ffffff',GradientType=0 ); /* IE6-9 */
+        }
+        #save-records{
+            float: right;
+            margin-top: -30px;
+            padding: 10px 20px;
+            margin-bottom: 10px;  
+            cursor: pointer;      
+        }
+        #grid-menu{
+            display: none;
+            position: absolute;
+            background-color: #ddd;
+        }
+        #grid-menu ul{
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        #grid-menu ul li{
+            padding: 10px;
+            margin-left: 0;
+            width: 70px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+    
+</head>
+<body>
+    <apex:form >
+        <br /><br />
+        <table>
+            <tr>
+                <td class="label">Fiscal Year: </td>
+                <td class="value">
+                    <apex:selectList styleClass="fiscal-year" id="fiscalYear" value="{!chosenFiscalYear}" size="1" onchange="getGridData();">
+                        <apex:selectOptions value="{!fiscalYear}"/>
+                    </apex:selectList>            
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Product Type: </td>
+                <td class="value">
+                    <apex:selectList styleClass="product-type" id="productType" value="{!chosenProductType}" size="1" onchange="getGridData();">
+                        <apex:selectOptions value="{!productType}"/>
+                    </apex:selectList>            
+                </td>
+            </tr>
+        </table>
+        <input type="button" value="Save" id="save-records" />
+    </apex:form>
+    <div id="grid-array" style="margin:10px 0;"></div>
+    <div id="grid-menu">
+        <ul>
+            <li id="insert">Insert</li>
+            <li id="delete">Delete</li>
+        </ul>
+    </div> 
+
+<script>
+    var GridObj;
+    var $grid;
+    var pqSearch;
+    var SummaryData={};
+    var DeleteArray=[];
+    $(function () {
+        attachSaveRecordListener();
+        //right click listeners
+        $('#grid-menu').on("click", function() {
+            $('#grid-menu').hide();
+        });
+        $(document).on("click", function() {
+            $('#grid-menu').hide();
+        });
+        $('#delete').on("click", function() {
+            $('#grid-menu').hide();
+            deleteRow();
+        });
+        $('#insert').on("click", function() {
+            $('#grid-menu').hide();
+            insertRow();
+        });
+
+        GridObj = { width: 1300, height: 500, title: "Demand Planning Sheet", resizable:true, electionModel: { type: 'row' }, 
+            editModel: { clicksToEdit: 2 }, selectionModel: { mode: 'single' }
+            };
+                    
+        GridObj.cellSave = function (event, ui) {
+            var DM = $grid.pqGrid("option", "dataModel");
+            var gridData = DM.data;
+            //calculate balance
+            var newBalance = calculateBalanceSummary(gridData, ui.rowIndx, ui.colIndx);
+            gridData[ui.rowIndx][ui.colIndx+2] = newBalance;
+            $grid.pqGrid( "refreshCell", { rowIndx: ui.rowIndx, colIndx: ui.colIndx+2 } );
+            
+            if(ui.colIndx >= 4 && gridData[ui.rowIndx][0]){    //数値(4月計画移行)の場合と新規追加された行ではない場合、小計を再計算する
+                var summaryObj = getSummaryRow(ui.rowIndx, SummaryData);
+                
+                //calculate summary cell
+                var newTotal = calculateSummary(gridData, summaryObj.start, summaryObj.end, ui.colIndx);
+                //save summary cell
+                gridData[summaryObj.row][ui.colIndx] = newTotal;
+                $grid.pqGrid( "refreshCell", { rowIndx: summaryObj.row, colIndx: ui.colIndx } );
+
+                //calculate balance summary cell
+                var newBalanceTotal = calculateSummary(gridData, summaryObj.start, summaryObj.end, ui.colIndx+2);
+                gridData[summaryObj.row][ui.colIndx+2] = newBalanceTotal ;
+                $grid.pqGrid( "refreshCell", { rowIndx: summaryObj.row, colIndx: ui.colIndx+2 } );
+            }
+
+        }
+        getGridDropdownData(function(){
+            getGridData();
+        });
+    });
+    
+    function getGridDropdownData(callback){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.SpreadsheetController.queryAccountList}',
+            function(result){
+                gridDropdownCallback(result, callback);
+            }
+        );
+    }
+    
+    var saveAccountNameCell = function (ui) {
+        var $cell = ui.$cell;
+        console.log($cell);
+
+        //update ID in column 2
+        var DM = $grid.pqGrid("option", "dataModel");
+        var gridData = DM.data;
+        gridData[ui.rowIndx][2] = $cell.children().find('option:selected').attr('data-id');
+        $grid.pqGrid( "refreshCell", { rowIndx: ui.rowIndx, colIndx: 2 } );
+
+        //return account name
+        return $cell.children().val();
+    }
+    
+    function gridDropdownCallback(result, callback){
+        GridObj.colModel = [
+            { title: "Id", dataType: "string", hidden: true },    //Id
+            { title: "Subtotal", dataType: "boolean", hidden: true },    //小計行
+            { title: "Account ID", dataType: "string", hidden: true},    //DPAccountName__c
+            { title: "Account Name", width: 200, editor: function (ui) {
+                    dropDownEditor(ui, result);
+                }, getEditCellData: saveAccountNameCell 
+                },    //DPAccountName__r.Name
+            { title: "{!chosenFiscalYear}/04 Plan", width: 40, dataType: "integer", className:'planned-data' },       //Plan4__c
+            { title: "{!chosenFiscalYear}/04 Result", width: 40, dataType: "integer", editable: false, className:'real-data' },       //Result4__c
+            { title: "{!chosenFiscalYear}/04 Difference", width: 60, dataType: "integer", editable: false, className:'balance-data' },       //Diff4__c
+            { title: "{!chosenFiscalYear}/05 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },       //Plan5__c
+            { title: "{!chosenFiscalYear}/05 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },       //Result5__c
+            { title: "{!chosenFiscalYear}/05 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },       //Diff5__c
+            { title: "{!chosenFiscalYear}/06 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/06 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/06 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/07 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/07 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/07 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/08 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/08 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/08 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/09 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/09 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/09 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/10 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/10 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/10 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/11 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/11 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/11 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/12 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/12 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/12 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/01 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/01 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/01 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/02 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/02 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/02 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            { title: "{!chosenFiscalYear}/03 Plan", width: 40, dataType: "integer", align: "right", className:'planned-data' },
+            { title: "{!chosenFiscalYear}/03 Result", width: 40, dataType: "integer", align: "right", editable: false, className:'real-data' },
+            { title: "{!chosenFiscalYear}/03 Difference", width: 60, dataType: "integer", align: "right", editable: false, className:'balance-data' },
+            ];    
+
+        if(callback) callback();
+    }
+        
+    function gridCallback(gridData){
+        GridObj.dataModel = { data: gridData};    //rPP: 15, rPPOptions: [10, 15, 20], paging: "local"         
+        GridObj.customData = SummaryData;
+        $grid = $("#grid-array").pqGrid(GridObj);
+
+        $grid.on("pqgridcelleditkeydown", customGridKey);
+        $grid.on("keydown", function (evt) {
+            var keyCode = evt.keyCode;
+            if (keyCode == 38 || keyCode == 40) {
+                evt.preventDefault();
+                return false;
+            }
+        });
+    }    
+    
+
+    
+    function getGridData(){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.SpreadsheetController.queryDemandPlan}',
+            $('.fiscal-year').val(), $('.product-type').val(),
+            function(result){
+                var gridData = [];
+                var prevAccount = '';
+                var summaryStart = 0;
+                var summaryEnd = 0;
+                var summaryCount = 1;
+                $(result).each(function (i) {
+                    if(this.DPAccountName__c!=prevAccount && i!=0){    //小計行を作成
+                        gridData.push(createArraySummaryElement(gridData, summaryStart, summaryEnd));
+                        SummaryData["Summary"+summaryCount] = summaryEnd; 
+
+                        summaryEnd++;
+                        summaryStart = summaryEnd;
+                        summaryCount++;
+                    }//小計の場合
+
+                    gridData.push(createArrayElement(this, false));
+                    prevAccount = this.DPAccountName__c;
+                    summaryEnd++;
+                }); //end Each
+                //add last 小計
+                gridData.push(createArraySummaryElement(gridData, summaryStart, summaryEnd));
+                SummaryData["Summary"+summaryCount] = summaryEnd;                 
+                gridCallback(gridData);
+            }//end callback function
+        );   //end vf 
+    }//end function getGridData
+    
+    
+
+    var customGridKey = function(evt, ui){
+        var keyCode = evt.keyCode,
+            rowIndxPage = ui.rowIndxPage,
+            colIndx = ui.colIndx;
+        var DM = $grid.pqGrid("option", "dataModel");
+        var gridData = DM.data;
+        
+        if (keyCode == 40 || keyCode == 38) {
+            $grid.pqGrid("saveEditCell");
+        }
+
+        if (keyCode == 40) {
+            if (rowIndxPage >= gridData.length - 1) {
+                var dt = ui.$cell.text();
+            //    if (dt.length > 0) {
+                    var row = createArrayElement(new DemandPlanning__c({
+                            FiscalYear__c: $('.fiscal-year').val(),
+                            ProductType__c: $('.product-type').val()
+                        }), false);
+        
+                    gridData.push(row);
+                    $grid.pqGrid("refreshDataAndView");
+            //    }
+            }
+            if (rowIndxPage < gridData.length - 1) {
+                rowIndxPage++;
+                $grid.pqGrid("setSelection", null);
+                $grid.pqGrid("setSelection", { rowIndx: rowIndxPage });
+                $grid.pqGrid("editCell", { rowIndxPage: rowIndxPage, colIndx: colIndx });
+                evt.preventDefault();
+                return false;
+            }
+        }else if (keyCode == 38 && rowIndxPage > 0) {
+            rowIndxPage--;
+            $grid.pqGrid("setSelection", null);
+            $grid.pqGrid("setSelection", { rowIndx: rowIndxPage });
+            $grid.pqGrid("editCell", { rowIndxPage: rowIndxPage, colIndx: colIndx });
+            evt.preventDefault();
+            return false;
+        }
+    };
+    
+    
+    function attachSaveRecordListener(){
+        $('#save-records').on('click', function(){
+            saveData();
+        });
+    }
+    function saveData(){
+        var demandPlanList = [];
+        var fiscalYear = $('.fiscal-year').val();
+        var productType = $('.product-type').val();
+        var DM = $grid.pqGrid("option", "dataModel");
+        var gridData = DM.data;
+        for(var i=0; i<gridData.length; i++){
+            if(!gridData[i][1]){    //if 小計行ではない
+                demandPlanList.push( createObjectFromArray(gridData[i], fiscalYear, productType) );
+            }
+        }
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.SpreadsheetController.saveRecords}', demandPlanList, 
+            function(result){
+                deleteData();
+            }
+        );
+    }
+    
+    function deleteData(){
+        Visualforce.remoting.Manager.invokeAction('{!$RemoteAction.SpreadsheetController.deleteRecords}', DeleteArray, 
+            function(result){
+                alert('Records Saved.');
+            }
+        );
+    }
+
+    function deleteRow() {
+        var rowIndx = getRowIndx();
+        if (rowIndx != null) {
+            var DM = $grid.pqGrid("option", "dataModel");
+            var gridData = DM.data;
+            if(gridData[rowIndx][0]){
+                DeleteArray.push(new DemandPlanning__c({Id : gridData[rowIndx][0]}) );    //add Id to delete array
+            }
+            DM.data.splice(rowIndx, 1);
+            $grid.pqGrid("refreshDataAndView");
+            $grid.pqGrid("setSelection", { rowIndx: rowIndx });
+        }
+    }
+
+    function insertRow(){
+        var rowIndx = getRowIndx();
+        if (rowIndx != null) {
+            var DM = $grid.pqGrid("option", "dataModel");
+            var gridData = DM.data;
+
+            var row = createArrayElement(new DemandPlanning__c({
+                            FiscalYear__c: $('.fiscal-year').val(),
+                            ProductType__c: $('.product-type').val()
+                        }), false);
+
+            gridData.splice(rowIndx, 0, row);
+            $grid.pqGrid("refreshDataAndView");        
+            $grid.pqGrid("setSelection", { rowIndx: rowIndx });
+
+        }
+    }
+
+
+
+    function getRowIndx() {
+        var arr = $grid.pqGrid("selection", { type: 'row', method: 'getSelection' });
+            if (arr && arr.length > 0) {
+                var rowIndx = arr[0].rowIndx;
+                return rowIndx;
+            }
+            else {
+                alert("Select a row.");
+                return null;
+            }
+        }
+
+    
+    $('#grid-array').bind("contextmenu", function(e) {
+        $('#grid-menu').css({
+            top: (e.pageY-110)+'px',
+            left: (e.pageX-10)+'px'
+        }).show();    
+        return false;
+    });
+
+    
+</script>    
+</body>
+</apex:page>

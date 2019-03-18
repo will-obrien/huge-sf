@@ -1,0 +1,321 @@
+<apex:page controller="TIMBASURVEYS.CollectionHubController" sidebar="false" tabstyle="Timba_Surveys__tab">
+    <!-- DOJO Js -->
+    <script type="text/javascript" src="{!URLFOR($Resource.timbasurveys_dojo_build, 'dojo/dojo.js')}" djConfig="parseOnLoad: true"></script>
+    <script type="text/javascript">
+		// Loads for Dojo 1.7.2
+		dojo.require("dojox.widget.Standby");
+		dojo.require("dojox.widget.Toaster");
+	</script>
+
+    <!-- DOJO Stylesheets -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/soria/soria.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dijit/themes/dijit.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojo/resources/dojo.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__dojotools, 'dojox/widget/Standby/Standby.css')}" />
+    <apex:stylesheet value="{!$Resource.TIMBASURVEYS__TS_Styles}" />
+
+    <script type="text/javascript">
+        var SurveyId = '';
+        var collectionType = '{!JSENCODE(collectionType)}';
+
+        // onLoad methods of dojo
+        var init = function () {
+            // Add the class to load the css styling
+            dojo.query('body').addClass('soria');
+            // Remove footer
+            dojo.query('.noTableFooter')[0].style.display = 'none';
+        }
+
+        // Fire events onload
+        dojo.addOnLoad(init);
+
+        function sendInvitations(){
+            overlay.show();
+            var LIds = '';
+            var case_Id = '';
+            var cId = '';
+
+            SurveyId = dojo.byId('surveyId').value;
+            // Build URL to check for existent recipients
+            if(collectionType == 'contacts'){
+                cId = '{!JSENCODE(targetIds)}';
+            }
+            if(collectionType == 'leads'){
+                LIds = '{!JSENCODE(targetIds)}';
+            }
+            if(collectionType == 'case'){
+                case_Id = '{!JSENCODE(targetIds)}';
+                cId = '{!JSENCODE(contactId)}';
+            }
+            // Check Existent Survey contacts as recipients
+            cercpsOperation('cercps', SurveyId, LIds, case_Id, cId);
+        }
+
+        function cercpsCompleted(success, data){
+            if(data.length > 0){
+                var response = dojo.fromJson(data)
+                dojo.byId('surveyselectionstep').style.display = 'none';
+                dojo.byId('confirmationstep').style.display = '';
+                dojo.byId('existentRecipients').innerHTML = response.list;
+                dojo.byId('substractionIds').innerHTML = response.substraction_ids;
+                overlay.hide();
+            } else {
+                overlay.hide();
+                sendSurvey('all',collectionType);
+            }
+        }
+
+        function replaceAll(text, strA, strB){
+            return text.replace( new RegExp(strA,"g"), strB );
+        }
+
+        /**
+         * Check the Recipient List for errors
+         */
+        function sendSurvey(method, type){
+            var selectedIdsString = '';
+            var caseIdMail = '';
+            var idContactCase = '';
+            var CP_Notification = false;
+            var LIds = '';
+            var cId = '';
+            var scn = false;
+
+            // Collect all leads / contacts or the substraction
+            if(method == 'all'){
+                selectedIdsString = replaceAll('{!targetIds}',',','|');
+            }
+            if(method == 'substract'){
+                selectedIdsString = dojo.byId('substractionIds').innerHTML;
+            }
+            // Based on collection type
+            if(collectionType == 'contacts'){
+                idContactCase = selectedIdsString;
+                cId = selectedIdsString;
+                selectedIdsString = '&cIds=' + selectedIdsString;
+            }
+            if(collectionType == 'leads'){
+                LIds = selectedIdsString;
+                selectedIdsString = '&LIds=' + selectedIdsString;
+            }
+            if(collectionType == 'case'){
+                cId = '{!JSENCODE(contactId)}';
+                type = 'case';
+                caseIdMail = selectedIdsString;
+                selectedIdsString = '&case_Id=' + selectedIdsString + '&cId = {!JSENCODE(contactId)}';
+            }
+            overlay.show();
+            var additionalOptions = '';
+            try {
+                var isAnonymous = dojo.byId('anonymousCollection').checked;
+                if (isAnonymous) {
+                    additionalOptions += '&isAnonymous=true';
+                }
+            } catch(e) {}
+            try {
+                var enableNow = dojo.byId('startCollectionRightNow');
+                if (enableNow != null) {
+                    if (enableNow.checked) {
+                        additionalOptions += '&scn=true';
+                        scn = true;
+                    }
+                }
+            } catch(e) {}
+            // Backup the email Template
+            additionalOptions += '&send_to_all=HUB';
+            send_to_all = 'HUB';
+            backupTemplateOperation('backupTemplate', SurveyId, type, caseIdMail, idContactCase, CP_Notification, send_to_all, scn, LIds, cId);
+        }
+
+        function backupTemplateCompleted(success, type, caseIdMail, idContactCase, CP_Notification, send_to_all, scn, LIds, cId){
+            updateTemplateOperation('updateTemplate', type, caseIdMail, idContactCase, CP_Notification, SurveyId, send_to_all, scn, LIds, cId);
+        }
+
+        function updateTemplateCompleted(success, cId, send_to_all, scn, LIds){
+            if (success) {
+                collectOperation('collect', SurveyId, cId, send_to_all, scn, LIds);
+            }else{
+                alert('{!$Label.timbasurveys__timbasurveys_Templte_Error_While_Update}.');
+                overlay.hide();
+            }
+        }
+
+        function collectCompleted(data){
+            var operationStatus = dojo.fromJson(data);
+            if (operationStatus.success) {
+                increaseNumberSent();
+            }else{
+                if (operationStatus.exception != undefined) {
+                    if (operationStatus.exception.indexOf("MASS_MAIL_LIMIT_EXCEEDED") > 0) {
+                        alert('{!$Label.timbasurveys__timbasurveys_Collect_Sorry_daily_mass}');
+                        overlay.hide();
+                    } else {
+                        alert('{!$Label.timbasurveys__timbasurveys_Collect_error_sending_invitations}');
+                    }
+                    overlay.hide();
+                }
+            }           
+            
+        }
+
+        // Replace Email Templates
+        function rebuildTemplate() {
+            resetEmailTemplateOperation('resetEmailTemplate', SurveyId);
+        }
+
+        function resetEmailTemplateCompleted(success){
+            if (success){
+                redirectURL();
+            }else{
+                console.log('Error: reset email template');
+            }
+        }
+    </script>
+
+    <style type="text/css">
+        .listwrapper {
+            height:300px;
+            width:500px;
+            border:1px solid black;
+            overflow-y:scroll;
+            margin:10px;
+        }
+
+        .listwrapper ul,.listwrapper ul li {
+            list-style:none;
+            margin:0;
+            padding:0;
+        }
+
+        #collectionHubWizardContainer {
+            margin:10px;
+        }
+    </style>
+
+    <!-- Application Styles -->
+    <!-- Common Styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/common.css')}" />
+    <!-- Section Specific styles -->
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/surveyCollection.css')}" />
+
+    <!-- Begin Page -->
+    <!-- Section Header -->
+    <apex:outputPanel styleClass="sectionHeader" layout="block">
+        <h1 class="Collect"><apex:outputLabel value="{!$Label.timbasurveys__timabasurveys_Survey_Collection}" /></h1>
+    </apex:outputPanel>
+    <div id="collectionHubWizardContainer">
+        <apex:outputPanel layout="none" rendered="{!IF(ListContactError == 'Errores',true,false)}">
+            <div id="surveyNoAccount">
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_the_contact}" rendered="{!(ErrorContacts.size == 1)}" styleClass="strongTxt" />
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_The_list_of} {!collectionType} {!$Label.timbasurveys__timbasurveys_Collect_to_send_survey}:" rendered="{!(ErrorContacts.size > 1)}" styleClass="strongTxt" /><br />
+                <apex:repeat value="{!ErrorContacts}" var="contacts">
+                    <apex:outputText value="{!contacts.Name}" styleClass="strongTxt" /><br />
+                </apex:repeat>
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_has_no_account_email_asigned}" rendered="{!(ErrorContacts.size == 1)}" styleClass="strongTxt" />
+                <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_no_account_asigned}" rendered="{!(ErrorContacts.size >1)}" styleClass="strongTxt" />
+            </div>
+        </apex:outputPanel>
+        <apex:outputPanel layout="none" rendered="{!IF(collectionType == 'leads',true,IF(AND(collectionType == 'contacts', ErrorContacts.size == selectedContacts.size ),false,IF(AND(collectionType == 'case', ErrorContacts.size > 0),false,true)))}" >
+            <div id="surveyselectionstep">
+                <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_The_list_of} {!collectionType} {!$Label.timbasurveys__timbasurveys_Collect_to_send_survey}:" /></h2><br />
+                <div class="listwrapper">
+                    <!-- If the collection if of contacts -->
+                    <apex:dataList value="{!selectedContacts}" var="contact"  rendered="{!IF(collectionType == 'contacts',true,false)}">
+                         <apex:outputText value="{!contact.Name}"/> | <apex:outputText value="{!contact.Email}"/>
+                    </apex:dataList>
+                    <!-- If the collection if of leads -->
+                    <apex:dataList value="{!selectedLeads}" var="lead" rendered="{!IF(collectionType == 'leads',true,false)}">
+                         <apex:outputText value="{!lead.Name}"/> | <apex:outputText value="{!lead.Email}"/>
+                    </apex:dataList>
+                    <!-- If the collection if for a case -->
+                    <apex:outputText value="{!caseContact.Name}"/> | <apex:outputText value="{!caseContact.Email}"/>
+                </div>
+                <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Select_survey_to_invitations} :" /></h2>
+                <br /><br />
+                <select id="surveyId">
+                    <apex:repeat value="{!surveyList}" var="survey">
+                        <option value="{!HTMLENCODE(survey.Id)}"><apex:outputText value="{!survey.Name}" /></option>
+                    </apex:repeat>
+                </select>
+                <br /><br />
+                <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendInvitations()">{!$Label.timbasurveys_Collect_Send_Invitations}</a>
+            </div>
+        </apex:outputPanel>
+        <div id="confirmationstep" style="display:none;">
+            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_The_following_contacts}." /></h2> <br/>
+            <div id="existentRecipients" class="listwrapper" ></div>
+            <div id="substractionIds" style="display:none;"></div>
+            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Send_invitations_again} "/></h2>
+            <br /><br />
+            <script type="text/javascript">
+                if(collectionType == 'leads'){
+                    document.write('<a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurvey(\'all\', \'leads\')">{!$Label.timbasurveys_Collect_Send_Again}</a> ');
+                    document.write('<a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="redirectURL();">{!$Label.timbasurveys_Collect_No_Send_only_uninvited}.</a>');
+                }else if(collectionType == 'contacts'){
+                    document.write('<a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurvey(\'all\', \'contacts\')">{!$Label.timbasurveys_Collect_Send_Again}</a> ');
+                    document.write('<a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="redirectURL();">{!$Label.timbasurveys_Collect_No_Send_only_uninvited}.</a>');
+                }else if(collectionType == 'case'){
+                    document.write('<a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="sendSurvey(\'all\', \'case\')">{!$Label.timbasurveys_Collect_Send_Again}</a> ');
+                    document.write('<a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="redirectURL();">{!$Label.timbasurveys_Collect_No_Send_only_uninvited}.</a>');
+                }
+            </script>
+        </div>
+        <div id="resultStep" style="display:none;">
+            <br />
+            <h2><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Success} "/></h2>
+            <br />
+            <br />
+            <p><apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collect_Invitations_sent}"/></p>
+            <a class="dijitReset dijitInline dijitButtonNode customDijitLinks" href="javascript:;" onclick="redirectURL();">{!$Label.timbasurveys_Collect_No_Send_only_uninvited}.</a>
+        </div>
+    </div>
+    <!-- Dojox StandBy Widget for lists -->
+    <div data-dojo-id="overlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target: 'collectionHubWizardContainer', color: 'white'"></div>
+    <apex:form id="collectionHubActionsFrom">
+        <apex:actionFunction name="redirectURL" action="{!redirectPage}" />
+        <apex:actionFunction name="increaseNumberSent" oncomplete="rebuildTemplate();" action="{!increaseSent}" rerender="collectionHubActionsFrom"></apex:actionFunction>
+        <apex:actionFunction name="updateTemplateOperation" onComplete="updateTemplateCompleted({!success},'{!cId}','{!send_to_all}','{!scn}','{!LIds}')" action="{!doOperation}" rerender="collectionHubActionsFrom">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+            <apex:param name="typeOfCollection" value="" assignTo="{!typeOfCollection}" />
+            <apex:param name="caseIdMail" value="" assignTo="{!caseIdMail}" />
+            <apex:param name="idContactCase" value="" assignTo="{!idContactCase}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="additionalOptions" value="" assignTo="{!send_to_all}" />
+            <apex:param name="scn" value="" assignTo="{!scn}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="cId" value="" assignTo="{!cId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="resetEmailTemplateOperation" onComplete="resetEmailTemplateCompleted({!success})" action="{!doOperation}" rerender="collectionHubActionsFrom">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="backupTemplateOperation" onComplete="backupTemplateCompleted({!success}, '{!typeOfCollection}', '{!caseIdMail}', '{!idContactCase}', '{!CP_Notification}', '{!send_to_all}','{!scn}','{!LIds}','{!cId}')" action="{!doOperation}" rerender="collectionHubActionsFrom">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="typeOfCollection" value="" assignTo="{!typeOfCollection}" />
+            <apex:param name="caseIdMail" value="" assignTo="{!caseIdMail}" />
+            <apex:param name="idContactCase" value="" assignTo="{!idContactCase}" />
+            <apex:param name="CP_Notification" value="" assignTo="{!CP_Notification}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+            <apex:param name="scn" value="" assignTo="{!scn}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="cId" value="" assignTo="{!cId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="cercpsOperation" onComplete="cercpsCompleted({!success}, '{!JSENCODE(outputMessage)}')" action="{!doOperation}" rerender="collectionHubActionsFrom">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+            <apex:param name="case_Id" value="" assignTo="{!case_Id}" />
+            <apex:param name="cId" value="" assignTo="{!cId}" />
+        </apex:actionFunction>
+        <apex:actionFunction name="collectOperation" onComplete="collectCompleted('{!JSENCODE(outputMessage)}')" action="{!doOperation}" rerender="collectionHubActionsFrom">
+            <apex:param name="operation" value="" assignTo="{!operation}" />
+            <apex:param name="TSSurveyId" value="" assignTo="{!TSSurveyId}" />
+            <apex:param name="cId" value="" assignTo="{!cId}" />
+            <apex:param name="send_to_all" value="" assignTo="{!send_to_all}" />
+            <apex:param name="scn" value="" assignTo="{!scn}" />
+            <apex:param name="LIds" value="" assignTo="{!LIds}" />
+        </apex:actionFunction>
+    </apex:form>
+</apex:page>

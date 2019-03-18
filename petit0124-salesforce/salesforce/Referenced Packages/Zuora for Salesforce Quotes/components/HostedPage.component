@@ -1,0 +1,78 @@
+<apex:component allowDML="true" access="global">
+
+	<apex:attribute name="controller" access="global"
+		description="The controller for the page of this component."
+		type="zqu.ZCheckoutBaseController" assignTo="{!injectedController}" />
+	<apex:attribute name="hostedPageSettingName" access="global"
+		required="true"
+		description="The unique name of the Hosted Page Configuration Setting"
+		type="String" assignTo="{!injectedController.hostedPageSettingName}" />
+	<apex:attribute name="injectedController" access="global"
+		description="The controller for the page of this component."
+		type="zqu.ZCheckoutBaseController" assignTo="{!controller}" />
+	<apex:attribute name="includeButtonBar" access="global"
+		description="Determines whether the button bar should be included in the component"
+		type="Boolean" default="true" />
+
+	<apex:includeScript value="{!$Resource.zqu__postmessage_js}" />
+	<apex:styleSheet value="{!$Resource.zqu__HPMCSS}" />
+
+	<c:StatusModal />
+
+	<style>
+  #zforce_hpm_frame {
+    height: {!injectedController.height};
+    width: {!injectedController.width};
+  }
+</style>
+
+	<script>
+        function onsubmit_action() {
+          displayStatusModal();
+          submitHostedPage('z_hppm_iframe'); 
+        }
+
+        function callbackfailure(paramString) {
+          var redirUrl = "{!injectedController.pageRef}" + paramString + '{!injectedController.extraParamString}' + '&id=' + '{!$CurrentPage.parameters.id}' + '{!injectedController.wizardContextParamString}'; 
+          window.location = redirUrl; 
+        }
+        
+        function back() {
+          window.location = "{!injectedController.backUrl}"; 
+        }
+        
+        function next() {
+          window.location = "{!injectedController.nextUrl}"; 
+        }
+  </script>
+
+	<apex:outputPanel id="msgPanel">
+		<c:Notification isPopup="{!injectedController.isPopupNotification}" failureTitle="{!$Label.ERROR_PAGE_LOAD}" 
+			continueAction="next();" 
+			continueButtonLabel="Continue" 
+			id="notification" />
+	</apex:outputPanel>
+	
+	<div id="container">
+		<apex:form >
+			<apex:outputPanel rendered="{!NOT(injectedController.hasConfigError)}">
+				<div id="zforce_hpm_frame">
+					<iframe id="z_hppm_iframe" name="z_hppm_iframe" width="100%"
+						height="100%" src="{!injectedController.iframeSrc}"
+						frameborder="0"> </iframe>
+					<apex:outputPanel rendered="{!includeButtonBar}">
+						<apex:commandButton value="{!injectedController.backButtonText}"
+							action="{!injectedController.navigateBack}" />
+						<apex:commandButton value="{!injectedController.nextButtonText}"
+							onclick="onsubmit_action();" rerender="notification"/>
+						<apex:commandButton value="{!$Label.BUTTON_CANCEL}"
+							rendered="{!injectedController.hasWizardContext}"
+							action="{!injectedController.cancelWizard}"/>
+					</apex:outputPanel>
+				</div>
+			</apex:outputPanel>
+			<apex:outputPanel id="dummyPanel" />
+		</apex:form>
+	</div>
+
+</apex:component>

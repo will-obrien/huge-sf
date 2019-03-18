@@ -1,0 +1,94 @@
+<apex:component allowDML="true" access="global" layout="none" controller="zqu.PropertyComponentController">
+  <apex:attribute name="options" assignTo="{!theOptions}" access="global" type="zqu.PropertyComponentOptions" description="The PropertyComponent's configuration options." />
+  <apex:attribute name="backButtonLabel" access="global" type="String" description="Label for the back button" />
+  <apex:attribute name="saveButtonLabel" access="global" type="String" description="Label for the save button" />
+  <apex:attribute name="cancelButtonLabel" access="global" type="String" description="Label for the cancel button" />
+
+  <style>
+  .tertiaryPalette {
+    background-color: #E1EBE7 !important;
+  }
+
+  .apexp .bPageBlock.apexDefaultPageBlock .pbBody {
+  margin-left: 0px; 
+  margin-top: 0px;
+  margin-right:0px;
+} 
+
+.bPageBlock .pbBody .pbSubheader {
+  padding: 4px 3px 4px 8px !important;
+}
+
+.apexp .bPageBlock.apexDefaultPageBlock .pbBody .pbSubheader {
+  border-top: 0 none;
+  color: black;
+}  
+
+.bPageBlock .pbTitle {
+  width: 45%; !important; 
+} 
+
+.customRenderedFieldPanel .requiredInput {
+  float: left;
+}
+
+</style>
+<script type="text/javascript">
+  function goBack(){
+        console.log('GO BACK');
+        if((typeof sforce != 'undefined') && (sforce != null) ) {
+            sforce.one.back();
+        }
+        else{
+            history.back(1);
+        }
+      return;
+  }
+</script>
+  <apex:actionFunction name="onClickCancel" action="{!onClickCancel}" rerender="notificationPanel" immediate="true" oncomplete="closeStatusModal();" />
+
+  <c:StatusModal />
+  <apex:outputPanel id="notificationPanel" rendered="{!theOptions.renderNotification}" >
+    <c:Notification id="notification" options="{!theOptions.notificationOptions}" />
+  </apex:outputPanel>
+  
+  <apex:pageBlock title="{!theOptions.propertyPageTitle}" id="propertyPageBlock">
+    <apex:pageBlockButtons rendered="{!theOptions.renderButtonBar}" id="propertyPageBlockButtons" >
+      <apex:commandButton value="{!IF(ISBLANK(backButtonLabel), $Label.BUTTON_BACK, backButtonLabel)}" action="{!goBack}" rerender="propertyPageBlock,notificationPanel" rendered="{!theOptions.renderBackButton}" immediate="true" />
+      <apex:commandButton value="{!IF(ISBLANK(saveButtonLabel), $Label.BUTTON_SAVE, saveButtonLabel)}" action="{!save}" reRender="notificationPanel" onclick="javascript:displayStatusModal();" oncomplete="javascript:closeStatusModal();"/>
+      <apex:commandButton value="{!IF(ISBLANK(cancelButtonLabel), $Label.BUTTON_CANCEL, cancelButtonLabel)}" rendered="{!NOT(theOptions.userAgent)}" action="{!cancel}" rerender="propertyPageBlock,notificationPanel" immediate="true" />
+      <apex:commandButton value="{!IF(ISBLANK(cancelButtonLabel), $Label.BUTTON_CANCEL, cancelButtonLabel)}" rendered="{!theOptions.userAgent}" onclick="goBack();" rerender="propertyPageBlock,notificationPanel" immediate="true" />
+    </apex:pageBlockButtons>
+    <apex:repeat value="{!fieldSets}" var="fieldSet">
+      <apex:pageBlockSection showHeader="{!fieldSet.showHeader}" title="{!fieldSet.label}" collapsible="{!fieldSet.isCollapsible}" columns="{!IF(fieldSet.isSingleColumn, 1, 2)}">
+        <apex:repeat value="{!fieldSet.fields}" var="field">
+          
+          <!-- Editable field -->
+          <apex:inputField value="{!record[field.name]}" 
+                           required="{!field.isRequired}" 
+                           style="{!IF((field.isTextArea || field.isText), 'width:90%', '' )}"
+                           rendered="{!AND(theOptions.isEditMode, field.isEditable, NOT(field.isLookup), NOT(field.isCustomRendering))}" >
+            <span data-field-name="{!field.name}" />
+          </apex:inputField>                 
+          
+          <!-- Read-only field -->
+          <apex:outputField value="{!record[field.name]}" 
+                            style="{!IF((field.isTextArea || field.isText), 'width:90%', '' )}"
+                            rendered="{!AND(OR(NOT(theOptions.isEditMode), NOT(field.isEditable)), NOT(field.isLookup), field.isVisible, NOT(field.isCustomRendering))}" >
+            <span data-field-name="{!field.name}" />
+          </apex:outputField> 
+          
+          <!-- Lookup field -->
+          <apex:pageBlockSectionitem rendered="{!field.isLookup}" id="lookupfields">
+              <apex:outputLabel >{!field.lookupOptions.fieldLabel}</apex:outputLabel>
+              <c:LookupComponent options="{!field.lookupOptions}"></c:LookupComponent>
+          </apex:pageblockSectionItem>
+          
+          <!-- Custom rendering field -->
+          <apex:componentBody rendered="{!field.isCustomRendering}"/>
+          
+        </apex:repeat>
+      </apex:pageBlockSection>
+    </apex:repeat>
+  </apex:pageBlock>
+</apex:component>

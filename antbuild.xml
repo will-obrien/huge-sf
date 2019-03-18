@@ -1,0 +1,128 @@
+<project name="VillageChief DataHub" xmlns:sf="salesforce">
+  <!-- Pick up per-project folder settings-->
+  <property file="${user.dir}/sonar-project.properties"/>
+
+  <!-- put global settings in here -->
+  <property file="${basedir}/antbuild.properties"/> 
+  
+  <!-- proxy settings -->
+  <property name="http.proxyHost" value="" />
+  <property name="http.proxyPort" value="0" />
+  <property name="http.proxyUser" value="" />
+  <property name="http.proxyPassword" value="" />
+  <property name="http.nonProxyHosts" value="localhost|*.local|127.*|[::1]" />
+
+  <!--if ntlm is used -->
+  <!--<property name="http.auth.ntlm.domain" value="" />-->
+
+  <!-- tell ant about proxy -->
+  <setproxy proxyhost="${http.proxyHost}" proxyport="${http.proxyPort}" 
+            proxyuser="${http.proxyUser}" proxypassword="${http.proxyPassword}" 
+            nonproxyhosts="${http.nonProxyHosts}"/>
+
+  <!-- some tasks in codescan need https equivalents -->
+  <property name="https.proxyHost" value="${http.proxyHost}" />
+  <property name="https.proxyPort" value="${http.proxyPort}" />
+  <property name="https.proxyUser" value="${http.proxyUser}" />
+  <property name="https.proxyPassword" value="${http.proxyPassword}" />
+
+  <!-- define if not already defined properties -->
+  <property name="salesforce.url" value="https://www.salesforce.com" />
+  
+  <!-- Define the ant tasks. Use ant.file.dir to ensure we look for the jar files next to antbuild.xml -->
+  <dirname file="${ant.file}" property="ant.file.dir" />
+  <taskdef uri="antlib:org.sonar.ant" resource="org/sonar/ant/antlib.xml">
+    <classpath path="${ant.file.dir}/sonar-ant-task-2.2.jar" />
+  </taskdef>
+  <taskdef name='codescan' classname='com.villagechief.codescan.versions.ant.ScmCommitterTask'>
+    <classpath path="${ant.file.dir}/force-versions-1.4.jar" />
+  </taskdef>
+  
+  <!-- Add the target -->
+  <target name="sonar">
+    <!-- Please see https://docs.sonarqube.org/display/SONAR/Analysis+Parameters for details on parameters to pass to SonarQube -->
+
+    <!-- location properties -->
+    <property name="sonar.projectBaseDir" value="${user.dir}" />
+   
+    <!-- define if not already defined properties -->
+    <property name="salesforce.url" value="https://www.salesforce.com" />
+    <property name="sonar.projectVersion" value="1.0-SNAPSHOT" />
+    <property name="sonar.sources" value="${user.dir}/src" />
+    <property name="sonar.sourceEncoding" value="utf8" />
+    <property name="sonar.host.url" value="http://localhost:9000" />
+   
+    <!-- If the Anyone group is not granted Execute Analysis permission or if the SonarQube instance 
+         is secured (the sonar.forceAuthentication property is set to true), the credentials of a user 
+         having been granted Execute Analysis permission have to be provided through the sonar.login 
+         and sonar.password properties
+    -->
+    <!-- <property name="sonar.login" value="USER" /> -->
+    <!-- <property name="sonar.password" value="PASS" /> -->
+ 
+    <sonar:sonar xmlns:sonar="antlib:org.sonar.ant" />
+  </target>
+  
+  
+  <target name="deletesrc">
+    <delete dir="${user.dir}/src">
+        <include name="**/*"/>
+        <exclude name="package.xml"/>
+    </delete>
+  </target>
+    
+  <target name="commit">
+    <codescan username="${salesforce.username}" password="${salesforce.password}" serverurl="${salesforce.url}" writeFiles="true" repository="${scm}" packageXmlPath="${user.dir}/src/package.xml" outputPath="${user.dir}/src">
+	<fileset dir="${user.dir}/src">
+	    <include name="**/*"/>
+	</fileset>
+    </codescan>
+  </target>
+
+  <target name="-check-package-xml">
+    <available property="package.xml.exists" file="${user.dir}/src/package.xml"></available>
+  </target>
+  <target name="-create-default-package-xml" depends="-check-package-xml" unless="package.xml.exists">
+    <copy file="${ant.file.dir}/default.package.xml" tofile="${user.dir}/src/package.xml" />
+  </target>
+  <target name="download" depends="-create-default-package-xml">
+    <codescan username="${salesforce.username}" password="${salesforce.password}" serverurl="${salesforce.url}" writeFiles="true" packageXmlPath="${user.dir}/src/package.xml" outputPath="${user.dir}/src">
+      <fileset dir="${user.dir}/src">
+          <include name="**/*"/>
+      </fileset>
+    </codescan>
+  </target>
+
+  <target name="downloadAndCommit" depends="-create-default-package-xml">
+    <codescan username="${salesforce.username}" password="${salesforce.password}" serverurl="${salesforce.url}" writeFiles="true" repository="${scm}" packageXmlPath="${user.dir}/src/package.xml" outputPath="${user.dir}/src">
+      <fileset dir="${user.dir}/src">
+          <include name="**/*"/>
+      </fileset>
+    </codescan>
+  </target>
+  
+  <target name="deploy">
+    <!-- Retrieve the contents listed in the file codepkg/package.xml into the codepkg directory -->
+    <sf:deploy username="${salesforce.username}" password="${salesforce.password}" serverurl="${salesforce.url}" 
+      deployroot="src"/>
+  </target>
+  
+  <target name="commitall">
+    <exec executable="git" dir="${user.dir}">
+      <arg value="add"/>
+      <arg value="-A"/>
+    </exec>
+    <exec executable="git" dir="${user.dir}">
+      <arg value="commit"/>
+      <arg value="-a"/>
+      <arg value="-m"/>
+      <arg value="&lt;automcommit: all&gt;"/>
+    </exec>
+  </target>
+  
+  
+  <!-- <target name="analyse" depends="deletesrc, download, commit, commitall, sonar" /> -->
+  <target name="analyse" depends="deletesrc, download, sonar" />
+  <target name="analyze" depends="deletesrc, download, sonar" />
+</project>
+

@@ -1,0 +1,288 @@
+<apex:page standardStylesheets="false" sidebar="false" showHeader="false">
+<head>
+ <apex:styleSheet value="{!URLFOR($Resource.automatch,'autoMatchTable/easyui.css')}" />
+  <link rel="stylesheet" type="text/css" href="http://www.jeasyui.com/easyui/themes/icon.css" />
+    <link rel="stylesheet" type="text/css" href="https://www.jeasyui.com/easyui/demo/demo.css"/>
+   <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
+    <script type="text/javascript" src="https://www.jeasyui.com/easyui/jquery.easyui.min.js"></script>
+    <style type="text/css">
+        .left{
+            width:120px;
+            float:left;
+        }
+        .left table{
+            background:#E0ECFF;
+        }
+        .left td{
+            background:#eee;
+        }
+        .right{
+            float:right;
+            width:570px;
+        }
+        .right table{
+            background:#E0ECFF;
+            width:100%;
+        }
+        .right td{
+            background:#fafafa;
+            color:#444;
+            text-align:center;
+            padding:2px;
+        }
+        .right td{
+            background:#E0ECFF;
+        }
+        .right td.drop{
+            background:#fafafa;
+            width:100px;
+        }
+        .right td.over{
+            background:#FBEC88;
+        }
+        .item{
+            text-align:center;
+            border:1px solid #499B33;
+            background:#fafafa;
+            color:#444;
+            width:100px;
+        }
+        .assigned{
+            border:1px solid #BC2A4D;
+        }
+        .trash{
+            background-color:red;
+        }
+        
+    </style>
+    <script>
+        $(function(){
+         $('#canclButn').hide();
+            $('.left .item').draggable({
+                revert:true,
+                proxy:'clone'
+            });
+            $('.right td.drop').droppable({
+                onDragEnter:function(){
+                    $(this).addClass('over');
+                },
+                onDragLeave:function(){
+                    $(this).removeClass('over');
+                },
+                onDrop:function(e,source){
+                    $(this).removeClass('over');
+                    if ($(source).hasClass('assigned')){
+                        $(this).append(source);
+                    } else {
+                        var c = $(source).clone().addClass('assigned');
+                        $(this).empty().append(c);
+                        c.draggable({
+                            revert:true
+                        });
+                    }
+                }
+            });
+            $('.left').droppable({
+                accept:'.assigned',
+                onDragEnter:function(e,source){
+                    $(source).addClass('trash');
+                },
+                onDragLeave:function(e,source){
+                    $(source).removeClass('trash');
+                },
+                onDrop:function(e,source){
+                    $(source).remove();
+                }
+            });
+        });
+    </script>
+    <script>
+    
+    function exceltbl(){
+    var xclArr = new Array();
+    var sFArr = new Array();
+    var row = '';
+    var row1 = '';
+    var j='';
+    ////////////////
+        $('#tbl tr').each(function(){
+            //alert($(this).find('div').html());
+            xclArr.push($(this).find('div').html());
+            
+        }); 
+        //alert(xclArr.length);
+        $('#sforcetbl tr').each(function(){
+            //alert($(this).find('td').html());
+            sFArr.push($(this).find('td').html());          
+        });
+        //alert(sFArr.length);
+        for(var i=0 ; i<xclArr.length;i++){
+            for(j=0 ; j<sFArr.length ; j++){
+                if(sFArr[j] == xclArr[i]){
+                    //alert(sFArr[j]);
+                    row += '<tr><td class="time">';
+                    row+=sFArr[j];
+                    row+='</td>';
+                    row += '<td class="drop droppable">';
+                    row+='<div class="item assigned" style="position: static; left: 23px; top: 160px;cursor:">';
+                    
+                    row+=xclArr[i];
+                    row+='</div>';
+                    row+='</td></tr>';                  
+                }               
+            }                       
+        }               
+        
+        for(var x=0 ; x<sFArr.length;x++){  
+                if( xclArr.indexOf(sFArr[x]) == -1){
+                    row1+='<tr><td class="time">';
+                    row1+= sFArr[x];
+                    row1+='</td>';
+                    row1+= '<td class="drop">';             
+                    row1+='</td></tr>';                 
+                }   
+        }   
+        
+        
+        $('#sforcetbl').html(row);
+        
+        $('#sforcetbl').append(row1);
+        
+        //------------------------
+        var testrow ='';
+        var testrow2 ='';
+        for(var z=0 ; z<xclArr.length;z++){ 
+                if( sFArr.indexOf(xclArr[z]) == -1){
+                    //alert(xclArr[z]); 
+                     testrow += '<tr>   <td><div class="item">'+xclArr[z]+'</div></td></tr>';                     
+                }
+        }   
+        testrow2 += '<tr>   <td><div class="item">&nbsp;</div></td></tr>';
+
+        $('#tbl').html(testrow);
+        $('#tbl').append(testrow2);
+                
+                
+                ///////--------------------------------------------------
+            $('.left .item').draggable({
+                revert:true,
+                proxy:'clone'
+            });
+            $('.right td.drop').droppable({
+                onDragEnter:function(){
+                    $(this).addClass('over');
+                },
+                onDragLeave:function(){
+                    $(this).removeClass('over');
+                },
+                onDrop:function(e,source){
+                    $(this).removeClass('over');
+                    if ($(source).hasClass('assigned')){
+                        $(this).append(source);
+                    } else {
+                        var c = $(source).clone().addClass('assigned');
+                        $(this).empty().append(c);
+                        c.draggable({
+                            revert:true
+                        });
+                    }
+                }
+            });
+            $('.left').droppable({
+                accept:'.assigned',
+                onDragEnter:function(e,source){
+                    $(source).addClass('trash');
+                },
+                onDragLeave:function(e,source){
+                    $(source).removeClass('trash');
+                },
+                onDrop:function(e,source){
+                    $(source).remove();
+                }
+            });
+         $('#automatchButn').hide();
+          $('#canclButn').show();
+    }
+    
+
+function test(){
+        var xclArr = new Array();
+        var sFArr = new Array();
+         location.reload();
+         $('#canclButn').hide();
+         
+    }   
+    </script>
+    
+    
+</head>
+<body>
+    
+<div class="container-fluid">
+<div class="row">
+<div class="col-sm-3"></div>
+<div class="col-sm-5"> 
+    <div style="width:700px;">
+        <div class="left">
+            <table id="tbl" class="table table-hover">
+                
+                <tr>
+                    <td><div class="item excel">salesforce</div></td>
+                </tr>
+                <tr>
+                    <td><div class="item ">lastName</div></td>
+                </tr>
+                <tr>
+                    <td><div class="item">History</div></td>
+                </tr>
+                <tr>
+                    <td><div class="item">Email</div></td>
+                </tr>
+                <tr>
+                    <td><div class="item">Mathematics</div></td>
+                </tr>
+                
+            </table>
+            
+        </div>
+        <div class="right">
+            <table border='1' id="sforcetbl" class="table">
+                <tr>
+                    
+                    <td class="title">salesforce</td>
+                    <td class="drop" width="60px"></td>
+                    </tr>
+                <tr>
+                    <td class="time">lastName</td>
+                    <td class="drop droppable"></td>
+                    
+                </tr>
+                <tr>
+                    <td class="time">FirstName</td>
+                    <td class="drop"></td>
+                    
+                </tr>
+                <tr>
+                    <td class="time">Email</td>
+                    <td class="drop"></td>
+                    
+                </tr>
+                
+                <tr>
+                    <td class="time">Phone</td>
+                    <td class="drop droppable"></td>
+                
+                </tr>
+                
+            </table>
+            
+            
+        </div>
+        <button id='automatchButn' class="btn btn-primary " onClick="exceltbl(); return false;">Auto Match</button>
+        <button  id='canclButn' class="btn btn-primary " onClick="test(); return false;">cancel</button>
+    </div>
+</div>
+</div>
+</div>  
+</body>
+</apex:page>

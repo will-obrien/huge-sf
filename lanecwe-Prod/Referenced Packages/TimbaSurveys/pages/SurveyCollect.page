@@ -1,0 +1,627 @@
+<apex:page sidebar="false" controller="TIMBASURVEYS.SurveyCollectController" tabstyle="Timba_Surveys__tab" showheader="true" standardstylesheets="false">
+
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'inc/css/SurveyCollect.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/collector.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/analyzer_questions_section.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/navigation_survey_analyzer.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'css/tabsDisplay.css')}" />
+    
+	<!-- Add Date Picker Resources -->
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'required/jquery-1.4.2.min.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'jquery.datePicker.min-2.1.2.js')}" />
+    <script type="text/javascript" src="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jqtransformplugin/jquery.jqtransform.js')}" ></script>
+    <script type="text/javascript" src="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'date.js')}" ></script>
+
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__Datepicker, 'datePicker.css')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.TIMBASURVEYS__jqTransform, 'jqtransformplugin/jqtransform.css')}" />
+
+	
+    <apex:include pageName="TIMBASURVEYS__TimbaSurveyStyles" />
+
+
+    <style type="text/css">
+        .dateortime a.dp-choose-date{
+            background: url('{!URLFOR($Resource.TIMBASURVEYS__SurveyPublicResources, '/img/calendar.png')}') right no-repeat;
+            background-repeat:no-repeat;
+            position:absolute;
+            top:0px;
+            left:110px;
+            width:24px;
+            height:24px;
+            overflow:visible;
+            margin-left:3px;
+            text-indent:-9999px;
+            display:block;
+        }
+        .transparentSwitch{
+			zoom: 1;
+			filter: alpha(opacity=50);
+			opacity: 0.5;
+        }
+        .clear{
+        	clear:both;
+        }
+	</style>
+	
+	<script type="text/javascript">
+		var previousDate = "";
+		jQuery(function () {
+			// when input value changes, submit information to controller
+			previousDate = jQuery('#expirationDateInput').val();
+			jQuery('#expirationDateInput').change(function() {
+				var d = jQuery('#expirationDateInput').val();
+				var eDate = new Date();
+				var split = d.split("-",3);
+				var year = parseInt(split[0]);
+				//months in Date object go from 0 to 11
+				var month = split[1] - 1;
+				var day = parseInt(split[2]);
+				eDate.setFullYear(year, month, day);
+
+				if ( wrongDate( eDate ) ){
+					StartDateGraterDialog.show();
+					jQuery('#expirationDateInput').val(previousDate);
+				}else{
+					dataContainerOverlay.show();
+					surveyExpirationDate(true, d);
+					previousDate = d;
+				}
+			});
+		if ({!CurrentSurvey.TIMBASURVEYS__Expiration_Date_Enabled__c}){
+			jQuery('.dateSelectorMaincontainer').show();
+			var tmpDate = new Date();
+			var currentYear = tmpDate.getFullYear();
+			var currentMonth = tmpDate.getMonth() + 1;
+			var currentDay = tmpDate.getDate();
+			var startDate = currentYear + '-' + currentMonth + '-' + currentDay;
+				
+				Date.format = 'yyyy-mm-dd';
+				jQuery('.datepicker').datePicker({
+					clickInput:true,
+					startDate: startDate
+				})
+				.dpSetOffset(25, -5);
+			defaultDate();
+				}
+			});
+	</script>
+
+     <apex:composition template="TIMBASURVEYS__timbaSurveysTemplate">
+    	<!-- customJs Imports & Script Tags -->
+		<apex:define name="customJs">
+  			<apex:include pageName="TIMBASURVEYS__SurveyCollectDataJs" />
+			<apex:include pageName="TIMBASURVEYS__SurveyCollectEmailsJs" />
+		</apex:define>
+	
+	<!-- BreadCrumb -->
+    <apex:define name="breadCrumb">
+    	<c:timbaSurveysBreadCrumb steps="{!$Label.timbasurveys__timbasurveys_Survey_List}:::{!$Page.TIMBASURVEYS__SurveyList},,,{!CurrentSurvey.name}"/>
+	</apex:define>
+
+	<!-- Body Section -->
+	<apex:define name="body">
+	      <apex:outputPanel styleClass="tabSet" layout="block">
+			<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyOverview}" styleClass="tabElem">
+				<apex:param name="id" value="{!SurveyId}"/>
+				<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_overview}" />
+			</apex:outputLink>
+			<apex:outputpanel layout="none" rendered="{!$ObjectType.TIMBASURVEYS__Survey__c.updateable}">
+				<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyPreview}" styleClass="tabElem">
+					<apex:param name="id" value="{!SurveyId}" />
+					<apex:param name="prev" value="true" />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_design}" />
+				</apex:outputLink>
+				<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyCollect}" styleClass="tabElem imIn">
+					<apex:param name="id" value="{!SurveyId}" />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_collect}" />
+				</apex:outputLink>
+			</apex:outputpanel>
+            <apex:outputpanel layout="none" rendered="{!if(CurrentSurvey.TIMBASURVEYS__CollectedResponses__c == 0 , false, true)}">
+				<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}" styleClass="tabElem">
+					<apex:param name="id" value="{!SurveyId}" />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_analize}" />
+				</apex:outputLink>
+			</apex:outputpanel>
+			<div class="marginInf"></div>
+		</apex:outputPanel>
+
+		<div class="banner">
+			<button id="sendButton" class="leftContainer surveyButton" onclick="ShowSendEmailsOverlay();"><img alt="Send" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/mail_send.png')}"/>{!$Label.timbasurveys__timbasurvey_surveyCollect_Send}</button>
+			<button title="{!HTMLENCODE($Label.timbasurveys__timbasurvey_surveyCollect_Print_title)}" id="printToPdfButton" class="leftContainer surveyButton" style="float: right; height: 32px;" onclick="window.open('{!$Page.TIMBASURVEYS__PrintableSurvey}?id={!URLENCODE(CurrentSurvey.Id)}');">
+				<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyCollect_Print}"/>
+			</button>
+		</div>
+
+		<div class="back" id="dataContainerMaster">
+				<apex:outputPanel layout="block" styleClass="brothers" id="brothersWrapper">
+		            <apex:outputPanel id="collectionParameters" styleClass="container" layout="block">
+		                <apex:outputPanel styleClass="fieldTitleA">
+		                    <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Collection_Parameters}" />
+		                </apex:outputPanel>
+		                <apex:outputPanel styleClass="fieldTitleB">
+		                    <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_General}" id="textFieldTitleB" />
+		                </apex:outputPanel>
+
+		                <div class="fieldTitle">
+		                    <div class="content"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Created_On}:" id="contentTitle" /></div>
+		                    <div class="content"><span>&nbsp;<apex:outputText value="{!MONTH(CurrentSurvey.CreatedDate)}" />/<apex:outputText value="{!DAY(CurrentSurvey.CreatedDate)}" />/<apex:outputText value="{!YEAR(CurrentSurvey.CreatedDate)}" /> </span></div>
+		                </div>
+
+						<div id="response" class="fieldTitle">
+							<apex:outputText styleClass="content" value="{!$Label.timbasurveys__timbasurveys_surveycollect_Responses}:" />
+							<span id="responsed" class="content">
+								<apex:outputPanel id="responsesCount" layout="inline" >
+									<apex:outputText value="{!ROUND(CurrentSurvey.TIMBASURVEYS__CollectedResponses__c,0)}" />
+								</apex:outputPanel>
+								<apex:outputpanel layout="none" rendered="{!If(CurrentSurvey.TIMBASURVEYS__CollectedResponses__c == 0 , false, true)}">
+									<apex:outputLink value="{!$Page.TIMBASURVEYS__SurveyAnalyze}">
+										<apex:param name="id" value="{!SurveyId}" />
+										<apex:image value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/big_piechart.png')}" title="{!$Label.timbasurveys__timbasurveys_surveycollect_Results}" alt="{!$Label.timbasurveys__timbasurveys_surveycollect_Results}"/>
+										<apex:outputPanel layout="block">
+											<apex:outputText value="{!$Label.timbasurveys__timbasurveys_tabs_analize}" />
+											<br/>
+											<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Results}" />
+										</apex:outputPanel>
+									</apex:outputLink>
+								</apex:outputpanel>
+							</span>
+						</div>
+
+		                <apex:outputPanel styleClass="fieldTitleB" layout="block">
+		                    <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Collection_Settings}" id="collectionSettingsTxt" />
+		                </apex:outputPanel>
+
+		                <div class="fieldTitle clearb">
+		                    <div class="content">
+		                    	<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Collection}:" id="collectionStats" />
+		                    </div>
+		                    <div class="content">
+		                    	<a id="collectionSwitch" title="{!$Label.timbasurveys__timbasurveys_surveycollect_Collection} {!if(CurrentSurvey.TIMBASURVEYS__CollectingData__c,$Label.timbasurveys__timbasurveys_on, $Label.timbasurveys__timbasurveys_off)}" class="switch {!IF(CurrentSurvey.TIMBASURVEYS__CollectingData__c,'on','')}" href="javascript:;" onclick="setCollection(this);">
+		                    		<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Collection} {!if(CurrentSurvey.TIMBASURVEYS__CollectingData__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}" />
+		                    	</a>
+		                    </div>
+		                </div>
+
+		                <apex:outputPanel layout="block" id="anonymousPanel">
+			                <div class="fieldTitle clearb">
+			                    <div class="content"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Anonymous_Collection}:" id="AnonymousCollectionTxt" /></div>
+			                    <div class="content">
+			                    	<apex:outputPanel layout="none" rendered="{!NOT(CurrentSurvey.TIMBASURVEYS__CollectingData__c)}">
+				                    	<a id="anonymousSwitch" class="switch {!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,'on','')}" href="javascript:;" onclick="dataContainerOverlay.show(); setAnonymous(this);" title="{!$Label.timbasurveys__timbasurveys_surveycollect_Anonymous_Collection} {!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}">
+				                    		<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Anonymous_Collection} {!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}" />
+				                    	</a>
+			                    	</apex:outputPanel>
+			                    	<apex:outputPanel layout="none" rendered="{!CurrentSurvey.TIMBASURVEYS__CollectingData__c}">
+				                    	<div id="anonymousSwitch" class="switch {!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,'on','')} transparentSwitch" title="{!$Label.timbasurveys__timbasurveys_surveycollect_Anonymous_Collection} {!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}">
+				                    		<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Anonymous_Collection} {!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}" />
+				                    	</div>
+			                    	</apex:outputPanel>
+			                    </div>
+			                	<div id="Anonymous_Collection" class="content" style="{!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,'','display:none;')}">
+			                		<div><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Current_Survey_link}:"/></div>
+				                		<apex:outputLink value="{!AnonymousSurveyLink}" target="_blank" id="anonymus_Link">
+				                			<apex:outputText value="{!AnonymousSurveyLinkCut}" />
+				                		</apex:outputLink>
+										<div id='buttonCopyAnonymous' style="border:solid 1px black; width:60px; height:20px;margin:23px 0 -6px -1px;">
+											<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" width="60" height="20" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0">
+											<param name="FlashVars" value="txtToCopy={!URLENCODE(AnonymousSurveyLink)}&js=alertUser()" />
+											<param name="movie" value="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'copyButton.swf')}" />
+											<embed type="application/x-shockwave-flash" href="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'copyButton.swf')}"  src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'copyButton.swf')}"  flashvars="txtToCopy={!URLENCODE(AnonymousSurveyLink)}&js=alertUser()" width="60" height="20" />
+										</object>
+										</div>
+										<!-- CHATTER POSTING -->
+										<apex:outputPanel id="chatter_feed" rendered="{!chatterEnabled}">
+											<div id="Chatter_Switcher" class="fieldTitle clearb" style="display:{!IF(CurrentSurvey.TIMBASURVEYS__AllowAnonymousRecipients__c,'','none')}">
+							                	<div class="content"><apex:outputText value="{!$Label.timbasurveys__timabasurveys_Collector_Chatter}:" id="chatterTxt"/></div>
+						                    	<div class="content">
+						                    		<input type="button" title="Share" onclick="sendByChatterSurvey('on');" name="publishersharebutton" id="publishersharebutton" class="btnPrimary publishersharebutton btn" style="margin-top: 0px;color: #FFFFFF;" value="{!$Label.timbasurveys__timbasurveys_Collector_Share}" />
+						                    		<span id="chatterSent" style="float:right; display:none"></span>
+						                    	</div>
+							                </div>
+					                </apex:outputPanel>
+			                	</div>
+			                </div>
+						</apex:outputPanel>
+		                <div class="fieldTitle clearb">
+		                    <div class="content"><apex:outputText id="allowMultiplesTxt" value="{!$Label.timbasurveys__timbasurveys_surveycollect_Allow_multiples}:" /></div>
+		                    <div class="content">
+		                    	<a id="multiFillSwitch" class="switch {!IF(CurrentSurvey.TIMBASURVEYS__AllowMultiFill__c,'on','')}" href="javascript:;" onclick="dataContainerOverlay.show(); setMulfiFill(this);" title="{!$Label.timbasurveys__timbasurveys_surveycollect_Allow_multiples} {!if(CurrentSurvey.TIMBASURVEYS__AllowMultiFill__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}">
+		                    		<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Allow_multiples} {!if(CurrentSurvey.TIMBASURVEYS__AllowMultiFill__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}" />
+		                    	</a>
+		                    </div>
+		                </div>
+		                <div class="clear"></div>
+		                <div class="fieldTitle clearb">
+		                    <div class="content">
+		                    	<label for="emailNotificationSwitch"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Enable_Notifications}:" /></label>
+		                    </div>
+		                    <apex:outputPanel layout="block" styleClass="content">
+		                    	<a id="emailNotificationSwitch" class="switch {!IF(CurrentSurvey.TIMBASURVEYS__NotifyResponses__c,'on','')}" href="javascript:;" onclick="showEmailNotifications(this);" title="{!$Label.timbasurveys__timbasurveys_surveycollect_Enable_Notifications} {!IF(CurrentSurvey.TIMBASURVEYS__NotifyResponses__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}">
+		                    		<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Enable_Notifications} {!IF(CurrentSurvey.TIMBASURVEYS__NotifyResponses__c,$Label.timbasurveys__timbasurveys_on,$Label.timbasurveys__timbasurveys_off)}" />
+		                    	</a>
+		                    </apex:outputPanel>
+		               		<div id="email_notifications_div" class="content" style="{!IF(CurrentSurvey.TIMBASURVEYS__NotifyResponses__c,'','display:none;')}">
+		               			<apex:outputPanel id="sendNotificationcontainer" layout="block">
+		               				<apex:outputText value="{!$Label.timbasurveys__timbasurveys_Collector_Send_email_notification}:" />
+		               			</apex:outputPanel>
+		               			<input value="{!CurrentSurvey.TIMBASURVEYS__NotificationEmail__c}" type="text" id="email_notifications" onblur="validateMail(this);"/>
+		               			<div id='mail_error'></div>
+		               		</div>
+		                </div>
+
+						<apex:outputPanel layout="block" styleClass="fieldTitle clearb" id="expirationDate">
+							<apex:outputPanel layout="block" styleClass="content">
+								<apex:outputText id="enableExpirationDateLabelTxt" value="{!$Label.timbasurveys__timbasurveys_surveycollect_Enable_Expiration_Date}:" />
+							</apex:outputPanel>
+							<apex:outputPanel layout="block" styleClass="content">
+								<apex:outputLink id="outPutexpired" styleClass="switch {!if(CurrentSurvey.TIMBASURVEYS__Expiration_Date_Enabled__c,'on','')}" value="javascript:;" onClick="dataContainerOverlay.show();onOfExpirationDate(this);" >
+									<span class="noDisplay" id="enableExpirationDateLnkTxt">
+										<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Switch_expiration_date} {!if(CurrentSurvey.TIMBASURVEYS__Expiration_Date_Enabled__c,$Label.timbasurveys__timbasurveys_off,$Label.timbasurveys__timbasurveys_on)}" />
+									</span>
+								</apex:outputLink>
+							</apex:outputPanel>
+
+							<div class="dateSelectorMaincontainer" style="display:{!IF(CurrentSurvey.TIMBASURVEYS__Expiration_Date_Enabled__c,'block','none')}">
+							<apex:outputPanel styleClass="dateSelectorWrapper" layout="block">
+					            <apex:outputPanel styleClass="dateortime" layout="block" style="width: 160px; position: relative; display: block;">
+					            	<apex:outputPanel styleClass="jqTransformInputWrapper" layout="block">
+					            		<apex:outputPanel styleClass="jqTransformInputInner" layout="block">
+					            			<input class="datepicker" id="expirationDateInput" type="text" maxlength="70" value="{!YEAR(CurrentSurvey.TIMBASURVEYS__Expiration_Date__c)}-{!if(MONTH(CurrentSurvey.Expiration_Date__c) > 9, '', '0')}{!MONTH(CurrentSurvey.Expiration_Date__c)}-{!DAY(CurrentSurvey.TIMBASURVEYS__Expiration_Date__c)}" />
+					            		</apex:outputPanel>
+					            	</apex:outputPanel>
+					            </apex:outputPanel>
+							</apex:outputPanel>
+						</div>
+						</apex:outputPanel>
+
+		                <div class="fieldTitle clearb">
+		                    <div class="content"><span>{!$Label.timbasurveys__timbasurveys_surveycollect_Create_Leads_from}:</span></div>
+		                    <div class="content"><a class="switch {!IF(CurrentSurvey.TIMBASURVEYS__CreateLeads__c,'on','')}" href="javascript:;" onclick="dataContainerOverlay.show(); saveLeadCatching(this);">switch_create_recipients</a></div>
+		                	<div id="Create_Leads" class="content" style="{!IF(CurrentSurvey.TIMBASURVEYS__CreateLeads__c,'','display:none;')}">
+		                		<div><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Create_Leads}" /></div>
+		                		<a title=" {!$Label.timbasurveys__timbasurveys_surveycollect_if_create}" ><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/info.png')}" /></a>
+								<apex:outputPanel layout="none" rendered="{!CurrentSurvey.TIMBASURVEYS__RequireLeads__c}">
+									<input type="checkbox" onclick= "CreateLavels();" id="required_lead_data" checked="checked"/> {!$Label.timbasurveys__timbasurveys_surveycollect_the_info}
+								</apex:outputPanel>
+								<apex:outputPanel layout="none" rendered="{!NOT(CurrentSurvey.TIMBASURVEYS__RequireLeads__c)}">
+									<input type="checkbox" onclick= "CreateLavels();" id="required_lead_data" /> {!$Label.timbasurveys__timbasurveys_surveycollect_the_info}
+								</apex:outputPanel>
+		                	</div>
+			                <div class="fieldTitleB">
+			                    <apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_email_template}" id="fieldTitleBTxt" />
+			                </div>
+			                <div>
+			                   <button  class="surveyButton" onClick="etampalte();" ><img alt="" class="customimg" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/custom.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_customize_email}</button>
+			                </div>
+			            </div>
+		            </div>
+					<div class="separador"></div>
+				<apex:outputPanel layout="block" styleClass="collectabe" id="recipienListContainer">
+						<apex:outputPanel styleClass="titleC" layout="block">
+							<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Recipients}" />
+						</apex:outputPanel>
+						<div class="contCollect" id="contCollectRecipient">
+							<apex:outputPanel styleClass="contCollectHead" layout="block">
+								<apex:outputPanel styleClass="cantidad" layout="block">
+									<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Total_Recipients}:" />
+								</apex:outputPanel>
+								<apex:outputText id="numTot" styleClass="number" value="{!recipientCount}" />
+								<button id="clearBTN" class="clearBTN" onclick="clearAll();"><img class="clearImg" style="padding-bottom:2px; vertical-align:middle;" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/trashcan.png')}"/>
+									<apex:outputText styleClass="clearText" value="{!$Label.timbasurveys__timbasurveys_surveycollect_Clear_Not_Sent}" />
+								</button>
+							</apex:outputPanel>
+							<apex:outputPanel id="recipientsListPanel" layout="block" styleClass="contCollectCont">
+								<ul id="ul_collect" class="listCollect">
+									  <apex:repeat value="{!Recipient_list}" var="item" id="repeatRecipientList">
+									  	<li title ="{!item.Type_C}" class="{!if(item.Collected,'collected',if(item.Invitation,'waiting','addedContact'))}" id="{!item.Id}">
+									  		<div class="imgS">
+									  			<img src="{!IF(item.styleClass == 'EmailSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/mail_big.png'), '')}{!IF(item.styleClass == 'EmailInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/mail-pending.png'), '')}{!IF(item.styleClass == 'EmailCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/mail-received.png'), '')}{!IF(item.styleClass == 'LeadCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/lead-received.png'), '')}{!IF(item.styleClass == 'LeadInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/lead-pending.png'), '')}{!IF(item.styleClass == 'LeadSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/lead_big.png'), '')}{!IF(item.styleClass == 'ContactCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/contacticon_collected_big.png'), '')}{!IF(item.styleClass == 'ContactInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/contacticon_waiting_big.png'), '')}{!IF(item.styleClass == 'ContactSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/contacticon_big.png'), '')}{!IF(item.styleClass == 'UserCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/users-received.png'), '')}{!IF(item.styleClass == 'UserInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/users-pending.png'), '')}{!IF(item.styleClass == 'UserSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/usersicon_big.png'), '')}" />
+									  		</div>
+									  		<div class="textS">
+									  			<div class="nomP"><apex:outputText value="{!if(LEN(item.Name) > 17, LEFT(item.Name,17) & '...', item.Name)}" /></div>
+									  			<div class="nomE"><apex:outputText value="{!if(LEN(item.Email) > 22, LEFT(item.Email,22) & '...', item.Email)}" /></div>
+
+									  		</div>
+
+									  		<apex:outputPanel layout="none" rendered="{!IF(item.Invitation && !item.Collected,true,false)}">
+									  			<div class="waitingText">{!$Label.timbasurveys__timbasurveys_surveycollect_not_completed}</div>
+									  		</apex:outputPanel>
+									  		<apex:outputPanel layout="none" rendered="{!IF(item.Collected,true,false)}">
+									  			<apex:outputPanel layout="none" rendered="{!IF(item.SurveySummary!=null,true,false)}">
+									  			
+									  			<apex:outputPanel styleClass="viewReply" layout="block">
+									  				<apex:outputLink styleClass="textContent" value="{!$Page.TIMBASURVEYS__SurveySummary}">
+									  					<apex:param name="id" value="{!item.SurveySummary}" />
+									  					&nbsp;{!$Label.timbasurveys__timbasurveys_surveycollect_View_Reply}&nbsp;
+									  				</apex:outputLink>
+									  			</apex:outputPanel>
+
+									  			</apex:outputPanel>
+									  			<apex:outputPanel layout="none" rendered="{!IF(item.SurveySummary==null,true,false)}">
+									  				<div class="viewReply"><div>{!$Label.timbasurveys__timbasurveys_surveycollect_Multiples} <br/>{!$Label.timbasurveys__timbasurveys_surveycollect_Responses} </div></div>
+									  			</apex:outputPanel>
+									  		</apex:outputPanel>
+
+									  		<apex:outputPanel layout="none" rendered="{!if(item.Collected,false,if(item.Invitation,false,true))}">
+												<div class="remuve_Recipcient" id="{!item.Id}" style="display:none;"></div>
+									  			<div class="close"><a href="javascript:;" class="remove" onclick="remove_recipient('{!JSENCODE(item.Id)}','{!JSENCODE(item.Type_c)}','{!item.Collected}');"><img border="0" class="closeImg" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/icons/gray_cross.png')}" /></a></div>
+									  		</apex:outputPanel>
+
+										    <apex:outputPanel layout="none" rendered="{!IF(item.Type_C!='User' && item.Type_C!='Email',true,false)}">
+									  			<a class="viewReply2" href="javascript:;"  onclick="fill_survey('{!JSENCODE(item.Id)}','{!JSENCODE(item.Type_c)}');"><img border="0" id="A{!item.Id}" onmouseover="sizeImg('A{!item.Id}')" onmouseout="sizeImge('A{!item.Id}')" width="10" height="25" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/fill_survey.PNG')}" /></a>
+										    </apex:outputPanel>
+										</li>
+							  		 </apex:repeat>
+								   <li id="more_" style="{!if(Recipient_CollectorController.renderNext,'','display:none')};" >
+								  		<div id="more_Text" onclick="paginationNext_more();"><a href="javascript:;">{!$Label.timbasurveys__timbasurveys_surveycollect_VIEW_MORE}</a></div>
+								  		<div id="more_Img" style='display:none;'><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/remove_loading.gif')}"/></div>
+				  				   </li>
+								</ul>
+							</apex:outputPanel>
+							<apex:outputPanel id="listCollectPanel" layout="block" style="display: none">
+								<ul id="ul_Hide" class="listCollect">
+									  <apex:repeat value="{!Recipient_list}" var="item" id="repeatRecipientListHide">
+									  	<li title ="{!item.Type_C}" class="{!if(item.Collected,'collected',if(item.Invitation,'waiting','addedContact'))}" id="{!item.Id}">
+									  		<div class="imgS">
+									  			<img src="{!IF(item.styleClass == 'EmailSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/mail_big.png'), '')}{!IF(item.styleClass == 'EmailInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/mail-pending.png'), '')}{!IF(item.styleClass == 'EmailCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/mail-received.png'), '')}{!IF(item.styleClass == 'LeadCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/lead-received.png'), '')}{!IF(item.styleClass == 'LeadInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/lead-pending.png'), '')}{!IF(item.styleClass == 'LeadSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/lead_big.png'), '')}{!IF(item.styleClass == 'ContactCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/contacticon_collected_big.png'), '')}{!IF(item.styleClass == 'ContactInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/contacticon_waiting_big.png'), '')}{!IF(item.styleClass == 'ContactSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/contacticon_big.png'), '')}{!IF(item.styleClass == 'UserCollect', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/users-received.png'), '')}{!IF(item.styleClass == 'UserInvitation', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/users-pending.png'), '')}{!IF(item.styleClass == 'UserSalved', URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/usersicon_big.png'), '')}" />
+									  		</div>
+									  		<div class="textS">
+									  			<div class="nomP"><apex:outputText value="{!if(LEN(item.Name) > 17, LEFT(item.Name,17) & '...', item.Name)}" /></div>
+									  			<div class="nomE"><apex:outputText value="{!if(LEN(item.Email) > 22, LEFT(item.Email,22) & '...', item.Email)}" /></div>
+
+									  		</div>
+
+									  		<apex:outputPanel layout="none" rendered="{!IF(item.Invitation && !item.Collected,true,false)}">
+									  			<div class="waitingText">{!$Label.timbasurveys__timbasurveys_surveycollect_not_completed}</div>
+									  		</apex:outputPanel>
+									  		<apex:outputPanel layout="none" rendered="{!IF(item.Collected,true,false)}">
+									  			<apex:outputPanel layout="none" rendered="{!IF(item.SurveySummary!=null,true,false)}">
+									  			
+									  			<apex:outputPanel styleClass="viewReply" layout="block">
+									  				<apex:outputLink styleClass="textContent" value="{!$Page.TIMBASURVEYS__SurveySummary}">
+									  					<apex:param name="id" value="{!item.SurveySummary}" />
+									  					&nbsp;{!$Label.timbasurveys__timbasurveys_surveycollect_View_Reply}&nbsp;
+									  				</apex:outputLink>
+									  			</apex:outputPanel>
+
+									  			</apex:outputPanel>
+									  			<apex:outputPanel layout="none" rendered="{!IF(item.SurveySummary==null,true,false)}">
+									  				<div class="viewReply"><div>{!$Label.timbasurveys__timbasurveys_surveycollect_Multiples} <br/>{!$Label.timbasurveys__timbasurveys_surveycollect_Responses} </div></div>
+									  			</apex:outputPanel>
+									  		</apex:outputPanel>
+
+									  		<apex:outputPanel layout="none" rendered="{!if(item.Collected,false,if(item.Invitation,false,true))}">
+												<div class="remuve_Recipcient" id="{!item.Id}" style="display:none;"></div>
+									  			<div class="close"><a href="javascript:;" class="remove" onclick="remove_recipient('{!JSENCODE(item.Id)}','{!JSENCODE(item.Type_c)}','{!item.Collected}');"><img border="0" class="closeImg" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/icons/gray_cross.png')}" /></a></div>
+									  		</apex:outputPanel>
+
+										    <apex:outputPanel layout="none" rendered="{!IF(item.Type_C!='User' && item.Type_C!='Email',true,false)}">
+									  			<a class="viewReply2" href="javascript:;"  onclick="fill_survey('{!JSENCODE(item.Id)}','{!JSENCODE(item.Type_c)}');"><img border="0" id="A{!item.Id}" onmouseover="sizeImg('A{!item.Id}')" onmouseout="sizeImge('A{!item.Id}')" width="10" height="25" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2, 'img/collector/fill_survey.PNG')}" /></a>
+										    </apex:outputPanel>
+										</li>
+							  		 </apex:repeat>
+								   <li id="more_" style="{!if(Recipient_CollectorController.renderNext,'','display:none')};" >
+								  		<div id="more_Text" onclick="paginationNext_more();"><a href="javascript:;">{!$Label.timbasurveys__timbasurveys_surveycollect_VIEW_MORE}</a></div>
+								  		<div id="more_Img" style='display:none;'><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/remove_loading.gif')}"/></div>
+				  				   </li>
+								</ul>
+							</apex:outputPanel>
+							<div class="contCollectBottom" >
+								<button  class="surveyButton" onclick="showSurveymodeCollection();">
+									<img class="addRecipientsImg" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/add_recipient_icon.png')}"/>
+									<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Add_Recipients}" />
+								</button>
+							</div>
+						</div>
+
+						<div id='errorEmails' class='ErrorCollect' style='display:none'>
+							<label for="errorEmailsButton"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_wron_email_format}" /></label><br/><br/>
+							<a id='errorEmailsButton' href="javascript:;" onclick="EmailsCollectorErrorDijit.show();">
+								<apex:outputText styleClass="addRecipientsText" value="{!$Label.timbasurveys__timbasurveys_surveycollect_view_emails}" />
+							</a>
+						</div>
+						<div id='errorDuplicated' class='ErrorCollect' style='display:none'>
+							<label for="errorEmailsButton"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Duplicate_ContactsUsers}." /></label><br/><br/>
+							<a id='errorEmailsButton' href="javascript:;" onclick="DuplicatedError.show();">
+								<apex:outputText styleClass="addRecipientsText" value="{!$Label.timbasurveys__timbasurveys_surveycollect_view_emails}" />
+							</a>
+						</div>
+						<br/>
+						<div id='errorLeadContact' class='ErrorCollect' style='display:none'>
+							<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_one_or_more}" /><br />
+							<div id='errorLeadContactNoAccount' style='display:none'>
+								<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_no_account_asigned}" /><br />
+							</div>
+							<div id='errorLeadContactBounced' style='display:none'>
+								<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_bounced_emails}" /><br />
+							</div>
+							<div id='errorLeadContactMail' style='display:none'>
+								<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_are_missing}" /><br />
+							</div>
+							<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_please_update}." />
+							<br/><br/>
+							<a id="errorEmailsButton" href="javascript:;" onclick="LeadContactCollectorError.show();">
+								<apex:outputText styleClass="addRecipientsText" value="{!$Label.timbasurveys__timbasurveys_surveycollect_view}" />
+							</a>
+						</div>
+				</apex:outputPanel>
+		     </apex:outputPanel>
+		     <div style='clear:both;margin-top:7px;padding:9px 0 0;' ></div>
+		</apex:outputPanel>
+			<div data-dojo-id="dataContainerOverlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target:'dataContainerMaster', color:'white'"></div>
+			<div data-dojo-id="surveymodeCollectionOverlay" data-dojo-type="dojox.widget.Standby" data-dojo-props="target:'surveymodeCollection', color:'white'"></div>
+			<div id="surveymodeCollection" data-dojo-id="surveymodeCollectionDijit" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurveys__timbasurvey_Collect_Select_Recipient}" onCancel="closeSurveymodeCollection();" style="width:922px; height:auto;">
+				<div id="bodyModalCollection" style="width: 878px; height: 530px;">
+					<div id="pageContainer_html" class="pageContainer" style="width: 868px; height: 451px;">
+						<!-- <Tab Panel Html> -->
+						<div id="tabPanel">
+							<ul>
+								<li class="selected" onclick="selectEmails(this);"><a href="javascript:;"><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/emailicon.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_Emails}</a></li>
+								<li onclick="selectContact(this);"><a href="javascript:;"><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/contacticon.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_Contacts}</a></li>
+								<li onclick="selectUsers(this);"><a href="javascript:;"><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/usersicon.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_Users}</a></li>
+								<li onclick="selectLeads(this);"><a href="javascript:;"><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/leadsicon.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_Leads}</a></li>
+							</ul>
+						</div>
+						<div class="tabFooter">&nbsp;</div>
+						<!-- </Tab Panel Html> -->
+						<div class="pageContent">
+							<iframe id="theIframeEmail" class='theIframe' name="theIframeEmail" width="856px" height="449px" onload="loadingtheIframeEmailFin();" scrolling="no" frameborder="0"></iframe>
+							<iframe id="theIframeContact"  class='theIframe' name="theIframeContact" width="856px" height="449px" onload="loadingtheIframeContacFin();" scrolling="no" frameborder="0"></iframe>
+							<iframe id="theIframeUser" class='theIframe' name="theIframeUser" width="856px" height="449px" onload="loadingtheIframeUserFin();" scrolling="no" frameborder="0"></iframe>
+							<iframe id="theIframeLeads" class='theIframe' name="theIframeLeads" width="856px" height="449px" onload="loadingtheIframeLeadsFin();" scrolling="no" frameborder="0"></iframe>
+						</div>
+					</div>
+				</div>
+
+				<button id="cancelButton" class="leftContainer surveyButton" onClick="surveymodeCollectionDijit.onCancel();" ><img alt="Cancel" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_Cancel}</button>
+				<button id="doneButton" class="leftContainer surveyButton" onClick="LoadingDataIframe();" ><img alt="{!$Label.timbasurveys__timbasurveys_surveycollect_Done}" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/overlay/okicon.png')}"/>{!$Label.timbasurveys__timbasurveys_surveycollect_Done}</button>
+
+			</div>
+
+			<div id="EmailsCollectorError" data-dojo-id="EmailsCollectorErrorDijit" data-dojo-type="dijit.Dialog" title="{!$Label.timbasurveys__timbasurveys_surveycollect_wron_email_format}" >
+				<div id='errorEmailDiv'></div>
+			</div>
+
+			<div id="LeadContactCollectorError" data-dojo-id="LeadContactCollectorError" style='height:200px;width:450px;'  onCancel="clearErrorLeadContact();" data-dojo-type="dijit.Dialog" title="" >
+				<div id='errorLeadContactDiv'><table id='tableErrorLeadContact'></table></div>
+				<a id='errorEmailsButton' href="javascript:;" onclick="clearErrorLeadContact();">
+					<span class="addRecipientsText">{!$Label.timbasurveys__timbasurveys_surveycollect_Clear}</span>
+				</a>
+			</div>
+
+			<div id="DuplicatedError" data-dojo-id="DuplicatedError" style='height:200px;width:350px;' data-dojo-type="dijit.Dialog" title="" onCancel="closeShowDuplicated();">
+				<div id='errorDuplicatedDiv'><table id='tableErrorDuplicated'></table></div>
+			</div>
+
+
+		    <div id="sendEmailsOverlay" data-dojo-id="sendEmailsOverlayDijit" data-dojo-type="dijit.Dialog" color="white" title="{!$Label.timbasurveys__timbasurvey_Collect_Send_to}:" style="height: auto; width: 500px;">
+		    	<apex:outputPanel layout="block" id="optionSendContainer" styleClass="optionSend">
+			    	<input type="radio" class='radio' name='radio' value='1' checked="checked"/><div id="radio1"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Recipients_who_have_recieved}."/></div>
+		    	<input type="radio" class='radio' name='radio' value='2'/><div id="radio2"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Recipients_who_have_not}."/></div>
+		    	<input type="radio" class='radio' name='radio' value='3'/><div id="radio3"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_all_recipients}."/></div>
+			    	<apex:outputPanel layout="none" rendered="{!Recipient_list.size > 1}">
+			    		<input type="radio" class='radio' name='radio' value='4' id='radioSendToSelected'/><div id="radio4"><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_send_to_selected}."/></div>
+			    	</apex:outputPanel>
+		    	</apex:outputPanel>
+		    	<div id="CportalDiv"></div>
+		    	<button id="cancelButton" class="leftContainer surveyButton" onClick="sendEmailsOverlayDijit.hide();"><img alt="{!$Label.timbasurveys__timbasurvey_surveylist_cancel}" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurveys__timbasurvey_surveylist_cancel}</button>
+				<button id="doneButton" class="leftContainer surveyButton" onClick="verifySelectedOption();" ><img alt="{!$Label.timbasurveys__timbasurvey_surveyCollect_Send}" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/mail_send.png')}"/>{!$Label.timbasurveys__timbasurvey_surveyCollect_Send}</button>
+		    </div>
+		    
+		    <div id="sendToSelectedRecipient" data-dojo-id="sendToSelectedRecipientDijit" data-dojo-type="dijit.Dialog" color="white" title="{!$Label.timbasurveys__timbasurveys_surveycollect_send_to_selected}:" style="height: auto; width: 500px;">
+			    	<apex:outputPanel id="selectRecipientListContainer" layout="block">
+				    	<div id='recipientListContainer'>
+				    		<apex:outputPanel id="selectedRecipientsListPanel" layout="block" styleClass="visibleRecipient">
+					    		<ul id="ul_collectSelectRecipient" class="listCollect" >
+									  <apex:repeat value="{!Recipient_list}" var="item" id="selectedRecipientList">
+									  	<li title ="{!item.Type_C}" class="selectedRecipientLi" id="{!item.Id}">
+									  		<div class="columnsSelectRecip">
+										  		<div class="recipientSelect">
+										  			<input type="checkbox" class="checkbox" name="checkbox" value="{!item.Id}" onchange="verifySelectedRecipient();"/>
+										  		</div>
+										  		<div class="recipientName">
+										  			<apex:outputText value="{!item.Name}" />
+										  		</div>
+									  		</div>
+										</li>
+							  		 </apex:repeat>
+							  		 <li id="more" style="{!if(Recipient_CollectorController.renderNext,'','display:none')};" >
+								  		<div id="moreText" onclick="paginationNextSelectRecipient();"><a href="javascript:;">{!$Label.timbasurveys__timbasurveys_surveycollect_VIEW_MORE}</a></div>
+								  		<div id="moreImg" style='display:none;'><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/remove_loading.gif')}"/></div>
+				  				   	 </li>
+								</ul>
+							</apex:outputPanel>
+							<apex:outputPanel id="listCollectPanelHide" layout="block" style="display: none">
+					    		<ul id="ul_HideSelectRecipient" class="listCollect" >
+									  <apex:repeat value="{!Recipient_list}" var="item" id="selectedRecipientListHide">
+									  	<li title ="{!item.Type_C}" class="selectedRecipientLi" id="{!item.Id}">
+									  		<div class="columnsSelectRecip">
+										  		<div class="recipientSelect">
+										  			<input type="checkbox" class="checkbox" name="checkbox" value="{!item.Id}" onchange="verifySelectedRecipient();"/>
+										  		</div>
+										  		<div class="recipientName">
+										  			<apex:outputText value="{!item.Name}" />
+										  		</div>
+									  		</div>
+										</li>
+							  		 </apex:repeat>
+							  		 <li id="more" style="{!if(Recipient_CollectorController.renderNext,'','display:none')};" >
+								  		<div id="moreText" onclick="paginationNextSelectRecipient();"><a href="javascript:;">{!$Label.timbasurveys__timbasurveys_surveycollect_VIEW_MORE}</a></div>
+								  		<div id="moreImg" style='display:none;'><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/remove_loading.gif')}"/></div>
+				  				   	 </li>
+								</ul>
+							</apex:outputPanel>
+				    	</div>
+			    	</apex:outputPanel>
+		    	<div class="buttonsSelectRecip">
+	    			<button id="cancelButton" class="leftContainer surveyButton" onClick="sendToSelectedRecipientDijit.hide();"><img alt="{!$Label.timbasurveys__timbasurvey_surveylist_cancel}" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/overlay/cancelicon.png')}"/>{!$Label.timbasurveys__timbasurvey_surveylist_cancel}</button>
+					<button id="doneButton" class="leftContainer surveyButton verifySelectedRecip" onClick="sendSelectedRecipient();" ><img alt="{!$Label.timbasurveys__timbasurvey_surveyCollect_Send}" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/mail_send.png')}"/>{!$Label.timbasurveys__timbasurvey_surveyCollect_Send}</button>
+	    		</div>
+		    </div>
+
+			<form id='textAreaIdSend' style="display:none;">
+				<textarea id='pE' name='pE' cols="300"></textarea>
+				<textarea id='cIds' name='cIds' cols="300"></textarea>
+				<textarea id='LIds' name='LIds' cols="300"></textarea>
+				<textarea id='uIds' name='uIds' cols="300"></textarea>
+				<input id='isAnonymous' name='isAnonymous' type="text" />
+				<input id='send_to_all' name='send_to_all' type="text" value='false'/>
+				<input id='toc' name='toc' type="text"/>
+			</form>
+
+			<div data-dojo-id="progresSendEmailsDijit" id="progresSendEmails" data-dojo-type="dijit.Dialog"  color="white" title="{!$Label.timbasurveys__timbasurvey_Collect_Sending_Email}" style="height: 180px; width:247px;" >
+				<div id='titleSend'><apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Sending}..."/></div>
+				<div id='progresBar'>
+					<img alt="{!$Label.timbasurveys__timbasurveys_surveycollect_Sending}" src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources2,'img/collector/sendEmailProgres.gif')}"/>
+					<div id='bar'></div>
+				</div>
+				<div id='dataProgres'>
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Loading}" />
+				</div>
+			</div>
+
+			<div data-dojo-id="emailTemplateErrorDijit" id="emailTemplateError" data-dojo-type="dijit.Dialog"  color="white" title="Config Email" onCancel="return false;">
+				<div id="email_template_missing_message" class='email_template_missing_message'  style="display:{!IF(!existEmailTemplate,'','none')}"><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'imgs/icons/block_64.png')}" />
+					<br />
+					<br />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_The_email_template}." /> <br />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Please_reset_your}." />
+					<br />
+					<button id="recreate" class="surveyButton" 	onClick="mesageErrorTemplate(1);">{!$Label.timbasurveys__timbasurveys_surveycollect_Reset_Email_Template}</button>
+				</div>
+
+				<div id="email_template_broken_message" class='email_template_missing_message' style="display:{!IF(emailtemplateBroken,'','none')}"><img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'imgs/icons/block_64.png')}" />
+					<br />
+					<br />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_An_error_occurred}." /><br />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Please_reset_your}." />
+					<br />
+					<button id="reset" class="surveyButton" onClick="mesageErrorTemplate(2);">{!$Label.timbasurveys__timbasurveys_surveycollect_Reset_Email_Template}</button>
+				</div>
+				
+				<div data-dojo-type="dijit.Dialog" id="StartDateGrater" data-dojo-id="StartDateGraterDialog" title="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Select_Dates}">
+    				<apex:outputText value="{!$Label.timbasurveys__timbasurvey_surveyBrowser_Expiration_Date_Lower_Today}." />
+    			</div>
+
+				<div id="portal_email_template_broken_message" class='email_template_missing_message' style="display:{!IF(fixCpBody,'','none')} ">
+					<img src="{!URLFOR($Resource.TIMBASURVEYS__SurveyResources, 'imgs/icons/block_64.png')}" />
+					<br />
+					<br />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_The_customer}."/><br />
+					<apex:outputText value="{!$Label.timbasurveys__timbasurveys_surveycollect_Please_reset_your}." />
+					<br />
+					<button id="cp_reset" class="surveyButton" onClick="mesageErrorTemplate(3);">{!$Label.timbasurveys__timbasurveys_surveycollect_Reset_Email_Template}</button>
+				</div>
+		</div>
+  		<div data-dojo-id="errorLeadContactDijit" id="errorEmailLeadContact" data-dojo-type="dijit.Dialog" class="ErrorCollect" color="white" title="Email not valid" onCancel="clearErrorEmailLeadContact();" >
+			<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_one_or_more}" /> <br />
+  			<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_bounced_emails}" /> <br />
+  			<apex:outputLabel value="{!$Label.timbasurveys__timbasurveys_surveycollect_please_update}." /><br/><br/>
+			<div id='errorLeadContactDiv'><table id='tableEmailErrorLeadContact'></table></div>
+			<a id='errorEmailsButton' href="javascript:;" onclick="clearErrorEmailLeadContact();">
+				<apex:outputText styleClass="addRecipientsText" value="{!$Label.timbasurveys__timbasurveys_surveycollect_Clear}" />
+			</a>
+  		</div>
+  		</apex:define>
+	</apex:composition>
+</apex:page>
