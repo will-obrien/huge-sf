@@ -1,1 +1,1 @@
-	DivZero.cls 2sfXEhrDivZero.cls
+	 2sfXGhrDivZero.cls

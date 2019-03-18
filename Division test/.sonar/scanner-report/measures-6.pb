@@ -1,7 +1,5 @@
 
-comment_lines#
-comment_lines_data2
-1=1;2=1;3=1
+comment_lines
 
 complexityB
 file_complexity_distribution2"
